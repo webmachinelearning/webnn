@@ -6,7 +6,7 @@ Status: CG-DRAFT
 Group: webml
 URL: https://webmachinelearning.github.io/webnn/
 Editor: Your Name, Your Company http://example.com/your-company, your-email@example.com, http://example.com/your-personal-website
-Abstract: A dedicated API for neural network inference hardware acceleration.
+Abstract: This document describes a dedicated low-level API for neural network inference hardware acceleration.
 Repository: https://github.com/webmachinelearning/webnn
 </pre>
 
@@ -18,5 +18,160 @@ Introduction here.
 Use cases {#usecases}
 =====================
 
-Use cases here.
+## High-Level Use Cases ## {#usecases-highlevel}
 
+This section illustrates application-level use cases for the Web Machine
+Learning API (WebML API). All applications in those use cases can be built on
+top of pre-trained deep neural network (DNN) models.
+
+### Person Detection ### {#usecase-person-detection}
+
+A user is browsing a social media site and wishes to take a photo and upload it
+to the site. Before the photo is uploaded, the site runs [[SSD]] or [[YOLO]] on
+the WebML API to detect regions that include persons so that the user can filter
+and de-personalize irrelevant persons on it.
+
+### Skeleton Detecton ### {#usecase-skeleton-detection}
+
+A user opens a web application that continuously captures her body with her
+smartphone's camera. The web application extracts her skeleton by running
+[[PoseNet]] on the WebML API to recognize her gesture or body language. When she
+strikes a specified pose like raising a hand, the web application automatically
+takes a photo and upload it to an online storage.
+
+### Random Image Generation ### {#usecase-image-generation}
+
+A user wishes to make her new account and looks for a new icon image. When she
+clicks a "Generate" button on the webpage for creating an account, the webpage
+runs a generator model of generative adversarial network (GAN) for icon
+synthesis [[LogoSynthesis]] on the WebML API. She can repeat random icon
+generation until she finds her favorite one.
+
+## Low-Level Use Cases ## {#usecases-lowlevel}
+
+This section collects API-level use cases for the WebML API. It is supposed that
+ML frameworks refer to WebML API so that application developers can make use of
+those capabilities via the frameworks.
+
+### Custom Layer ### {#usecase-custom-layer}
+
+A web application developer wants to run a DNN model on the WebML. However, she
+has found that some of activation functions like [[LeakyReLU]], [[ELU]], etc. are
+not included in the WebML API. So she constructs custom layers of the additional
+activation functions on top of the WebML API. Note that the scope of custom
+layers may include convolution, normalization, etc. as well as activation.
+
+### Network Concatenation ### {#usecase-network-concat}
+
+A web application developer is trying to implement a DNN model that refers to
+outputs from some convolutional layer in [[MobileNets]] or [[ResNet]] as a
+feature map. She wants to use a pre-trained model of these networks to reduce
+training time. So she implements her network architecture so that its input is
+the output of convolutional layers of pre-trained MobileNets or ResNet models.
+
+### Performance Adaptation ### {#usecase-perf-adapt}
+
+A web application developer has a concern about performance of her DNN model on
+mobile devices. She has confirmed that the model runs too slow on mobile devices
+which does not have GPU acceleration. So her web application refers to the WebML
+API to confirm whether acceleration is available or not, so that the application
+can display the warning for devices without acceleration.
+
+After several weeks, she has developed a tiny DNN model that can even run on
+CPU. So she modifies the application so that the application loads the tiny
+model in the case of CPU-only devices.
+
+<pre class="biblio">
+{
+  "SSD": {
+    "href": "https://arxiv.org/abs/1512.02325",
+    "title": "SSD: Single Shot MultiBox Detector",
+    "authors": [
+      "Wei Liu",
+      "Dragomir Anguelov",
+      "Dumitru Erhan",
+      "Christian Szegedy",
+      "Scott Reed",
+      "Cheng-Yang Fu",
+      "Alexander C. Berg"
+    ],
+    "date": "December 2016"
+  },
+  "YOLO": {
+    "href": "https://arxiv.org/abs/1506.02640",
+    "title": "You Only Look Once: Unified, Real-Time Object Detection",
+    "authors": [
+      "Joseph Redmon",
+      "Santosh Divvala,",
+      "Ross Girshick",
+      "Ali Farhadi"
+    ],
+    "date": "May 2016"
+  },
+  "PoseNet": {
+    "href": "https://medium.com/tensorflow/real-time-human-pose-estimation-in-the-browser-with-tensorflow-js-7dd0bc881cd5",
+    "title": "Real-time Human Pose Estimation in the Browser with TensorFlow.js",
+    "authors": [
+      "Dan Oved"
+    ],
+    "date": "May 2018"
+  },
+  "LogoSynthesis": {
+    "href": "https://arxiv.org/abs/1712.04407",
+    "title": "Logo Synthesis and Manipulation with Clustered Generative Adversarial Networks",
+    "authors": [
+      "Alexander Sage",
+      "Eirikur Agustsson",
+      "Radu Timofte",
+      "Luc Van Gool"
+    ],
+    "date": "December 2017"
+  },
+  "LeakyReLU": {
+    "href": "https://pdfs.semanticscholar.org/367f/2c63a6f6a10b3b64b8729d601e69337ee3cc.pdf",
+    "title": "Rectifier Nonlinearities Improve Neural Network Acoustic Models",
+    "authors": [
+      "Andrew L. Maas",
+      "Awni Y. Hannun",
+      "Andrew Y. Ng"
+    ],
+    "date": "June 2013"
+  },
+  "ELU": {
+    "href": "https://arxiv.org/abs/1511.07289",
+    "title": "Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)",
+    "authors": [
+      "Djork-Arné Clevert",
+      "Thomas Unterthiner",
+      "Sepp Hochreiter"
+    ],
+    "date": "February 2016"
+  },
+  "MobileNets": {
+    "href": "https://arxiv.org/abs/1704.04861",
+    "title": "MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications",
+    "authors": [
+      "Andrew G. Howard",
+      "Menglong Zhu",
+      "Bo Chen",
+      "Dmitry Kalenichenko",
+      "Weijun Wang",
+      "Tobias Weyand",
+      "Marco Andreetto",
+      "Hartwig Adam"
+    ],
+    "date": "April 2017"
+  },
+  "ResNet": {
+    "href": "https://arxiv.org/abs/1512.03385",
+    "title": "Deep Residual Learning for Image Recognition",
+    "authors": [
+      "Kaiming He",
+      "Xiangyu Zhang",
+      "Shaoqing Ren",
+      "Jian Sun"
+    ],
+    "date": "December 2015"
+  }
+}
+</pre>
