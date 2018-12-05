@@ -26,27 +26,74 @@ built on top of pre-trained deep neural network (DNN) models.
 
 ### Person Detection ### {#usecase-person-detection}
 
-A user is browsing a social media site and wishes to take a photo and upload it
-to the site. Before the photo is uploaded, the site does object detection (for
-example, using object detection approaches such as [[SSD]] or [[YOLO]] that use
-a single DNN) to detect regions that include persons so that the user can filter
-and de-personalize irrelevant persons on it.
+A user opens a web-based video conferencing application, but she temporarily
+leaves from her room. The application is watching whether she is in front of her
+PC by using object detection (for example, using object detection approaches
+such as [[SSD]] or [[YOLO]] that use a single DNN) to detect regions in a camera
+input frame that include persons.
+
+When she comes back, the application automatically detects her and notifies
+other online users that she is active now.
+
+### Semantic Segmentation ### {#usecase-segmentation}
+
+A user joins a teleconference via a web-based video conferencing application
+from her room. However, she does not wish that her room is visible on the
+screen. So the application runs a machine learning model such as [[DeepLabv3+]]
+or [[MaskR-CNN]] to semantically split an image into segments and replaces
+background segments with another picture.
 
 ### Skeleton Detection ### {#usecase-skeleton-detection}
 
-The web application extracts her skeleton by running a machine learning model
-which allows for real-time human pose estimation such as [[PoseNet]] to
-recognize her gesture and body language. When she strikes a specified pose like
-raising a hand, the web application automatically takes a photo and upload it to
-an online storage.
+A web-based video conferencing application tracks a pose of user's skeleton by
+running a machine learning model, which allows for real-time human pose
+estimation, such as [[PoseNet]] to recognize her gesture and body language. When
+she raises her hand, her microphone is automatically unmuted and she can start
+speaking on the teleconference.
 
-### Random Image Generation ### {#usecase-image-generation}
+### Face Recognition ### {#usecase-face-recognition}
 
-A user wishes to make her new account and looks for a new icon image. When she
-clicks a "Generate" button on the webpage for creating an account, the webpage
-runs a generator model of generative adversarial network (GAN) for icon
-synthesis [[LogoSynthesis]]. She can repeat random icon
-generation until she finds her favorite one.
+There are multiple people in the conference room and they join an online meeting
+using a web-based video conferencing application. The application detects faces
+of participants by using object detection (for example, using object detection
+approaches such as [[SSD]]) and checks whether each face was present at the
+previous meeting or not by running a machine learning model such as [[FaceNet]],
+which verifies whether two faces would be identical or not.
+
+### Super Resolution ### {#usecase-super-resolution}
+
+A web-based video conferencing is receiving a video stream from its peer, but
+the resolution of the video becomes lower due to network congestion. So the
+application runs a machine learning model for super-resolution such as [[SRGAN]]
+to generate higher-resolution video frames.
+
+### Image Captioning ### {#usecase-image-captioning}
+
+For better accessibility, a web-based presentation application provides
+automatic image captioning by running a machine learning model such as
+[[im2txt]] which predicts explanatory words of the presentation slides.
+
+### Machine Translation ### {#usecase-translation}
+
+Multiple people from various countries are talking via a web-based real-time
+text chat application. The application translates their conversation by using a
+machine learning model such as [[GNMT]] or [[OpenNMT]], which translates every
+text into different language.
+
+### Emotion Analysis ### {#usecase-emotion-analysis}
+
+A user is talking to her friend via a web-based real-time text chat application,
+and she is wondering how the friend feels because she cannot see the friend's
+face. The application analyses the friend's emotion by using a machine learning
+model such as [[DeepMoji]], which infers emotion from input texts, and displays
+an emoji that represents the estimated emotion.
+
+### Video Summarization ### {#usecase-video-summalization}
+
+A web-based video conferencing application records received video streams, and
+it needs to reduce recorded video data to be stored. The application generates
+the short version of the recoreded video by using a machine learning model for
+video summarization such as [[Video-Summarization-with-LSTM]].
 
 ## Low-Level Use Cases ## {#usecases-lowlevel}
 
@@ -69,11 +116,15 @@ activation.
 
 ### Network Concatenation ### {#usecase-network-concat}
 
-A web application developer is trying to implement a DNN model that refers to
-outputs from some convolutional layer in [[MobileNets]] or [[ResNet]] as a
-feature map. She wants to use a pre-trained model of these networks to reduce
-training time. So she implements her network architecture so that its input is
-the output of convolutional layers of pre-trained MobileNets or ResNet models.
+A web application uses a DNN model, and its model data of upper convolutional
+layers and lower fully-connected layers are stored in separate files, since
+model data of the fully-connected layers are periodically updated due to fine
+tuning at the server side.
+
+Therefore, the application downloads both partial model files at first and
+concatenates them into a single model. When the model is updated, the
+application downloads fine-tuned part of the model and replace only the
+fully-connected layers with it.
 
 ### Performance Adaptation ### {#usecase-perf-adapt}
 
@@ -114,6 +165,29 @@ model in the case of CPU-only devices.
     ],
     "date": "May 2016"
   },
+  "DeepLabv3+": {
+    "href": "https://arxiv.org/abs/1802.02611",
+    "title": "Encoder-Decoder with Atrous Separable Convolution for Semantic Image Segmentation",
+    "authors": [
+      "Liang-Chieh Chen",
+      "Yukun Zhu",
+      "George Papandreou",
+      "Florian Schroff",
+      "Hartwig Adam"
+    ],
+    "date": "August 2018"
+  },
+  "MaskR-CNN": {
+    "href": "https://arxiv.org/abs/1703.06870",
+    "title": "Mask R-CNN",
+    "authors": [
+      "Kaiming He",
+      "Georgia Gkioxari",
+      "Piotr Dollár",
+      "Ross Girshick"
+    ],
+    "date": "January 2018"
+  },
   "PoseNet": {
     "href": "https://medium.com/tensorflow/real-time-human-pose-estimation-in-the-browser-with-tensorflow-js-7dd0bc881cd5",
     "title": "Real-time Human Pose Estimation in the Browser with TensorFlow.js",
@@ -122,16 +196,89 @@ model in the case of CPU-only devices.
     ],
     "date": "May 2018"
   },
-  "LogoSynthesis": {
-    "href": "https://arxiv.org/abs/1712.04407",
-    "title": "Logo Synthesis and Manipulation with Clustered Generative Adversarial Networks",
+  "FaceNet": {
+    "href": "https://arxiv.org/abs/1503.03832",
+    "title": "FaceNet: A Unified Embedding for Face Recognition and Clustering",
     "authors": [
-      "Alexander Sage",
-      "Eirikur Agustsson",
-      "Radu Timofte",
-      "Luc Van Gool"
+      "Florian Schroff",
+      "Dmitry Kalenichenko",
+      "James Philbin"
     ],
-    "date": "December 2017"
+    "date": "June 2015"
+  },
+  "SRGAN": {
+    "href": "https://arxiv.org/abs/1609.04802",
+    "title": "Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network",
+    "authors": [
+      "Christian Ledig",
+      "Lucas Theis",
+      "Ferenc Huszar",
+      "Jose Caballero",
+      "Andrew Cunningham",
+      "Alejandro Acosta",
+      "Andrew Aitken",
+      "Alykhan Tejani",
+      "Johannes Totz",
+      "Zehan Wang",
+      "Wenzhe Shi"
+    ],
+    "date": "May 2017"
+  },
+  "im2txt": {
+    "href": "https://arxiv.org/abs/1609.06647",
+    "title": "Show and Tell: Lessons learned from the 2015 MSCOCO Image Captioning Challenge",
+    "authors": [
+      "Oriol Vinyals",
+      "Alexander Toshev",
+      "Samy Bengio",
+      "Dumitru Erhan"
+    ],
+    "date": "September 2016"
+  },
+  "GNMT": {
+    "href": "https://github.com/tensorflow/nmt",
+    "title": "Neural Machine Translation (seq2seq) Tutorial",
+    "authors": [
+      "Minh-Thang Luong",
+      "Eugene Brevdo",
+      "Rui Zhao"
+    ],
+    "date": "May 2017"
+  },
+  "OpenNMT": {
+    "href": "https://arxiv.org/abs/1701.02810",
+    "title": "OpenNMT: Open-Source Toolkit for Neural Machine Translation",
+    "authors": [
+      "Guillaume Klein",
+      "Yoon Kim",
+      "Yuntian Deng",
+      "Jean Senellart",
+      "Alexander M. Rush"
+    ],
+    "date": "March 2017"
+  },
+  "DeepMoji": {
+    "href": "https://arxiv.org/abs/1708.00524",
+    "title": "Using millions of emoji occurrences to learn any-domain representations for detecting sentiment, emotion and sarcasm",
+    "authors": [
+      "Bjarke Felbo",
+      "Alan Mislove",
+      "Anders Søgaard",
+      "Iyad Rahwan",
+      "Sune Lehmann"
+    ],
+    "date": "October 2017"
+  },
+  "Video-Summarization-with-LSTM": {
+    "href": "http://www-scf.usc.edu/~zhan355/ke_eccv2016.pdf",
+    "title": "Video summarization with long short-term memory",
+    "authors": [
+      "Ke Zhang",
+      "Wei-Lun Chao",
+      "Fei Sha",
+      "Kristen Grauman"
+    ],
+    "date": "October 2016"
   },
   "LeakyReLU": {
     "href": "https://pdfs.semanticscholar.org/367f/2c63a6f6a10b3b64b8729d601e69337ee3cc.pdf",
@@ -152,32 +299,6 @@ model in the case of CPU-only devices.
       "Sepp Hochreiter"
     ],
     "date": "February 2016"
-  },
-  "MobileNets": {
-    "href": "https://arxiv.org/abs/1704.04861",
-    "title": "MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications",
-    "authors": [
-      "Andrew G. Howard",
-      "Menglong Zhu",
-      "Bo Chen",
-      "Dmitry Kalenichenko",
-      "Weijun Wang",
-      "Tobias Weyand",
-      "Marco Andreetto",
-      "Hartwig Adam"
-    ],
-    "date": "April 2017"
-  },
-  "ResNet": {
-    "href": "https://arxiv.org/abs/1512.03385",
-    "title": "Deep Residual Learning for Image Recognition",
-    "authors": [
-      "Kaiming He",
-      "Xiangyu Zhang",
-      "Shaoqing Ren",
-      "Jian Sun"
-    ],
-    "date": "December 2015"
   }
 }
 </pre>
