@@ -6,7 +6,7 @@ Status: CG-DRAFT
 Group: webml
 URL: https://webmachinelearning.github.io/webnn/
 Editor: Your Name, Your Company http://example.com/your-company, your-email@example.com, http://example.com/your-personal-website
-Abstract: A dedicated API for neural network inference hardware acceleration.
+Abstract: This document describes a dedicated low-level API for neural network inference hardware acceleration.
 Repository: https://github.com/webmachinelearning/webnn
 </pre>
 
@@ -18,5 +18,338 @@ Introduction here.
 Use cases {#usecases}
 =====================
 
-Use cases here.
+## High-Level Use Cases ## {#usecases-highlevel}
 
+This section illustrates application-level use cases for neural network
+inference hardware acceleration. All applications in those use cases can be
+built on top of pre-trained deep neural network (DNN) models.
+
+### Person Detection ### {#usecase-person-detection}
+
+A user opens a web-based video conferencing application, but she temporarily
+leaves from her room. The application is watching whether she is in front of her
+PC by using object detection (for example, using object detection approaches
+such as [[SSD]] or [[YOLO]] that use a single DNN) to detect regions in a camera
+input frame that include persons.
+
+When she comes back, the application automatically detects her and notifies
+other online users that she is active now.
+
+### Semantic Segmentation ### {#usecase-segmentation}
+
+A user joins a teleconference via a web-based video conferencing application at
+her desk since no meeting room in her office is available. During the
+teleconference, she does not wish that her room and people in the background are
+visible. To protect the privacy of the other people and the surroundings, the
+application runs a machine learning model such as [[DeepLabv3+]] or
+[[MaskR-CNN]] to semantically split an image into segments and replaces
+segments that represent other people and background with another picture.
+
+### Skeleton Detection ### {#usecase-skeleton-detection}
+
+A web-based video conferencing application tracks a pose of user's skeleton by
+running a machine learning model, which allows for real-time human pose
+estimation, such as [[PoseNet]] to recognize her gesture and body language. When
+she raises her hand, her microphone is automatically unmuted and she can start
+speaking on the teleconference.
+
+### Face Recognition ### {#usecase-face-recognition}
+
+There are multiple people in the conference room and they join an online meeting
+using a web-based video conferencing application. The application detects faces
+of participants by using object detection (for example, using object detection
+approaches such as [[SSD]]) and checks whether each face was present at the
+previous meeting or not by running a machine learning model such as [[FaceNet]],
+which verifies whether two faces would be identical or not.
+
+### Facial Landmark Detection ### {#usecase-facial-landmarks}
+
+A user wants to find new glasses that beautifully fits her on an online glasses
+store. The online store offers web-based try-on simulator that runs a machine
+learning model such as Face Alignment Network [[FAN]] to detect facial landmarks
+like eyes, nose, mouth, etc. When she chooses a pair of glasses, the simulator
+properly render the selected glasses on the detected position of eyes on her
+facial image.
+
+### Style Transfer ### {#usecase-style-transfer}
+
+A user is looking for cosmetics on an online store and wondering which color may
+fit her face. The online store shows sample facial makeup images of cosmetics,
+and offers makeup simulator that runs a machine learning model like
+[[ContextualLoss]] or [[PairedCycleGAN]] to transfer the makeup style of the
+sample makeup image to her facial image. She can check how the selected makeup
+looks like on her face by the simulator.
+
+### Super Resolution ### {#usecase-super-resolution}
+
+A web-based video conferencing is receiving a video stream from its peer, but
+the resolution of the video becomes lower due to network congestion. To prevent
+degradation of the perceived video quality, the application runs a machine
+learning model for super-resolution such as [[SRGAN]] to generate
+higher-resolution video frames.
+
+### Image Captioning ### {#usecase-image-captioning}
+
+For better accessibility, a web-based presentation application provides
+automatic image captioning by running a machine learning model such as
+[[im2txt]] which predicts explanatory words of the presentation slides.
+
+### Machine Translation ### {#usecase-translation}
+
+Multiple people from various countries are talking via a web-based real-time
+text chat application. The application translates their conversation by using a
+machine learning model such as [[GNMT]] or [[OpenNMT]], which translates every
+text into different language.
+
+### Emotion Analysis ### {#usecase-emotion-analysis}
+
+A user is talking to her friend via a web-based real-time text chat application,
+and she is wondering how the friend feels because she cannot see the friend's
+face. The application analyses the friend's emotion by using a machine learning
+model such as [[DeepMoji]], which infers emotion from input texts, and displays
+an emoji that represents the estimated emotion.
+
+### Video Summarization ### {#usecase-video-summalization}
+
+A web-based video conferencing application records received video streams, and
+it needs to reduce recorded video data to be stored. The application generates
+the short version of the recorded video by using a machine learning model for
+video summarization such as [[Video-Summarization-with-LSTM]].
+
+## Low-Level Use Cases ## {#usecases-lowlevel}
+
+This section collects API-level use cases for a dedicated low-level API for
+neural network inference hardware acceleration. It is expected that Machine
+Learning frameworks will be key consumers of the Web Neural Network API (WebNN
+API) and the low-level details exposed through the WebNN API are abstracted out
+from typical web developers. However, it is also expected that web developers
+with specific interest and competence in Machine Learning will want to interface
+with the WebNN API directly instead of a higher-level ML framework.
+
+### Custom Layer ### {#usecase-custom-layer}
+
+A web application developer wants to run a DNN model on the WebNN API. However,
+she has found that some of activation functions like [[LeakyReLU]], [[ELU]],
+etc. are not included in the WebNN API. To address this issue, she constructs
+custom layers of the additional activation functions on top of the WebNN API.
+Note that the scope of custom layers may include convolution, normalization,
+etc. as well as activation.
+
+### Network Concatenation ### {#usecase-network-concat}
+
+A web application uses a DNN model, and its model data of upper convolutional
+layers and lower fully-connected layers are stored in separate files, since
+model data of the fully-connected layers are periodically updated due to fine
+tuning at the server side.
+
+Therefore, the application downloads both partial model files at first and
+concatenates them into a single model. When the model is updated, the
+application downloads fine-tuned part of the model and replace only the
+fully-connected layers with it.
+
+### Performance Adaptation ### {#usecase-perf-adapt}
+
+A web application developer has a concern about performance of her DNN model on
+mobile devices. She has confirmed that it may run too slow on mobile devices
+which do not have GPU acceleration. To address this issue, her web application
+refers to the WebNN API to confirm whether acceleration is available or not, so
+that the application can display the warning for devices without acceleration.
+
+After several weeks, she has developed a tiny DNN model that can even run on
+CPU. In order to accommodate CPU execution, she modifies the application
+so that the application loads the tiny model in the case of CPU-only devices.
+
+<pre class="biblio">
+{
+  "SSD": {
+    "href": "https://arxiv.org/abs/1512.02325",
+    "title": "SSD: Single Shot MultiBox Detector",
+    "authors": [
+      "Wei Liu",
+      "Dragomir Anguelov",
+      "Dumitru Erhan",
+      "Christian Szegedy",
+      "Scott Reed",
+      "Cheng-Yang Fu",
+      "Alexander C. Berg"
+    ],
+    "date": "December 2016"
+  },
+  "YOLO": {
+    "href": "https://arxiv.org/abs/1506.02640",
+    "title": "You Only Look Once: Unified, Real-Time Object Detection",
+    "authors": [
+      "Joseph Redmon",
+      "Santosh Divvala,",
+      "Ross Girshick",
+      "Ali Farhadi"
+    ],
+    "date": "May 2016"
+  },
+  "DeepLabv3+": {
+    "href": "https://arxiv.org/abs/1802.02611",
+    "title": "Encoder-Decoder with Atrous Separable Convolution for Semantic Image Segmentation",
+    "authors": [
+      "Liang-Chieh Chen",
+      "Yukun Zhu",
+      "George Papandreou",
+      "Florian Schroff",
+      "Hartwig Adam"
+    ],
+    "date": "August 2018"
+  },
+  "MaskR-CNN": {
+    "href": "https://arxiv.org/abs/1703.06870",
+    "title": "Mask R-CNN",
+    "authors": [
+      "Kaiming He",
+      "Georgia Gkioxari",
+      "Piotr Dollár",
+      "Ross Girshick"
+    ],
+    "date": "January 2018"
+  },
+  "PoseNet": {
+    "href": "https://medium.com/tensorflow/real-time-human-pose-estimation-in-the-browser-with-tensorflow-js-7dd0bc881cd5",
+    "title": "Real-time Human Pose Estimation in the Browser with TensorFlow.js",
+    "authors": [
+      "Dan Oved"
+    ],
+    "date": "May 2018"
+  },
+  "FaceNet": {
+    "href": "https://arxiv.org/abs/1503.03832",
+    "title": "FaceNet: A Unified Embedding for Face Recognition and Clustering",
+    "authors": [
+      "Florian Schroff",
+      "Dmitry Kalenichenko",
+      "James Philbin"
+    ],
+    "date": "June 2015"
+  },
+  "FAN": {
+    "href": "https://arxiv.org/abs/1703.07332",
+    "title": "How far are we from solving the 2D & 3D Face Alignment problem? (and a dataset of 230,000 3D facial landmarks)",
+    "authors": [
+      "Adrian Bulat",
+      "Georgios Tzimiropoulos"
+    ],
+    "date": "September 2017"
+  },
+  "ContextualLoss": {
+    "href": "https://arxiv.org/abs/1803.02077",
+    "title": "The Contextual Loss for Image Transformation with Non-Aligned Data",
+    "authors": [
+      "Roey Mechrez",
+      "Itamar Talmi",
+      "Lihi Zelnik-Manor"
+    ],
+    "date": "July 2018"
+  },
+  "PairedCycleGAN": {
+    "href": "http://openaccess.thecvf.com/content_cvpr_2018/html/Chang_PairedCycleGAN_Asymmetric_Style_CVPR_2018_paper.html",
+    "title": "PairedCycleGAN: Asymmetric Style Transfer for Applying and Removing Makeup",
+    "authors": [
+      "Huiwen Chang",
+      "Jingwan Lu",
+      "Fisher Yu",
+      "Adam Finkelstein"
+    ],
+    "date": "June 2018"
+  },
+  "SRGAN": {
+    "href": "https://arxiv.org/abs/1609.04802",
+    "title": "Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network",
+    "authors": [
+      "Christian Ledig",
+      "Lucas Theis",
+      "Ferenc Huszar",
+      "Jose Caballero",
+      "Andrew Cunningham",
+      "Alejandro Acosta",
+      "Andrew Aitken",
+      "Alykhan Tejani",
+      "Johannes Totz",
+      "Zehan Wang",
+      "Wenzhe Shi"
+    ],
+    "date": "May 2017"
+  },
+  "im2txt": {
+    "href": "https://arxiv.org/abs/1609.06647",
+    "title": "Show and Tell: Lessons learned from the 2015 MSCOCO Image Captioning Challenge",
+    "authors": [
+      "Oriol Vinyals",
+      "Alexander Toshev",
+      "Samy Bengio",
+      "Dumitru Erhan"
+    ],
+    "date": "September 2016"
+  },
+  "GNMT": {
+    "href": "https://github.com/tensorflow/nmt",
+    "title": "Neural Machine Translation (seq2seq) Tutorial",
+    "authors": [
+      "Minh-Thang Luong",
+      "Eugene Brevdo",
+      "Rui Zhao"
+    ],
+    "date": "May 2017"
+  },
+  "OpenNMT": {
+    "href": "https://arxiv.org/abs/1701.02810",
+    "title": "OpenNMT: Open-Source Toolkit for Neural Machine Translation",
+    "authors": [
+      "Guillaume Klein",
+      "Yoon Kim",
+      "Yuntian Deng",
+      "Jean Senellart",
+      "Alexander M. Rush"
+    ],
+    "date": "March 2017"
+  },
+  "DeepMoji": {
+    "href": "https://arxiv.org/abs/1708.00524",
+    "title": "Using millions of emoji occurrences to learn any-domain representations for detecting sentiment, emotion and sarcasm",
+    "authors": [
+      "Bjarke Felbo",
+      "Alan Mislove",
+      "Anders Søgaard",
+      "Iyad Rahwan",
+      "Sune Lehmann"
+    ],
+    "date": "October 2017"
+  },
+  "Video-Summarization-with-LSTM": {
+    "href": "http://www-scf.usc.edu/~zhan355/ke_eccv2016.pdf",
+    "title": "Video summarization with long short-term memory",
+    "authors": [
+      "Ke Zhang",
+      "Wei-Lun Chao",
+      "Fei Sha",
+      "Kristen Grauman"
+    ],
+    "date": "October 2016"
+  },
+  "LeakyReLU": {
+    "href": "https://pdfs.semanticscholar.org/367f/2c63a6f6a10b3b64b8729d601e69337ee3cc.pdf",
+    "title": "Rectifier Nonlinearities Improve Neural Network Acoustic Models",
+    "authors": [
+      "Andrew L. Maas",
+      "Awni Y. Hannun",
+      "Andrew Y. Ng"
+    ],
+    "date": "June 2013"
+  },
+  "ELU": {
+    "href": "https://arxiv.org/abs/1511.07289",
+    "title": "Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)",
+    "authors": [
+      "Djork-Arné Clevert",
+      "Thomas Unterthiner",
+      "Sepp Hochreiter"
+    ],
+    "date": "February 2016"
+  }
+}
+</pre>
