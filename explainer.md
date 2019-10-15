@@ -1,4 +1,4 @@
-[For an explainer of an explainer, see the [TAG explainer template](https://github.com/w3ctag/w3ctag.github.io/blob/master/explainers.md).]
+[For an explainer of an explainer, see the [TAG explainer template](https://github.com/w3ctag/w3ctag.github.io/blob/master/explainers.md). A good concrete example is the [WebXR Device API Explained](https://github.com/immersive-web/webxr/blob/master/explainer.md) document]
 
 # Web Neural Network API Explained
 
