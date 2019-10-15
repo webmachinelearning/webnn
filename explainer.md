@@ -14,6 +14,21 @@ How will the web be better when this feature launches? And who will it help?
 
 You’re not going to solve every problem so enumerate the attractive, nearby problems that are out of scope for this effort. This may include details on the tradeoffs made due to architectural limitations made due to implementation details, and features left out either due to interoperability concerns or other hurdles, and how you plan to improve on this. This can often be the single most important part of your document, so give it careful thought.
 
+### Target hardware
+
+With this API web developers are able to target typical computing devices people use in their daily lives that run major operating systems. Initial prototypes have demonstrated reasonable performance on:
+
+* smartphones e.g. Google Pixel 3 or equivalent
+* laptops e.g. 13" MacBook Pro 2015 or equivalent
+
+The APIs in scope of this group will not be tied to any particular platform and will be implementable on top of existing major platform APIs, such as:
+
+* Android Neural Networks API
+* Windows DirectML
+* macOS/iOS Metal Performance Shaders and Basic Neural Network Subroutines
+
+Depending on the underlying hardware capabilities, these platform APIs may make use of CPU parallelism, general-purpose GPU, or dedicated ML hardware accelerators. The API will provide high-level hints to web developers to enable [performance adaptation](https://webmachinelearning.github.io/webnn/#usecase-perf-adapt), but will remain hardware agnostic otherwise.
+
 ## Getting started / example code
 
 Provide a terse example for the most common use case of the feature.  If you need to show how to get the feature set up (initialized, or using permissions, etc.), include that too
