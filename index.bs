@@ -247,22 +247,20 @@ partial interface NeuralNetworkContext {
 
 ## Model ## {#api-model}
 <script type=idl>
-interface Model {
-  Promise<Compilation> createCompilation();
-};
-</script>
-
-## Compilation ## {#api-compilation}
-<script type=idl>
 enum CompilationPreference {
   "low-power",
   "fast-answer",
   "sustained-speed"
 };
 
+interface Model {
+  Promise<Compilation> createCompilation(CompilationPreference preference);
+};
+</script>
+
+## Compilation ## {#api-compilation}
+<script type=idl>
 interface Compilation {
-  void setPreference(CompilationPreference preference);
-  Promise<void> finish();
   Promise<Execution> createExecution();
 };
 </script>
@@ -341,14 +339,9 @@ const model = await nn.createModel([output]);
 <div class="example">
 The following code compiles the graph.
 <pre highlight="js">
-// Create a Compilation object for the constructed model.
-const compilation = await model.createCompilation();
-
-// Set the preference for the Compilation object.
-compilation.setPreference('fast-answer');
-
-// Finish the compilation.
-await compilation.finish();
+// Create a Compilation object for the constructed model with 'fast-answer'
+// compilation preference.
+const compilation = await model.createCompilation('fast-answer');
 </pre>
 </div>
 
