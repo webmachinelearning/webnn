@@ -1029,7 +1029,7 @@ Possible extra rowspan handling
 		}
 	/* } */
 
-	@supports (display:grid) {
+	@supports (display:grid) and (display:contents) {
 		/* Use #toc over .toc to override non-@supports rules. */
 		#toc {
 			display: grid;
@@ -1167,6 +1167,18 @@ Possible extra rowspan handling
 		margin-left: auto;
 		margin-right: auto;
 	}
+	.overlarge {
+		/* Magic to create good table positioning:
+		   "content column" is 50ems wide at max; less on smaller screens.
+		   Extra space (after ToC + content) is empty on the right.
+
+		   1. When table < content column, centers table in column.
+		   2. When content < table < available, left-aligns.
+		   3. When table > available, fills available + scroll bar.
+		*/ 
+		display: grid;
+		grid-template-columns: minmax(0, 50em);
+	}
 	.overlarge > table {
 		/* limit preferred width of table */
 		max-width: 50em;
@@ -1176,7 +1188,6 @@ Possible extra rowspan handling
 
 	@media (min-width: 55em) {
 		.overlarge {
-			margin-left: calc(13px + 26.5rem - 50vw);
 			margin-right: calc(13px + 26.5rem - 50vw);
 			max-width: none;
 		}
@@ -1184,14 +1195,12 @@ Possible extra rowspan handling
 	@media screen and (min-width: 78em) {
 		body:not(.toc-inline) .overlarge {
 			/* 30.5em body padding 50em content area */
-			margin-left: calc(40em - 50vw) !important;
 			margin-right: calc(40em - 50vw) !important;
 		}
 	}
 	@media screen and (min-width: 90em) {
 		body:not(.toc-inline) .overlarge {
 			/* 4em html margin 30.5em body padding 50em content area */
-			margin-left: 0 !important;
 			margin-right: calc(84.5em - 100vw) !important;
 		}
 	}
@@ -1212,9 +1221,8 @@ Possible extra rowspan handling
 		}
 	}
 </style>
-  <meta content="Bikeshed version 4d208866a95a1121fceca549a36bfb09c5bf1705" name="generator">
+  <meta content="Bikeshed version 5721fde7f6b8111f662b83b678f9e181a9838206" name="generator">
   <link href="https://webmachinelearning.github.io/webnn/" rel="canonical">
-  <meta content="260e8fb1592d7b993240c1ad7d42188b9b789410" name="document-revision">
 <style>/* style-md-lists */
 
 /* This is a weird hack for me not yet following the commonmark spec
@@ -1461,7 +1469,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">Web Neural Network API</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="subtitle"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2020-01-22">22 January 2020</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="subtitle"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2020-02-25">25 February 2020</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -1737,20 +1745,18 @@ so that the application loads the tiny model in the case of CPU-only devices.</p
 };
 </pre>
    <h3 class="heading settled" data-level="3.6" id="api-model"><span class="secno">3.6. </span><span class="content">Model</span><a class="self-link" href="#api-model"></a></h3>
-<pre class="idl highlight def"><c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="model"><code><c- g>Model</c-></code></dfn> {
-  <c- b>Promise</c->&lt;<a class="n" data-link-type="idl-name" href="#compilation" id="ref-for-compilation"><c- n>Compilation</c-></a>> <dfn class="idl-code" data-dfn-for="Model" data-dfn-type="method" data-export data-lt="createCompilation()" id="dom-model-createcompilation"><code><c- g>createCompilation</c-></code><a class="self-link" href="#dom-model-createcompilation"></a></dfn>();
-};
-</pre>
-   <h3 class="heading settled" data-level="3.7" id="api-compilation"><span class="secno">3.7. </span><span class="content">Compilation</span><a class="self-link" href="#api-compilation"></a></h3>
 <pre class="idl highlight def"><c- b>enum</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="enum" data-export id="enumdef-compilationpreference"><code><c- g>CompilationPreference</c-></code></dfn> {
   <dfn class="idl-code" data-dfn-for="CompilationPreference" data-dfn-type="enum-value" data-export id="dom-compilationpreference-low-power"><code><c- s>"low-power"</c-></code><a class="self-link" href="#dom-compilationpreference-low-power"></a></dfn>,
   <dfn class="idl-code" data-dfn-for="CompilationPreference" data-dfn-type="enum-value" data-export id="dom-compilationpreference-fast-answer"><code><c- s>"fast-answer"</c-></code><a class="self-link" href="#dom-compilationpreference-fast-answer"></a></dfn>,
   <dfn class="idl-code" data-dfn-for="CompilationPreference" data-dfn-type="enum-value" data-export id="dom-compilationpreference-sustained-speed"><code><c- s>"sustained-speed"</c-></code><a class="self-link" href="#dom-compilationpreference-sustained-speed"></a></dfn>
 };
 
-<c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="compilation"><code><c- g>Compilation</c-></code></dfn> {
-  <c- b>void</c-> <dfn class="idl-code" data-dfn-for="Compilation" data-dfn-type="method" data-export data-lt="setPreference(preference)" id="dom-compilation-setpreference"><code><c- g>setPreference</c-></code><a class="self-link" href="#dom-compilation-setpreference"></a></dfn>(<a class="n" data-link-type="idl-name" href="#enumdef-compilationpreference" id="ref-for-enumdef-compilationpreference"><c- n>CompilationPreference</c-></a> <dfn class="idl-code" data-dfn-for="Compilation/setPreference(preference)" data-dfn-type="argument" data-export id="dom-compilation-setpreference-preference-preference"><code><c- g>preference</c-></code><a class="self-link" href="#dom-compilation-setpreference-preference-preference"></a></dfn>);
-  <c- b>Promise</c->&lt;<c- b>void</c->> <dfn class="idl-code" data-dfn-for="Compilation" data-dfn-type="method" data-export data-lt="finish()" id="dom-compilation-finish"><code><c- g>finish</c-></code><a class="self-link" href="#dom-compilation-finish"></a></dfn>();
+<c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="model"><code><c- g>Model</c-></code></dfn> {
+  <c- b>Promise</c->&lt;<a class="n" data-link-type="idl-name" href="#compilation" id="ref-for-compilation"><c- n>Compilation</c-></a>> <dfn class="idl-code" data-dfn-for="Model" data-dfn-type="method" data-export data-lt="createCompilation(preference)" id="dom-model-createcompilation"><code><c- g>createCompilation</c-></code><a class="self-link" href="#dom-model-createcompilation"></a></dfn>(<a class="n" data-link-type="idl-name" href="#enumdef-compilationpreference" id="ref-for-enumdef-compilationpreference"><c- n>CompilationPreference</c-></a> <dfn class="idl-code" data-dfn-for="Model/createCompilation(preference)" data-dfn-type="argument" data-export id="dom-model-createcompilation-preference-preference"><code><c- g>preference</c-></code><a class="self-link" href="#dom-model-createcompilation-preference-preference"></a></dfn>);
+};
+</pre>
+   <h3 class="heading settled" data-level="3.7" id="api-compilation"><span class="secno">3.7. </span><span class="content">Compilation</span><a class="self-link" href="#api-compilation"></a></h3>
+<pre class="idl highlight def"><c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="compilation"><code><c- g>Compilation</c-></code></dfn> {
   <c- b>Promise</c->&lt;<a class="n" data-link-type="idl-name" href="#execution" id="ref-for-execution"><c- n>Execution</c-></a>> <dfn class="idl-code" data-dfn-for="Compilation" data-dfn-type="method" data-export data-lt="createExecution()" id="dom-compilation-createexecution"><code><c- g>createExecution</c-></code><a class="self-link" href="#dom-compilation-createexecution"></a></dfn>();
 };
 </pre>
@@ -1816,16 +1822,11 @@ tensor3 ---+
 <c- kr>const</c-> model <c- o>=</c-> await nn<c- p>.</c->createModel<c- p>([</c->output<c- p>]);</c->
 </pre>
    </div>
-   <div class="example" id="example-87dd5cb0">
-    <a class="self-link" href="#example-87dd5cb0"></a> The following code compiles the graph. 
-<pre class="highlight"><c- c1>// Create a Compilation object for the constructed model.</c->
-<c- kr>const</c-> compilation <c- o>=</c-> await model<c- p>.</c->createCompilation<c- p>();</c->
-
-<c- c1>// Set the preference for the Compilation object.</c->
-compilation<c- p>.</c->setPreference<c- p>(</c-><c- t>'fast-answer'</c-><c- p>);</c->
-
-<c- c1>// Finish the compilation.</c->
-await compilation<c- p>.</c->finish<c- p>();</c->
+   <div class="example" id="example-5d25b98b">
+    <a class="self-link" href="#example-5d25b98b"></a> The following code compiles the graph. 
+<pre class="highlight"><c- c1>// Create a Compilation object for the constructed model with 'fast-answer'</c->
+<c- c1>// compilation preference.</c->
+<c- kr>const</c-> compilation <c- o>=</c-> await model<c- p>.</c->createCompilation<c- p>(</c-><c- t>'fast-answer'</c-><c- p>);</c->
 </pre>
    </div>
    <div class="example" id="example-480ca5f6">
@@ -2008,21 +2009,20 @@ API.</p>
   <ul class="index">
    <li><a href="#dom-neuralnetworkcontext-add">add(a, b)</a><span>, in §3.5.1</span>
    <li><a href="#compilation">Compilation</a><span>, in §3.7</span>
-   <li><a href="#enumdef-compilationpreference">CompilationPreference</a><span>, in §3.7</span>
+   <li><a href="#enumdef-compilationpreference">CompilationPreference</a><span>, in §3.6</span>
    <li><a href="#dom-neuralnetworkcontext-constant">constant(desc, value)</a><span>, in §3.5</span>
-   <li><a href="#dom-model-createcompilation">createCompilation()</a><span>, in §3.6</span>
+   <li><a href="#dom-model-createcompilation">createCompilation(preference)</a><span>, in §3.6</span>
    <li><a href="#dom-compilation-createexecution">createExecution()</a><span>, in §3.7</span>
    <li><a href="#dom-neuralnetworkcontext-createmodel">createModel(outputs)</a><span>, in §3.5</span>
    <li><a href="#dom-operanddescriptor-dimensions">dimensions</a><span>, in §3.3</span>
    <li><a href="#execution">Execution</a><span>, in §3.8</span>
-   <li><a href="#dom-compilationpreference-fast-answer">"fast-answer"</a><span>, in §3.7</span>
-   <li><a href="#dom-compilation-finish">finish()</a><span>, in §3.7</span>
+   <li><a href="#dom-compilationpreference-fast-answer">"fast-answer"</a><span>, in §3.6</span>
    <li><a href="#dom-operandtype-float16">"float16"</a><span>, in §3.3</span>
    <li><a href="#dom-operandtype-float32">"float32"</a><span>, in §3.3</span>
    <li><a href="#dom-ml-getneuralnetworkcontext">getNeuralNetworkContext()</a><span>, in §3.2</span>
    <li><a href="#dom-neuralnetworkcontext-input">input(desc)</a><span>, in §3.5</span>
    <li><a href="#dom-operandtype-int32">"int32"</a><span>, in §3.3</span>
-   <li><a href="#dom-compilationpreference-low-power">"low-power"</a><span>, in §3.7</span>
+   <li><a href="#dom-compilationpreference-low-power">"low-power"</a><span>, in §3.6</span>
    <li><a href="#dom-navigator-ml">ml</a><span>, in §3.1</span>
    <li><a href="#ml">ML</a><span>, in §3.2</span>
    <li><a href="#model">Model</a><span>, in §3.6</span>
@@ -2034,9 +2034,8 @@ API.</p>
    <li><a href="#dom-operanddescriptor-scale">scale</a><span>, in §3.3</span>
    <li><a href="#dom-execution-setinput">setInput(index, data)</a><span>, in §3.8</span>
    <li><a href="#dom-execution-setoutput">setOutput(index, data)</a><span>, in §3.8</span>
-   <li><a href="#dom-compilation-setpreference">setPreference(preference)</a><span>, in §3.7</span>
    <li><a href="#dom-execution-startcompute">startCompute()</a><span>, in §3.8</span>
-   <li><a href="#dom-compilationpreference-sustained-speed">"sustained-speed"</a><span>, in §3.7</span>
+   <li><a href="#dom-compilationpreference-sustained-speed">"sustained-speed"</a><span>, in §3.6</span>
    <li><a href="#dom-operandtype-tensor-float16">"tensor-float16"</a><span>, in §3.3</span>
    <li><a href="#dom-operandtype-tensor-float32">"tensor-float32"</a><span>, in §3.3</span>
    <li><a href="#dom-operandtype-tensor-int32">"tensor-int32"</a><span>, in §3.3</span>
@@ -2200,19 +2199,17 @@ API.</p>
   <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand⑥①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-mul"><code><c- g>mul</c-></code></a>(<a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand⑦①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-mul-a-b-a"><code><c- g>a</c-></code></a>, <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand⑧①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-mul-a-b-b"><code><c- g>b</c-></code></a>);
 };
 
-<c- b>interface</c-> <a href="#model"><code><c- g>Model</c-></code></a> {
-  <c- b>Promise</c->&lt;<a class="n" data-link-type="idl-name" href="#compilation" id="ref-for-compilation①"><c- n>Compilation</c-></a>> <a href="#dom-model-createcompilation"><code><c- g>createCompilation</c-></code></a>();
-};
-
 <c- b>enum</c-> <a href="#enumdef-compilationpreference"><code><c- g>CompilationPreference</c-></code></a> {
   <a href="#dom-compilationpreference-low-power"><code><c- s>"low-power"</c-></code></a>,
   <a href="#dom-compilationpreference-fast-answer"><code><c- s>"fast-answer"</c-></code></a>,
   <a href="#dom-compilationpreference-sustained-speed"><code><c- s>"sustained-speed"</c-></code></a>
 };
 
+<c- b>interface</c-> <a href="#model"><code><c- g>Model</c-></code></a> {
+  <c- b>Promise</c->&lt;<a class="n" data-link-type="idl-name" href="#compilation" id="ref-for-compilation①"><c- n>Compilation</c-></a>> <a href="#dom-model-createcompilation"><code><c- g>createCompilation</c-></code></a>(<a class="n" data-link-type="idl-name" href="#enumdef-compilationpreference" id="ref-for-enumdef-compilationpreference①"><c- n>CompilationPreference</c-></a> <a href="#dom-model-createcompilation-preference-preference"><code><c- g>preference</c-></code></a>);
+};
+
 <c- b>interface</c-> <a href="#compilation"><code><c- g>Compilation</c-></code></a> {
-  <c- b>void</c-> <a href="#dom-compilation-setpreference"><code><c- g>setPreference</c-></code></a>(<a class="n" data-link-type="idl-name" href="#enumdef-compilationpreference" id="ref-for-enumdef-compilationpreference①"><c- n>CompilationPreference</c-></a> <a href="#dom-compilation-setpreference-preference-preference"><code><c- g>preference</c-></code></a>);
-  <c- b>Promise</c->&lt;<c- b>void</c->> <a href="#dom-compilation-finish"><code><c- g>finish</c-></code></a>();
   <c- b>Promise</c->&lt;<a class="n" data-link-type="idl-name" href="#execution" id="ref-for-execution①"><c- n>Execution</c-></a>> <a href="#dom-compilation-createexecution"><code><c- g>createExecution</c-></code></a>();
 };
 
@@ -2257,16 +2254,16 @@ API.</p>
     <li><a href="#ref-for-neuralnetworkcontext②">3.5.2. mul</a>
    </ul>
   </aside>
+  <aside class="dfn-panel" data-for="enumdef-compilationpreference">
+   <b><a href="#enumdef-compilationpreference">#enumdef-compilationpreference</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-enumdef-compilationpreference">3.6. Model</a>
+   </ul>
+  </aside>
   <aside class="dfn-panel" data-for="model">
    <b><a href="#model">#model</a></b><b>Referenced in:</b>
    <ul>
     <li><a href="#ref-for-model">3.5. NeuralNetworkContext</a>
-   </ul>
-  </aside>
-  <aside class="dfn-panel" data-for="enumdef-compilationpreference">
-   <b><a href="#enumdef-compilationpreference">#enumdef-compilationpreference</a></b><b>Referenced in:</b>
-   <ul>
-    <li><a href="#ref-for-enumdef-compilationpreference">3.7. Compilation</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="compilation">
