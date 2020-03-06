@@ -10,6 +10,10 @@ Editor: Chai Chaoweeraprasit 120203, Microsoft Corporation https://microsoft.com
 Abstract: This document describes a dedicated low-level API for neural network inference hardware acceleration.
 Repository: https://github.com/webmachinelearning/webnn
 !Explainer: <a href="https://github.com/webmachinelearning/webnn/blob/master/explainer.md">explainer.md</a>
+Markup Shorthands: markdown yes
+Markup Shorthands: dfn yes
+Markup Shorthands: idl yes
+Markup Shorthands: css no
 </pre>
 
 Introduction {#intro}
@@ -180,6 +184,11 @@ interface ML {
 
 ## OperandDescriptor ## {#api-operanddescriptor}
 <script type=idl>
+enum OperandLayout {
+  "nchw",
+  "nhwc"
+};
+
 enum OperandType {
   "float32",
   "float16",
@@ -235,6 +244,53 @@ partial interface NeuralNetworkContext {
   Operand add(Operand a, Operand b);
 };
 </script>
+
+### conv2d ### {#api-neuralnetworkcontext-conv2d}
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand conv2d(Operand input, Operand filter,
+                 sequence<long> padding, sequence<long> strides, sequence<long> dilations,
+                 optional OperandLayout layout = "nchw");
+};
+</script>
+
+<div algorithm=conv2d>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input 4-D tensor. The logical shape
+            is interpreted according to the value of *layout*.
+        - *filter*: an {{Operand}}. The filter 4-D tensor. The logical shape
+            is interpreted according to the value of *layout*.
+        - *padding*: a sequence of {{long}} of length 4. The padding for the
+            beginning and ending along each spatial dimension of *input*,
+            [beginning_height, ending_height, beginning_width, ending_width].
+        - *strides*: a sequence of {{long}} of length 2. The stride of the
+            sliding window for each spatial dimension of *input*,
+            [stride_height, stirde_width].
+        - *dilations*: a sequence of {{long}} of length 2. The dilation factor
+            for each spatial dimension of *input*, [dilation_height,
+            dilation_width].
+        - *layout*: an optional {{OperandLayout}} with value as "nchw" or
+            "nhwc". The default value is "nchw". This argument specifies the
+            layout format of the input, output and filter tensor.
+            Specifically,
+
+            "nchw":
+                - input tensor: [batches, input_channels, height, width]
+                - filter tensor: [output_channels, input_channels, height,
+                    width]
+                - output tensor: [batches, output_channels, height, width]
+            "nhwc":
+                - input tensor: [batches, height, width, input_channels]
+                - filter tensor: [height, width, input_channels,
+                    output_channels]
+                - output tensor: [batches, height, width, output_channels]
+
+    **Returns:** an {{Operand}}. The output 4-D tensor that contains the
+    result of the convolution. The logical shape is interpreted according to the
+    value of *layout*.
+
+    Computes a 2-D convolution given input and filter 4-D tensors.
+</div>
 
 ### mul ### {#api-neuralnetworkcontext-mul}
 <script type=idl>
