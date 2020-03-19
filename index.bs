@@ -337,9 +337,15 @@ partial interface NeuralNetworkContext {
 ## Model ## {#api-model}
 <script type=idl>
 enum CompilationPreference {
+  // No preference. Let the user agent decide the type of compilation most 
+  // suitable and broadly available. This is the default option.
+  "default",
+  // Indicate a preference for a type of compilation that prioritizes power 
+  // consumption over performance.
   "low-power",
-  "fast-answer",
-  "sustained-speed"
+  // Indicate a preference for a type of compilation that prioritizes high 
+  // performance over power consumption.
+  "high-performance"
 };
 
 interface Model {
@@ -426,11 +432,17 @@ const model = await nn.createModel([output]);
 </div>
 
 <div class="example">
-The following code compiles the graph.
+The following code compiles the graph according to a compilation preference of speed over power consumption.
+The compilation may be unsuccessful when the preference cannot be fulfilled on a specified model due to hardware
+or other platform limitation, in which case a retry may be attempted with the 'default' option. The 'default' 
+option provides the broadest availability of the compilation result and is expected to succeed.
 <pre highlight="js">
-// Create a Compilation object for the constructed model with 'fast-answer'
+// Create a Compilation object for the constructed model with 'high-performance'
 // compilation preference.
-const compilation = await model.createCompilation('fast-answer');
+var compilation = await model.createCompilation('high-performance');
+if (!compilation) {
+  compilation = await model.createCompilation('default');
+}
 </pre>
 </div>
 

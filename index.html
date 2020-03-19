@@ -1,3 +1,4 @@
+
 <!doctype html><html lang="en">
  <head>
   <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
@@ -1469,7 +1470,11 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">Web Neural Network API</h1>
+<<<<<<< HEAD
    <h2 class="no-num no-toc no-ref heading settled" id="subtitle"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2020-03-24">24 March 2020</time></span></h2>
+=======
+   <h2 class="no-num no-toc no-ref heading settled" id="subtitle"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2020-03-18">18 March 2020</time></span></h2>
+>>>>>>> Update CompilationPreference to follow WebGL convention for context creation. Update the code sample to show how a certain compilation could fail such as when the model uses data type not supported by the hardware, and how to recover from the failure.
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -1850,9 +1855,15 @@ which produces a scalar output.</p>
 </pre>
    <h3 class="heading settled" data-level="3.6" id="api-model"><span class="secno">3.6. </span><span class="content">Model</span><a class="self-link" href="#api-model"></a></h3>
 <pre class="idl highlight def"><c- b>enum</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="enum" data-export id="enumdef-compilationpreference"><code><c- g>CompilationPreference</c-></code></dfn> {
+  // No preference. Let the user agent decide the type of compilation most 
+  // suitable and broadly available. This is the default option.
+  <dfn class="idl-code" data-dfn-for="CompilationPreference" data-dfn-type="enum-value" data-export id="dom-compilationpreference-default"><code><c- s>"default"</c-></code><a class="self-link" href="#dom-compilationpreference-default"></a></dfn>,
+  // Indicate a preference for a type of compilation that prioritizes power 
+  // consumption over performance.
   <dfn class="idl-code" data-dfn-for="CompilationPreference" data-dfn-type="enum-value" data-export id="dom-compilationpreference-low-power"><code><c- s>"low-power"</c-></code><a class="self-link" href="#dom-compilationpreference-low-power"></a></dfn>,
-  <dfn class="idl-code" data-dfn-for="CompilationPreference" data-dfn-type="enum-value" data-export id="dom-compilationpreference-fast-answer"><code><c- s>"fast-answer"</c-></code><a class="self-link" href="#dom-compilationpreference-fast-answer"></a></dfn>,
-  <dfn class="idl-code" data-dfn-for="CompilationPreference" data-dfn-type="enum-value" data-export id="dom-compilationpreference-sustained-speed"><code><c- s>"sustained-speed"</c-></code><a class="self-link" href="#dom-compilationpreference-sustained-speed"></a></dfn>
+  // Indicate a preference for a type of compilation that prioritizes high 
+  // performance over power consumption.
+  <dfn class="idl-code" data-dfn-for="CompilationPreference" data-dfn-type="enum-value" data-export id="dom-compilationpreference-high-performance"><code><c- s>"high-performance"</c-></code><a class="self-link" href="#dom-compilationpreference-high-performance"></a></dfn>
 };
 
 <c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="model"><code><c- g>Model</c-></code></dfn> {
@@ -1926,11 +1937,17 @@ tensor3 ---+
 <c- kr>const</c-> model <c- o>=</c-> await nn<c- p>.</c->createModel<c- p>([</c->output<c- p>]);</c->
 </pre>
    </div>
-   <div class="example" id="example-5d25b98b">
-    <a class="self-link" href="#example-5d25b98b"></a> The following code compiles the graph. 
-<pre class="highlight"><c- c1>// Create a Compilation object for the constructed model with 'fast-answer'</c->
+   <div class="example" id="example-32351ac9">
+    <a class="self-link" href="#example-32351ac9"></a> The following code compiles the graph according to a compilation preference of speed over power consumption.
+The compilation may be unsuccessful when the preference cannot be fulfilled on a specified model due to hardware
+or other platform limitation, in which case a retry may be attempted with the 'default' option. The 'default' 
+option provides the broadest availability of the compilation result and is expected to succeed. 
+<pre class="highlight"><c- c1>// Create a Compilation object for the constructed model with 'high-performance'</c->
 <c- c1>// compilation preference.</c->
-<c- kr>const</c-> compilation <c- o>=</c-> await model<c- p>.</c->createCompilation<c- p>(</c-><c- t>'fast-answer'</c-><c- p>);</c->
+<c- a>var</c-> compilation <c- o>=</c-> await model<c- p>.</c->createCompilation<c- p>(</c-><c- t>'high-performance'</c-><c- p>);</c->
+<c- k>if</c-> <c- p>(</c-><c- o>!</c->compilation<c- p>)</c-> <c- p>{</c->
+  compilation <c- o>=</c-> await model<c- p>.</c->createCompilation<c- p>(</c-><c- t>'default'</c-><c- p>);</c->
+<c- p>}</c->
 </pre>
    </div>
    <div class="example" id="example-480ca5f6">
@@ -2120,12 +2137,13 @@ API.</p>
    <li><a href="#dom-model-createcompilation">createCompilation(preference)</a><span>, in §3.6</span>
    <li><a href="#dom-compilation-createexecution">createExecution()</a><span>, in §3.7</span>
    <li><a href="#dom-neuralnetworkcontext-createmodel">createModel(outputs)</a><span>, in §3.5</span>
+   <li><a href="#dom-compilationpreference-default">"default"</a><span>, in §3.6</span>
    <li><a href="#dom-operanddescriptor-dimensions">dimensions</a><span>, in §3.3</span>
    <li><a href="#execution">Execution</a><span>, in §3.8</span>
-   <li><a href="#dom-compilationpreference-fast-answer">"fast-answer"</a><span>, in §3.6</span>
    <li><a href="#dom-operandtype-float16">"float16"</a><span>, in §3.3</span>
    <li><a href="#dom-operandtype-float32">"float32"</a><span>, in §3.3</span>
    <li><a href="#dom-ml-getneuralnetworkcontext">getNeuralNetworkContext()</a><span>, in §3.2</span>
+   <li><a href="#dom-compilationpreference-high-performance">"high-performance"</a><span>, in §3.6</span>
    <li><a href="#dom-neuralnetworkcontext-input">input(desc)</a><span>, in §3.5</span>
    <li><a href="#dom-operandtype-int32">"int32"</a><span>, in §3.3</span>
    <li><a href="#dom-compilationpreference-low-power">"low-power"</a><span>, in §3.6</span>
@@ -2145,7 +2163,6 @@ API.</p>
    <li><a href="#dom-execution-setinput">setInput(index, data)</a><span>, in §3.8</span>
    <li><a href="#dom-execution-setoutput">setOutput(index, data)</a><span>, in §3.8</span>
    <li><a href="#dom-execution-startcompute">startCompute()</a><span>, in §3.8</span>
-   <li><a href="#dom-compilationpreference-sustained-speed">"sustained-speed"</a><span>, in §3.6</span>
    <li><a href="#dom-operandtype-tensor-float16">"tensor-float16"</a><span>, in §3.3</span>
    <li><a href="#dom-operandtype-tensor-float32">"tensor-float32"</a><span>, in §3.3</span>
    <li><a href="#dom-operandtype-tensor-int32">"tensor-int32"</a><span>, in §3.3</span>
@@ -2328,9 +2345,15 @@ API.</p>
 };
 
 <c- b>enum</c-> <a href="#enumdef-compilationpreference"><code><c- g>CompilationPreference</c-></code></a> {
+  // No preference. Let the user agent decide the type of compilation most 
+  // suitable and broadly available. This is the default option.
+  <a href="#dom-compilationpreference-default"><code><c- s>"default"</c-></code></a>,
+  // Indicate a preference for a type of compilation that prioritizes power 
+  // consumption over performance.
   <a href="#dom-compilationpreference-low-power"><code><c- s>"low-power"</c-></code></a>,
-  <a href="#dom-compilationpreference-fast-answer"><code><c- s>"fast-answer"</c-></code></a>,
-  <a href="#dom-compilationpreference-sustained-speed"><code><c- s>"sustained-speed"</c-></code></a>
+  // Indicate a preference for a type of compilation that prioritizes high 
+  // performance over power consumption.
+  <a href="#dom-compilationpreference-high-performance"><code><c- s>"high-performance"</c-></code></a>
 };
 
 <c- b>interface</c-> <a href="#model"><code><c- g>Model</c-></code></a> {
