@@ -336,20 +336,15 @@ partial interface NeuralNetworkContext {
 
 ## Model ## {#api-model}
 <script type=idl>
-enum CompilationPreference {
-  // No preference. Let the user agent decide the type of compilation most 
-  // suitable and broadly available. This is the default option.
-  "default",
-  // Indicate a preference for a type of compilation that prioritizes power 
-  // consumption over performance.
-  "low-power",
-  // Indicate a preference for a type of compilation that prioritizes high 
-  // performance over power consumption.
-  "high-performance"
+enum PowerPreference {
+  // Prioritizes execution speed over other considerations e.g. power consumption
+  "high-performance",
+  // Prioritizes power consumption over other consideraions e.g. execution speed
+  "low-power"
 };
 
 interface Model {
-  Promise<Compilation> createCompilation(CompilationPreference preference);
+  Promise<Compilation> createCompilation(optional PowerPreference preference);
 };
 </script>
 
@@ -432,17 +427,11 @@ const model = await nn.createModel([output]);
 </div>
 
 <div class="example">
-The following code compiles the graph according to a compilation preference of speed over power consumption.
-The compilation may be unsuccessful when the preference cannot be fulfilled on a specified model due to hardware
-or other platform limitation, in which case a retry may be attempted with the 'default' option. The 'default' 
-option provides the broadest availability of the compilation result and is expected to succeed.
+The following code compiles the model by prioritizing lower level of power consumption
+over time. This option could be particularly useful for long-running models.
 <pre highlight="js">
-// Create a Compilation object for the constructed model with 'high-performance'
-// compilation preference.
-var compilation = await model.createCompilation('high-performance');
-if (!compilation) {
-  compilation = await model.createCompilation('default');
-}
+// Create a Compilation object for the constructed model.
+const compilation = await model.createCompilation('low-power');
 </pre>
 </div>
 
