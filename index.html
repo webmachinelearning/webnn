@@ -1221,7 +1221,7 @@ Possible extra rowspan handling
 		}
 	}
 </style>
-  <meta content="Bikeshed version 5721fde7f6b8111f662b83b678f9e181a9838206" name="generator">
+  <meta content="Bikeshed version 576ef4f5126e3fb83bf07d9bbe1a64f99aa4944e" name="generator">
   <link href="https://webmachinelearning.github.io/webnn/" rel="canonical">
 <style>/* style-md-lists */
 
@@ -1469,7 +1469,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">Web Neural Network API</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="subtitle"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2020-02-26">26 February 2020</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="subtitle"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2020-03-24">24 March 2020</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -1546,7 +1546,8 @@ A human-readable <a href="http://www.w3.org/community/about/agreements/cla-deed/
        <ol class="toc">
         <li><a href="#api-neuralnetworkcontext-add"><span class="secno">3.5.1</span> <span class="content">add</span></a>
         <li><a href="#api-neuralnetworkcontext-conv2d"><span class="secno">3.5.2</span> <span class="content">conv2d</span></a>
-        <li><a href="#api-neuralnetworkcontext-mul"><span class="secno">3.5.3</span> <span class="content">mul</span></a>
+        <li><a href="#api-neuralnetworkcontext-matmul"><span class="secno">3.5.3</span> <span class="content">matmul</span></a>
+        <li><a href="#api-neuralnetworkcontext-mul"><span class="secno">3.5.4</span> <span class="content">mul</span></a>
        </ol>
       <li><a href="#api-model"><span class="secno">3.6</span> <span class="content">Model</span></a>
       <li><a href="#api-compilation"><span class="secno">3.7</span> <span class="content">Compilation</span></a>
@@ -1802,11 +1803,49 @@ output_channels]</p>
     value of <em>layout</em>.</p>
     <p>Computes a 2-D convolution given input and filter 4-D tensors.</p>
    </div>
-   <h4 class="heading settled" data-level="3.5.3" id="api-neuralnetworkcontext-mul"><span class="secno">3.5.3. </span><span class="content">mul</span><a class="self-link" href="#api-neuralnetworkcontext-mul"></a></h4>
+   <h4 class="heading settled" data-level="3.5.3" id="api-neuralnetworkcontext-matmul"><span class="secno">3.5.3. </span><span class="content">matmul</span><a class="self-link" href="#api-neuralnetworkcontext-matmul"></a></h4>
 <pre class="idl highlight def"><c- b>partial</c-> <c- b>interface</c-> <a class="idl-code" data-link-type="interface" href="#neuralnetworkcontext" id="ref-for-neuralnetworkcontext③"><c- g>NeuralNetworkContext</c-></a> {
+  <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①②"><c- n>Operand</c-></a> <dfn class="idl-code" data-dfn-for="NeuralNetworkContext" data-dfn-type="method" data-export data-lt="matmul(a, b)" id="dom-neuralnetworkcontext-matmul"><code><c- g>matmul</c-></code><a class="self-link" href="#dom-neuralnetworkcontext-matmul"></a></dfn>(<a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①③"><c- n>Operand</c-></a> <dfn class="idl-code" data-dfn-for="NeuralNetworkContext/matmul(a, b)" data-dfn-type="argument" data-export id="dom-neuralnetworkcontext-matmul-a-b-a"><code><c- g>a</c-></code><a class="self-link" href="#dom-neuralnetworkcontext-matmul-a-b-a"></a></dfn>, <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①④"><c- n>Operand</c-></a> <dfn class="idl-code" data-dfn-for="NeuralNetworkContext/matmul(a, b)" data-dfn-type="argument" data-export id="dom-neuralnetworkcontext-matmul-a-b-b"><code><c- g>b</c-></code><a class="self-link" href="#dom-neuralnetworkcontext-matmul-a-b-b"></a></dfn>);
+};
+</pre>
+   <div class="algorithm" data-algorithm="matmul">
+     <strong>Arguments:</strong> 
+    <ul>
+     <li data-md>
+      <p><em>a</em>: an <code class="idl"><a data-link-type="idl" href="#operand" id="ref-for-operand①⑤">Operand</a></code>. The first input N-D tensor.</p>
+     <li data-md>
+      <p><em>b</em>: an <code class="idl"><a data-link-type="idl" href="#operand" id="ref-for-operand①⑥">Operand</a></code>. The second input N-D tensor.</p>
+    </ul>
+    <p><strong>Returns:</strong> an <code class="idl"><a data-link-type="idl" href="#operand" id="ref-for-operand①⑦">Operand</a></code>. The output N-D tensor that contains the matrix
+    product of two input tensors.</p>
+    <p>Computes the matrix product of two input tensors. It behaves as following:</p>
+    <ul>
+     <li data-md>
+      <p>If both <em>a</em> and <em>b</em> are 2-D, they are multiplied like conventional
+matrices and produce a 2-D tensor as the output.</p>
+     <li data-md>
+      <p>If either <em>a</em> or <em>b</em> is N-D, N > 2, it is treated as a stack of
+matrices with dimensions corresponding to the last two indices. The
+matrix multiplication will be broadcasted accordingly by following <a data-link-type="biblio" href="#biblio-numpy-broadcasting-rule">[numpy-broadcasting-rule]</a>. The output is a N-D tensor whose rank
+is the maximum rank of the input tensors. For each dimension, except
+the last two, of the output tensor, its size is the maximum size
+along that dimension of the input tensors.</p>
+     <li data-md>
+      <p>If <em>a</em> is 1-D, it is converted to a 2-D tensor by prepending a 1 to
+its dimensions.</p>
+     <li data-md>
+      <p>If <em>b</em> is 1-D, it is converted to a 2-D tensor by by appending a 1 to
+its dimensions.</p>
+     <li data-md>
+      <p>If both <em>a</em> and <em>b</em> are 1-D, the operation is a vector dot-product,
+which produces a scalar output.</p>
+    </ul>
+   </div>
+   <h4 class="heading settled" data-level="3.5.4" id="api-neuralnetworkcontext-mul"><span class="secno">3.5.4. </span><span class="content">mul</span><a class="self-link" href="#api-neuralnetworkcontext-mul"></a></h4>
+<pre class="idl highlight def"><c- b>partial</c-> <c- b>interface</c-> <a class="idl-code" data-link-type="interface" href="#neuralnetworkcontext" id="ref-for-neuralnetworkcontext④"><c- g>NeuralNetworkContext</c-></a> {
   // Create an Operand object that represents the result of an element-wise
   // binary multiplication operation with input operands a and b.
-  <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①②"><c- n>Operand</c-></a> <dfn class="idl-code" data-dfn-for="NeuralNetworkContext" data-dfn-type="method" data-export data-lt="mul(a, b)" id="dom-neuralnetworkcontext-mul"><code><c- g>mul</c-></code><a class="self-link" href="#dom-neuralnetworkcontext-mul"></a></dfn>(<a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①③"><c- n>Operand</c-></a> <dfn class="idl-code" data-dfn-for="NeuralNetworkContext/mul(a, b)" data-dfn-type="argument" data-export id="dom-neuralnetworkcontext-mul-a-b-a"><code><c- g>a</c-></code><a class="self-link" href="#dom-neuralnetworkcontext-mul-a-b-a"></a></dfn>, <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①④"><c- n>Operand</c-></a> <dfn class="idl-code" data-dfn-for="NeuralNetworkContext/mul(a, b)" data-dfn-type="argument" data-export id="dom-neuralnetworkcontext-mul-a-b-b"><code><c- g>b</c-></code><a class="self-link" href="#dom-neuralnetworkcontext-mul-a-b-b"></a></dfn>);
+  <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①⑧"><c- n>Operand</c-></a> <dfn class="idl-code" data-dfn-for="NeuralNetworkContext" data-dfn-type="method" data-export data-lt="mul(a, b)" id="dom-neuralnetworkcontext-mul"><code><c- g>mul</c-></code><a class="self-link" href="#dom-neuralnetworkcontext-mul"></a></dfn>(<a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①⑨"><c- n>Operand</c-></a> <dfn class="idl-code" data-dfn-for="NeuralNetworkContext/mul(a, b)" data-dfn-type="argument" data-export id="dom-neuralnetworkcontext-mul-a-b-a"><code><c- g>a</c-></code><a class="self-link" href="#dom-neuralnetworkcontext-mul-a-b-a"></a></dfn>, <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand②⓪"><c- n>Operand</c-></a> <dfn class="idl-code" data-dfn-for="NeuralNetworkContext/mul(a, b)" data-dfn-type="argument" data-export id="dom-neuralnetworkcontext-mul-a-b-b"><code><c- g>b</c-></code><a class="self-link" href="#dom-neuralnetworkcontext-mul-a-b-b"></a></dfn>);
 };
 </pre>
    <h3 class="heading settled" data-level="3.6" id="api-model"><span class="secno">3.6. </span><span class="content">Model</span><a class="self-link" href="#api-model"></a></h3>
@@ -2090,10 +2129,11 @@ API.</p>
    <li><a href="#dom-neuralnetworkcontext-input">input(desc)</a><span>, in §3.5</span>
    <li><a href="#dom-operandtype-int32">"int32"</a><span>, in §3.3</span>
    <li><a href="#dom-compilationpreference-low-power">"low-power"</a><span>, in §3.6</span>
+   <li><a href="#dom-neuralnetworkcontext-matmul">matmul(a, b)</a><span>, in §3.5.3</span>
    <li><a href="#dom-navigator-ml">ml</a><span>, in §3.1</span>
    <li><a href="#ml">ML</a><span>, in §3.2</span>
    <li><a href="#model">Model</a><span>, in §3.6</span>
-   <li><a href="#dom-neuralnetworkcontext-mul">mul(a, b)</a><span>, in §3.5.3</span>
+   <li><a href="#dom-neuralnetworkcontext-mul">mul(a, b)</a><span>, in §3.5.4</span>
    <li><a href="#dom-operandlayout-nchw">"nchw"</a><span>, in §3.3</span>
    <li><a href="#neuralnetworkcontext">NeuralNetworkContext</a><span>, in §3.5</span>
    <li><a href="#dom-operandlayout-nhwc">"nhwc"</a><span>, in §3.3</span>
@@ -2167,6 +2207,8 @@ API.</p>
   <dl>
    <dt id="biblio-html">[HTML]
    <dd>Anne van Kesteren; et al. <a href="https://html.spec.whatwg.org/multipage/">HTML Standard</a>. Living Standard. URL: <a href="https://html.spec.whatwg.org/multipage/">https://html.spec.whatwg.org/multipage/</a>
+   <dt id="biblio-numpy-broadcasting-rule">[NUMPY-BROADCASTING-RULE]
+   <dd>The SciPy community. <a href="https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html#general-broadcasting-rules">General Broadcasting Rules of NumPy</a>. July 2019. URL: <a href="https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html#general-broadcasting-rules">https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html#general-broadcasting-rules</a>
    <dt id="biblio-rfc2119">[RFC2119]
    <dd>S. Bradner. <a href="https://tools.ietf.org/html/rfc2119">Key words for use in RFCs to Indicate Requirement Levels</a>. March 1997. Best Current Practice. URL: <a href="https://tools.ietf.org/html/rfc2119">https://tools.ietf.org/html/rfc2119</a>
    <dt id="biblio-webidl">[WebIDL]
@@ -2215,7 +2257,7 @@ API.</p>
 };
 
 <c- b>interface</c-> <a href="#ml"><code><c- g>ML</c-></code></a> {
-  <a class="n" data-link-type="idl-name" href="#neuralnetworkcontext" id="ref-for-neuralnetworkcontext④"><c- n>NeuralNetworkContext</c-></a> <a href="#dom-ml-getneuralnetworkcontext"><code><c- g>getNeuralNetworkContext</c-></code></a>();
+  <a class="n" data-link-type="idl-name" href="#neuralnetworkcontext" id="ref-for-neuralnetworkcontext⑤"><c- n>NeuralNetworkContext</c-></a> <a href="#dom-ml-getneuralnetworkcontext"><code><c- g>getNeuralNetworkContext</c-></code></a>();
 };
 
 <c- b>enum</c-> <a href="#enumdef-operandlayout"><code><c- g>OperandLayout</c-></code></a> {
@@ -2254,10 +2296,10 @@ API.</p>
 
 <c- b>interface</c-> <a href="#neuralnetworkcontext"><code><c- g>NeuralNetworkContext</c-></code></a> {
   // Create an Operand object that represents a model input.
-  <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①⑥"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-input"><code><c- g>input</c-></code></a>(<a class="n" data-link-type="idl-name" href="#dictdef-operanddescriptor" id="ref-for-dictdef-operanddescriptor②"><c- n>OperandDescriptor</c-></a> <a href="#dom-neuralnetworkcontext-input-desc-desc"><code><c- g>desc</c-></code></a>);
+  <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand②②"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-input"><code><c- g>input</c-></code></a>(<a class="n" data-link-type="idl-name" href="#dictdef-operanddescriptor" id="ref-for-dictdef-operanddescriptor②"><c- n>OperandDescriptor</c-></a> <a href="#dom-neuralnetworkcontext-input-desc-desc"><code><c- g>desc</c-></code></a>);
 
   // Create an Operand object that represents a model constant.
-  <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①⑤"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-constant"><code><c- g>constant</c-></code></a>(<a class="n" data-link-type="idl-name" href="#dictdef-operanddescriptor" id="ref-for-dictdef-operanddescriptor①①"><c- n>OperandDescriptor</c-></a> <a href="#dom-neuralnetworkcontext-constant-desc-value-desc"><code><c- g>desc</c-></code></a>, <a class="n" data-link-type="idl-name" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView③"><c- n>ArrayBufferView</c-></a> <a href="#dom-neuralnetworkcontext-constant-desc-value-value"><code><c- g>value</c-></code></a>);
+  <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①①⓪"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-constant"><code><c- g>constant</c-></code></a>(<a class="n" data-link-type="idl-name" href="#dictdef-operanddescriptor" id="ref-for-dictdef-operanddescriptor①①"><c- n>OperandDescriptor</c-></a> <a href="#dom-neuralnetworkcontext-constant-desc-value-desc"><code><c- g>desc</c-></code></a>, <a class="n" data-link-type="idl-name" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView③"><c- n>ArrayBufferView</c-></a> <a href="#dom-neuralnetworkcontext-constant-desc-value-value"><code><c- g>value</c-></code></a>);
 
   // Create a Model object by identifying output operands.
   <c- b>Promise</c->&lt;<a class="n" data-link-type="idl-name" href="#model" id="ref-for-model①"><c- n>Model</c-></a>> <a href="#dom-neuralnetworkcontext-createmodel"><code><c- g>createModel</c-></code></a>(<c- b>sequence</c->&lt;<a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand②①"><c- n>Operand</c-></a>> <a href="#dom-neuralnetworkcontext-createmodel-outputs-outputs"><code><c- g>outputs</c-></code></a>);
@@ -2276,9 +2318,13 @@ API.</p>
 };
 
 <c- b>partial</c-> <c- b>interface</c-> <a class="idl-code" data-link-type="interface" href="#neuralnetworkcontext" id="ref-for-neuralnetworkcontext③①"><c- g>NeuralNetworkContext</c-></a> {
+  <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①②①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-matmul"><code><c- g>matmul</c-></code></a>(<a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①③①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-matmul-a-b-a"><code><c- g>a</c-></code></a>, <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①④①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-matmul-a-b-b"><code><c- g>b</c-></code></a>);
+};
+
+<c- b>partial</c-> <c- b>interface</c-> <a class="idl-code" data-link-type="interface" href="#neuralnetworkcontext" id="ref-for-neuralnetworkcontext④①"><c- g>NeuralNetworkContext</c-></a> {
   // Create an Operand object that represents the result of an element-wise
   // binary multiplication operation with input operands a and b.
-  <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①②①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-mul"><code><c- g>mul</c-></code></a>(<a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①③①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-mul-a-b-a"><code><c- g>a</c-></code></a>, <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①④①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-mul-a-b-b"><code><c- g>b</c-></code></a>);
+  <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①⑧①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-mul"><code><c- g>mul</c-></code></a>(<a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand①⑨①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-mul-a-b-a"><code><c- g>a</c-></code></a>, <a class="n" data-link-type="idl-name" href="#operand" id="ref-for-operand②⓪①"><c- n>Operand</c-></a> <a href="#dom-neuralnetworkcontext-mul-a-b-b"><code><c- g>b</c-></code></a>);
 };
 
 <c- b>enum</c-> <a href="#enumdef-compilationpreference"><code><c- g>CompilationPreference</c-></code></a> {
@@ -2332,7 +2378,8 @@ API.</p>
     <li><a href="#ref-for-operand">3.5. NeuralNetworkContext</a> <a href="#ref-for-operand①">(2)</a> <a href="#ref-for-operand②">(3)</a>
     <li><a href="#ref-for-operand③">3.5.1. add</a> <a href="#ref-for-operand④">(2)</a> <a href="#ref-for-operand⑤">(3)</a>
     <li><a href="#ref-for-operand⑥">3.5.2. conv2d</a> <a href="#ref-for-operand⑦">(2)</a> <a href="#ref-for-operand⑧">(3)</a> <a href="#ref-for-operand⑨">(4)</a> <a href="#ref-for-operand①⓪">(5)</a> <a href="#ref-for-operand①①">(6)</a>
-    <li><a href="#ref-for-operand①②">3.5.3. mul</a> <a href="#ref-for-operand①③">(2)</a> <a href="#ref-for-operand①④">(3)</a>
+    <li><a href="#ref-for-operand①②">3.5.3. matmul</a> <a href="#ref-for-operand①③">(2)</a> <a href="#ref-for-operand①④">(3)</a> <a href="#ref-for-operand①⑤">(4)</a> <a href="#ref-for-operand①⑥">(5)</a> <a href="#ref-for-operand①⑦">(6)</a>
+    <li><a href="#ref-for-operand①⑧">3.5.4. mul</a> <a href="#ref-for-operand①⑨">(2)</a> <a href="#ref-for-operand②⓪">(3)</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="neuralnetworkcontext">
@@ -2341,7 +2388,8 @@ API.</p>
     <li><a href="#ref-for-neuralnetworkcontext">3.2. ML</a>
     <li><a href="#ref-for-neuralnetworkcontext①">3.5.1. add</a>
     <li><a href="#ref-for-neuralnetworkcontext②">3.5.2. conv2d</a>
-    <li><a href="#ref-for-neuralnetworkcontext③">3.5.3. mul</a>
+    <li><a href="#ref-for-neuralnetworkcontext③">3.5.3. matmul</a>
+    <li><a href="#ref-for-neuralnetworkcontext④">3.5.4. mul</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="enumdef-compilationpreference">

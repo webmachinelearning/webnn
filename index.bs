@@ -292,6 +292,39 @@ partial interface NeuralNetworkContext {
     Computes a 2-D convolution given input and filter 4-D tensors.
 </div>
 
+### matmul ### {#api-neuralnetworkcontext-matmul}
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand matmul(Operand a, Operand b);
+};
+</script>
+
+<div algorithm=matmul>
+    **Arguments:**
+        - *a*: an {{Operand}}. The first input N-D tensor.
+        - *b*: an {{Operand}}. The second input N-D tensor.
+
+    **Returns:** an {{Operand}}. The output N-D tensor that contains the matrix
+    product of two input tensors.
+
+    Computes the matrix product of two input tensors. It behaves as following:
+        - If both *a* and *b* are 2-D, they are multiplied like conventional
+            matrices and produce a 2-D tensor as the output.
+        - If either *a* or *b* is N-D, N > 2, it is treated as a stack of
+            matrices with dimensions corresponding to the last two indices. The
+            matrix multiplication will be broadcasted accordingly by following
+            [[!numpy-broadcasting-rule]]. The output is a N-D tensor whose rank
+            is the maximum rank of the input tensors. For each dimension, except
+            the last two, of the output tensor, its size is the maximum size
+            along that dimension of the input tensors.
+        - If *a* is 1-D, it is converted to a 2-D tensor by prepending a 1 to
+            its dimensions.
+        - If *b* is 1-D, it is converted to a 2-D tensor by by appending a 1 to
+            its dimensions.
+        - If both *a* and *b* are 1-D, the operation is a vector dot-product,
+            which produces a scalar output.
+</div>
+
 ### mul ### {#api-neuralnetworkcontext-mul}
 <script type=idl>
 partial interface NeuralNetworkContext {
@@ -436,6 +469,12 @@ Thanks to Tomoyuki Shimizu, Ningxin Hu, and Zhiqiang Yu for the use cases.
 
 <pre class="biblio">
 {
+  "numpy-broadcasting-rule": {
+    "href": "https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html#general-broadcasting-rules",
+    "title": "General Broadcasting Rules of NumPy",
+    "authors": ["The SciPy community"],
+    "date": "July 2019"
+  },
   "SSD": {
     "href": "https://arxiv.org/abs/1512.02325",
     "title": "SSD: Single Shot MultiBox Detector",
