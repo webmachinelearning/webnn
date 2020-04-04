@@ -336,14 +336,22 @@ partial interface NeuralNetworkContext {
 
 ## Model ## {#api-model}
 <script type=idl>
-enum CompilationPreference {
-  "low-power",
-  "fast-answer",
-  "sustained-speed"
+enum PowerPreference {
+  // Let the user agent decide the most suitable behavior. This is the default value.
+  "default",
+  // Prioritizes execution speed over other considerations e.g. power consumption
+  "high-performance",
+  // Prioritizes power consumption over other consideraions e.g. execution speed
+  "low-power"
+};
+
+dictionary CompilationOptions {
+  // Compilation preference as related to power consumption level
+  PowerPreference powerPreference = "default";
 };
 
 interface Model {
-  Promise<Compilation> createCompilation(CompilationPreference preference);
+  Promise<Compilation> createCompilation(optional CompilationOptions options = {});
 };
 </script>
 
@@ -426,11 +434,12 @@ const model = await nn.createModel([output]);
 </div>
 
 <div class="example">
-The following code compiles the graph.
+The following code compiles the model by prioritizing lower level of power consumption
+over time. This option could be particularly useful for long-running models.
 <pre highlight="js">
-// Create a Compilation object for the constructed model with 'fast-answer'
-// compilation preference.
-const compilation = await model.createCompilation('fast-answer');
+// Create a Compilation object for the constructed model.
+const options = { powerPreference: 'low-power' };
+const compilation = await model.createCompilation(options);
 </pre>
 </div>
 
