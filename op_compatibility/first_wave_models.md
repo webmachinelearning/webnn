@@ -15,7 +15,7 @@
 | BatchNormalization | |:heavy_check_mark: |:heavy_check_mark: |:heavy_check_mark: | TFLite models either fuse it into preceding `conv2d` or replace it by `mul` and `add`. |
 | Concat |:heavy_check_mark: | | | | |
 | Conv |:heavy_check_mark: |:heavy_check_mark: |:heavy_check_mark: |:heavy_check_mark: | Need to support depthwise conv2d of MobileNetV2. Will we add `groups` attribute into existing [`conv2d`](https://webmachinelearning.github.io/webnn/#api-neuralnetworkcontext-conv2d) or add new ops like `groupedConv2d` or `depthwiseConv2d`? |
-| Gemm | | |:heavy_check_mark: | | Can it be covered by existing [`matmul`](https://webmachinelearning.github.io/webnn/#api-neuralnetworkcontext-matmul)? |
+| Gemm | | |:heavy_check_mark: | | Can it be covered by existing [`matmul`](https://webmachinelearning.github.io/webnn/#api-neuralnetworkcontext-matmul) and [`add`](https://webmachinelearning.github.io/webnn/#api-neuralnetworkcontext-add)? |
 | GlobalAveragePool | |:heavy_check_mark: |:heavy_check_mark: | | Can it be covered by `AveragePool`? |
 | LeakyRelu | | | |:heavy_check_mark: | TFLite models substitute it by `mul` and `maximum` as `y = mul(maximum(x, 0), alpha)`. |
 | MaxPool |:heavy_check_mark: | |:heavy_check_mark: |:heavy_check_mark: | |
