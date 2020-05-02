@@ -236,12 +236,19 @@ interface NeuralNetworkContext {
 };
 </script>
 
-### add ### {#api-neuralnetworkcontext-add}
+### binary ### {#api-neuralnetworkcontext-binary}
 <script type=idl>
+enum BinaryOperation {
+  "add",
+  "sub",
+  "mul",
+  "div",
+  "max",
+  "min"
+};
+
 partial interface NeuralNetworkContext {
-  // Create an Operand object that represents the result of an element-wise
-  // binary addition operation with input operands a and b.
-  Operand add(Operand a, Operand b);
+  Operand binary(BinaryOperation op, Operand lhs, Operand rhs);
 };
 </script>
 
@@ -324,15 +331,6 @@ partial interface NeuralNetworkContext {
         - If both *a* and *b* are 1-D, the operation is a vector dot-product,
             which produces a scalar output.
 </div>
-
-### mul ### {#api-neuralnetworkcontext-mul}
-<script type=idl>
-partial interface NeuralNetworkContext {
-  // Create an Operand object that represents the result of an element-wise
-  // binary multiplication operation with input operands a and b.
-  Operand mul(Operand a, Operand b);
-};
-</script>
 
 ## Model ## {#api-model}
 <script type=idl>
@@ -420,13 +418,13 @@ const tensor2 = nn.constant(float32TensorType,
 const tensor3 = nn.input(float32TensorType);
 
 // intermediateOutput0 is the output of the first Add operation.
-const intermediateOutput0 = nn.add(tensor0, tensor1);
+const intermediateOutput0 = nn.binary('add', tensor0, tensor1);
 
 // intermediateOutput1 is the output of the second Add operation.
-const intermediateOutput1 = nn.add(tensor2, tensor3);
+const intermediateOutput1 = nn.binary('add', tensor2, tensor3);
 
 // output is the output tensor of the Mul operation.
-const output = nn.mul(intermediateOutput0, intermediateOutput1);
+const output = nn.binary('mul', intermediateOutput0, intermediateOutput1);
 
 // Create the model by identifying the outputs.
 const model = await nn.createModel([output]);
