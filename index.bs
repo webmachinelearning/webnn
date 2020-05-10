@@ -292,6 +292,42 @@ partial interface NeuralNetworkContext {
     Computes a 2-D convolution given input and filter 4-D tensors.
 </div>
 
+### gemm ### {#api-neuralnetworkcontext-gemm}
+<script type=idl>
+partial interface NeuralNetworkContext {
+  static Operand gemm(NeuralNetworkContext nn, Operand a, Operand b, Operand c, 
+                      optional float alpha = 1.0, optional float beta = 1.0, 
+                      optional boolean aTranspose = false, optional boolean bTranspose = false);
+};
+</script>
+<div algorithm=gemm>
+    **Arguments:**
+        - *nn*: The neural network context.
+        - *a*: an {{Operand}}. The first input 2-D tensor.
+        - *b*: an {{Operand}}. The second input 2-D tensor.
+        - *c*: an {{Operand}}. The third input 2-D tensor.
+        - *alpha*: an optional {{float}} scalar multiplier for the first input, default to 1.0.
+        - *beta*: an optional {{float}} scalar multiplier for the third input, default to 1.0.
+        - *aTranspose*: an optional {{boolean}} indicating if the first input should be transposed prior to calculating the output, default to false.
+        - *bTranspose*: an optional {{boolean}} indicating if the second input should be transposed prior to calculating the output, default to false.
+
+    **Returns:** an {{Operand}}. The output 2-D tensor that contains the calculated product of all the inputs.
+
+    Calculate the <a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3">general matrix multiplication of the Basic Liner Algebra Subprograms</a>. The calculation follows the expression `alpha * A * B + beta * C`, where `A`, `B`, and `C` are matrices, and `A` and `B` may optionally be transposed prior to the calculation.
+
+    This static operation can be generically implemented in term of other interface operations as follow. However, the user agent is free to implement the operation differently to suit their needs.
+
+    <pre highlight="js">
+    if (aTranspose)
+      a = nn.transpose(a);
+
+    if (bTranspose)
+      b = nn.transpose(b);
+
+    return nn.add(nn.matmul(nn.mul(alpha, a), b), nn.mul(beta, c));
+    </pre>
+</div>
+
 ### matmul ### {#api-neuralnetworkcontext-matmul}
 <script type=idl>
 partial interface NeuralNetworkContext {
@@ -333,6 +369,22 @@ partial interface NeuralNetworkContext {
   Operand mul(Operand a, Operand b);
 };
 </script>
+
+### transpose ### {#api-neuralnetworkcontext-transpose}
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand transpose(Operand input, optional sequence<long> permutation);
+};
+</script>
+<div algorithm=transpose>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input N-D tensor.
+        - *permutation*: an optional sequence of {{long}} values. The values used to permute the output shape. When it's not specified, it's set to `[N-1...0]`, where `N` is the rank of the input tensor. This causes the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor. 
+
+    **Returns:** an {{Operand}}. The permuted or transposed N-D tensor.
+
+    Permute the dimensions of the input tensor according to the *permutation* argument. 
+</div>
 
 ## Model ## {#api-model}
 <script type=idl>
