@@ -231,6 +231,9 @@ interface NeuralNetworkContext {
   // Create an Operand object that represents a model constant.
   Operand constant(OperandDescriptor desc, ArrayBufferView value);
 
+  // Create a single-value tensor of the specified type from the specified value.
+  Operand constant(float value, optional OperandType type = "tensor-float32");
+
   // Create a Model object by identifying output operands.
   Promise<Model> createModel(sequence<Operand> outputs);
 };
@@ -295,7 +298,7 @@ partial interface NeuralNetworkContext {
 ### gemm ### {#api-neuralnetworkcontext-gemm}
 <script type=idl>
 partial interface NeuralNetworkContext {
-  static Operand gemm(NeuralNetworkContext nn, Operand a, Operand b, Operand c, 
+  static Operand gemm(NeuralNetworkContext nn, Operand a, Operand b, optional Operand c = null, 
                       optional float alpha = 1.0, optional float beta = 1.0, 
                       optional boolean aTranspose = false, optional boolean bTranspose = false);
 };
@@ -305,7 +308,7 @@ partial interface NeuralNetworkContext {
         - *nn*: The neural network context.
         - *a*: an {{Operand}}. The first input 2-D tensor.
         - *b*: an {{Operand}}. The second input 2-D tensor.
-        - *c*: an {{Operand}}. The third input 2-D tensor.
+        - *c*: an optional {{Operand}}. The third input 2-D tensor.
         - *alpha*: an optional {{float}} scalar multiplier for the first input, default to 1.0.
         - *beta*: an optional {{float}} scalar multiplier for the third input, default to 1.0.
         - *aTranspose*: an optional {{boolean}} indicating if the first input should be transposed prior to calculating the output, default to false.
@@ -324,7 +327,8 @@ partial interface NeuralNetworkContext {
     if (bTranspose)
       b = nn.transpose(b);
 
-    return nn.add(nn.matmul(nn.mul(alpha, a), b), nn.mul(beta, c));
+    var ab = nn.matmul(nn.mul(nn.constant(alpha), a), b);
+    return (c ? nn.add(ab, nn.mul(nn.constant(beta), c)) : ab);
     </pre>
 </div>
 
