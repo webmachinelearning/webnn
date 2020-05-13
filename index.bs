@@ -224,6 +224,8 @@ interface Operand {};
 
 ## NeuralNetworkContext ## {#api-neuralnetworkcontext}
 <script type=idl>
+typedef double number;
+
 interface NeuralNetworkContext {
   // Create an Operand object that represents a model input.
   Operand input(OperandDescriptor desc);
@@ -231,8 +233,8 @@ interface NeuralNetworkContext {
   // Create an Operand object that represents a model constant.
   Operand constant(OperandDescriptor desc, ArrayBufferView value);
 
-  // Create a single-value tensor of the specified type from the specified value.
-  Operand constant(float value, optional OperandType type = "tensor-float32");
+  // Create a single-value tensor from the specified number of the specified type.
+  Operand constant(number value, optional OperandType type = "float32");
 
   // Create a Model object by identifying output operands.
   Promise<Model> createModel(sequence<Operand> outputs);
@@ -298,14 +300,13 @@ partial interface NeuralNetworkContext {
 ### gemm ### {#api-neuralnetworkcontext-gemm}
 <script type=idl>
 partial interface NeuralNetworkContext {
-  static Operand gemm(NeuralNetworkContext nn, Operand a, Operand b, optional Operand c = null, 
-                      optional float alpha = 1.0, optional float beta = 1.0, 
-                      optional boolean aTranspose = false, optional boolean bTranspose = false);
+  Operand gemm(Operand a, Operand b, optional Operand c = null, 
+               optional float alpha = 1.0, optional float beta = 1.0, 
+               optional boolean aTranspose = false, optional boolean bTranspose = false);
 };
 </script>
 <div algorithm=gemm>
     **Arguments:**
-        - *nn*: The neural network context.
         - *a*: an {{Operand}}. The first input 2-D tensor.
         - *b*: an {{Operand}}. The second input 2-D tensor.
         - *c*: an optional {{Operand}}. The third input 2-D tensor.
@@ -318,8 +319,8 @@ partial interface NeuralNetworkContext {
 
     Calculate the <a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3">general matrix multiplication of the Basic Liner Algebra Subprograms</a>. The calculation follows the expression `alpha * A * B + beta * C`, where `A`, `B`, and `C` are matrices, and `A` and `B` may optionally be transposed prior to the calculation.
 
-    This static operation can be generically implemented in term of other interface operations as follow. However, the user agent is free to implement the operation differently to suit their needs.
-
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     if (aTranspose)
       a = nn.transpose(a);
@@ -330,6 +331,7 @@ partial interface NeuralNetworkContext {
     var ab = nn.matmul(nn.mul(nn.constant(alpha), a), b);
     return (c ? nn.add(ab, nn.mul(nn.constant(beta), c)) : ab);
     </pre>
+    </div>
 </div>
 
 ### matmul ### {#api-neuralnetworkcontext-matmul}
@@ -383,7 +385,7 @@ partial interface NeuralNetworkContext {
 <div algorithm=transpose>
     **Arguments:**
         - *input*: an {{Operand}}. The input N-D tensor.
-        - *permutation*: an optional sequence of {{long}} values. The values used to permute the output shape. When it's not specified, it's set to `[N-1...0]`, where `N` is the rank of the input tensor. This causes the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor. 
+        - *permutation*: an optional sequence of {{long}} values. The values used to permute the output shape. When it's not specified, it's set to `[N-1...0]`, where `N` is the rank of the input tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 
     **Returns:** an {{Operand}}. The permuted or transposed N-D tensor.
 
