@@ -235,9 +235,14 @@ interface Operand {};
 <script type=idl>
 typedef double number;
 
+dictionary Output {
+  required DOMString name;
+  required Operand operand;
+};
+
 interface NeuralNetworkContext {
   // Create an Operand object that represents a model input.
-  Operand input(OperandDescriptor desc);
+  Operand input(DOMString name, OperandDescriptor desc);
 
   // Create an Operand object that represents a model constant.
   Operand constant(OperandDescriptor desc, ArrayBufferView value);
@@ -246,7 +251,7 @@ interface NeuralNetworkContext {
   Operand constant(number value, optional OperandType type = "float32");
 
   // Create a Model object by identifying output operands.
-  Promise<Model> createModel(sequence<Operand> outputs);
+  Promise<Model> createModel(sequence<Output> outputs);
 };
 </script>
 
@@ -753,8 +758,8 @@ interface Compilation {
 ## Execution ## {#api-execution}
 <script type=idl>
 interface Execution {
-  void setInput(unsigned long index, ArrayBufferView data);
-  void setOutput(unsigned long index, ArrayBufferView data);
+  void setInput(DOMString name, ArrayBufferView data);
+  void setOutput(DOMString name, ArrayBufferView data);
   Promise<void> startCompute();
 };
 </script>
@@ -795,7 +800,7 @@ const tensor0 = nn.constant(float32TensorType,
                             new Float32Array(arrayBuffer, 0, TENSOR_SIZE));
 
 // tensor1 is one of the input tensors. Its value will be set before execution.
-const tensor1 = nn.input(float32TensorType);
+const tensor1 = nn.input('tensor1', float32TensorType);
 
 // tensor2 is another constant tensor. Set its value from same ArrayBuffer
 // object with offset.
@@ -805,7 +810,7 @@ const tensor2 = nn.constant(float32TensorType,
                                              TENSOR_SIZE));
 
 // tensor3 is another input tensor. Its value will be set before execution.
-const tensor3 = nn.input(float32TensorType);
+const tensor3 = nn.input('tensor3', float32TensorType);
 
 // intermediateOutput0 is the output of the first Add operation.
 const intermediateOutput0 = nn.add(tensor0, tensor1);
@@ -817,7 +822,7 @@ const intermediateOutput1 = nn.add(tensor2, tensor3);
 const output = nn.mul(intermediateOutput0, intermediateOutput1);
 
 // Create the model by identifying the outputs.
-const model = await nn.createModel([output]);
+const model = await nn.createModel([{name: 'output', operand: output}]);
 </pre>
 </div>
 
@@ -837,23 +842,23 @@ The following code executes the compiled graph.
 // Create an Execution object for the compiled model.
 const execution = await compilation.createExecution();
 
-// Setup the input tensors that contain the input data provided by the user.
-const inputTensor1 = new Float32Array(TENSOR_SIZE);
-inputTensor1.fill(inputValue1);
-const inputTensor2 = new Float32Array(TENSOR_SIZE);
-inputTensor2.fill(inputValue2);
+// Setup the input buffers that contain the input data provided by the user.
+const inputBuffer1 = new Float32Array(TENSOR_SIZE);
+inputBuffer1.fill(inputValue1);
+const inputBuffer2 = new Float32Array(TENSOR_SIZE);
+inputBuffer2.fill(inputValue2);
 
-// Associate the input tensors to model's inputs.
-execution.setInput(0, inputTensor1);
-execution.setInput(1, inputTensor2);
+// Associate the input buffers to model's inputs.
+execution.setInput('tensor1', inputBuffer1);
+execution.setInput('tensor3', inputBuffer2);
 
-// Associate the output tensor to model's output.
-let outputTensor = new Float32Array(TENSOR_SIZE);
-execution.setOutput(0, outputTensor);
+// Associate the output buffer to model's output.
+let outputBuffer = new Float32Array(TENSOR_SIZE);
+execution.setOutput('output', outputBuffer);
 
 // Start the asynchronous computation.
 await execution.startCompute();
-// The computed result is now in outputTensor.
+// The computed result is now in outputBuffer.
 </pre>
 </div>
 
