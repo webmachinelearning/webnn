@@ -227,10 +227,7 @@ dictionary OperandDescriptor {
 
 ## Operand ## {#api-operand}
 <script type=idl>
-interface Operand {
-  // Get the sizes of each dimension of the operand.
-  sequence<long> shape();
-};
+interface Operand {};
 </script>
 
 ## NeuralNetworkContext ## {#api-neuralnetworkcontext}
@@ -311,7 +308,7 @@ partial interface NeuralNetworkContext {
             [beginning_height, ending_height, beginning_width, ending_width]. 
             If not present, the values are assumed to be [0,0,0,0].
         - *strides*: an optional sequence of {{long}} of length 2. The stride of the
-            sliding window for each spatial dimension of *input*, [stride_height, stirde_width]. 
+            sliding window for each spatial dimension of *input*, [stride_height, stride_width]. 
             If not present, the values are assumed to be [1,1].
         - *dilations*: an optional sequence of {{long}} of length 2. The dilation factor
             for each spatial dimension of *input*, [dilation_height, dilation_width]. 
@@ -506,13 +503,13 @@ partial interface NeuralNetworkContext {
 Compute a *mean*, *L2 norm*, or *max* reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-neuralnetworkcontext-reduce]].
 <script type=idl>
 partial interface NeuralNetworkContext {
-  Operand averagePool2d(Operand input, sequence<long> windowDimensions,
+  Operand averagePool2d(Operand input, optional sequence<long> windowDimensions,
                         optional sequence<long> padding, optional sequence<long> strides,
                         optional sequence<long> dilations, optional OperandLayout layout = "nchw");
-  Operand L2Pool2d(Operand input, sequence<long> windowDimensions,
+  Operand l2Pool2d(Operand input, optional sequence<long> windowDimensions,
                   optional sequence<long> padding, optional sequence<long> strides,
                   optional sequence<long> dilations, optional OperandLayout layout = "nchw");
-  Operand maxPool2d(Operand input, sequence<long> windowDimensions,
+  Operand maxPool2d(Operand input, optional sequence<long> windowDimensions,
                     optional sequence<long> padding, optional sequence<long> strides,
                     optional sequence<long> dilations, optional OperandLayout layout = "nchw");
 };
@@ -521,14 +518,16 @@ partial interface NeuralNetworkContext {
     **Arguments:**
         - *input*: an {{Operand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *layout*.
-        - *windowDimensions*: a sequence of {{long}} of length 2. The dimensions of the sliding window.
+        - *windowDimensions*: an optional sequence of {{long}} of length 2. The dimensions of the sliding window,
+            [window_height, window_width]. If not present, the window dimensions are assumed to be the last 
+            two dimensions of the input shape.
         - *padding*: an optional sequence of {{long}} of length 4. The padding for the
             beginning and ending along each spatial dimension of *input*,
             [beginning_height, ending_height, beginning_width, ending_width].
             If not present, the values are assumed to be [0,0,0,0].
         - *strides*: an optional sequence of {{long}} of length 2. The stride of the
             sliding window for each spatial dimension of *input*,
-            [stride_height, stirde_width]. If not present, the values are assumed to be [1,1].
+            [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
         - *dilations*: an optional sequence of {{long}} of length 2. The dilation factor
             for each spatial dimension of *input*, [dilation_height, dilation_width].
             If not present, the values are assumed to be [1,1].
@@ -548,11 +547,10 @@ partial interface NeuralNetworkContext {
     value of *layout*.
 
     <div class="note">
-    A "global" pooling operation such as the *globalMaxPool2d* operation is a variant of the pooling operation where the window dimensions is the dimensions of the input as follow.
+    A *global* pooling operation such as one for the max pooling operation is a variant of pooling where the window dimensions is the spatial dimensions (last two dimensions) of the input shape, as follow.
     <pre highlight="js">
-    Operand globalMaxPool2d(input) {
-      return maxPool2d(input, input.shape());
-    }
+    // 'global' max pooling
+    maxPool2d(input);
     </pre>
     </div>
 </div>
@@ -586,13 +584,13 @@ partial interface NeuralNetworkContext {
     **Reduction types:**
         - *L1*: Compute the <a href="https://mathworld.wolfram.com/L1-Norm.html">L1 norm</a> of the input elements along the axes.
         - *L2*: Compute the <a href="https://mathworld.wolfram.com/L2-Norm.html">L2 norm</a> of the input elements along the axes.
-        - *LogSum*: Compute the `log(sum(input values))` of the input values along the axes.
-        - *Max*: Compute the `max(input values)` of the input values along the axes.
-        - *Mean*: Compute the `mean(input values)` of the input values along the axes.
-        - *Min*: Compute the `min(input values)` of the input values along the axes.
-        - *Product*: Compute the product of the input values along the axes.
-        - *Sum*: Compute the `sum(input values)` of the input values along the axes.
-        - *SumSquare*: Compute the sum square of the input values along the axes.
+        - *LogSum*: Compute the log value of the sum of all the input values along the axes.
+        - *Max*: Compute the maximum value of all the input values along the axes.
+        - *Mean*: Compute the average value of all the input values along the axes.
+        - *Min*: Compute the minimum value of all the input values along the axes.
+        - *Product*: Compute the product of all the input values along the axes.
+        - *Sum*: Compute the sum of all the input values along the axes.
+        - *SumSquare*: Compute the sum of the square of all the input values along the axes.
 </div>
 
 ### relu ### {#api-neuralnetworkcontext-relu}
