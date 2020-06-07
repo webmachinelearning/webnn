@@ -250,12 +250,12 @@ interface NeuralNetworkContext {
 </script>
 
 ### add ### {#api-neuralnetworkcontext-add}
+Compute the element-wise binary addition of the two input tensors.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand add(Operand a, Operand b);
 };
 </script>
-
 <div algorithm=add>
     **Arguments:**
         - *a*: an {{Operand}}. The first input tensor.
@@ -264,20 +264,16 @@ partial interface NeuralNetworkContext {
     **Returns:** an {{Operand}}. The output tensor that contains the result of
     element-wise binary addition of the two input tensors.
 
-    Computes the element-wise binary addition of the two input tensors. The
-    element-wise binary addition will be broadcasted according to
-    [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
-    rank of the input tensors. For each dimension of the output tensor, its size
-    is the maximum size along that dimension of the input tensors.
+    The element-wise binary addition will be broadcasted according to [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum rank of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 </div>
 
 ### concat ### {#api-neuralnetworkcontext-concat}
+Concatenates the input tensors along a given axis.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand concat(sequence<Operand> inputs, long axis);
 };
 </script>
-
 <div algorithm=concat>
     **Arguments:**
         - *inputs*: a sequence of {{Operand}}. All input tensors must have the
@@ -290,34 +286,33 @@ partial interface NeuralNetworkContext {
     the *axis*. The output tensor has the same shape except on the dimension
     that all the inputs concatenated along. The size of that dimension is
     computed as the sum of all the input sizes of the same dimension.
-
-    Concatenates the input tensors along a given axis.
 </div>
 
 ### conv2d ### {#api-neuralnetworkcontext-conv2d}
+Compute a 2-D convolution given 4-D input and filter tensors
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand conv2d(Operand input, Operand filter,
-                 sequence<long> padding, sequence<long> strides, sequence<long> dilations,
-                 optional OperandLayout layout = "nchw");
+                 optional sequence<long> padding, optional sequence<long> strides, 
+                 optional sequence<long> dilations, optional OperandLayout layout = "nchw");
 };
 </script>
-
 <div algorithm=conv2d>
     **Arguments:**
         - *input*: an {{Operand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *layout*.
         - *filter*: an {{Operand}}. The filter 4-D tensor. The logical shape
             is interpreted according to the value of *layout*.
-        - *padding*: a sequence of {{long}} of length 4. The padding for the
+        - *padding*: an optional sequence of {{long}} of length 4. The padding for the
             beginning and ending along each spatial dimension of *input*,
-            [beginning_height, ending_height, beginning_width, ending_width].
-        - *strides*: a sequence of {{long}} of length 2. The stride of the
-            sliding window for each spatial dimension of *input*,
-            [stride_height, stirde_width].
-        - *dilations*: a sequence of {{long}} of length 2. The dilation factor
-            for each spatial dimension of *input*, [dilation_height,
-            dilation_width].
+            [beginning_height, ending_height, beginning_width, ending_width]. 
+            If not present, the values are assumed to be [0,0,0,0].
+        - *strides*: an optional sequence of {{long}} of length 2. The stride of the
+            sliding window for each spatial dimension of *input*, [stride_height, stride_width]. 
+            If not present, the values are assumed to be [1,1].
+        - *dilations*: an optional sequence of {{long}} of length 2. The dilation factor
+            for each spatial dimension of *input*, [dilation_height, dilation_width]. 
+            If not present, the values are assumed to be [1,1].
         - *layout*: an optional {{OperandLayout}} with value as "nchw" or
             "nhwc". The default value is "nchw". This argument specifies the
             layout format of the input, output and filter tensor.
@@ -337,11 +332,10 @@ partial interface NeuralNetworkContext {
     **Returns:** an {{Operand}}. The output 4-D tensor that contains the
     result of the convolution. The logical shape is interpreted according to the
     value of *layout*.
-
-    Computes a 2-D convolution given input and filter 4-D tensors.
 </div>
 
 ### gemm ### {#api-neuralnetworkcontext-gemm}
+Calculate the <a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3">general matrixmultiplication of the Basic Liner Algebra Subprograms</a>. The calculation follows the expression `alpha * A * B + beta *C`, where `A`, `B`, and `C` are matrices, and `A` and `B` may optionally be transposed prior to the calculation.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand gemm(Operand a, Operand b, optional Operand c = null, 
@@ -360,8 +354,6 @@ partial interface NeuralNetworkContext {
         - *bTranspose*: an optional {{boolean}} indicating if the second input should be transposed prior to calculating the output, default to false.
 
     **Returns:** an {{Operand}}. The output 2-D tensor that contains the calculated product of all the inputs.
-
-    Calculate the <a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3">general matrix multiplication of the Basic Liner Algebra Subprograms</a>. The calculation follows the expression `alpha * A * B + beta * C`, where `A`, `B`, and `C` are matrices, and `A` and `B` may optionally be transposed prior to the calculation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
@@ -412,6 +404,7 @@ partial interface NeuralNetworkContext {
 
 
 ### matmul ### {#api-neuralnetworkcontext-matmul}
+Compute the matrix product of two input tensors.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand matmul(Operand a, Operand b);
@@ -426,7 +419,7 @@ partial interface NeuralNetworkContext {
     **Returns:** an {{Operand}}. The output N-D tensor that contains the matrix
     product of two input tensors.
 
-    Computes the matrix product of two input tensors. It behaves as following:
+    Compute the matrix product of two input tensors. It behaves as following:
         - If both *a* and *b* are 2-D, they are multiplied like conventional
             matrices and produce a 2-D tensor as the output.
         - If either *a* or *b* is N-D, N > 2, it is treated as a stack of
@@ -445,12 +438,12 @@ partial interface NeuralNetworkContext {
 </div>
 
 ### max ### {#api-neuralnetworkcontext-max}
+Compute the element-wise maximum of the two input tensors.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand max(Operand a, Operand b);
 };
 </script>
-
 <div algorithm=max>
     **Arguments:**
         - *a*: an {{Operand}}. The first input tensor.
@@ -459,11 +452,7 @@ partial interface NeuralNetworkContext {
     **Returns:** an {{Operand}}. The output tensor that contains the result of
     element-wise maximum of the two input tensors.
 
-    Computes the element-wise maximum of the two input tensors. The element-wise
-    maximum will be broadcasted according to [[!numpy-broadcasting-rule]]. The
-    rank of the output tensor is the maximum rank of the input tensors. For each
-    dimension of the output tensor, its size is the maximum size along that
-    dimension of the input tensors.
+    The element-wise maximum will be broadcasted according to [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum rank of the input tensors. For each dimension of the output tensor, its size is the maximum size along thatdimension of the input tensors.
 </div>
 
 ### min ### {#api-neuralnetworkcontext-min}
@@ -490,6 +479,7 @@ partial interface NeuralNetworkContext {
 
 
 ### mul ### {#api-neuralnetworkcontext-mul}
+Compute the element-wise binary multiplication of the two input tensors.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand mul(Operand a, Operand b);
@@ -502,21 +492,114 @@ partial interface NeuralNetworkContext {
 
     **Returns:** an {{Operand}}. The output tensor that contains the result of
     element-wise binary multiplication of the two input tensors.
-
-    Computes the element-wise binary multiplication of the two input tensors.
+  
     The element-wise binary multiplication will be broadcasted according to
     [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
     rank of the input tensors. For each dimension of the output tensor, its size
     is the maximum size along that dimension of the input tensors.
 </div>
 
+### pool2d ### {#api-neuralnetworkcontext-pool2d}
+Compute a *mean*, *L2 norm*, or *max* reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-neuralnetworkcontext-reduce]].
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand averagePool2d(Operand input, optional sequence<long> windowDimensions,
+                        optional sequence<long> padding, optional sequence<long> strides,
+                        optional sequence<long> dilations, optional OperandLayout layout = "nchw");
+  Operand l2Pool2d(Operand input, optional sequence<long> windowDimensions,
+                  optional sequence<long> padding, optional sequence<long> strides,
+                  optional sequence<long> dilations, optional OperandLayout layout = "nchw");
+  Operand maxPool2d(Operand input, optional sequence<long> windowDimensions,
+                    optional sequence<long> padding, optional sequence<long> strides,
+                    optional sequence<long> dilations, optional OperandLayout layout = "nchw");
+};
+</script>
+<div algorithm=pool2d>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input 4-D tensor. The logical shape
+            is interpreted according to the value of *layout*.
+        - *windowDimensions*: an optional sequence of {{long}} of length 2. The dimensions of the sliding window,
+            [window_height, window_width]. If not present, the window dimensions are assumed to be the height  
+            and width dimensions of the input shape. 
+        - *padding*: an optional sequence of {{long}} of length 4. The padding for the
+            beginning and ending along each spatial dimension of *input*,
+            [beginning_height, ending_height, beginning_width, ending_width].
+            If not present, the values are assumed to be [0,0,0,0].
+        - *strides*: an optional sequence of {{long}} of length 2. The stride of the
+            sliding window for each spatial dimension of *input*,
+            [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
+        - *dilations*: an optional sequence of {{long}} of length 2. The dilation factor
+            for each spatial dimension of *input*, [dilation_height, dilation_width].
+            If not present, the values are assumed to be [1,1].
+        - *layout*: an optional {{OperandLayout}} with value as "nchw" or
+            "nhwc". The default value is "nchw". This argument specifies the
+            layout format of the input and output.
+
+            "nchw":
+                - input tensor: [batches, channels, height, width]
+                - output tensor: [batches, channels, height, width]
+            "nhwc":
+                - input tensor: [batches, height, width, channels]
+                - output tensor: [batches, height, width, channels]
+
+    **Returns:** an {{Operand}}. The output 4-D tensor that contains the
+    result of the reduction. The logical shape is interpreted according to the
+    value of *layout*.
+
+    <div class="note">
+    A *global* pooling operation such as one for the max pooling operation is a variant of pooling where the window dimensions is the spatial dimensions (last two dimensions) of the input shape, as follow.
+    <pre highlight="js">
+    // 'global' max pooling
+    maxPool2d(input);
+    </pre>
+    </div>
+</div>
+
+### reduce ### {#api-neuralnetworkcontext-reduce}
+Reduce the input along the dimensions given in *axes*.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand reduceL1(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
+  Operand reduceL2(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
+  Operand reduceLogSum(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
+  Operand reduceLogSumExp(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
+  Operand reduceMax(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
+  Operand reduceMean(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
+  Operand reduceMin(Operand input, optional sequence<long> axe = null, optional boolean keepDimensions = false);
+  Operand reduceProduct(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
+  Operand reduceSum(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
+  Operand reduceSumSquare(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
+};
+</script>
+<div algorithm=reduce>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input tensor.
+        - *axes*: an optional sequence of {{long}}. The dimensions to reduce.
+            If not present, all dimensions are reduced.
+        - *keepDimensions*: an optional {{boolean}}. If true, retains reduced dimensions with size of 1.
+            The default value is false.
+
+    **Returns:** an {{Operand}}. The reduced output tensor.
+
+    **Reduction types:**
+        - *L1*: Compute the <a href="https://mathworld.wolfram.com/L1-Norm.html">L1 norm</a> of all the input values along the axes.
+        - *L2*: Compute the <a href="https://mathworld.wolfram.com/L2-Norm.html">L2 norm</a> of all the input values along the axes.
+        - *LogSum*: Compute the log value of the sum of all the input values along the axes.
+        - *Max*: Compute the maximum value of all the input values along the axes.
+        - *Mean*: Compute the average value of all the input values along the axes.
+        - *Min*: Compute the minimum value of all the input values along the axes.
+        - *Product*: Compute the product of all the input values along the axes.
+        - *Sum*: Compute the sum of all the input values along the axes.
+        - *SumSquare*: Compute the sum of the square of all the input values along the axes.
+</div>
+
 ### relu ### {#api-neuralnetworkcontext-relu}
+Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">rectified linear</a> function on the input tensor element-wise. The calculation follows the expression `max(0, x)`.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand relu(Operand x);
 };
 </script>
-
 <div algorithm=relu>
     **Arguments:**
         - *x*: an {{Operand}}. The input tensor.
@@ -540,12 +623,12 @@ partial interface NeuralNetworkContext {
 </div>
 
 ### reshape ### {#api-neuralnetworkcontext-reshape}
+Reshapes a tensor to a given new shape.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand reshape(Operand input, sequence<long> newShape);
 };
 </script>
-
 <div algorithm=reshape>
     **Arguments:**
         - *input*: an {{Operand}}. The input tensor.
@@ -559,11 +642,10 @@ partial interface NeuralNetworkContext {
     **Returns:**: an {{Operand}}. The output tensor. The values of the output
     tensor are the same as values of the input tensor. The shape of the output
     tensor is specified by the *newShape* argument.
-
-    Reshapes a tensor to a given new shape.
 </div>
 
 ### transpose ### {#api-neuralnetworkcontext-transpose}
+Permute the dimensions of the input tensor according to the *permutation* argument.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand transpose(Operand input, optional sequence<long> permutation);
@@ -574,9 +656,7 @@ partial interface NeuralNetworkContext {
         - *input*: an {{Operand}}. The input N-D tensor.
         - *permutation*: an optional sequence of {{long}} values. The values used to permute the output shape. When it's not specified, it's set to `[N-1...0]`, where `N` is the rank of the input tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 
-    **Returns:** an {{Operand}}. The permuted or transposed N-D tensor.
-
-    Permute the dimensions of the input tensor according to the *permutation* argument. 
+    **Returns:** an {{Operand}}. The permuted or transposed N-D tensor. 
 </div>
 
 ## Model ## {#api-model}
