@@ -294,15 +294,16 @@ Compute a 2-D convolution given 4-D input and filter tensors
 partial interface NeuralNetworkContext {
   Operand conv2d(Operand input, Operand filter,
                  optional sequence<long> padding, optional sequence<long> strides, 
-                 optional sequence<long> dilations, optional OperandLayout layout = "nchw");
+                 optional sequence<long> dilations, optional long groups = 1,
+                 optional OperandLayout layout = "nchw");
 };
 </script>
 <div algorithm=conv2d>
     **Arguments:**
         - *input*: an {{Operand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *layout*.
-        - *filter*: an {{Operand}}. The filter 4-D tensor. The logical shape
-            is interpreted according to the value of *layout*.
+        - *filter*: an {{Operand}}. The filter 4-D tensor. The logical shape is
+            interpreted according to the value of *layout* and *groups*.
         - *padding*: an optional sequence of {{long}} of length 4. The padding for the
             beginning and ending along each spatial dimension of *input*,
             [beginning_height, ending_height, beginning_width, ending_width]. 
@@ -313,6 +314,8 @@ partial interface NeuralNetworkContext {
         - *dilations*: an optional sequence of {{long}} of length 2. The dilation factor
             for each spatial dimension of *input*, [dilation_height, dilation_width]. 
             If not present, the values are assumed to be [1,1].
+        - *groups*: an optional {{long}}. The number of groups that input
+            channels and output channels are divided into, default to 1.
         - *layout*: an optional {{OperandLayout}} with value as "nchw" or
             "nhwc". The default value is "nchw". This argument specifies the
             layout format of the input, output and filter tensor.
@@ -320,18 +323,25 @@ partial interface NeuralNetworkContext {
 
             "nchw":
                 - input tensor: [batches, input_channels, height, width]
-                - filter tensor: [output_channels, input_channels, height,
-                    width]
+                - filter tensor: [output_channels, input_channels/groups,
+                    height, width]
                 - output tensor: [batches, output_channels, height, width]
             "nhwc":
                 - input tensor: [batches, height, width, input_channels]
-                - filter tensor: [height, width, input_channels,
+                - filter tensor: [height, width, input_channels/groups,
                     output_channels]
                 - output tensor: [batches, height, width, output_channels]
 
     **Returns:** an {{Operand}}. The output 4-D tensor that contains the
     result of the convolution. The logical shape is interpreted according to the
     value of *layout*.
+
+    <div class="note">
+    A *depthwise* conv2d operation is a variant of grouped conv2d where the
+    *groups* = input_channels = output_channels and the shape of filter tensor
+    is [groups, 1, height, width] for "nchw" layout or [height, width, 1,
+    groups] for "nhwc" layout.
+    </div>
 </div>
 
 ### gemm ### {#api-neuralnetworkcontext-gemm}
