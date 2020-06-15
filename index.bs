@@ -267,6 +267,52 @@ partial interface NeuralNetworkContext {
     The element-wise binary addition will be broadcasted according to [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum rank of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 </div>
 
+### batchNormalization ### {#api-neuralnetworkcontext-batchnorm}
+Normalize the tensor values across dimensions in a batch through a specialized [transform](https://en.wikipedia.org/wiki/Batch_normalization#Batch_Normalizing_Transform) introduced in this [paper](https://arxiv.org/abs/1502.03167). The *mean* and *variance* tensors are previously calculated during model training pass.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand batchNormalization(Operand input, Operand mean, Operand variance, Operand scale, 
+                             Operand bias, optional long axis = 1, optional float epsilon = 1e-5);
+};
+</script>
+<div algorithm=batchnorm>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input N-D tensor.
+        - *mean*: an {{Operand}}. The 1-D tensor of the batch mean values.
+        - *variance*: an {{Operand}}. The 1-D tensor of the batch variance values.
+        - *scale*: an {{Operand}}. The 1-D tensor of the scaling values.
+        - *bias*: an {{Operand}}. The 1-D tensor of the bias values.
+        - *axis*: an optional {{long}}. The index for the feature dimension of the input shape for which 
+            the normalizing batch is defined and that the mean and variance values are computed. 
+            When it's not specified, the default value is 1.
+        - *epsilon*: an optional {{long}}. The Epsilon value to prevent computational error due to divide-by-zero.
+            The default value is 0.00001 when not specified.
+        
+    **Returns:** an {{Operand}}. The batch normalized N-D tensor of the same shape as the input tensor.
+
+    When *input* is a 4-D tensor of the "nchw" or "nhwc" layout, *axis* should be set to 1 or 3 respectively, 
+    to designate the feature dimension of the input tensor.
+
+    <div class="note">
+    The behavior of this operation when the input tensor is 4-D of the "nchw" layout can be generically emulated from 
+    the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, 
+    therefore its usage is encouraged from the performance standpoint.
+    <pre highlight="js">
+    let shape = [1,-1,1,1];
+    return nn.add(
+        nn.mul(
+          nn.reshape(scale, shape),
+          nn.div(
+            nn.subtract(input, reshape(mean, shape)),
+            nn.sqrt(nn.add(nn.reshape(variance, shape), nn.constant(epsilon)))
+            )
+          ),
+        nn.reshape(bias, shape)
+      );
+    </pre>
+    </div>
+</div>
+
 ### concat ### {#api-neuralnetworkcontext-concat}
 Concatenates the input tensors along a given axis.
 <script type=idl>
@@ -595,6 +641,7 @@ partial interface NeuralNetworkContext {
         - *L1*: Compute the <a href="https://mathworld.wolfram.com/L1-Norm.html">L1 norm</a> of all the input values along the axes.
         - *L2*: Compute the <a href="https://mathworld.wolfram.com/L2-Norm.html">L2 norm</a> of all the input values along the axes.
         - *LogSum*: Compute the log value of the sum of all the input values along the axes.
+        - *LogSumExp*: Compute the log value of the sum of the exponent of all the input values along the axes.
         - *Max*: Compute the maximum value of all the input values along the axes.
         - *Mean*: Compute the average value of all the input values along the axes.
         - *Min*: Compute the minimum value of all the input values along the axes.
