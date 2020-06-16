@@ -271,21 +271,26 @@ partial interface NeuralNetworkContext {
 Normalize the tensor values across dimensions in a batch through a specialized [transform](https://en.wikipedia.org/wiki/Batch_normalization#Batch_Normalizing_Transform) introduced in this [paper](https://arxiv.org/abs/1502.03167). The *mean* and *variance* tensors are previously calculated during model training pass.
 <script type=idl>
 partial interface NeuralNetworkContext {
-  Operand batchNormalization(Operand input, Operand mean, Operand variance, Operand scale, 
-                             Operand bias, optional long axis = 1, optional float epsilon = 1e-5);
+  Operand batchNormalization(Operand input, Operand mean, Operand variance, 
+                             optional Operand scale, optional Operand bias, 
+                             optional long axis = 1, optional float epsilon = 1e-5);
 };
 </script>
 <div algorithm=batchnorm>
     **Arguments:**
         - *input*: an {{Operand}}. The input N-D tensor.
-        - *mean*: an {{Operand}}. The 1-D tensor of the batch mean values.
+        - *mean*: an {{Operand}}. The 1-D tensor of the batch mean values 
+            whose length is equal to the size of the input dimension denoted by *axis*.
         - *variance*: an {{Operand}}. The 1-D tensor of the batch variance values.
-        - *scale*: an {{Operand}}. The 1-D tensor of the scaling values.
-        - *bias*: an {{Operand}}. The 1-D tensor of the bias values.
+            whose length is equal to the size of the input dimension denoted by *axis*.
+        - *scale*: an optional {{Operand}}. The 1-D tensor of the scaling values.
+            whose length is equal to the size of the input dimension denoted by *axis*.
+        - *bias*: an optional {{Operand}}. The 1-D tensor of the bias values.
+            whose length is equal to the size of the input dimension denoted by *axis*.
         - *axis*: an optional {{long}}. The index for the feature dimension of the input shape for which 
             the normalizing batch is defined and that the mean and variance values are computed. 
             When it's not specified, the default value is 1.
-        - *epsilon*: an optional {{long}}. The Epsilon value to prevent computational error due to divide-by-zero.
+        - *epsilon*: an optional {{float}}. The Epsilon value to prevent computational error due to divide-by-zero.
             The default value is 0.00001 when not specified.
         
     **Returns:** an {{Operand}}. The batch normalized N-D tensor of the same shape as the input tensor.
@@ -303,7 +308,7 @@ partial interface NeuralNetworkContext {
         nn.mul(
           nn.reshape(scale, shape),
           nn.div(
-            nn.subtract(input, reshape(mean, shape)),
+            nn.sub(input, reshape(mean, shape)),
             nn.sqrt(nn.add(nn.reshape(variance, shape), nn.constant(epsilon)))
             )
           ),
