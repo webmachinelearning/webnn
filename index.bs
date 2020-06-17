@@ -235,7 +235,7 @@ interface Operand {};
 <script type=idl>
 typedef double number;
 
-dictionary Output {
+dictionary NamedOperand {
   required DOMString name;
   required Operand operand;
 };
@@ -251,7 +251,7 @@ interface NeuralNetworkContext {
   Operand constant(number value, optional OperandType type = "float32");
 
   // Create a Model object by identifying output operands.
-  Promise<Model> createModel(sequence<Output> outputs);
+  Promise<Model> createModel(sequence<NamedOperand> outputs);
 };
 </script>
 
@@ -777,15 +777,14 @@ const nn = navigator.ml.getNeuralNetworkContext();
 <div class="example">
 The following code builds a graph as:
 <pre>
-tensor0 ---+
-           +--- Add ---> intermediateOutput0 ---+
-tensor1 ---+                                    |
-                                                +--- Mul---> output
-tensor2 ---+                                    |
-           +--- Add ---> intermediateOutput1 ---+
-tensor3 ---+
+constant1 ---+
+             +--- Add ---> intermediateOutput1 ---+
+input1    ---+                                    |
+                                                  +--- Mul---> output
+constant2 ---+                                    |
+             +--- Add ---> intermediateOutput2 ---+
+input2    ---+
 </pre>
-The tensor0 and tensor2 are constants. The tensor1 and tensor3 are user inputs.
 <pre highlight="js">
 // Use tensors in 4 dimensions.
 const TENSOR_DIMS = [2, 2, 2, 2];
@@ -794,32 +793,32 @@ const TENSOR_SIZE = 16;
 // Create OperandDescriptor object.
 const float32TensorType = {type: 'tensor-float32', dimensions: TENSOR_DIMS};
 
-// tensor0 is a constant tensor. Set its value from an ArrayBuffer object.
+// constant1 is a constant tensor. Set its value from an ArrayBuffer object.
 // The ArrayBuffer object may contain the training data loaded before hand.
-const tensor0 = nn.constant(float32TensorType,
-                            new Float32Array(arrayBuffer, 0, TENSOR_SIZE));
+const constant1 = nn.constant(float32TensorType,
+                              new Float32Array(arrayBuffer, 0, TENSOR_SIZE));
 
-// tensor1 is one of the input tensors. Its value will be set before execution.
-const tensor1 = nn.input('tensor1', float32TensorType);
+// input1 is one of the input tensors. Its value will be set before execution.
+const input1 = nn.input('input1', float32TensorType);
 
-// tensor2 is another constant tensor. Set its value from same ArrayBuffer
+// constant2 is another constant tensor. Set its value from same ArrayBuffer
 // object with offset.
-const tensor2 = nn.constant(float32TensorType,
-                            new Float32Array(arrayBuffer,
-                                             TENSOR_SIZE * Float32Array.BYTES_PER_ELEMENT,
-                                             TENSOR_SIZE));
+const constant2 = nn.constant(float32TensorType,
+                              new Float32Array(arrayBuffer,
+                                               TENSOR_SIZE * Float32Array.BYTES_PER_ELEMENT,
+                                               TENSOR_SIZE));
 
-// tensor3 is another input tensor. Its value will be set before execution.
-const tensor3 = nn.input('tensor3', float32TensorType);
+// input2 is another input tensor. Its value will be set before execution.
+const input2 = nn.input('input2', float32TensorType);
 
-// intermediateOutput0 is the output of the first Add operation.
-const intermediateOutput0 = nn.add(tensor0, tensor1);
+// intermediateOutput1 is the output of the first Add operation.
+const intermediateOutput1 = nn.add(constant1, input1);
 
-// intermediateOutput1 is the output of the second Add operation.
-const intermediateOutput1 = nn.add(tensor2, tensor3);
+// intermediateOutput2 is the output of the second Add operation.
+const intermediateOutput2 = nn.add(constant2, input2);
 
 // output is the output tensor of the Mul operation.
-const output = nn.mul(intermediateOutput0, intermediateOutput1);
+const output = nn.mul(intermediateOutput1, intermediateOutput2);
 
 // Create the model by identifying the outputs.
 const model = await nn.createModel([{name: 'output', operand: output}]);
@@ -849,8 +848,8 @@ const inputBuffer2 = new Float32Array(TENSOR_SIZE);
 inputBuffer2.fill(inputValue2);
 
 // Associate the input buffers to model's inputs.
-execution.setInput('tensor1', inputBuffer1);
-execution.setInput('tensor3', inputBuffer2);
+execution.setInput('input1', inputBuffer1);
+execution.setInput('input2', inputBuffer2);
 
 // Associate the output buffer to model's output.
 let outputBuffer = new Float32Array(TENSOR_SIZE);
