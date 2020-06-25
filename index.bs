@@ -255,24 +255,6 @@ interface NeuralNetworkContext {
 };
 </script>
 
-### add ### {#api-neuralnetworkcontext-add}
-Compute the element-wise binary addition of the two input tensors.
-<script type=idl>
-partial interface NeuralNetworkContext {
-  Operand add(Operand a, Operand b);
-};
-</script>
-<div algorithm=add>
-    **Arguments:**
-        - *a*: an {{Operand}}. The first input tensor.
-        - *b*: an {{Operand}}. The second input tensor.
-
-    **Returns:** an {{Operand}}. The output tensor that contains the result of
-    element-wise binary addition of the two input tensors.
-
-    The element-wise binary addition will be broadcasted according to [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum rank of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
-</div>
-
 ### batchNormalization ### {#api-neuralnetworkcontext-batchnorm}
 Normalize the tensor values across dimensions in a batch through a specialized [transform](https://en.wikipedia.org/wiki/Batch_normalization#Batch_Normalizing_Transform) introduced in this [paper](https://arxiv.org/abs/1502.03167). The *mean* and *variance* tensors are previously calculated during model training pass.
 <script type=idl>
@@ -322,6 +304,72 @@ partial interface NeuralNetworkContext {
       );
     </pre>
     </div>
+</div>
+
+### element-wise binary operations ### {#api-neuralnetworkcontext-binary}
+Compute the element-wise binary addition, subtraction, multiplication, division,
+maximum and minimum of the two input tensors.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand add(Operand a, Operand b);
+  Operand sub(Operand a, Operand b);
+  Operand mul(Operand a, Operand b);
+  Operand div(Operand a, Operand b);
+  Operand max(Operand a, Operand b);
+  Operand min(Operand a, Operand b);
+};
+</script>
+<div algorithm=binary>
+    **Arguments:**
+        - *a*: an {{Operand}}. The first input tensor.
+        - *b*: an {{Operand}}. The second input tensor.
+
+    **Returns:** an {{Operand}}. The output tensor that contains the result of
+    element-wise binary operation of the two input tensors.
+
+    The element-wise binary operation will be broadcasted according to
+    [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
+    rank of the input tensors. For each dimension of the output tensor, its size
+    is the maximum size along that dimension of the input tensors.
+</div>
+
+### element-wise unary operations ### {#api-neuralnetworkcontext-unary}
+Compute the element-wise unary operation for input tensor.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand abs(Operand x);
+  Operand ceil(Operand x);
+  Operand cos(Operand x);
+  Operand exp(Operand x);
+  Operand floor(Operand x);
+  Operand log(Operand x);
+  Operand neg(Operand x);
+  Operand sin(Operand x);
+  Operand sqrt(Operand x);
+  Operand tan(Operand x);
+  Operand tanh(Operand x);
+};
+</script>
+<div algorithm=unary>
+    **Arguments:**
+        - *x*: an {{Operand}}. The input tensor.
+
+    **Returns:** an {{Operand}}. The output tensor that contains the result of
+    element-wise unary operation of the input tensor. The shape of the output
+    tensor is the same as the shape of input tensor.
+
+    **Operation types:**
+        - *abs*: Compute the absolute value of the input tensor, element-wise.
+        - *ceil*: Compute the ceiling of the input tensor, element-wise.
+        - *cos*: Compute the cosine of the input tensor, element-wise.
+        - *exp*: Compute the exponential of the input tensor, element-wise.
+        - *floor*: Compute the floor of the input tensor, element-wise.
+        - *log*: Compute the natural logarithm of the input tensor, element-wise.
+        - *neg*: Compute the numerical negative value of the input tensor, element-wise.
+        - *sin*: Compute the sine of the input tensor, element-wise.
+        - *sqrt*: Compute the square root of the input tensor, element-wise.
+        - *tan*: Compute the tangent of the input tensor, element-wise.
+        - *tanh*: Compute the hyperbolic tangent of the input tensor, element-wise.
 </div>
 
 ### concat ### {#api-neuralnetworkcontext-concat}
@@ -504,69 +552,7 @@ partial interface NeuralNetworkContext {
             which produces a scalar output.
 </div>
 
-### max ### {#api-neuralnetworkcontext-max}
-Compute the element-wise maximum of the two input tensors.
-<script type=idl>
-partial interface NeuralNetworkContext {
-  Operand max(Operand a, Operand b);
-};
-</script>
-<div algorithm=max>
-    **Arguments:**
-        - *a*: an {{Operand}}. The first input tensor.
-        - *b*: an {{Operand}}. The second input tensor.
-
-    **Returns:** an {{Operand}}. The output tensor that contains the result of
-    element-wise maximum of the two input tensors.
-
-    The element-wise maximum will be broadcasted according to [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum rank of the input tensors. For each dimension of the output tensor, its size is the maximum size along thatdimension of the input tensors.
-</div>
-
-### min ### {#api-neuralnetworkcontext-min}
-<script type=idl>
-partial interface NeuralNetworkContext {
-  Operand min(Operand a, Operand b);
-};
-</script>
-
-<div algorithm=min>
-    **Arguments:**
-        - *a*: an {{Operand}}. The first input tensor.
-        - *b*: an {{Operand}}. The second input tensor.
-
-    **Returns:** an {{Operand}}. The output tensor that contains the result of
-    element-wise minimum of the two input tensors.
-
-    Computes the element-wise minimum of the two input tensors. The element-wise
-    minimum will be broadcasted according to [[!numpy-broadcasting-rule]]. The
-    rank of the output tensor is the maximum rank of the input tensors. For each
-    dimension of the output tensor, its size is the maximum size along that
-    dimension of the input tensors.
-</div>
-
-
-### mul ### {#api-neuralnetworkcontext-mul}
-Compute the element-wise binary multiplication of the two input tensors.
-<script type=idl>
-partial interface NeuralNetworkContext {
-  Operand mul(Operand a, Operand b);
-};
-</script>
-<div algorithm=mul>
-    **Arguments:**
-        - *a*: an {{Operand}}. The first input tensor.
-        - *b*: an {{Operand}}. The second input tensor.
-
-    **Returns:** an {{Operand}}. The output tensor that contains the result of
-    element-wise binary multiplication of the two input tensors.
-  
-    The element-wise binary multiplication will be broadcasted according to
-    [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
-    rank of the input tensors. For each dimension of the output tensor, its size
-    is the maximum size along that dimension of the input tensors.
-</div>
-
-### pool2d ### {#api-neuralnetworkcontext-pool2d}
+### pooling operations ### {#api-neuralnetworkcontext-pool2d}
 Compute a *mean*, *L2 norm*, or *max* reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-neuralnetworkcontext-reduce]].
 <script type=idl>
 partial interface NeuralNetworkContext {
@@ -622,7 +608,7 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
-### reduce ### {#api-neuralnetworkcontext-reduce}
+### reduction operations ### {#api-neuralnetworkcontext-reduce}
 Reduce the input along the dimensions given in *axes*.
 <script type=idl>
 partial interface NeuralNetworkContext {
@@ -641,7 +627,7 @@ partial interface NeuralNetworkContext {
 <div algorithm=reduce>
     **Arguments:**
         - *input*: an {{Operand}}. The input tensor.
-        - *axes*: an optional sequence of {{long}}. The dimensions to reduce.
+        - *axes*: an optional sequence of {{long}}. The dimensions to reduce where -1 means the last dimension.
             If not present, all dimensions are reduced.
         - *keepDimensions*: an optional {{boolean}}. If true, retains reduced dimensions with size of 1.
             The default value is false.
@@ -711,6 +697,40 @@ partial interface NeuralNetworkContext {
     tensor are the same as values of the input tensor. The shape of the output
     tensor is specified by the *newShape* argument.
 </div>
+
+### softmax ### {#api-neuralnetworkcontext-softmax}
+Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
+the 2-D input tensor along axis 1.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand softmax(Operand x);
+};
+</script>
+<div algorithm=softmax>
+    **Arguments:**
+        - *x*: an {{Operand}}. The input 2-D tensor.
+
+    **Returns:** an {{Operand}}. The output 2-D tensor that contains the softmax
+    results, of the same shape as the input tensor.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    // This sample deploys a well-known implementation trick [1] to compute the
+    // exponentials of the distances to the max value, instead of the exponentials
+    // of the input values itself, in order to increase the numerical stability of
+    // the result.
+    // [1]: https://cs231n.github.io/linear-classify/#softmax
+    const max_x = nn.reduceMax(x, /* axes = */ [1], /* keepDimensions = */ true);
+    const exp_x = nn.exp(nn.sub(x, max));
+    return nn.div(exp_x, nn.reduceSum(exp_x, /* axes = */ [1], /* keepDimensions = */ true));
+    </pre>
+    </div>
+</div>
+
 
 ### transpose ### {#api-neuralnetworkcontext-transpose}
 Permute the dimensions of the input tensor according to the *permutation* argument.
