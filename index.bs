@@ -816,20 +816,16 @@ const TENSOR_SIZE = 16;
 // Create OperandDescriptor object.
 const float32TensorType = {type: 'tensor-float32', dimensions: TENSOR_DIMS};
 
-// constant1 is a constant tensor. Set its value from an ArrayBuffer object.
-// The ArrayBuffer object may contain the training data loaded before hand.
-const constant1 = nn.constant(float32TensorType,
-                              new Float32Array(arrayBuffer, 0, TENSOR_SIZE));
+// constant1 is a constant tensor with the value 0.5.
+const constantBuffer1 = new Float32Array(TENSOR_SIZE).fill(0.5);
+const constant1 = nn.constant(float32TensorType, constantBuffer1);
 
 // input1 is one of the input tensors. Its value will be set before execution.
 const input1 = nn.input('input1', float32TensorType);
 
-// constant2 is another constant tensor. Set its value from same ArrayBuffer
-// object with offset.
-const constant2 = nn.constant(float32TensorType,
-                              new Float32Array(arrayBuffer,
-                                               TENSOR_SIZE * Float32Array.BYTES_PER_ELEMENT,
-                                               TENSOR_SIZE));
+// constant2 is another constant tensor with the value 0.5.
+const constantBuffer2 = new Float32Array(TENSOR_SIZE).fill(0.5);
+const constant2 = nn.constant(float32TensorType, constantBuffer2);
 
 // input2 is another input tensor. Its value will be set before execution.
 const input2 = nn.input('input2', float32TensorType);
@@ -864,11 +860,9 @@ The following code executes the compiled graph.
 // Create an Execution object for the compiled model.
 const execution = await compilation.createExecution();
 
-// Setup the input buffers that contain the input data provided by the user.
-const inputBuffer1 = new Float32Array(TENSOR_SIZE);
-inputBuffer1.fill(inputValue1);
-const inputBuffer2 = new Float32Array(TENSOR_SIZE);
-inputBuffer2.fill(inputValue2);
+// Setup the input buffers with value 1.
+const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1);
+const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
 
 // Associate the input buffers to model's inputs.
 execution.setInput('input1', inputBuffer1);
@@ -881,6 +875,7 @@ execution.setOutput('output', outputBuffer);
 // Start the asynchronous computation.
 await execution.startCompute();
 // The computed result is now in outputBuffer.
+console.log(outputBuffer);
 </pre>
 </div>
 
