@@ -38,4 +38,4 @@ Remarks:
 2. A depthwise `conv2d` operation is a variant of grouped `conv2d`, used in MobileNet, where the groups = input_channels = output_channels.
 3. TFLite models don't contain `leakyRelu`. It is replaced with other operations during the model conversion.
 4. ONNX models don't contain `softmax`. It is implemented in the post-processing script.
-5. RNNoise implements `gru` as the combination of `sigmoid`, `tanh`, `relu`, `add`, `split`, `matmul` and `mul`.
+5. RNNoise implements `gru` as a combination of `sigmoid`, `tanh`, `relu`, `add`, `split`, `matmul` and `mul`.
