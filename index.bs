@@ -491,6 +491,12 @@ partial interface NeuralNetworkContext {
 ### gru ### {#api-neuralnetworkcontext-gru}
 Gated Recurrent Unit (GRU) recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of the network, as outlined in this [paper](https://arxiv.org/pdf/1406.1078.pdf).
 <script type=idl>
+enum RecurrentNetworkDirection {
+  "forward",
+  "backward",
+  "both"
+};
+
 enum RecurrentNetworkWeightLayout {
   "zrn",  // update-reset-new gate ordering
   "rzn"   // reset-update-new gate ordering
@@ -508,6 +514,7 @@ partial interface NeuralNetworkContext {
                         optional Operand bias, optional Operand recurrentBias,
                         optional boolean resetAfter = true,
                         optional boolean returnSequence = false,
+                        optional RecurrentNetworkDirection direction = "forward",
                         optional RecurrentNetworkWeightLayout layout = "zrn",
                         optional sequence<RecurrentNetworkActivation> activations);
 };
@@ -517,124 +524,181 @@ partial interface NeuralNetworkContext {
         - *hiddenSize*: a {{long}} scalar. The value of the third dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - *steps*: a {{long}} scalar. The number of time steps in the recurrent network.
         - *input*: an {{Operand}}. The input 3-D tensor of shape [steps, batch_size, input_size]. 
-        - *weight*: an {{Operand}}. The 2-D input weight tensor of shape [3 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
-        - *recurrentWeight*: an {{Operand}}. The 2-D recurrent weight tensor of shape [3 * hidden_size, hidden_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
-        - *initialHidden*: an {{Operand}}. The 2-D initial hidden state tensor of shape [batch_size, hidden_size].
-        - *bias*: an optional {{Operand}}. The 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors is specified according to the *layout* argument.
-        - *recurrentBias*: an optional {{Operand}}. The 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors is specified according to the *layout* argument.
+        - *weight*: an {{Operand}}. The 3-D input weight tensor of shape [num_directions, 3 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
+        - *recurrentWeight*: an {{Operand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
+        - *initialHidden*: an {{Operand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size].
+        - *bias*: an optional {{Operand}}. The 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
+        - *recurrentBias*: an optional {{Operand}}. The 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
         - *resetAfter*: an optional {{boolean}} indicating whether to apply the reset gate after or before matrix multilication. Default to true.
         - *returnSequence*: an optional {{boolean}} indicating whether to also return the entire sequence with every cell outputs from each time step in it in addition to the cell output of the last time step. Default to false.
+        - *direction*: an optional {{RecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
         - *layout*: an optional {{RecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the *inputWeight* and *recurrentWeight* tensor shape. When not specified, the default layout is *"zrn"*.
         - *activations*: an optional sequence of {{RecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's default to the sigmoid ("sigmoid") and the hyperbolic tangent ("tanh") function respectively.
 
-    **Returns:** a sequence of {{Operand}}. The first element of the sequence is a 2-D tensor of shape [batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if *returnSequence* is set to true, the second element is the 3-D output tensor of shape [steps, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
+    **Returns:** a sequence of {{Operand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if *returnSequence* is set to true, the second element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
 
     <div class="note">
     The behavior of this operation with default argument values can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     let one = nn.constant(1);
     let zero = nn.constant(0);
+    let forward = (direction == "both" || direction == "forward");
+    let backward = (direction == "both" || direction == "backward");
     let hidden = initialHidden;
-    let sequence;
+    let sequence = null;
 
     for (let step = 0; step < steps; ++step) {
-      let cellInput = nn.slice(input, [step, 0, 0], [step + 1, -1, -1]);
+      let output = null;
+      let slots = 0;
 
-      // update gate
-      let z = nn.sigmoid(
-        nn.add(
-          nn.add(
-            (bias ? nn.slice(bias, [0], [hiddenSize]) : zero),
-            (recurrentBias ? nn.slice(recurrentBias, [0], [hiddenSize]) : zero)
-            ),
-          nn.add(
-            nn.matmul(
-              cellInput, 
-              nn.transpose(nn.slice(weight, [0, 0], [hiddenSize, -1]))
-              ),
-            nn.matmul(
-              hidden, 
-              nn.transpose(nn.slice(recurrentweight, [0, 0], [hiddenSize, -1]))
-              )
-            )
-          )
-        );
+      for (let slot = 0; slot < 2; ++slot) {
+        if (slot == 0 && forward || slot == 1 && backward) {
+          let index = (slot == 1 ? steps - step - 1 : step);
+          let cellInput = nn.slice(input, [index, 0, 0], [index + 1, -1, -1]);
+          let cellHidden = nn.slice(hidden, [slot, 0, 0], [slot + 1, -1, -1]);
 
-      // reset gate
-      let r = nn.sigmoid(
-        nn.add(
-          nn.add(
-            (bias ? nn.slice(bias, [hiddenSize], [2 * hiddenSize]) : zero),
-            (recurrentBias ? nn.slice(recurrentBias, [hiddenSize], [2 * hiddenSize]) : zero)
-            ),
-          nn.add(
-            nn.matmul(
-              cellInput, 
-              nn.transpose(nn.slice(weight, [hiddenSize, 0], [2 * hiddenSize, -1]))
-              ),
-            nn.matmul(
-              hidden, 
-              nn.transpose(nn.slice(recurrentweight, [hiddenSize, 0], [2 * hiddenSize, -1]))
-              )
-            )
-          )
-        );
-
-      // new gate
-      let n;
-      if (resetAfter) {
-        n = nn.tanh(
-          nn.add(
-            (bias ? nn.slice(bias, [2 * hiddenSize], [3 * hiddenSize]) : zero),
+          // update gate
+          let z = nn.sigmoid(
             nn.add(
-              nn.matmul(
-                cellInput, 
-                nn.transpose(nn.slice(weight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
+              nn.add(
+                (bias ? nn.slice(bias, [slot, 0], [slot + 1, hiddenSize]) : zero),
+                (recurrentBias ? nn.slice(recurrentBias, [slot, 0], [slot + 1, hiddenSize]) : zero)
                 ),
-              nn.mul(
-                r,
-                nn.add(
-                  (recurrentBias ? nn.slice(recurrentBias, [2 * hiddenSize], [3 * hiddenSize]) : zero),
-                  nn.matmul(
-                    hidden, 
-                    nn.transpose(nn.slice(recurrentweight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
+              nn.add(
+                nn.matmul(
+                  cellInput, 
+                  nn.transpose(
+                    nn.reshape(
+                      nn.slice(weight, [slot, 0, 0], [slot + 1, hiddenSize, -1]), 
+                      [hiddenSize, -1]
+                      )
+                    )
+                  ),
+                nn.matmul(
+                  cellHidden, 
+                  nn.transpose(
+                    nn.reshape(
+                      nn.slice(recurrentweight, [slot, 0, 0], [slot + 1, hiddenSize, -1]), 
+                      [hiddenSize, -1]
+                      )
                     )
                   )
                 )
               )
-            )
-          );
-      }
-      else {
-        n = nn.tanh(
-          nn.add(
+            );
+
+          // reset gate
+          let r = nn.sigmoid(
             nn.add(
-              (bias ? nn.slice(bias, [2 * hiddenSize], [3 * hiddenSize]) : zero),
-              (recurrentBias ? nn.slice(recurrentBias, [2 * hiddenSize], [3 * hiddenSize]) : zero)
-              ),
-            nn.add(
-              nn.matmul(
-                cellInput, 
-                nn.transpose(nn.slice(weight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
+              nn.add(
+                (bias ? nn.slice(bias, [slot, hiddenSize], [slot + 1, 2 * hiddenSize]) : zero),
+                (recurrentBias ? nn.slice(recurrentBias, [slot, hiddenSize], [slot + 1, 2 * hiddenSize]) : zero)
                 ),
-              nn.matmul(
-                nn.mul(r, hidden),
-                nn.transpose(nn.slice(recurrentweight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
+              nn.add(
+                nn.matmul(
+                  cellInput, 
+                  nn.transpose(
+                    nn.reshape(
+                      nn.slice(weight, [slot, hiddenSize, 0], [slot + 1, 2 * hiddenSize, -1]), 
+                      [hiddenSize, -1]
+                      )
+                    )
+                  ),
+                nn.matmul(
+                  cellHidden, 
+                  nn.transpose(
+                    nn.reshape(
+                      nn.slice(recurrentweight, [slot, hiddenSize, 0], [slot + 1, 2 * hiddenSize, -1]), 
+                      [hiddenSize, -1]
+                      )
+                    )
+                  )
                 )
               )
-            )
-          );
+            );
+
+          // new gate
+          let n;
+          if (resetAfter) {
+            n = nn.tanh(
+              nn.add(
+                (bias ? nn.slice(bias, [slot, 2 * hiddenSize], [slot + 1, 3 * hiddenSize]) : zero),
+                nn.add(
+                  nn.matmul(
+                    cellInput, 
+                    nn.transpose(
+                      nn.reshape(
+                        nn.slice(weight, [slot, 2 * hiddenSize, 0], [slot + 1, 3 * hiddenSize, -1]), 
+                        [hiddenSize, -1]
+                        )
+                      )
+                    ),
+                  nn.mul(
+                    r,
+                    nn.add(
+                      (recurrentBias ? nn.slice(recurrentBias, [slot, 2 * hiddenSize], [slot + 1, 3 * hiddenSize]) : zero),
+                      nn.matmul(
+                        cellHidden, 
+                        nn.transpose(
+                          nn.reshape(
+                            nn.slice(recurrentweight, [slot, 2 * hiddenSize, 0], [slot + 1, 3 * hiddenSize, -1]), 
+                            [hiddenSize, -1]
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              );
+          }
+          else {
+            n = nn.tanh(
+              nn.add(
+                nn.add(
+                  (bias ? nn.slice(bias, [slot, 2 * hiddenSize], [slot + 1, 3 * hiddenSize]) : zero),
+                  (recurrentBias ? nn.slice(recurrentBias, [slot, 2 * hiddenSize], [slot + 1, 3 * hiddenSize]) : zero)
+                  ),
+                nn.add(
+                  nn.matmul(
+                    cellInput, 
+                    nn.transpose(
+                      nn.reshape(
+                        nn.slice(weight, [slot, 2 * hiddenSize, 0], [slot + 1, 3 * hiddenSize, -1]),
+                        [hiddenSize, -1]
+                        )
+                      )
+                    ),
+                  nn.matmul(
+                    nn.mul(r, cellHidden),
+                    nn.transpose(
+                      nn.reshape(
+                        nn.slice(recurrentweight, [slot, 2 * hiddenSize, 0], [slot + 1, 3 * hiddenSize, -1]),
+                        [hiddenSize, -1]
+                        )
+                      )
+                    )
+                  )
+                )
+              );
+          }
+
+          // compute the new hidden state of the current cell
+          cellHidden = nn.add(nn.mul(z, cellHidden), nn.mul(n, nn.sub(one, z)));
+          output = (output ? nn.concat([output, cellHidden], 0) : cellHidden);
+
+          ++slots;
+        }
       }
 
-      // compute the new hidden state of the current cell
-      hidden = nn.add(nn.mul(z, hidden), nn.mul(n, nn.sub(one, z)));
+      hidden = output;
 
-      if (returnSequence)
-        sequence = (sequence ? nn.concat([sequence, hidden], 0) : hidden);
+      if (returnSequence) {
+        output = nn.reshape(output, [1, slots, -1, hiddenSize]);
+        sequence = (sequence ? nn.concat([sequence, output], 0) : output);
+      }
     }
 
-    // remove the extra first dimension of size 1
-    hidden = nn.reshape(hidden, [-1, hiddenSize]);
     return (sequence ? [hidden, sequence] : [hidden]);
     </pre>
     </div>
