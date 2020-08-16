@@ -424,6 +424,7 @@ partial interface NeuralNetworkContext {
   Operand floor(Operand x);
   Operand log(Operand x);
   Operand neg(Operand x);
+  Operand sigmoid(Operand x);
   Operand sin(Operand x);
   Operand sqrt(Operand x);
   Operand tan(Operand x);
@@ -446,6 +447,7 @@ partial interface NeuralNetworkContext {
         - *floor*: Compute the floor of the input tensor, element-wise.
         - *log*: Compute the natural logarithm of the input tensor, element-wise.
         - *neg*: Compute the numerical negative value of the input tensor, element-wise.
+        - *sigmoid*: Compute the sigmoid function of the input tensor, element-wise.
         - *sin*: Compute the sine of the input tensor, element-wise.
         - *sqrt*: Compute the square root of the input tensor, element-wise.
         - *tan*: Compute the tangent of the input tensor, element-wise.
@@ -550,10 +552,10 @@ partial interface NeuralNetworkContext {
     let cellRecurrentBias = [];
 
     for (let slot = 0; slot < slots; ++slot) {
-      cellWeight.push(nn.squeeze(nn.slice(weight, [slot, 0, 0], [slot + 1, -1, -1])), 0);
-      cellRecurrentWeight.push(nn.squeeze(nn.slice(recurrentWeight, [slot, 0, 0], [slot + 1, -1, -1])), 0);
-      cellBias.push(bias ? (nn.squeeze(nn.slice(bias, [slot, 0], [slot + 1, -1]), 0)) : null);
-      cellRecurrentBias.push(recurrentBias ? (nn.squeeze(nn.slice(recurrentBias, [slot, 0], [slot + 1, -1]), 0)) : null);
+      cellWeight.push(nn.squeeze(nn.slice(weight, [slot, 0, 0], [slot + 1, -1, -1])), [0]);
+      cellRecurrentWeight.push(nn.squeeze(nn.slice(recurrentWeight, [slot, 0, 0], [slot + 1, -1, -1])), [0]);
+      cellBias.push(bias ? (nn.squeeze(nn.slice(bias, [slot, 0], [slot + 1, -1]), [0])) : null);
+      cellRecurrentBias.push(recurrentBias ? (nn.squeeze(nn.slice(recurrentBias, [slot, 0], [slot + 1, -1]), [0])) : null);
     }
 
     for (let step = 0; step < steps; ++step) {
@@ -561,12 +563,12 @@ partial interface NeuralNetworkContext {
       let cellOutput = null;
 
       for (let slot = 0; slot < slots; ++slot) {
-        cellHidden.push(nn.squeeze(nn.slice(hidden, [slot, 0, 0], [slot + 1, -1, -1]), 0));
+        cellHidden.push(nn.squeeze(nn.slice(hidden, [slot, 0, 0], [slot + 1, -1, -1]), [0]));
       }
 
       for (let slot = 0; slot < slots; ++slot) {
         let slice = (slot == 1 || direction == "backward" ? steps - step - 1 : step);
-        let cellInput = nn.squeeze(nn.slice(input, [slice, 0, 0], [slice + 1, -1, -1]), 0);
+        let cellInput = nn.squeeze(nn.slice(input, [slice, 0, 0], [slice + 1, -1, -1]), [0]);
 
         let result = nn.gruCell(
           hiddenSize, cellInput, cellWeight[slot], cellRecurrentWeight[slot],
@@ -744,7 +746,6 @@ partial interface NeuralNetworkContext {
     </pre>
     </div>
 </div>
-
 
 ### matmul ### {#api-neuralnetworkcontext-matmul}
 Compute the matrix product of two input tensors.
@@ -926,6 +927,23 @@ partial interface NeuralNetworkContext {
     tensor is specified by the *newShape* argument.
 </div>
 
+### slice ### {#api-neuralnetworkcontext-slice}
+Produce a slice of the input tensor.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand slice(Operand input, sequence<long> starts, sequence<long> ends);
+};
+</script>
+<div algorithm=slice>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input tensor.
+        - *starts*: a sequence of {{long}}. The starting indices of the corresponding axes of the input shape.
+        - *ends*: a sequence of {{long}}. The ending indices of the corresponding axes of the input shape.
+            The ending index value of -1 selects all the remaining tensor values from the starting index of the given axis. 
+
+    **Returns:**: an {{Operand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
+</div>
+
 ### softmax ### {#api-neuralnetworkcontext-softmax}
 Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
 the 2-D input tensor along axis 1.
@@ -959,6 +977,20 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
+### squeeze ### {#api-neuralnetworkcontext-squeeze}
+Reduce the rank of a tensor without affecting its values by eliminating dimensions with size 1 of the tensor shape.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand squeeze(Operand input, optional sequence<long> axes);
+};
+</script>
+<div algorithm=squeeze>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input tensor.
+        - *axes*: an optional sequence of {{long}}. Indices to the shape dimensions of size 1 to eliminate. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
+
+    **Returns:**: an {{Operand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
+</div>
 
 ### transpose ### {#api-neuralnetworkcontext-transpose}
 Permute the dimensions of the input tensor according to the *permutation* argument.
