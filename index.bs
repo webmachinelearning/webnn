@@ -503,13 +503,13 @@ enum RecurrentNetworkActivation {
 };
 
 partial interface NeuralNetworkContext {
-  Operand gru(long hiddenSize, long steps, Operand input, Operand weight, 
-              Operand recurrentWeight, Operand initialHidden,
-              optional Operand bias, optional Operand recurrentBias,
-              optional boolean returnSequence = false,
-              optional RecurrentNetworkWeightLayout layout = "zrn",
-              optional sequence<RecurrentNetworkActivation> activations
-              );
+  sequence<Operand> gru(long hiddenSize, long steps, Operand input, Operand weight, 
+                        Operand recurrentWeight, Operand initialHidden,
+                        optional Operand bias, optional Operand recurrentBias,
+                        optional boolean resetAfter = true,
+                        optional boolean returnSequence = false,
+                        optional RecurrentNetworkWeightLayout layout = "zrn",
+                        optional sequence<RecurrentNetworkActivation> activations);
 };
 </script>
 <div algorithm=gru>
@@ -522,14 +522,15 @@ partial interface NeuralNetworkContext {
         - *initialHidden*: an {{Operand}}. The 2-D initial hidden state tensor of shape [batch_size, hidden_size].
         - *bias*: an optional {{Operand}}. The 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors is specified according to the *layout* argument.
         - *recurrentBias*: an optional {{Operand}}. The 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors is specified according to the *layout* argument.
-        - *returnSequence*: an optional {{boolean}} indicating whether to return just the last cell output of the output temporal sequence, or the entire sequence with every cell outputs from each time step in it. Default to false, just the last final output from the last time step.
+        - *resetAfter*: an optional {{boolean}} indicating whether to apply the reset gate after or before matrix multilication. Default to true.
+        - *returnSequence*: an optional {{boolean}} indicating whether to also return the entire sequence with every cell outputs from each time step in it in addition to the cell output of the last time step. Default to false.
         - *layout*: an optional {{RecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the *inputWeight* and *recurrentWeight* tensor shape. When not specified, the default layout is *"zrn"*.
         - *activations*: an optional sequence of {{RecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's default to the sigmoid ("sigmoid") and the hyperbolic tangent ("tanh") function respectively.
 
-    **Returns:** an {{Operand}}. If *returnSequence* is set to true, the 3-D output tensor of shape [steps, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence. Otherwise, it is a 2-D output tensor of shape [batch_size, hidden_size] from the last time step.
+    **Returns:** a sequence of {{Operand}}. The first element of the sequence is a 2-D tensor of shape [batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if *returnSequence* is set to true, the second element is the 3-D output tensor of shape [steps, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
 
     <div class="note">
-    The behavior of this operation with default optional argument values can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation with default argument values can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     let one = nn.constant(1);
     let zero = nn.constant(0);
@@ -580,27 +581,50 @@ partial interface NeuralNetworkContext {
         );
 
       // new gate
-      let n = nn.tanh(
-        nn.add(
-          (bias ? nn.slice(bias, [2 * hiddenSize], [3 * hiddenSize]) : zero),
+      let n;
+      if (resetAfter) {
+        n = nn.tanh(
           nn.add(
-            nn.matmul(
-              cellInput, 
-              nn.transpose(nn.slice(weight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
-              ),
-            nn.mul(
-              r,
-              nn.add(
-                (recurrentBias ? nn.slice(recurrentBias, [2 * hiddenSize], [3 * hiddenSize]) : zero),
-                nn.matmul(
-                  hidden, 
-                  nn.transpose(nn.slice(recurrentweight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
+            (bias ? nn.slice(bias, [2 * hiddenSize], [3 * hiddenSize]) : zero),
+            nn.add(
+              nn.matmul(
+                cellInput, 
+                nn.transpose(nn.slice(weight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
+                ),
+              nn.mul(
+                r,
+                nn.add(
+                  (recurrentBias ? nn.slice(recurrentBias, [2 * hiddenSize], [3 * hiddenSize]) : zero),
+                  nn.matmul(
+                    hidden, 
+                    nn.transpose(nn.slice(recurrentweight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
+                    )
                   )
                 )
               )
             )
-          )
-        );
+          );
+      }
+      else {
+        n = nn.tanh(
+          nn.add(
+            nn.add(
+              (bias ? nn.slice(bias, [2 * hiddenSize], [3 * hiddenSize]) : zero),
+              (recurrentBias ? nn.slice(recurrentBias, [2 * hiddenSize], [3 * hiddenSize]) : zero)
+              ),
+            nn.add(
+              nn.matmul(
+                cellInput, 
+                nn.transpose(nn.slice(weight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
+                ),
+              nn.matmul(
+                nn.mul(r, hidden),
+                nn.transpose(nn.slice(recurrentweight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
+                )
+              )
+            )
+          );
+      }
 
       // compute the new hidden state of the current cell
       hidden = nn.add(nn.mul(z, hidden), nn.mul(n, nn.sub(one, z)));
@@ -609,7 +633,7 @@ partial interface NeuralNetworkContext {
         sequence = (sequence ? nn.concat([sequence, hidden], 0) : hidden);
     }
 
-    return (sequence ? sequence : hidden);
+    return (sequence ? nn.concat([hidden, sequence], 0) : hidden);
     </pre>
     </div>
 </div>
