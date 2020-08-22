@@ -259,7 +259,7 @@ interface NeuralNetworkContext {
 </script>
 
 ### batchNormalization ### {#api-neuralnetworkcontext-batchnorm}
-Normalize the tensor values across dimensions in a batch through a specialized [transform](https://en.wikipedia.org/wiki/Batch_normalization#Batch_Normalizing_Transform) introduced in this [paper](https://arxiv.org/abs/1502.03167). The *mean* and *variance* tensors are previously calculated during model training pass.
+Normalize the tensor values across dimensions in a batch through a specialized [[BatchNorm]] [transform](https://en.wikipedia.org/wiki/Batch_normalization#Batch_Normalizing_Transform). The *mean* and *variance* tensors are previously calculated during model training pass.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand batchNormalization(Operand input, Operand mean, Operand variance, 
@@ -491,7 +491,7 @@ partial interface NeuralNetworkContext {
 </div>
 
 ### gru ### {#api-neuralnetworkcontext-gru}
-Gated Recurrent Unit (GRU) recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of the network, as outlined in this [paper](https://arxiv.org/pdf/1406.1078.pdf).
+Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of the Network
 <script type=idl>
 enum RecurrentNetworkDirection {
   "forward",
@@ -511,8 +511,9 @@ enum RecurrentNetworkActivation {
 };
 
 partial interface NeuralNetworkContext {
-  sequence<Operand> gru(long hiddenSize, long steps, Operand input, Operand weight, 
-                        Operand recurrentWeight, Operand initialHidden,
+  sequence<Operand> gru(Operand input, Operand weight, 
+                        Operand recurrentWeight, Operand initialHiddenState,
+                        long hiddenSize, long steps, 
                         optional Operand bias, optional Operand recurrentBias,
                         optional boolean resetAfter = true,
                         optional boolean returnSequence = false,
@@ -523,12 +524,12 @@ partial interface NeuralNetworkContext {
 </script>
 <div algorithm=gru>
     **Arguments:**
-        - *hiddenSize*: a {{long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
-        - *steps*: a {{long}} scalar. The number of time steps in the recurrent network.
         - *input*: an {{Operand}}. The input 3-D tensor of shape [steps, batch_size, input_size]. 
         - *weight*: an {{Operand}}. The 3-D input weight tensor of shape [num_directions, 3 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
         - *recurrentWeight*: an {{Operand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
-        - *initialHidden*: an {{Operand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size].
+        - *initialHiddenState*: an {{Operand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size].
+        - *hiddenSize*: a {{long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
+        - *steps*: a {{long}} scalar. The number of time steps in the recurrent network.
         - *bias*: an optional {{Operand}}. The 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
         - *recurrentBias*: an optional {{Operand}}. The 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
         - *resetAfter*: an optional {{boolean}} indicating whether to apply the reset gate after or before matrix multilication. Default to true.
@@ -542,7 +543,7 @@ partial interface NeuralNetworkContext {
     <div class="note">
     The behavior of this operation with default argument values can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
-    let hidden = initialHidden;
+    let hiddenState = initialHiddenState;
     let slots = (direction == "both" ? 2 : 1);
     let sequence = null;
 
@@ -571,14 +572,13 @@ partial interface NeuralNetworkContext {
         let cellInput = nn.squeeze(nn.slice(input, [slice, 0, 0], [slice + 1, -1, -1]), [0]);
 
         let result = nn.gruCell(
-          hiddenSize, cellInput, cellWeight[slot], cellRecurrentWeight[slot],
-          cellHidden[slot], cellBias[slot], cellRecurrentBias[slot], 
-          resetAfter, layout, activations);
+          cellInput, cellWeight[slot], cellRecurrentWeight[slot], cellHidden[slot], 
+          hiddenSize, cellBias[slot], cellRecurrentBias[slot], resetAfter, layout, activations);
 
         cellOutput = (cellOutput ? nn.concat([cellOutput, result], 0) : result);
       }
 
-      hidden = cellOutput;
+      hiddenState = cellOutput;
 
       if (returnSequence) {
         cellOutput = nn.reshape(cellOutput, [1, slots, -1, hiddenSize]);
@@ -586,17 +586,17 @@ partial interface NeuralNetworkContext {
       }
     }
 
-    return (sequence ? [hidden, sequence] : [hidden]);
+    return (sequence ? [hiddenState, sequence] : [hiddenState]);
     </pre>
     </div>
 </div>
 
 ### gruCell ### {#api-neuralnetworkcontext-grucell}
-A single time step of the Gated Recurrent Unit (GRU) recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of a recurrent network.
+A single time step of the Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of a recurrent network.
 <script type=idl>
 partial interface NeuralNetworkContext {
-  Operand gruCell(long hiddenSize, Operand input, Operand weight, 
-                  Operand recurrentWeight, Operand hidden,
+  Operand gruCell(Operand input, Operand weight,
+                  Operand recurrentWeight, Operand hiddenState, long hiddenSize, 
                   optional Operand bias, optional Operand recurrentBias,
                   optional boolean resetAfter = true,
                   optional RecurrentNetworkWeightLayout layout = "zrn",
@@ -605,24 +605,24 @@ partial interface NeuralNetworkContext {
 </script>
 <div algorithm=grucell>
     **Arguments:**
-        - *hiddenSize*: a {{long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - *input*: an {{Operand}}. The input 2-D tensor of shape [batch_size, input_size]. 
         - *weight*: an {{Operand}}. The 2-D input weight tensor of shape [3 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
         - *recurrentWeight*: an {{Operand}}. The 2-D recurrent weight tensor of shape [3 * hidden_size, hidden_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
-        - *hidden*: an {{Operand}}. The 2-D input hidden state tensor of shape [batch_size, hidden_size].
+        - *hiddenState*: an {{Operand}}. The 2-D input hidden state tensor of shape [batch_size, hidden_size].
+        - *hiddenSize*: a {{long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - *bias*: an optional {{Operand}}. The 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
         - *recurrentBias*: an optional {{Operand}}. The 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
         - *resetAfter*: an optional {{boolean}} indicating whether to apply the reset gate after or before matrix multilication. Default to true.
         - *layout*: an optional {{RecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"zrn"*.
         - *activations*: an optional sequence of {{RecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's default to the sigmoid ("sigmoid") and the hyperbolic tangent ("tanh") function respectively.
 
-    **Returns:** an {{Operand}}. The 2-D tensor of shape [batch_size, hidden_size], the cell output of a single time step of the recurrent network.
+    **Returns:** an {{Operand}}. The 2-D tensor of shape [batch_size, hidden_size], the cell output hidden state of a single time step of the recurrent network.
 
     <div class="note">
     The behavior of this operation with default argument values can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
-    let one = nn.constant(1);
-    let zero = nn.constant(0);
+    const one = nn.constant(1);
+    const zero = nn.constant(0);
 
     // update gate
     let z = nn.sigmoid(
@@ -637,7 +637,7 @@ partial interface NeuralNetworkContext {
             nn.transpose(nn.slice(weight, [0, 0], [hiddenSize, -1]))
             ),
           nn.matmul(
-            hidden,
+            hiddenState,
             nn.transpose(nn.slice(recurrentweight, [0, 0], [hiddenSize, -1]))
             )
           )
@@ -657,7 +657,7 @@ partial interface NeuralNetworkContext {
             nn.transpose(nn.slice(weight, [hiddenSize, 0], [2 * hiddenSize, -1]))
             ),
           nn.matmul(
-            hidden, 
+            hiddenState, 
             nn.transpose(nn.slice(recurrentweight, [hiddenSize, 0], [2 * hiddenSize, -1]))
             )
           )
@@ -680,7 +680,7 @@ partial interface NeuralNetworkContext {
               nn.add(
                 (recurrentBias ? nn.slice(recurrentBias, [2 * hiddenSize], [3 * hiddenSize]) : zero),
                 nn.matmul(
-                  hidden, 
+                  hiddenState, 
                   nn.transpose(nn.slice(recurrentweight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
                   )
                 )
@@ -702,7 +702,7 @@ partial interface NeuralNetworkContext {
               nn.transpose(nn.slice(weight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
               ),
             nn.matmul(
-              nn.mul(r, hidden),
+              nn.mul(r, hiddenState),
               nn.transpose(nn.slice(recurrentweight, [2 * hiddenSize, 0], [3 * hiddenSize, -1]))
               )
             )
@@ -711,7 +711,7 @@ partial interface NeuralNetworkContext {
     }
 
     // compute the new hidden state
-    return nn.add(nn.mul(z, hidden), nn.mul(n, nn.sub(one, z)));
+    return nn.add(nn.mul(z, hiddenState), nn.mul(n, nn.sub(one, z)));
     </pre>
     </div>
 </div>
@@ -1358,6 +1358,29 @@ Benjamin Poulain for their contributions to the API specification.
       "Jean-Marc Valin"
     ],
     "date": "September 2017"
+  },
+  "GRU": {
+    "href": "https://arxiv.org/pdf/1406.1078.pdf",
+    "title": "Learning Phrase Representations using RNN Encoder–Decoder for Statistical Machine Translation",
+    "authors": [
+      "Kyunghyun Cho",
+      "Bart van Merrienboer",
+      "Caglar Gulcehre",
+      "Dzmitry Bahdanau",
+      "Fethi Bougares",
+      "Holger Schwenk",
+      "Yoshua Bengio"
+    ],
+    "date": "September 2014"
+  },
+  "BatchNorm": {
+    "href": "https://arxiv.org/abs/1502.03167",
+    "title": "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift",
+    "authors": [
+      "Sergey Ioffe",
+      "Christian Szegedy"
+    ],
+    "date": "March 2015"
   }
 }
 </pre>
