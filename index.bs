@@ -259,7 +259,7 @@ interface NeuralNetworkContext {
 </script>
 
 ### batchNormalization ### {#api-neuralnetworkcontext-batchnorm}
-Normalize the tensor values across dimensions in a batch through a specialized [transform](https://en.wikipedia.org/wiki/Batch_normalization#Batch_Normalizing_Transform) introduced in this [paper](https://arxiv.org/abs/1502.03167). The *mean* and *variance* tensors are previously calculated during model training pass.
+Normalize the tensor values across dimensions in a batch through a specialized [[BatchNorm]] [transform](https://en.wikipedia.org/wiki/Batch_normalization#Batch_Normalizing_Transform). The *mean* and *variance* tensors are previously calculated during model training pass.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand batchNormalization(Operand input, Operand mean, Operand variance, 
@@ -307,72 +307,6 @@ partial interface NeuralNetworkContext {
       );
     </pre>
     </div>
-</div>
-
-### element-wise binary operations ### {#api-neuralnetworkcontext-binary}
-Compute the element-wise binary addition, subtraction, multiplication, division,
-maximum and minimum of the two input tensors.
-<script type=idl>
-partial interface NeuralNetworkContext {
-  Operand add(Operand a, Operand b);
-  Operand sub(Operand a, Operand b);
-  Operand mul(Operand a, Operand b);
-  Operand div(Operand a, Operand b);
-  Operand max(Operand a, Operand b);
-  Operand min(Operand a, Operand b);
-};
-</script>
-<div algorithm=binary>
-    **Arguments:**
-        - *a*: an {{Operand}}. The first input tensor.
-        - *b*: an {{Operand}}. The second input tensor.
-
-    **Returns:** an {{Operand}}. The output tensor that contains the result of
-    element-wise binary operation of the two input tensors.
-
-    The element-wise binary operation will be broadcasted according to
-    [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
-    rank of the input tensors. For each dimension of the output tensor, its size
-    is the maximum size along that dimension of the input tensors.
-</div>
-
-### element-wise unary operations ### {#api-neuralnetworkcontext-unary}
-Compute the element-wise unary operation for input tensor.
-<script type=idl>
-partial interface NeuralNetworkContext {
-  Operand abs(Operand x);
-  Operand ceil(Operand x);
-  Operand cos(Operand x);
-  Operand exp(Operand x);
-  Operand floor(Operand x);
-  Operand log(Operand x);
-  Operand neg(Operand x);
-  Operand sin(Operand x);
-  Operand sqrt(Operand x);
-  Operand tan(Operand x);
-  Operand tanh(Operand x);
-};
-</script>
-<div algorithm=unary>
-    **Arguments:**
-        - *x*: an {{Operand}}. The input tensor.
-
-    **Returns:** an {{Operand}}. The output tensor that contains the result of
-    element-wise unary operation of the input tensor. The shape of the output
-    tensor is the same as the shape of input tensor.
-
-    **Operation types:**
-        - *abs*: Compute the absolute value of the input tensor, element-wise.
-        - *ceil*: Compute the ceiling of the input tensor, element-wise.
-        - *cos*: Compute the cosine of the input tensor, element-wise.
-        - *exp*: Compute the exponential of the input tensor, element-wise.
-        - *floor*: Compute the floor of the input tensor, element-wise.
-        - *log*: Compute the natural logarithm of the input tensor, element-wise.
-        - *neg*: Compute the numerical negative value of the input tensor, element-wise.
-        - *sin*: Compute the sine of the input tensor, element-wise.
-        - *sqrt*: Compute the square root of the input tensor, element-wise.
-        - *tan*: Compute the tangent of the input tensor, element-wise.
-        - *tanh*: Compute the hyperbolic tangent of the input tensor, element-wise.
 </div>
 
 ### concat ### {#api-neuralnetworkcontext-concat}
@@ -452,11 +386,79 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
-### gemm ### {#api-neuralnetworkcontext-gemm}
-Calculate the <a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3">general matrixmultiplication of the Basic Liner Algebra Subprograms</a>. The calculation follows the expression `alpha * A * B + beta *C`, where `A`, `B`, and `C` are matrices, and `A` and `B` may optionally be transposed prior to the calculation.
+### element-wise binary operations ### {#api-neuralnetworkcontext-binary}
+Compute the element-wise binary addition, subtraction, multiplication, division,
+maximum and minimum of the two input tensors.
 <script type=idl>
 partial interface NeuralNetworkContext {
-  Operand gemm(Operand a, Operand b, optional Operand c = null, 
+  Operand add(Operand a, Operand b);
+  Operand sub(Operand a, Operand b);
+  Operand mul(Operand a, Operand b);
+  Operand div(Operand a, Operand b);
+  Operand max(Operand a, Operand b);
+  Operand min(Operand a, Operand b);
+};
+</script>
+<div algorithm=binary>
+    **Arguments:**
+        - *a*: an {{Operand}}. The first input tensor.
+        - *b*: an {{Operand}}. The second input tensor.
+
+    **Returns:** an {{Operand}}. The output tensor that contains the result of
+    element-wise binary operation of the two input tensors.
+
+    The element-wise binary operation will be broadcasted according to
+    [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
+    rank of the input tensors. For each dimension of the output tensor, its size
+    is the maximum size along that dimension of the input tensors.
+</div>
+
+### element-wise unary operations ### {#api-neuralnetworkcontext-unary}
+Compute the element-wise unary operation for input tensor.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand abs(Operand x);
+  Operand ceil(Operand x);
+  Operand cos(Operand x);
+  Operand exp(Operand x);
+  Operand floor(Operand x);
+  Operand log(Operand x);
+  Operand neg(Operand x);
+  Operand sigmoid(Operand x);
+  Operand sin(Operand x);
+  Operand sqrt(Operand x);
+  Operand tan(Operand x);
+  Operand tanh(Operand x);
+};
+</script>
+<div algorithm=unary>
+    **Arguments:**
+        - *x*: an {{Operand}}. The input tensor.
+
+    **Returns:** an {{Operand}}. The output tensor that contains the result of
+    element-wise unary operation of the input tensor. The shape of the output
+    tensor is the same as the shape of input tensor.
+
+    **Operation types:**
+        - *abs*: Compute the absolute value of the input tensor, element-wise.
+        - *ceil*: Compute the ceiling of the input tensor, element-wise.
+        - *cos*: Compute the cosine of the input tensor, element-wise.
+        - *exp*: Compute the exponential of the input tensor, element-wise.
+        - *floor*: Compute the floor of the input tensor, element-wise.
+        - *log*: Compute the natural logarithm of the input tensor, element-wise.
+        - *neg*: Compute the numerical negative value of the input tensor, element-wise.
+        - *sigmoid*: Compute the sigmoid function of the input tensor, element-wise.
+        - *sin*: Compute the sine of the input tensor, element-wise.
+        - *sqrt*: Compute the square root of the input tensor, element-wise.
+        - *tan*: Compute the tangent of the input tensor, element-wise.
+        - *tanh*: Compute the hyperbolic tangent of the input tensor, element-wise.
+</div>
+
+### gemm ### {#api-neuralnetworkcontext-gemm}
+Calculate the [general matrix multiplication of the Basic Liner Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta *C`, where `A`, `B`, and `C` are matrices, and `A` and `B` may optionally be transposed prior to the calculation.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand gemm(Operand a, Operand b, optional Operand c, 
                optional float alpha = 1.0, optional float beta = 1.0, 
                optional boolean aTranspose = false, optional boolean bTranspose = false);
 };
@@ -488,13 +490,244 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
+### gru ### {#api-neuralnetworkcontext-gru}
+Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of the Network
+<script type=idl>
+enum RecurrentNetworkDirection {
+  "forward",
+  "backward",
+  "both"
+};
+
+enum RecurrentNetworkWeightLayout {
+  "zrn",  // update-reset-new gate ordering
+  "rzn"   // reset-update-new gate ordering
+};
+
+enum RecurrentNetworkActivation {
+  "relu",
+  "sigmoid",
+  "tanh"
+};
+
+partial interface NeuralNetworkContext {
+  sequence<Operand> gru(Operand input, Operand weight, Operand recurrentWeight, 
+                        long steps, long hiddenSize,
+                        optional Operand bias, optional Operand recurrentBias,
+                        optional Operand initialHiddenState,
+                        optional boolean resetAfter = true,
+                        optional boolean returnSequence = false,
+                        optional RecurrentNetworkDirection direction = "forward",
+                        optional RecurrentNetworkWeightLayout layout = "zrn",
+                        optional sequence<RecurrentNetworkActivation> activations);
+};
+</script>
+<div algorithm=gru>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input 3-D tensor of shape [steps, batch_size, input_size]. 
+        - *weight*: an {{Operand}}. The 3-D input weight tensor of shape [num_directions, 3 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
+        - *recurrentWeight*: an {{Operand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
+        - *steps*: a {{long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
+        - *hiddenSize*: a {{long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
+        - *bias*: an optional {{Operand}}. The 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
+        - *recurrentBias*: an optional {{Operand}}. The 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
+        - *initialHiddenState*: an optional {{Operand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
+        - *resetAfter*: an optional {{boolean}} indicating whether to apply the reset gate after or before matrix multilication. Default to true.
+        - *returnSequence*: an optional {{boolean}} indicating whether to also return the entire sequence with every cell outputs from each time step in it in addition to the cell output of the last time step. Default to false.
+        - *direction*: an optional {{RecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
+        - *layout*: an optional {{RecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is *"zrn"*.
+        - *activations*: an optional sequence of {{RecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's assumed to be the sigmoid ("sigmoid") and the hyperbolic tangent ("tanh") function respectively.
+
+    **Returns:** a sequence of {{Operand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if *returnSequence* is set to true, the second element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
+
+    <div class="note">
+    The behavior of this operation with default argument values can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    <pre highlight="js">
+    const numDirections = (direction == "both" ? 2 : 1);
+    let hiddenState = initialHiddenState;
+
+    if (!hiddenState) {
+      const desc = { type: 'tensor-float32', dimensions: [numDirections, 1, hiddenSize] };
+      const totalSize = numDirections * hiddenSize;
+      hiddenState = nn.constant(desc, new Float32Array(totalSize).fill(0));
+    }
+
+    let sequence = null;
+    let cellWeight = [];
+    let cellRecurrentWeight = [];
+    let cellBias = [];
+    let cellRecurrentBias = [];
+
+    for (let slot = 0; slot < numDirections; ++slot) {
+      cellWeight.push(nn.squeeze(nn.slice(weight, [slot, 0, 0], [1, -1, -1])), [0]);
+      cellRecurrentWeight.push(nn.squeeze(nn.slice(recurrentWeight, [slot, 0, 0], [1, -1, -1])), [0]);
+      cellBias.push(bias ? (nn.squeeze(nn.slice(bias, [slot, 0], [1, -1]), [0])) : null);
+      cellRecurrentBias.push(recurrentBias ? (nn.squeeze(nn.slice(recurrentBias, [slot, 0], [1, -1]), [0])) : null);
+    }
+
+    for (let step = 0; step < steps; ++step) {
+      let cellHidden = [];
+      let cellOutput = null;
+
+      for (let slot = 0; slot < numDirections; ++slot) {
+        cellHidden.push(nn.squeeze(nn.slice(hiddenState, [slot, 0, 0], [1, -1, -1]), [0]));
+      }
+
+      for (let slot = 0; slot < numDirections; ++slot) {
+        let slice = (slot == 1 || direction == "backward" ? steps - step - 1 : step);
+        let cellInput = nn.squeeze(nn.slice(input, [slice, 0, 0], [1, -1, -1]), [0]);
+
+        let result = nn.gruCell(
+          cellInput, cellWeight[slot], cellRecurrentWeight[slot], cellHidden[slot], 
+          hiddenSize, cellBias[slot], cellRecurrentBias[slot], resetAfter, layout, activations);
+
+        cellOutput = (cellOutput ? nn.concat([cellOutput, result], 0) : result);
+      }
+
+      hiddenState = cellOutput;
+
+      if (returnSequence) {
+        cellOutput = nn.reshape(cellOutput, [1, numDirections, -1, hiddenSize]);
+        sequence = (sequence ? nn.concat([sequence, cellOutput], 0) : cellOutput);
+      }
+    }
+
+    return (sequence ? [hiddenState, sequence] : [hiddenState]);
+    </pre>
+    </div>
+</div>
+
+### gruCell ### {#api-neuralnetworkcontext-grucell}
+A single time step of the Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of a recurrent network.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand gruCell(Operand input, Operand weight,
+                  Operand recurrentWeight, Operand hiddenState, long hiddenSize, 
+                  optional Operand bias, optional Operand recurrentBias,
+                  optional boolean resetAfter = true,
+                  optional RecurrentNetworkWeightLayout layout = "zrn",
+                  optional sequence<RecurrentNetworkActivation> activations);
+};
+</script>
+<div algorithm=grucell>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input 2-D tensor of shape [batch_size, input_size]. 
+        - *weight*: an {{Operand}}. The 2-D input weight tensor of shape [3 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
+        - *recurrentWeight*: an {{Operand}}. The 2-D recurrent weight tensor of shape [3 * hidden_size, hidden_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
+        - *hiddenState*: an {{Operand}}. The 2-D input hidden state tensor of shape [batch_size, hidden_size].
+        - *hiddenSize*: a {{long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
+        - *bias*: an optional {{Operand}}. The 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
+        - *recurrentBias*: an optional {{Operand}}. The 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
+        - *resetAfter*: an optional {{boolean}} indicating whether to apply the reset gate after or before matrix multilication. Default to true.
+        - *layout*: an optional {{RecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"zrn"*.
+        - *activations*: an optional sequence of {{RecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's default to the sigmoid ("sigmoid") and the hyperbolic tangent ("tanh") function respectively.
+
+    **Returns:** an {{Operand}}. The 2-D tensor of shape [batch_size, hidden_size], the cell output hidden state of a single time step of the recurrent network.
+
+    <div class="note">
+    The behavior of this operation with default argument values can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    <pre highlight="js">
+    const one = nn.constant(1);
+    const zero = nn.constant(0);
+
+    // update gate
+    let z = nn.sigmoid(
+      nn.add(
+        nn.add(
+          (bias ? nn.slice(bias, [0], [hiddenSize]) : zero), 
+          (recurrentBias ? nn.slice(recurrentBias, [0], [hiddenSize]) : zero)
+          ),
+        nn.add(
+          nn.matmul(
+            input, 
+            nn.transpose(nn.slice(weight, [0, 0], [hiddenSize, -1]))
+            ),
+          nn.matmul(
+            hiddenState,
+            nn.transpose(nn.slice(recurrentweight, [0, 0], [hiddenSize, -1]))
+            )
+          )
+        )
+      );
+
+    // reset gate
+    let r = nn.sigmoid(
+      nn.add(
+        nn.add(
+          (bias ? nn.slice(bias, [hiddenSize], [hiddenSize]) : zero),
+          (recurrentBias ? nn.slice(recurrentBias, [hiddenSize], [hiddenSize]) : zero)
+          ),
+        nn.add(
+          nn.matmul(
+            input, 
+            nn.transpose(nn.slice(weight, [hiddenSize, 0], [hiddenSize, -1]))
+            ),
+          nn.matmul(
+            hiddenState, 
+            nn.transpose(nn.slice(recurrentweight, [hiddenSize, 0], [hiddenSize, -1]))
+            )
+          )
+        )
+      );
+
+    // new gate
+    let n;
+    if (resetAfter) {
+      n = nn.tanh(
+        nn.add(
+          (bias ? nn.slice(bias, [2 * hiddenSize], [hiddenSize]) : zero),
+          nn.add(
+            nn.matmul(
+              input, 
+              nn.transpose(nn.slice(weight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+              ),
+            nn.mul(
+              r,
+              nn.add(
+                (recurrentBias ? nn.slice(recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero),
+                nn.matmul(
+                  hiddenState, 
+                  nn.transpose(nn.slice(recurrentweight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+                  )
+                )
+              )
+            )
+          )
+        );
+    }
+    else {
+      n = nn.tanh(
+        nn.add(
+          nn.add(
+            (bias ? nn.slice(bias, [2 * hiddenSize], [hiddenSize]) : zero),
+            (recurrentBias ? nn.slice(recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero)
+            ),
+          nn.add(
+            nn.matmul(
+              input, 
+              nn.transpose(nn.slice(weight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+              ),
+            nn.matmul(
+              nn.mul(r, hiddenState),
+              nn.transpose(nn.slice(recurrentweight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+              )
+            )
+          )
+        );
+    }
+
+    // compute the new hidden state
+    return nn.add(nn.mul(z, hiddenState), nn.mul(n, nn.sub(one, z)));
+    </pre>
+    </div>
+</div>
+
 ### leakyRelu ### {#api-neuralnetworkcontext-leakyrelu}
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand leakyRelu(Operand x, optional float alpha = 0.01);
 };
 </script>
-
 <div algorithm=leakyrelu>
     **Arguments:**
         - *x*: an {{Operand}}. The input tensor.
@@ -519,7 +752,6 @@ partial interface NeuralNetworkContext {
     </pre>
     </div>
 </div>
-
 
 ### matmul ### {#api-neuralnetworkcontext-matmul}
 Compute the matrix product of two input tensors.
@@ -651,7 +883,7 @@ partial interface NeuralNetworkContext {
 </div>
 
 ### relu ### {#api-neuralnetworkcontext-relu}
-Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">rectified linear</a> function on the input tensor element-wise. The calculation follows the expression `max(0, x)`.
+Calculate the [rectified linear](https://en.wikipedia.org/wiki/Rectifier_(neural_networks) function on the input tensor element-wise. The calculation follows the expression `max(0, x)`.
 <script type=idl>
 partial interface NeuralNetworkContext {
   Operand relu(Operand x);
@@ -696,9 +928,28 @@ partial interface NeuralNetworkContext {
             with the value -1 is computed so that the total size remains
             constant.
 
-    **Returns:**: an {{Operand}}. The output tensor. The values of the output
+    **Returns:** an {{Operand}}. The output tensor. The values of the output
     tensor are the same as values of the input tensor. The shape of the output
     tensor is specified by the *newShape* argument.
+</div>
+
+### slice ### {#api-neuralnetworkcontext-slice}
+Produce a slice of the input tensor.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand slice(Operand input, sequence<long> starts, sequence<long> sizes,
+                optional sequence<long> axes);
+};
+</script>
+<div algorithm=slice>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input tensor.
+        - *starts*: a sequence of {{long}}. The starting indices to slice of the corresponding axes of the input shape. A negative index value is interpreted as counting back from the end. For example, the value -1 
+        - *sizes*: a sequence of {{long}}. The lengths to slice of the corresponding axes of the input shape.
+            The length value of -1 selects all the remaining elements from the starting index of the given axis.
+        - *axes*: an optional sequence of {{long}}. The dimensions of the input shape to which *starts* and *sizes* apply. The values in the sequence are either within the [0, *r*-1] range where *r* is the input tensor rank, or the [*-r*, -1] range where negative values mean counting back from the end of the input shape. When not specified, the sequence is assumed to be [0,1,..*r-1*].  
+
+    **Returns:** an {{Operand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
 
 ### softmax ### {#api-neuralnetworkcontext-softmax}
@@ -734,6 +985,20 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
+### squeeze ### {#api-neuralnetworkcontext-squeeze}
+Reduce the rank of a tensor without affecting its values by eliminating dimensions with size 1 of the tensor shape.
+<script type=idl>
+partial interface NeuralNetworkContext {
+  Operand squeeze(Operand input, optional sequence<long> axes);
+};
+</script>
+<div algorithm=squeeze>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input tensor.
+        - *axes*: an optional sequence of {{long}}. Indices to the shape dimensions of size 1 to eliminate. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
+
+    **Returns:** an {{Operand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
+</div>
 
 ### transpose ### {#api-neuralnetworkcontext-transpose}
 Permute the dimensions of the input tensor according to the *permutation* argument.
@@ -1101,6 +1366,29 @@ Benjamin Poulain for their contributions to the API specification.
       "Jean-Marc Valin"
     ],
     "date": "September 2017"
+  },
+  "GRU": {
+    "href": "https://arxiv.org/pdf/1406.1078.pdf",
+    "title": "Learning Phrase Representations using RNN Encoder–Decoder for Statistical Machine Translation",
+    "authors": [
+      "Kyunghyun Cho",
+      "Bart van Merrienboer",
+      "Caglar Gulcehre",
+      "Dzmitry Bahdanau",
+      "Fethi Bougares",
+      "Holger Schwenk",
+      "Yoshua Bengio"
+    ],
+    "date": "September 2014"
+  },
+  "BatchNorm": {
+    "href": "https://arxiv.org/abs/1502.03167",
+    "title": "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift",
+    "authors": [
+      "Sergey Ioffe",
+      "Christian Szegedy"
+    ],
+    "date": "March 2015"
   }
 }
 </pre>
