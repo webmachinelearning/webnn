@@ -203,11 +203,7 @@ enum OperandType {
   "float32",
   "float16",
   "int32",
-  "uint32",
-  "tensor-float32",
-  "tensor-float16",
-  "tensor-int32",
-  "tensor-quant8-asymm"
+  "uint32"
 };
 
 dictionary OperandDescriptor {
@@ -217,13 +213,6 @@ dictionary OperandDescriptor {
   // The dimensions field is only required for tensor operands.
   // The negative value means an unknown dimension.
   sequence<long> dimensions;
-
-  // The following two fields are only required for quantized operand.
-  // scale: an non-negative floating point value
-  // zeroPoint: an integer, in range [0, 255]
-  // The real value is (value - zeroPoint) * scale
-  float scale;
-  long zeroPoint;
 };
 </script>
 
@@ -234,35 +223,40 @@ interface Operand {};
 
 ## NeuralNetworkContext ## {#api-neuralnetworkcontext}
 
-The {{NeuralNetworkContext}} defines a set of operations derived from the first-wave models [[Models]] that address identified [[#usecases]].
+The {{NeuralNetworkContext}} interface represents a global state of neural network compute workload and execution processes.
 
 <script type=idl>
-typedef double number;
-
-dictionary NamedOperand {
-  required DOMString name;
-  required Operand operand;
-};
-
 interface NeuralNetworkContext {
-  // Create an Operand object that represents a model input.
-  Operand input(DOMString name, OperandDescriptor desc);
-
-  // Create an Operand object that represents a model constant.
-  Operand constant(OperandDescriptor desc, ArrayBufferView value);
-
-  // Create a single-value tensor from the specified number of the specified type.
-  Operand constant(number value, optional OperandType type = "float32");
-
-  // Create a Model object by identifying output operands.
-  Promise<Model> createModel(sequence<NamedOperand> outputs);
+  ModelBuilder createModelBuilder();
 };
 </script>
 
-### batchNormalization ### {#api-neuralnetworkcontext-batchnorm}
+## ModelBuilder ## {#api-modelbuilder}
+
+The {{ModelBuilder}} interface defines a set of operations as identified by the [[#usecases]] that can be composed into a computational graph. It also represents the intermediate state of a graph building session.
+
+<script type=idl>
+typedef record<DOMString, Operand> Operands;
+
+interface ModelBuilder {
+  // Create an operand that represents a model input.
+  Operand input(DOMString name, OperandDescriptor desc);
+
+  // Create an operand that represents a model constant.
+  Operand constant(OperandDescriptor desc, ArrayBufferView value);
+
+  // Create a single-value operand from the specified number of the specified type.
+  Operand constant(double value, optional OperandType type = "float32");
+
+  // Create a model that encapsulates the composition of operands by identifying the output operands.
+  Promise<Model> createModel(Operands outputs);
+};
+</script>
+
+### batchNormalization ### {#api-modelbuilder-batchnorm}
 Normalize the tensor values across dimensions in a batch through a specialized [[BatchNorm]] [transform](https://en.wikipedia.org/wiki/Batch_normalization#Batch_Normalizing_Transform). The *mean* and *variance* tensors are previously calculated during model training pass.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand batchNormalization(Operand input, Operand mean, Operand variance, 
                              optional Operand scale, optional Operand bias, 
                              optional long axis = 1, optional float epsilon = 1e-5);
@@ -310,10 +304,10 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
-### concat ### {#api-neuralnetworkcontext-concat}
+### concat ### {#api-modelbuilder-concat}
 Concatenates the input tensors along a given axis.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand concat(sequence<Operand> inputs, long axis);
 };
 </script>
@@ -331,10 +325,10 @@ partial interface NeuralNetworkContext {
     computed as the sum of all the input sizes of the same dimension.
 </div>
 
-### conv2d ### {#api-neuralnetworkcontext-conv2d}
+### conv2d ### {#api-modelbuilder-conv2d}
 Compute a 2-D convolution given 4-D input and filter tensors
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand conv2d(Operand input, Operand filter,
                  optional sequence<long> padding, optional sequence<long> strides, 
                  optional sequence<long> dilations, optional long groups = 1,
@@ -387,11 +381,11 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
-### element-wise binary operations ### {#api-neuralnetworkcontext-binary}
+### element-wise binary operations ### {#api-modelbuilder-binary}
 Compute the element-wise binary addition, subtraction, multiplication, division,
 maximum and minimum of the two input tensors.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand add(Operand a, Operand b);
   Operand sub(Operand a, Operand b);
   Operand mul(Operand a, Operand b);
@@ -414,10 +408,10 @@ partial interface NeuralNetworkContext {
     is the maximum size along that dimension of the input tensors.
 </div>
 
-### element-wise unary operations ### {#api-neuralnetworkcontext-unary}
+### element-wise unary operations ### {#api-modelbuilder-unary}
 Compute the element-wise unary operation for input tensor.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand abs(Operand x);
   Operand ceil(Operand x);
   Operand cos(Operand x);
@@ -455,10 +449,10 @@ partial interface NeuralNetworkContext {
         - *tanh*: Compute the hyperbolic tangent of the input tensor, element-wise.
 </div>
 
-### gemm ### {#api-neuralnetworkcontext-gemm}
+### gemm ### {#api-modelbuilder-gemm}
 Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A`, `B`, and `C` are matrices, and `A` and `B` may optionally be transposed prior to the calculation.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand gemm(Operand a, Operand b, optional Operand c, 
                optional float alpha = 1.0, optional float beta = 1.0, 
                optional boolean aTranspose = false, optional boolean bTranspose = false);
@@ -491,7 +485,7 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
-### gru ### {#api-neuralnetworkcontext-gru}
+### gru ### {#api-modelbuilder-gru}
 Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of the Network
 <script type=idl>
 enum RecurrentNetworkDirection {
@@ -511,7 +505,7 @@ enum RecurrentNetworkActivation {
   "tanh"
 };
 
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   sequence<Operand> gru(Operand input, Operand weight, Operand recurrentWeight, 
                         long steps, long hiddenSize,
                         optional Operand bias, optional Operand recurrentBias,
@@ -598,10 +592,10 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
-### gruCell ### {#api-neuralnetworkcontext-grucell}
+### gruCell ### {#api-modelbuilder-grucell}
 A single time step of the Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of a recurrent network.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand gruCell(Operand input, Operand weight,
                   Operand recurrentWeight, Operand hiddenState, long hiddenSize, 
                   optional Operand bias, optional Operand recurrentBias,
@@ -723,9 +717,9 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
-### leakyRelu ### {#api-neuralnetworkcontext-leakyrelu}
+### leakyRelu ### {#api-modelbuilder-leakyrelu}
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand leakyRelu(Operand x, optional float alpha = 0.01);
 };
 </script>
@@ -754,10 +748,10 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
-### matmul ### {#api-neuralnetworkcontext-matmul}
+### matmul ### {#api-modelbuilder-matmul}
 Compute the matrix product of two input tensors.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand matmul(Operand a, Operand b);
 };
 </script>
@@ -788,10 +782,10 @@ partial interface NeuralNetworkContext {
             which produces a scalar output.
 </div>
 
-### pooling operations ### {#api-neuralnetworkcontext-pool2d}
-Compute a *mean*, *L2 norm*, or *max* reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-neuralnetworkcontext-reduce]].
+### pooling operations ### {#api-modelbuilder-pool2d}
+Compute a *mean*, *L2 norm*, or *max* reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-modelbuilder-reduce]].
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand averagePool2d(Operand input, optional sequence<long> windowDimensions,
                         optional sequence<long> padding, optional sequence<long> strides,
                         optional sequence<long> dilations, optional OperandLayout layout = "nchw");
@@ -844,10 +838,10 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
-### reduction operations ### {#api-neuralnetworkcontext-reduce}
+### reduction operations ### {#api-modelbuilder-reduce}
 Reduce the input along the dimensions given in *axes*.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand reduceL1(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
   Operand reduceL2(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
   Operand reduceLogSum(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
@@ -883,10 +877,10 @@ partial interface NeuralNetworkContext {
         - *SumSquare*: Compute the sum of the square of all the input values along the axes.
 </div>
 
-### relu ### {#api-neuralnetworkcontext-relu}
+### relu ### {#api-modelbuilder-relu}
 Calculate the [rectified linear](https://en.wikipedia.org/wiki/Rectifier_(neural_networks) function on the input tensor element-wise. The calculation follows the expression `max(0, x)`.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand relu(Operand x);
 };
 </script>
@@ -912,10 +906,10 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
-### reshape ### {#api-neuralnetworkcontext-reshape}
+### reshape ### {#api-modelbuilder-reshape}
 Reshapes a tensor to a given new shape.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand reshape(Operand input, sequence<long> newShape);
 };
 </script>
@@ -934,10 +928,10 @@ partial interface NeuralNetworkContext {
     tensor is specified by the *newShape* argument.
 </div>
 
-### slice ### {#api-neuralnetworkcontext-slice}
+### slice ### {#api-modelbuilder-slice}
 Produce a slice of the input tensor.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand slice(Operand input, sequence<long> starts, sequence<long> sizes,
                 optional sequence<long> axes);
 };
@@ -953,11 +947,11 @@ partial interface NeuralNetworkContext {
     **Returns:** an {{Operand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
 
-### softmax ### {#api-neuralnetworkcontext-softmax}
+### softmax ### {#api-modelbuilder-softmax}
 Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
 the 2-D input tensor along axis 1.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand softmax(Operand x);
 };
 </script>
@@ -986,10 +980,10 @@ partial interface NeuralNetworkContext {
     </div>
 </div>
 
-### squeeze ### {#api-neuralnetworkcontext-squeeze}
+### squeeze ### {#api-modelbuilder-squeeze}
 Reduce the rank of a tensor without affecting its values by eliminating dimensions with size 1 of the tensor shape.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand squeeze(Operand input, optional sequence<long> axes);
 };
 </script>
@@ -1001,10 +995,10 @@ partial interface NeuralNetworkContext {
     **Returns:** an {{Operand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
 </div>
 
-### transpose ### {#api-neuralnetworkcontext-transpose}
+### transpose ### {#api-modelbuilder-transpose}
 Permute the dimensions of the input tensor according to the *permutation* argument.
 <script type=idl>
-partial interface NeuralNetworkContext {
+partial interface ModelBuilder {
   Operand transpose(Operand input, optional sequence<long> permutation);
 };
 </script>
@@ -1017,6 +1011,8 @@ partial interface NeuralNetworkContext {
 </div>
 
 ## Model ## {#api-model}
+The {{Model}} interface represents an immutable computational graph constructed by the {{ModelBuilder}} interface. The operands to the starting operations of the graph are assumed to be the model's input operands.
+
 <script type=idl>
 enum PowerPreference {
   // Let the user agent decide the most suitable behavior. This is the default value.
@@ -1033,23 +1029,29 @@ dictionary CompilationOptions {
 };
 
 interface Model {
-  Promise<Compilation> createCompilation(optional CompilationOptions options = {});
+  Promise<Compilation> compile(optional CompilationOptions options = {});
 };
 </script>
 
 ## Compilation ## {#api-compilation}
-<script type=idl>
-interface Compilation {
-  Promise<Execution> createExecution();
-};
-</script>
+The {{Compilation}} interface represents a compiled version of the computational graph of a {{Model}} according to the compilation options. A compilation of a graph once constructed is immutable and cannot be subsequently changed.
 
-## Execution ## {#api-execution}
 <script type=idl>
-interface Execution {
-  void setInput(DOMString name, ArrayBufferView data);
-  void setOutput(DOMString name, ArrayBufferView data);
-  Promise<void> startCompute();
+dictionary Input {
+  required ArrayBufferView buffer;
+  sequence<long> dimensions;
+};
+
+dictionary Output {
+  ArrayBufferView buffer;
+  sequence<long> dimensions;
+};
+
+typedef record<DOMString, Input> Inputs;
+typedef record<DOMString, Output> Outputs;
+
+interface Compilation {
+  Promise<Outputs> compute(Inputs inputs, optional Outputs outputs);
 };
 </script>
 
@@ -1079,34 +1081,36 @@ input2    ---+
 const TENSOR_DIMS = [2, 2, 2, 2];
 const TENSOR_SIZE = 16;
 
+const builder = nn.createModelBuilder();
+
 // Create OperandDescriptor object.
-const float32TensorType = {type: 'tensor-float32', dimensions: TENSOR_DIMS};
+const float32TensorType = {type: 'float32', dimensions: TENSOR_DIMS};
 
-// constant1 is a constant tensor with the value 0.5.
+// constant1 is a constant operand with the value 0.5.
 const constantBuffer1 = new Float32Array(TENSOR_SIZE).fill(0.5);
-const constant1 = nn.constant(float32TensorType, constantBuffer1);
+const constant1 = builder.constant(float32TensorType, constantBuffer1);
 
-// input1 is one of the input tensors. Its value will be set before execution.
-const input1 = nn.input('input1', float32TensorType);
+// input1 is one of the input operands. Its value will be set before execution.
+const input1 = builder.input('input1', float32TensorType);
 
-// constant2 is another constant tensor with the value 0.5.
+// constant2 is another constant operand with the value 0.5.
 const constantBuffer2 = new Float32Array(TENSOR_SIZE).fill(0.5);
-const constant2 = nn.constant(float32TensorType, constantBuffer2);
+const constant2 = builder.constant(float32TensorType, constantBuffer2);
 
-// input2 is another input tensor. Its value will be set before execution.
-const input2 = nn.input('input2', float32TensorType);
+// input2 is another input operand. Its value will be set before execution.
+const input2 = builder.input('input2', float32TensorType);
 
 // intermediateOutput1 is the output of the first Add operation.
-const intermediateOutput1 = nn.add(constant1, input1);
+const intermediateOutput1 = builder.add(constant1, input1);
 
 // intermediateOutput2 is the output of the second Add operation.
-const intermediateOutput2 = nn.add(constant2, input2);
+const intermediateOutput2 = builder.add(constant2, input2);
 
-// output is the output tensor of the Mul operation.
-const output = nn.mul(intermediateOutput1, intermediateOutput2);
+// output is the output operand of the Mul operation.
+const output = builder.mul(intermediateOutput1, intermediateOutput2);
 
 // Create the model by identifying the outputs.
-const model = await nn.createModel([{name: 'output', operand: output}]);
+const model = await builder.createModel({name: 'output', operand: output});
 </pre>
 </div>
 
@@ -1114,34 +1118,28 @@ const model = await nn.createModel([{name: 'output', operand: output}]);
 The following code compiles the model by prioritizing lower level of power consumption
 over time. This option could be particularly useful for long-running models.
 <pre highlight="js">
-// Create a Compilation object for the constructed model.
-const options = { powerPreference: 'low-power' };
-const compilation = await model.createCompilation(options);
+// Compile the constructed model.
+const compilation = await model.compile({ powerPreference: 'low-power' });
 </pre>
 </div>
 
 <div class="example">
-The following code executes the compiled graph.
+The following code executes the compiled model.
 <pre highlight="js">
-// Create an Execution object for the compiled model.
-const execution = await compilation.createExecution();
-
 // Setup the input buffers with value 1.
 const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1);
 const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
 
-// Associate the input buffers to model's inputs.
-execution.setInput('input1', inputBuffer1);
-execution.setInput('input2', inputBuffer2);
+// Associate the input buffers to the input operands.
+Inputs inputs;
+inputs['input1'] = { buffer: inputBuffer1 };
+inputs['input2'] = { buffer: inputBuffer2 };
 
-// Associate the output buffer to model's output.
-let outputBuffer = new Float32Array(TENSOR_SIZE);
-execution.setOutput('output', outputBuffer);
+// Asynchronously execute the compiled model with the specified inputs.
+let result = await compilation.compute(inputs);
 
-// Start the asynchronous computation.
-await execution.startCompute();
-// The computed result is now in outputBuffer.
-console.log(outputBuffer);
+// The computed result in the output operand.
+console.log(result.output.buffer);
 </pre>
 </div>
 
