@@ -203,7 +203,9 @@ enum OperandType {
   "float32",
   "float16",
   "int32",
-  "uint32"
+  "uint32",
+  "int8",
+  "uint8"
 };
 
 dictionary OperandDescriptor {
@@ -236,7 +238,7 @@ interface NeuralNetworkContext {
 The {{ModelBuilder}} interface defines a set of operations as identified by the [[#usecases]] that can be composed into a computational graph. It also represents the intermediate state of a graph building session.
 
 <script type=idl>
-typedef record<DOMString, Operand> Operands;
+typedef record<DOMString, Operand> NamedOperands;
 
 interface ModelBuilder {
   // Create an operand that represents a model input.
@@ -249,7 +251,7 @@ interface ModelBuilder {
   Operand constant(double value, optional OperandType type = "float32");
 
   // Create a model that encapsulates the composition of operands by identifying the output operands.
-  Promise<Model> createModel(Operands outputs);
+  Model createModel(NamedOperands outputs);
 };
 </script>
 
@@ -1047,11 +1049,11 @@ dictionary Output {
   sequence<long> dimensions;
 };
 
-typedef record<DOMString, Input> Inputs;
-typedef record<DOMString, Output> Outputs;
+typedef record<DOMString, Input> NamedInputs;
+typedef record<DOMString, Output> NamedOutputs;
 
 interface Compilation {
-  Promise<Outputs> compute(Inputs inputs, optional Outputs outputs);
+  Promise<NamedOutputs> compute(NamedInputs inputs, optional NamedOutputs outputs);
 };
 </script>
 
@@ -1110,7 +1112,7 @@ const intermediateOutput2 = builder.add(constant2, input2);
 const output = builder.mul(intermediateOutput1, intermediateOutput2);
 
 // Create the model by identifying the outputs.
-const model = await builder.createModel({name: 'output', operand: output});
+const model = builder.createModel({'output', output});
 </pre>
 </div>
 
@@ -1130,16 +1132,11 @@ The following code executes the compiled model.
 const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1);
 const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
 
-// Associate the input buffers to the input operands.
-Inputs inputs;
-inputs['input1'] = { buffer: inputBuffer1 };
-inputs['input2'] = { buffer: inputBuffer2 };
-
 // Asynchronously execute the compiled model with the specified inputs.
-let result = await compilation.compute(inputs);
+let outputs = await compilation.compute({'input1': {buffer: inputBuffer1}, 'input2': {buffer: inputBuffer2}});
 
-// The computed result in the output operand.
-console.log(result.output.buffer);
+// The computed result in the output operand's buffer.
+console.log(outputs.output.buffer);
 </pre>
 </div>
 
