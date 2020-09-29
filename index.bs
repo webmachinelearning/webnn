@@ -292,15 +292,15 @@ partial interface ModelBuilder {
     therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     let shape = [1,-1,1,1];
-    return nn.add(
-        nn.mul(
-          nn.reshape(scale, shape),
-          nn.div(
-            nn.sub(input, reshape(mean, shape)),
-            nn.sqrt(nn.add(nn.reshape(variance, shape), nn.constant(epsilon)))
+    return builder.add(
+        builder.mul(
+          builder.reshape(scale, shape),
+          builder.div(
+            builder.sub(input, reshape(mean, shape)),
+            builder.sqrt(builder.add(builder.reshape(variance, shape), builder.constant(epsilon)))
             )
           ),
-        nn.reshape(bias, shape)
+        builder.reshape(bias, shape)
       );
     </pre>
     </div>
@@ -476,13 +476,13 @@ partial interface ModelBuilder {
     The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     if (aTranspose)
-      a = nn.transpose(a);
+      a = builder.transpose(a);
 
     if (bTranspose)
-      b = nn.transpose(b);
+      b = builder.transpose(b);
 
-    let ab = nn.matmul(nn.mul(nn.constant(alpha), a), b);
-    return (c ? nn.add(ab, nn.mul(nn.constant(beta), c)) : ab);
+    let ab = builder.matmul(builder.mul(builder.constant(alpha), a), b);
+    return (c ? builder.add(ab, builder.mul(builder.constant(beta), c)) : ab);
     </pre>
     </div>
 </div>
@@ -546,7 +546,7 @@ partial interface ModelBuilder {
     if (!hiddenState) {
       const desc = { type: 'tensor-float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
-      hiddenState = nn.constant(desc, new Float32Array(totalSize).fill(0));
+      hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
     }
 
     let sequence = null;
@@ -556,10 +556,10 @@ partial interface ModelBuilder {
     let cellRecurrentBias = [];
 
     for (let slot = 0; slot < numDirections; ++slot) {
-      cellWeight.push(nn.squeeze(nn.slice(weight, [slot, 0, 0], [1, -1, -1])), [0]);
-      cellRecurrentWeight.push(nn.squeeze(nn.slice(recurrentWeight, [slot, 0, 0], [1, -1, -1])), [0]);
-      cellBias.push(bias ? (nn.squeeze(nn.slice(bias, [slot, 0], [1, -1]), [0])) : null);
-      cellRecurrentBias.push(recurrentBias ? (nn.squeeze(nn.slice(recurrentBias, [slot, 0], [1, -1]), [0])) : null);
+      cellWeight.push(builder.squeeze(builder.slice(weight, [slot, 0, 0], [1, -1, -1])), [0]);
+      cellRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [slot, 0, 0], [1, -1, -1])), [0]);
+      cellBias.push(bias ? (builder.squeeze(builder.slice(bias, [slot, 0], [1, -1]), [0])) : null);
+      cellRecurrentBias.push(recurrentBias ? (builder.squeeze(builder.slice(recurrentBias, [slot, 0], [1, -1]), [0])) : null);
     }
 
     for (let step = 0; step < steps; ++step) {
@@ -567,25 +567,25 @@ partial interface ModelBuilder {
       let cellOutput = null;
 
       for (let slot = 0; slot < numDirections; ++slot) {
-        cellHidden.push(nn.squeeze(nn.slice(hiddenState, [slot, 0, 0], [1, -1, -1]), [0]));
+        cellHidden.push(builder.squeeze(builder.slice(hiddenState, [slot, 0, 0], [1, -1, -1]), [0]));
       }
 
       for (let slot = 0; slot < numDirections; ++slot) {
         let slice = (slot == 1 || direction == "backward" ? steps - step - 1 : step);
-        let cellInput = nn.squeeze(nn.slice(input, [slice, 0, 0], [1, -1, -1]), [0]);
+        let cellInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, -1, -1]), [0]);
 
-        let result = nn.gruCell(
+        let result = builder.gruCell(
           cellInput, cellWeight[slot], cellRecurrentWeight[slot], cellHidden[slot], 
           hiddenSize, cellBias[slot], cellRecurrentBias[slot], resetAfter, layout, activations);
 
-        cellOutput = (cellOutput ? nn.concat([cellOutput, result], 0) : result);
+        cellOutput = (cellOutput ? builder.concat([cellOutput, result], 0) : result);
       }
 
       hiddenState = cellOutput;
 
       if (returnSequence) {
-        cellOutput = nn.reshape(cellOutput, [1, numDirections, -1, hiddenSize]);
-        sequence = (sequence ? nn.concat([sequence, cellOutput], 0) : cellOutput);
+        cellOutput = builder.reshape(cellOutput, [1, numDirections, -1, hiddenSize]);
+        sequence = (sequence ? builder.concat([sequence, cellOutput], 0) : cellOutput);
       }
     }
 
@@ -624,44 +624,44 @@ partial interface ModelBuilder {
     <div class="note">
     The behavior of this operation with default argument values can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
-    const one = nn.constant(1);
-    const zero = nn.constant(0);
+    const one = builder.constant(1);
+    const zero = builder.constant(0);
 
     // update gate
-    let z = nn.sigmoid(
-      nn.add(
-        nn.add(
-          (bias ? nn.slice(bias, [0], [hiddenSize]) : zero), 
-          (recurrentBias ? nn.slice(recurrentBias, [0], [hiddenSize]) : zero)
+    let z = builder.sigmoid(
+      builder.add(
+        builder.add(
+          (bias ? builder.slice(bias, [0], [hiddenSize]) : zero), 
+          (recurrentBias ? builder.slice(recurrentBias, [0], [hiddenSize]) : zero)
           ),
-        nn.add(
-          nn.matmul(
+        builder.add(
+          builder.matmul(
             input, 
-            nn.transpose(nn.slice(weight, [0, 0], [hiddenSize, -1]))
+            builder.transpose(builder.slice(weight, [0, 0], [hiddenSize, -1]))
             ),
-          nn.matmul(
+          builder.matmul(
             hiddenState,
-            nn.transpose(nn.slice(recurrentweight, [0, 0], [hiddenSize, -1]))
+            builder.transpose(builder.slice(recurrentweight, [0, 0], [hiddenSize, -1]))
             )
           )
         )
       );
 
     // reset gate
-    let r = nn.sigmoid(
-      nn.add(
-        nn.add(
-          (bias ? nn.slice(bias, [hiddenSize], [hiddenSize]) : zero),
-          (recurrentBias ? nn.slice(recurrentBias, [hiddenSize], [hiddenSize]) : zero)
+    let r = builder.sigmoid(
+      builder.add(
+        builder.add(
+          (bias ? builder.slice(bias, [hiddenSize], [hiddenSize]) : zero),
+          (recurrentBias ? builder.slice(recurrentBias, [hiddenSize], [hiddenSize]) : zero)
           ),
-        nn.add(
-          nn.matmul(
+        builder.add(
+          builder.matmul(
             input, 
-            nn.transpose(nn.slice(weight, [hiddenSize, 0], [hiddenSize, -1]))
+            builder.transpose(builder.slice(weight, [hiddenSize, 0], [hiddenSize, -1]))
             ),
-          nn.matmul(
+          builder.matmul(
             hiddenState, 
-            nn.transpose(nn.slice(recurrentweight, [hiddenSize, 0], [hiddenSize, -1]))
+            builder.transpose(builder.slice(recurrentweight, [hiddenSize, 0], [hiddenSize, -1]))
             )
           )
         )
@@ -670,21 +670,21 @@ partial interface ModelBuilder {
     // new gate
     let n;
     if (resetAfter) {
-      n = nn.tanh(
-        nn.add(
-          (bias ? nn.slice(bias, [2 * hiddenSize], [hiddenSize]) : zero),
-          nn.add(
-            nn.matmul(
+      n = builder.tanh(
+        builder.add(
+          (bias ? builder.slice(bias, [2 * hiddenSize], [hiddenSize]) : zero),
+          builder.add(
+            builder.matmul(
               input, 
-              nn.transpose(nn.slice(weight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, -1]))
               ),
-            nn.mul(
+            builder.mul(
               r,
-              nn.add(
-                (recurrentBias ? nn.slice(recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero),
-                nn.matmul(
+              builder.add(
+                (recurrentBias ? builder.slice(recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero),
+                builder.matmul(
                   hiddenState, 
-                  nn.transpose(nn.slice(recurrentweight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+                  builder.transpose(builder.slice(recurrentweight, [2 * hiddenSize, 0], [hiddenSize, -1]))
                   )
                 )
               )
@@ -693,20 +693,20 @@ partial interface ModelBuilder {
         );
     }
     else {
-      n = nn.tanh(
-        nn.add(
-          nn.add(
-            (bias ? nn.slice(bias, [2 * hiddenSize], [hiddenSize]) : zero),
-            (recurrentBias ? nn.slice(recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero)
+      n = builder.tanh(
+        builder.add(
+          builder.add(
+            (bias ? builder.slice(bias, [2 * hiddenSize], [hiddenSize]) : zero),
+            (recurrentBias ? builder.slice(recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero)
             ),
-          nn.add(
-            nn.matmul(
+          builder.add(
+            builder.matmul(
               input, 
-              nn.transpose(nn.slice(weight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, -1]))
               ),
-            nn.matmul(
-              nn.mul(r, hiddenState),
-              nn.transpose(nn.slice(recurrentweight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+            builder.matmul(
+              builder.mul(r, hiddenState),
+              builder.transpose(builder.slice(recurrentweight, [2 * hiddenSize, 0], [hiddenSize, -1]))
               )
             )
           )
@@ -714,7 +714,7 @@ partial interface ModelBuilder {
     }
 
     // compute the new hidden state
-    return nn.add(nn.mul(z, hiddenState), nn.mul(n, nn.sub(one, z)));
+    return builder.add(builder.mul(z, hiddenState), builder.mul(n, builder.sub(one, z)));
     </pre>
     </div>
 </div>
@@ -744,8 +744,8 @@ partial interface ModelBuilder {
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
     <pre highlight="js">
-    return nn.add(nn.max(nn.constant(0), x),
-                  nn.mul(nn.constant(alpha), nn.min(nn.constant(0), x)));
+    return builder.add(builder.max(builder.constant(0), x),
+                  builder.mul(builder.constant(alpha), builder.min(builder.constant(0), x)));
     </pre>
     </div>
 </div>
@@ -903,7 +903,7 @@ partial interface ModelBuilder {
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
     <pre highlight="js">
-    return nn.max(nn.constant(0), x);
+    return builder.max(builder.constant(0), x);
     </pre>
     </div>
 </div>
@@ -975,9 +975,9 @@ partial interface ModelBuilder {
     // of the input values itself, in order to increase the numerical stability of
     // the result.
     // [1]: https://cs231n.github.io/linear-classify/#softmax
-    const max_x = nn.reduceMax(x, /* axes = */ [1], /* keepDimensions = */ true);
-    const exp_x = nn.exp(nn.sub(x, max));
-    return nn.div(exp_x, nn.reduceSum(exp_x, /* axes = */ [1], /* keepDimensions = */ true));
+    const max_x = builder.reduceMax(x, /* axes = */ [1], /* keepDimensions = */ true);
+    const exp_x = builder.exp(builder.sub(x, max));
+    return builder.div(exp_x, builder.reduceSum(exp_x, /* axes = */ [1], /* keepDimensions = */ true));
     </pre>
     </div>
 </div>
