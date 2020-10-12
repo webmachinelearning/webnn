@@ -30,7 +30,7 @@ Use cases {#usecases}
 
 This section illustrates application-level use cases for neural network
 inference hardware acceleration. All applications in those use cases can be
-built on top of pre-trained deep neural network (DNN) models.
+built on top of pre-trained deep neural network (DNN) [[models]].
 
 ### Person Detection ### {#usecase-person-detection}
 
@@ -302,6 +302,34 @@ partial interface ModelBuilder {
           ),
         builder.reshape(bias, shape)
       );
+    </pre>
+    </div>
+</div>
+
+### clamp ### {#api-modelbuilder-clamp}
+Clamp the input tensor element-wise within a range specified by the minimum and maximum values.
+<script type=idl>
+partial interface ModelBuilder {
+  Operand clamp(Operand x, Operand minValue, Operand maxValue);
+};
+</script>
+<div algorithm=clamp>
+    **Arguments:**
+        - *x*: an {{Operand}}. The input tensor.
+        - *minValue*: an {{Operand}}. Specifies the minimum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]].
+        - *maxValue*: an {{Operand}}. Specifies the maximum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]].
+
+    **Returns:** an {{Operand}}. The output tensor of the same shape as *x*.
+
+    Clamp the input tensor element-wise within a range specified by *minValue* and *maxValue*. The calculation follows the expression max(min(x, maxValue), minValue).
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.max(builder.min(x, maxValue), minValue);
     </pre>
     </div>
 </div>
@@ -978,6 +1006,41 @@ partial interface ModelBuilder {
     const max_x = builder.reduceMax(x, /* axes = */ [1], /* keepDimensions = */ true);
     const exp_x = builder.exp(builder.sub(x, max));
     return builder.div(exp_x, builder.reduceSum(exp_x, /* axes = */ [1], /* keepDimensions = */ true));
+    </pre>
+    </div>
+</div>
+
+### split ### {#api-modelbuilder-split}
+Split the input tensor into a number of sub tensors along the given axis.
+<script type=idl>
+partial interface ModelBuilder {
+  sequence<Operand> split(Operand input,
+                          (unsigned long or sequence<unsigned long>) splits,
+                          optional long axis = 0);
+};
+</script>
+<div algorithm=split>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input tensor.
+        - *splits*: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *axis*. The sum of sizes must equal to the dimension size of *input* along *axis*.
+        - *axis*: a {{long}}. The dimension along which to split. Default to 0. A negative value is interpreted as counting back from the end.
+
+    **Returns:** a sequence of {{Operand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the length of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the length of the output sequence equals to the length of *splits*. The shape of the i-th output tensor is the same as as *input* except along *axis* where the dimension size is *splits[i]*.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    // This sample shows the case that the splits parameter is an array.
+    const outputs = [];
+    let start = 0;
+    for (const size of splits) {
+      outputs.push(builder.slice(input, [start], [size], [axis]));
+      start += size;
+    }
+    return outputs;
     </pre>
     </div>
 </div>
