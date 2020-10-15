@@ -1,3 +1,5 @@
+[![build](https://github.com/webmachinelearning/webnn/workflows/build/badge.svg)](https://github.com/webmachinelearning/webnn/actions)
+
 Web Neural Network API
 =======
 
