@@ -1244,7 +1244,7 @@ const intermediateOutput2 = builder.add(constant2, input2);
 const output = builder.mul(intermediateOutput1, intermediateOutput2);
 
 // Create the model by identifying the outputs.
-const model = builder.createModel({output});
+const model = builder.createModel({'output': output});
 </pre>
 </div>
 
@@ -1253,7 +1253,7 @@ The following code compiles the model by prioritizing lower level of power consu
 over time. This option could be particularly useful for long-running models.
 <pre highlight="js">
 // Compile the constructed model.
-const compilation = await model.compile({ powerPreference: 'low-power' });
+const compilation = await model.compile({powerPreference: 'low-power'});
 </pre>
 </div>
 
@@ -1265,10 +1265,15 @@ const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1);
 const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
 
 // Asynchronously execute the compiled model with the specified inputs.
-let outputs = await compilation.compute({'input1': {buffer: inputBuffer1}, 'input2': {buffer: inputBuffer2}});
+const inputs = {
+  'input1': {buffer: inputBuffer1},
+  'input2': {buffer: inputBuffer2},
+};
+const outputs = await compilation.compute(inputs);
 
-// The computed result in the output operand's buffer.
-console.log(outputs.output.buffer);
+// The computed result in the output operand’s buffer.
+console.log('Output shape: ' + outputs.output.dimensions);
+console.log('Output value: ' + outputs.output.buffer);
 </pre>
 </div>
 
