@@ -16,28 +16,25 @@ At the heart of neural networks is a computational graph of mathematical operati
 
 The WebNN API is a specification for constructing and executing computational graphs of neural networks. It provides web applications with the ability to create, compile, and run machine learning networks on the web browsers. The WebNN API may be implemented in web browsers using the available native operating system machine learning APIs for the best performance and reliability of results. The following code sample illustrates a simple usage of this API.
 
-    const operandType = { type: 'float32', dimensions: [2, 2] };
-
-    const context = navigator.ml.getNeuralNetworkContext().
-    const builder = context.createModelBuilder();
-
-    // 1. Create a model of the computational graph 'C = 0.2 * A + B'
-    const constant = builder.constant(0.2);
-    const A = builder.input('A', operandType);
-    const B = builder.input('B', operandType);
-    const C = builder.add(builder.mul(A, constant), B);
-    const model = await builder.createModel({'C', C});
-
-    // 2. Compile the model into executable.
-    const compilation = await model.compile();
-
-    // 3. Bind inputs to the model and execute for the result
-    const bufferA = new Float32Array(4).fill(1.0);
-    const bufferB = new Float32Array(4).fill(0.8);
-    let outputs = await compilation.compute({'A': { buffer: bufferA }, 'B': { buffer: bufferB }});
-
-    // The computed result of [[1, 1], [1, 1]] is in the buffer associated with the output operand
-    console.log(outputs.C.buffer);
+``` Javascript
+const operandType = { type: 'float32', dimensions: [2, 2] };
+const context = navigator.ml.getNeuralNetworkContext().
+const builder = context.createModelBuilder();
+// 1. Create a model of the computational graph 'C = 0.2 * A + B'
+const constant = builder.constant(0.2);
+const A = builder.input('A', operandType);
+const B = builder.input('B', operandType);
+const C = builder.add(builder.mul(A, constant), B);
+const model = builder.createModel({'C': C});
+// 2. Compile the model into executable.
+const compilation = await model.compile();
+// 3. Bind inputs to the model and execute for the result
+const bufferA = new Float32Array(4).fill(1.0);
+const bufferB = new Float32Array(4).fill(0.8);
+let outputs = await compilation.compute({'A': { buffer: bufferA }, 'B': { buffer: bufferB }});
+// The computed result of [[1, 1], [1, 1]] is in the buffer associated with the output operand
+console.log(outputs.C.buffer);
+```
 
 ### Goals
 
@@ -84,20 +81,101 @@ This [example](https://webmachinelearning.github.io/webnn/#examples) builds, com
 
 >Next, discuss the key scenarios which move beyond the most canonical example, showing how they are addressed using example code:
 
-There are many important [application use cases](https://webmachinelearning.github.io/webnn/#usecases-application) for high-performance neural network inference. One such use cases is deep-learning noise suppression (DNS) in web-based video conferencing. The following sample shows how the [NSNet2](https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline) deep learning model for noise suppression can be implemented in WebNN.
+There are many important [application use cases](https://webmachinelearning.github.io/webnn/#usecases-application) for high-performance neural network inference. One such use cases is deep-learning noise suppression (DNS) in web-based video conferencing. The following sample shows the [NSNet](https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline) deep learning model for noise suppression implemented in WebNN.
 
+```Javascript
+// Noise Suppression Net (NSNet) Baseline Model for Deep Noise Suppression Challenge (DNS) 2020.
+//      https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline
+async function nsnet(sequenceLength, batchSize) {
+    // Constant shapes and sizes
+    const HIDDEN_DIMS = [1,1,257];
+    const HIDDEN_SIZE = 257;
+    const WEIGHT_DIMS = [1,771,257];
+    const WEIGHT_SIZE = 771 * 257;
+    const BIAS_DIMS = [1,1542];
+    const BIAS_SIZE = 1542;
+    const MATMUL96_INIT_DIMS = [257,257];
+    const MATMUL96_INIT_SIZE = 257 * 257;
+    const ADD97_INIT_DIMS = [257];
+    const ADD97_INIT_SIZE = 257;
+    const INPUT_DIMS = [sequenceLength, batchSize, 257];
+    const INPUT_SIZE = sequenceLength * batchSize * 257;
+    // Load pre-trained constant data and initializers
+    let response = await fetch(hiddenUrl);
+    let buffer = await response.arrayBuffer();
+    const hiddenData1 = new Float32Array(buffer, 0, HIDDEN_SIZE);
+    const hiddenData2 = new Float32Array(buffer, HIDDEN_SIZE, HIDDEN_SIZE);
+    const hiddenData3 = new Float32Array(buffer, 2 * HIDDEN_SIZE, HIDDEN_SIZE);
+    response = await fetch(weightUrl);
+    buffer = await response.arrayBuffer();
+    const weightData117 = new Float32Array(buffer, 0, WEIGHT_SIZE);
+    const weightData118 = new Float32Array(buffer, WEIGHT_SIZE, WEIGHT_SIZE);
+    const weightData137 = new Float32Array(buffer, 2 * WEIGHT_SIZE, WEIGHT_SIZE);
+    const weightData138 = new Float32Array(buffer, 3 * WEIGHT_SIZE, WEIGHT_SIZE);
+    const weightData157 = new Float32Array(buffer, 4 * WEIGHT_SIZE, WEIGHT_SIZE);
+    const weightData158 = new Float32Array(buffer, 5 * WEIGHT_SIZE, WEIGHT_SIZE);
+    response = await fetch(biasUrl);
+    buffer = await response.arrayBuffer();
+    const biasData119 = new Float32Array(buffer, 0, BIAS_SIZE);
+    const biasData139 = new Float32Array(buffer, BIAS_SIZE, BIAS_SIZE);
+    const biasData159 = new Float32Array(buffer, 2 * BIAS_SIZE, BIAS_SIZE);
+    response = await fetch(initializerUrl);
+    buffer = await response.arrayBuffer();
+    const initData160 = new Float32Array(buffer, 0, MATMUL96_INIT_SIZE);
+    const initData170 = new Float32Array(buffer, MATMUL96_INIT_SIZE, ADD97_INIT_SIZE);
+    // Create constant operands
+    const builder = navigator.ml.getNeuralNetworkContext().creatModelBuilder();
+    const hidden1 = builder.constant({ type: 'float32', dimensions: HIDDEN_DIMS }, hiddenData1);
+    const hidden2 = builder.constant({ type: 'float32', dimensions: HIDDEN_DIMS }, hiddenData2);
+    const hidden3 = builder.constant({ type: 'float32', dimensions: HIDDEN_DIMS }, hiddenData3);
+    const weight117 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData117);
+    const weight118 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData118);
+    const weight137 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData137);
+    const weight138 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData138);
+    const weight157 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData157);
+    const weight158 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData158);
+    const bias119 = builder.constant({ type: 'float32', dimensions: BIAS_DIMS }, biasData119);
+    const bias139 = builder.constant({ type: 'float32', dimensions: BIAS_DIMS }, biasData139);
+    const bias159 = builder.constant({ type: 'float32', dimensions: BIAS_DIMS }, biasData159);
+    const init160 = builder.constant({ type: 'float32', dimensions: MATMUL96_INIT_DIMS }, initData160);
+    const init170 = builder.constant({ type: 'float32', dimensions: ADD97_INIT_DIMS }, initData170);
+    // Build up the network
+    const input = builder.input('input', { type:'float32', dimensions:INPUT_DIMS });
+    const [gru43, gru42] = builder.gru(input, weight117, weight118, STEP_COUNT, 257, 
+                                       bias119, null, hidden1, true, true);
+    const add45 = builder.add(input, builder.squeeze(gru42, 1));
+    const [gru68, gru67] = builder.gru(add45, weight137, weight138, STEP_COUNT, 257, 
+                                       bias139, null, hidden2, true, true);
+    const add70 = builder.add(add45, builder.squeeze(gru67, 1));
+    const [gru93, gru92] = builder.gru(add70, weight157, weight158, STEP_COUNT, 257, 
+                                       bias159, null, hidden3, true, true);
+    const output = builder.clamp(
+                    builder.sigmoid(
+                        builder.add(builder.matmul(builder.squeeze(gru92, 1), init160), init170)
+                        ), 0);
+    // Compile the model
+    const model = builder.createModel({ 'output': output });
+    return await model.compile();
+}
+
+async function run(model, inputBuffer) {
+    // Run the compiled model with the input data
+    return await model.compute({ 'input': { buffer: inputBuffer } });
+}
+
+```
 ## Detailed design discussion
 >Talk through the tradeoffs in coming to the specific design point you want to make, hopefully:
 
 ### Do we need a neural network API? Can we standardize on just a model-loader API?
 
-A model-loader API loads a model from a specified URL and outputs a model object on which the caller can execute. It moves all the responsibilities of loading and processing a neural network model to the web browsers and the underlying operating systems while offering the web developers a simple API surface, akin to an image loading API.
+A model-loader API loads a model from a specified URL and outputs a model object on which the caller can execute. It leaves all the responsibilities of loading and processing a neural network model to the web browsers and the underlying operating systems while offering the web developers a simple API surface, akin to an image loading API.
 
 Although this design approach has a clear benefit in its simplicity, it faces a challenge in defining a standard model format that works across the various web browsers and operating systems on the user's devices. In shifting the focus of the design towards the model format, it creates an opportunity for more fragmentation in the way AI is consumed on the web and encourages silos of vendor-specific ecosystems around the particular model formats of choice. Much like in the early days of the image format wars, the web developers will likely have a more difficult time understanding which model formats would work on which combinations of the web browsers and operating systems that they're targeting.
 
-By defining the WebNN API as a model format-agnostic set of neural network operations, we shift the focus of the design towards the abstraction between the web browsers and the underlying operating system services and let the web applications and Javascript frameworks continue to focus on satisfying the needs of the web developers knowing that the neural networks they create will faithfully execute regardless of the browser's underlying platform. What we believe works in our favor is the significant overlap of neural network operations and algorithms across all popular vendor-specific frameworks today; models available in one format are generally convertible with little loss to another.
+By defining the WebNN API as a model format-agnostic set of neural network operations, we shift the focus of the design towards the abstraction between the web browsers and the underlying operating system services and let the web applications and Javascript frameworks continue to focus on satisfying the needs of the web developers knowing that the neural networks they create will faithfully execute regardless of the browser's underlying platform. What we believe works in our favor is the significant overlap of neural network operations and algorithms across all popular frameworks today. Models available in one format are generally convertible to another with little loss.
 
-It is also worth considering that a model-loader API can be built atop a neural network API without losing the appeal in its simplicity. Our view is that the two APIs are complementary and not mutually exclusive, but we must start with the neural network API.
+A model-loader API can also be built atop a neural network API without losing the appeal in its simplicity. Our view is that the two APIs are complementary and not mutually exclusive to each other; however we must start with the neural network API to ensure cross-platform interoperability, a cornerstone of the web platform.
 
 An explainer for the model-loader API can be found [here](https://github.com/webmachinelearning/model-loader/blob/master/explainer.md).
 
