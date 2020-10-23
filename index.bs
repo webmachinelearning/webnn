@@ -310,18 +310,18 @@ partial interface ModelBuilder {
 Clamp the input tensor element-wise within a range specified by the minimum and maximum values.
 <script type=idl>
 partial interface ModelBuilder {
-  Operand clamp(Operand x, Operand minValue, Operand maxValue);
+  Operand clamp(Operand x, optional Operand minValue, optional Operand maxValue);
 };
 </script>
 <div algorithm=clamp>
     **Arguments:**
         - *x*: an {{Operand}}. The input tensor.
-        - *minValue*: an {{Operand}}. Specifies the minimum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]].
-        - *maxValue*: an {{Operand}}. Specifies the maximum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]].
+        - *minValue*: an optional {{Operand}}. Specifies the minimum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the lower limit of the range.
+        - *maxValue*: an optional {{Operand}}. Specifies the maximum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the upper limit of the range.
 
     **Returns:** an {{Operand}}. The output tensor of the same shape as *x*.
 
-    Clamp the input tensor element-wise within a range specified by *minValue* and *maxValue*. The calculation follows the expression max(min(x, maxValue), minValue).
+    Clamp the input tensor element-wise within a range specified by *minValue* and *maxValue*. The calculation follows the expression min(max(x, minValue), maxValue). When *minValue* is not specified, the clamping is not performed on the lower limit. When *maxValue* is not specified, the clamping is not performed on the upper limit.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -329,7 +329,19 @@ partial interface ModelBuilder {
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
     <pre highlight="js">
-    return builder.max(builder.min(x, maxValue), minValue);
+    if (minValue === undefined) {
+      if (maxValue === undefined) {
+        return x;
+      } else {
+        return builder.min(x, maxValue);
+      }
+    } else {
+      if (maxValue === undefined) {
+        return builder.max(x, minValue);
+      } else {
+        return builder.min(builder.max(x, minValue), maxValue);
+      }
+    }
     </pre>
     </div>
 </div>
