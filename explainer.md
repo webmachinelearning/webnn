@@ -33,7 +33,7 @@ const bufferA = new Float32Array(4).fill(1.0);
 const bufferB = new Float32Array(4).fill(0.8);
 let outputs = await compilation.compute({'A': { buffer: bufferA }, 'B': { buffer: bufferB }});
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with the output operand
-console.log(outputs.C.buffer);
+console.log("Output shape: " + outputs.C.dimensions);
 ```
 
 ### Goals
@@ -140,19 +140,19 @@ async function nsnet(sequenceLength, batchSize) {
     const init160 = builder.constant({ type: 'float32', dimensions: MATMUL96_INIT_DIMS }, initData160);
     const init170 = builder.constant({ type: 'float32', dimensions: ADD97_INIT_DIMS }, initData170);
     // Build up the network
-    const input = builder.input('input', { type:'float32', dimensions:INPUT_DIMS });
-    const [gru43, gru42] = builder.gru(input, weight117, weight118, STEP_COUNT, 257, 
+    const input = builder.input('input', { type:'float32', dimensions: INPUT_DIMS });
+    const [gru43, gru42] = builder.gru(input, weight117, weight118, sequenceLength, 257, 
                                        bias119, null, hidden1, true, true);
-    const add45 = builder.add(input, builder.squeeze(gru42, 1));
-    const [gru68, gru67] = builder.gru(add45, weight137, weight138, STEP_COUNT, 257, 
+    const add45 = builder.add(input, builder.squeeze(gru42, [1]));
+    const [gru68, gru67] = builder.gru(add45, weight137, weight138, sequenceLength, 257, 
                                        bias139, null, hidden2, true, true);
-    const add70 = builder.add(add45, builder.squeeze(gru67, 1));
-    const [gru93, gru92] = builder.gru(add70, weight157, weight158, STEP_COUNT, 257, 
+    const add70 = builder.add(add45, builder.squeeze(gru67, [1]));
+    const [gru93, gru92] = builder.gru(add70, weight157, weight158, sequenceLength, 257, 
                                        bias159, null, hidden3, true, true);
     const output = builder.clamp(
                     builder.sigmoid(
-                        builder.add(builder.matmul(builder.squeeze(gru92, 1), init160), init170)
-                        ), 0);
+                        builder.add(builder.matmul(builder.squeeze(gru92, [1]), init160), init170)
+                        ), builder.constant(0));
     // Compile the model
     const model = builder.createModel({ 'output': output });
     return await model.compile();
@@ -183,9 +183,9 @@ An explainer for the model-loader API can be found [here](https://github.com/web
 
 Neural network operations are mathematical functions. There are about a hundred standard functions universally supported in popular frameworks today e.g. convolution, matrix multiplication, various reductions, and normalizations. Additionally, some frameworks provide an even more extensive set of variants of these functions for ease of use. 
 
-In designing the WebNN operations, a proposal to decompose high-level functions to the more rudimentary mathematical operations was considered, with the key benefit of having a reduced number of operations defined. However, such an approach would make the networks more verbose and harder to construct. It'll also risk losing the opportunity to leverage known optimizations for highly reusable functions in the operating system. For instance, most operating systems and modern hardware today support popular recurrent networks out of the box. By decomposing well-known functions into networks of smaller operations, their identities may be lost in the process.
+In designing the WebNN operations, a proposal to decompose high-level functions to the more rudimentary mathematical operations was considered, with the key benefit of having a reduced number of operations defined. However, such an approach would make the networks more verbose and harder to construct. It'll also risk losing the opportunity to leverage known optimizations for highly reusable functions in the operating systems and in the hardware platforms underneath it. For instance, most operating systems and modern hardware today support widely-used variants of convolutions and recurrent networks out of the box. By decomposing well-known functions into networks of rudimentary mathematical operations, their identities may be lost in the process with opportunities for significant performance gains left behind.
 
-To balance the needs of providing for future extensibility while ensuring maximum reuse and performance optimization opportunity, we chose to include both the standard functions and all the smaller operations making up the functions in the spec. For each high-level function defined, we make sure that all of its decomposed operations are also defined. This way, a newly-conceived function may be represented as a network of our decomposed operations, while a standard function can also be fully supported by the underlying platforms.
+To balance the needs of providing for future extensibility while ensuring maximum reuse and performance optimization opportunity, we chose to include both the standard functions and all the smaller operations making up the functions in the spec. For each high-level function defined, we make sure that all of its decomposed operations are also defined. This way, a newly-conceived function may be represented as a network of our decomposed operations, while a standard function can also be fully supported by the underlying platforms. An elaborate example of this principle is in the way we define the specification of the [gruCell](https://webmachinelearning.github.io/webnn/#api-modelbuilder-grucell) operation as described in its notes.
 
 ## Considered alternatives
 
@@ -193,4 +193,4 @@ To balance the needs of providing for future extensibility while ensuring maximu
 
 ## References & acknowledgements
 
->Your design will change and be informed by many people; acknowledge them in an ongoing way! It helps builder community and, as we only get by through the contributions of many, is only fair.
+>Your design will change and be informed by many people; acknowledge them in an ongoing way! It helps build community and, as we only get by through the contributions of many, is only fair.
