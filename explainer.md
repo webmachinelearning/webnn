@@ -142,17 +142,19 @@ async function nsnet(sequenceLength, batchSize) {
     // Build up the network
     const input = builder.input('input', { type:'float32', dimensions: INPUT_DIMS });
     const [gru43, gru42] = builder.gru(input, weight117, weight118, sequenceLength, 257, 
-                                       bias119, null, hidden1, true, true);
-    const add45 = builder.add(input, builder.squeeze(gru42, [1]));
+                                { bias: bias119, initialHiddenState: hidden1, returnSequence: true });
+    const add45 = builder.add(input, builder.squeeze(gru42, { axes: [1] }));
     const [gru68, gru67] = builder.gru(add45, weight137, weight138, sequenceLength, 257, 
-                                       bias139, null, hidden2, true, true);
-    const add70 = builder.add(add45, builder.squeeze(gru67, [1]));
+                                { bias: bias139, initialHiddenState: hidden2, returnSequence: true });
+    const add70 = builder.add(add45, builder.squeeze(gru67, { axes: [1] }));
     const [gru93, gru92] = builder.gru(add70, weight157, weight158, sequenceLength, 257, 
-                                       bias159, null, hidden3, true, true);
+                                { bias: bias159, initialHiddenState: hidden3, returnSequence: true });
     const output = builder.clamp(
                     builder.sigmoid(
-                        builder.add(builder.matmul(builder.squeeze(gru92, [1]), init160), init170)
-                        ), builder.constant(0));
+                        builder.add(
+                            builder.matmul(builder.squeeze(gru92, { axes: [1] }), init160), 
+                            init170)
+                        ), { minValue: builder.constant(0) });
     // Compile the model
     const model = builder.createModel({ 'output': output });
     return await model.compile();

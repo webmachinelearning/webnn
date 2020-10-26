@@ -258,36 +258,38 @@ interface ModelBuilder {
 ### batchNormalization ### {#api-modelbuilder-batchnorm}
 Normalize the tensor values across dimensions in a batch through a specialized [[BatchNorm]] [transform](https://en.wikipedia.org/wiki/Batch_normalization#Batch_Normalizing_Transform). The *mean* and *variance* tensors are previously calculated during model training pass.
 <script type=idl>
+dictionary BatchNormalizationOptions {
+  Operand scale;
+  Operand bias;
+  long axis = 1;
+  float epsilon = 1e-5;
+};
+
 partial interface ModelBuilder {
-  Operand batchNormalization(Operand input, Operand mean, Operand variance, 
-                             optional Operand scale, optional Operand bias, 
-                             optional long axis = 1, optional float epsilon = 1e-5);
+  Operand batchNormalization(Operand input, Operand mean, Operand variance,
+                             optional BatchNormalizationOptions options = {});
 };
 </script>
 <div algorithm=batchnorm>
     **Arguments:**
         - *input*: an {{Operand}}. The input N-D tensor.
         - *mean*: an {{Operand}}. The 1-D tensor of the batch mean values 
-            whose length is equal to the size of the input dimension denoted by *axis*.
+            whose length is equal to the size of the input dimension denoted by *options.axis*.
         - *variance*: an {{Operand}}. The 1-D tensor of the batch variance values
-            whose length is equal to the size of the input dimension denoted by *axis*.
-        - *scale*: an optional {{Operand}}. The 1-D tensor of the scaling values
-            whose length is equal to the size of the input dimension denoted by *axis*.
-        - *bias*: an optional {{Operand}}. The 1-D tensor of the bias values
-            whose length is equal to the size of the input dimension denoted by *axis*.
-        - *axis*: an optional {{long}}. The index for the feature dimension of the input shape for which 
-            the normalizing batch is defined and that the mean and variance values are computed. 
-            When it's not specified, the default value is 1.
-        - *epsilon*: an optional {{float}}. The Epsilon value to prevent computational error due to divide-by-zero.
-            The default value is 0.00001 when not specified.
+            whose length is equal to the size of the input dimension denoted by *options.axis*.
+        - *options*: an optional {{BatchNormalizationOptions}}. The optional parameters of the operation.
+              - *scale*: an {{Operand}}. The 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by *options.axis*.
+              - *bias*: an {{Operand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
+              - *axis*: a {{long}} scalar. The index for the feature dimension of the input shape for which the normalizing batch is defined and that the mean and variance values are computed. When it's not specified, the default value is 1.
+              - *epsilon*: a {{float}} scalar. The Epsilon value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
         
     **Returns:** an {{Operand}}. The batch normalized N-D tensor of the same shape as the input tensor.
 
-    When *input* is a 4-D tensor of the "nchw" or "nhwc" layout, *axis* should be set to 1 or 3 respectively, 
+    When *input* is a 4-D tensor of the *"nchw"* or *"nhwc"* layout, *axis* should be set to 1 or 3 respectively, 
     to designate the feature dimension of the input tensor.
 
     <div class="note">
-    The behavior of this operation when the input tensor is 4-D of the "nchw" layout can be generically emulated from 
+    The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout can be generically emulated from 
     the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, 
     therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
@@ -309,15 +311,21 @@ partial interface ModelBuilder {
 ### clamp ### {#api-modelbuilder-clamp}
 Clamp the input tensor element-wise within a range specified by the minimum and maximum values.
 <script type=idl>
+dictionary ClampOptions {
+  Operand minValue;
+  Operand maxValue;
+};
+
 partial interface ModelBuilder {
-  Operand clamp(Operand x, optional Operand minValue, optional Operand maxValue);
+  Operand clamp(Operand x, optional ClampOptions options = {});
 };
 </script>
 <div algorithm=clamp>
     **Arguments:**
         - *x*: an {{Operand}}. The input tensor.
-        - *minValue*: an optional {{Operand}}. Specifies the minimum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the lower limit of the range.
-        - *maxValue*: an optional {{Operand}}. Specifies the maximum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the upper limit of the range.
+        - *options*: an optional {{ClampOptions}}. The optional parameters of the operation.
+            - *minValue*: an {{Operand}}. Specifies the minimum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the lower limit of the range.
+            - *maxValue*: an {{Operand}}. Specifies the maximum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the upper limit of the range.
 
     **Returns:** an {{Operand}}. The output tensor of the same shape as *x*.
 
@@ -357,7 +365,7 @@ partial interface ModelBuilder {
     **Arguments:**
         - *inputs*: a sequence of {{Operand}}. All input tensors must have the
             same shape, except for the size of the dimension to concatenate on.
-        - *axis*: a {{long}}. The axis that the inputs concatenate along, with
+        - *axis*: a {{long}} scalar. The axis that the inputs concatenate along, with
             the value in the interval [0, N) where N is the rank of all the
             inputs.
         
@@ -370,46 +378,41 @@ partial interface ModelBuilder {
 ### conv2d ### {#api-modelbuilder-conv2d}
 Compute a 2-D convolution given 4-D input and filter tensors
 <script type=idl>
+dictionary Conv2dOptions {
+  sequence<long> padding;
+  sequence<long> strides;
+  sequence<long> dilations;
+  long groups = 1;
+  OperandLayout layout = "nchw";
+};
+
 partial interface ModelBuilder {
-  Operand conv2d(Operand input, Operand filter,
-                 optional sequence<long> padding, optional sequence<long> strides, 
-                 optional sequence<long> dilations, optional long groups = 1,
-                 optional OperandLayout layout = "nchw");
+  Operand conv2d(Operand input, Operand filter, optional Conv2dOptions options = {});
 };
 </script>
 <div algorithm=conv2d>
     **Arguments:**
         - *input*: an {{Operand}}. The input 4-D tensor. The logical shape
-            is interpreted according to the value of *layout*.
+            is interpreted according to the value of *options.layout*.
         - *filter*: an {{Operand}}. The filter 4-D tensor. The logical shape is
-            interpreted according to the value of *layout* and *groups*.
-        - *padding*: an optional sequence of {{long}} of length 4. The padding for the
-            beginning and ending along each spatial dimension of *input*,
-            [beginning_height, ending_height, beginning_width, ending_width]. 
-            If not present, the values are assumed to be [0,0,0,0].
-        - *strides*: an optional sequence of {{long}} of length 2. The stride of the
-            sliding window for each spatial dimension of *input*, [stride_height, stride_width]. 
-            If not present, the values are assumed to be [1,1].
-        - *dilations*: an optional sequence of {{long}} of length 2. The dilation factor
-            for each spatial dimension of *input*, [dilation_height, dilation_width]. 
-            If not present, the values are assumed to be [1,1].
-        - *groups*: an optional {{long}}. The number of groups that input
-            channels and output channels are divided into, default to 1.
-        - *layout*: an optional {{OperandLayout}} with value as "nchw" or
-            "nhwc". The default value is "nchw". This argument specifies the
-            layout format of the input, output and filter tensor.
-            Specifically,
+            interpreted according to the value of *options.layout* and *options.groups*.
+        - *options*: an optional {{Conv2dOptions}}. The optional parameters of the operation.
+            - *padding*: a sequence of {{long}} of length 4. The padding for the beginning and ending along each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
+            - *strides*: a sequence of {{long}} of length 2. The stride of the sliding window for each spatial dimension of *input*, [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
+            - *dilations*: a sequence of {{long}} of length 2. The dilation factor for each spatial dimension of *input*, [dilation_height, dilation_width]. If not present, the values are assumed to be [1,1].
+            - *groups*: a {{long}} scalar. The number of groups that input channels and output channels are divided into, default to 1.
+            - *layout*: an {{OperandLayout}} with value as *"nchw"* or *"nhwc"*. The default value is *"nchw"*. This argument specifies the layout format of the input, output and filter tensor. Specifically,
 
-            "nchw":
-                - input tensor: [batches, input_channels, height, width]
-                - filter tensor: [output_channels, input_channels/groups,
-                    height, width]
-                - output tensor: [batches, output_channels, height, width]
-            "nhwc":
-                - input tensor: [batches, height, width, input_channels]
-                - filter tensor: [height, width, input_channels/groups,
-                    output_channels]
-                - output tensor: [batches, height, width, output_channels]
+                "nchw":
+                    - input tensor: [batches, input_channels, height, width]
+                    - filter tensor: [output_channels, input_channels/groups,
+                        height, width]
+                    - output tensor: [batches, output_channels, height, width]
+                "nhwc":
+                    - input tensor: [batches, height, width, input_channels]
+                    - filter tensor: [height, width, input_channels/groups,
+                        output_channels]
+                    - output tensor: [batches, height, width, output_channels]
 
     **Returns:** an {{Operand}}. The output 4-D tensor that contains the
     result of the convolution. The logical shape is interpreted according to the
@@ -417,9 +420,9 @@ partial interface ModelBuilder {
 
     <div class="note">
     A *depthwise* conv2d operation is a variant of grouped conv2d, used in
-    models like the MobileNet, where the *groups* = input_channels =
-    output_channels and the shape of filter tensor is [groups, 1, height, width]
-    for "nchw" layout or [height, width, 1, groups] for "nhwc" layout.
+    models like the MobileNet, where the *options.groups* = input_channels =
+    output_channels and the shape of filter tensor is [options.groups, 1, height, width]
+    for *"nchw"* layout or [height, width, 1, options.groups] for "nhwc" layout.
     </div>
 </div>
 
@@ -494,31 +497,38 @@ partial interface ModelBuilder {
 ### gemm ### {#api-modelbuilder-gemm}
 Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A`, `B`, and `C` are matrices, and `A` and `B` may optionally be transposed prior to the calculation.
 <script type=idl>
+dictionary GemmOptions {
+  Operand c;
+  float alpha = 1.0;
+  float beta = 1.0;
+  boolean aTranspose = false;
+  boolean bTranspose = false;
+};
+
 partial interface ModelBuilder {
-  Operand gemm(Operand a, Operand b, optional Operand c, 
-               optional float alpha = 1.0, optional float beta = 1.0, 
-               optional boolean aTranspose = false, optional boolean bTranspose = false);
+  Operand gemm(Operand a, Operand b, optional GemmOptions options = {});
 };
 </script>
 <div algorithm=gemm>
     **Arguments:**
         - *a*: an {{Operand}}. The first input 2-D tensor.
         - *b*: an {{Operand}}. The second input 2-D tensor.
-        - *c*: an optional {{Operand}}. The third input 2-D tensor.
-        - *alpha*: an optional {{float}} scalar multiplier for the first input, default to 1.0.
-        - *beta*: an optional {{float}} scalar multiplier for the third input, default to 1.0.
-        - *aTranspose*: an optional {{boolean}} indicating if the first input should be transposed prior to calculating the output, default to false.
-        - *bTranspose*: an optional {{boolean}} indicating if the second input should be transposed prior to calculating the output, default to false.
+        - *options*: an optional {{GemmOptions}}. The optional parameters of the operation.
+            - *c*: an {{Operand}}. The third input 2-D tensor.
+            - *alpha*: a {{float}} scalar multiplier for the first input, default to 1.0.
+            - *beta*: a {{float}} scalar multiplier for the third input, default to 1.0.
+            - *aTranspose*: a {{boolean}} indicating if the first input should be transposed prior to calculating the output, default to false.
+            - *bTranspose*: a {{boolean}} indicating if the second input should be transposed prior to calculating the output, default to false.
 
     **Returns:** an {{Operand}}. The output 2-D tensor that contains the calculated product of all the inputs.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
-    if (aTranspose)
+    if (options.aTranspose)
       a = builder.transpose(a);
 
-    if (bTranspose)
+    if (options.bTranspose)
       b = builder.transpose(b);
 
     let ab = builder.matmul(builder.mul(builder.constant(alpha), a), b);
@@ -530,12 +540,6 @@ partial interface ModelBuilder {
 ### gru ### {#api-modelbuilder-gru}
 Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of the Network
 <script type=idl>
-enum RecurrentNetworkDirection {
-  "forward",
-  "backward",
-  "both"
-};
-
 enum RecurrentNetworkWeightLayout {
   "zrn",  // update-reset-new gate ordering
   "rzn"   // reset-update-new gate ordering
@@ -547,16 +551,26 @@ enum RecurrentNetworkActivation {
   "tanh"
 };
 
+enum RecurrentNetworkDirection {
+  "forward",
+  "backward",
+  "both"
+};
+
+dictionary GruOptions {
+  Operand bias;
+  Operand recurrentBias;
+  Operand initialHiddenState;
+  boolean resetAfter = true;
+  boolean returnSequence = false;
+  RecurrentNetworkDirection direction = "forward";
+  RecurrentNetworkWeightLayout layout = "zrn";
+  sequence<RecurrentNetworkActivation> activations;
+};
+
 partial interface ModelBuilder {
   sequence<Operand> gru(Operand input, Operand weight, Operand recurrentWeight, 
-                        long steps, long hiddenSize,
-                        optional Operand bias, optional Operand recurrentBias,
-                        optional Operand initialHiddenState,
-                        optional boolean resetAfter = true,
-                        optional boolean returnSequence = false,
-                        optional RecurrentNetworkDirection direction = "forward",
-                        optional RecurrentNetworkWeightLayout layout = "zrn",
-                        optional sequence<RecurrentNetworkActivation> activations);
+                        long steps, long hiddenSize, optional GruOptions options = {});
 };
 </script>
 <div algorithm=gru>
@@ -566,25 +580,26 @@ partial interface ModelBuilder {
         - *recurrentWeight*: an {{Operand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
         - *steps*: a {{long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
         - *hiddenSize*: a {{long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
-        - *bias*: an optional {{Operand}}. The 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
-        - *recurrentBias*: an optional {{Operand}}. The 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
-        - *initialHiddenState*: an optional {{Operand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
-        - *resetAfter*: an optional {{boolean}} indicating whether to apply the reset gate after or before matrix multilication. Default to true.
-        - *returnSequence*: an optional {{boolean}} indicating whether to also return the entire sequence with every cell outputs from each time step in it in addition to the cell output of the last time step. Default to false.
-        - *direction*: an optional {{RecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
-        - *layout*: an optional {{RecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is *"zrn"*.
-        - *activations*: an optional sequence of {{RecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's assumed to be the sigmoid ("sigmoid") and the hyperbolic tangent ("tanh") function respectively.
+        - *options*: an optional {{GruOptions}}. The optional parameters of the operation.
+            - *bias*: an {{Operand}}. The 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+            - *recurrentBias*: an {{Operand}}. The 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+            - *initialHiddenState*: an {{Operand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
+            - *resetAfter*: a {{boolean}} indicating whether to apply the reset gate after or before matrix multilication. Default to true.
+            - *returnSequence*: a {{boolean}} indicating whether to also return the entire sequence with every cell outputs from each time step in it in addition to the cell output of the last time step. Default to false.
+            - *direction*: a {{RecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
+            - *layout*: a {{RecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is *"zrn"*.
+            - *activations*: a sequence of {{RecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's assumed to be the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
 
     **Returns:** a sequence of {{Operand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if *returnSequence* is set to true, the second element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
 
     <div class="note">
-    The behavior of this operation with default argument values can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
-    const numDirections = (direction == "both" ? 2 : 1);
-    let hiddenState = initialHiddenState;
+    const numDirections = (options.direction == "both" ? 2 : 1);
+    let hiddenState = options.initialHiddenState;
 
     if (!hiddenState) {
-      const desc = { type: 'tensor-float32', dimensions: [numDirections, 1, hiddenSize] };
+      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
       hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
     }
@@ -596,10 +611,11 @@ partial interface ModelBuilder {
     let cellRecurrentBias = [];
 
     for (let slot = 0; slot < numDirections; ++slot) {
-      cellWeight.push(builder.squeeze(builder.slice(weight, [slot, 0, 0], [1, -1, -1])), [0]);
-      cellRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [slot, 0, 0], [1, -1, -1])), [0]);
-      cellBias.push(bias ? (builder.squeeze(builder.slice(bias, [slot, 0], [1, -1]), [0])) : null);
-      cellRecurrentBias.push(recurrentBias ? (builder.squeeze(builder.slice(recurrentBias, [slot, 0], [1, -1]), [0])) : null);
+      cellWeight.push(builder.squeeze(builder.slice(weight, [slot, 0, 0], [1, -1, -1]), { axes: [0] }));
+      cellRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [slot, 0, 0], [1, -1, -1]), { axes: [0] }));
+      cellBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [slot, 0], [1, -1]), { axes: [0] })) : null);
+      cellRecurrentBias.push(options.recurrentBias ? 
+        (builder.squeeze(builder.slice(options.recurrentBias, [slot, 0], [1, -1]), { axes: [0] })) : null);
     }
 
     for (let step = 0; step < steps; ++step) {
@@ -607,23 +623,25 @@ partial interface ModelBuilder {
       let cellOutput = null;
 
       for (let slot = 0; slot < numDirections; ++slot) {
-        cellHidden.push(builder.squeeze(builder.slice(hiddenState, [slot, 0, 0], [1, -1, -1]), [0]));
+        cellHidden.push(builder.squeeze(builder.slice(hiddenState, [slot, 0, 0], [1, -1, -1]), { axes: [0] }));
       }
 
       for (let slot = 0; slot < numDirections; ++slot) {
-        let slice = (slot == 1 || direction == "backward" ? steps - step - 1 : step);
-        let cellInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, -1, -1]), [0]);
+        let slice = (slot == 1 || options.direction == "backward" ? steps - step - 1 : step);
+        let cellInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, -1, -1]), { axes: [0] });
 
         let result = builder.gruCell(
-          cellInput, cellWeight[slot], cellRecurrentWeight[slot], cellHidden[slot], 
-          hiddenSize, cellBias[slot], cellRecurrentBias[slot], resetAfter, layout, activations);
+          cellInput, cellWeight[slot], cellRecurrentWeight[slot], 
+          cellHidden[slot], hiddenSize, { bias: cellBias[slot], 
+          recurrentBias: cellRecurrentBias[slot], resetAfter: options.resetAfter, 
+          layout: options.layout, activations: options.activations });
 
         cellOutput = (cellOutput ? builder.concat([cellOutput, result], 0) : result);
       }
 
       hiddenState = cellOutput;
 
-      if (returnSequence) {
+      if (options.returnSequence) {
         cellOutput = builder.reshape(cellOutput, [1, numDirections, -1, hiddenSize]);
         sequence = (sequence ? builder.concat([sequence, cellOutput], 0) : cellOutput);
       }
@@ -637,13 +655,17 @@ partial interface ModelBuilder {
 ### gruCell ### {#api-modelbuilder-grucell}
 A single time step of the Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of a recurrent network.
 <script type=idl>
+dictionary GruCellOptions {
+  Operand bias;
+  Operand recurrentBias;
+  boolean resetAfter = true;
+  RecurrentNetworkWeightLayout layout = "zrn";
+  sequence<RecurrentNetworkActivation> activations;
+};
+
 partial interface ModelBuilder {
-  Operand gruCell(Operand input, Operand weight,
-                  Operand recurrentWeight, Operand hiddenState, long hiddenSize, 
-                  optional Operand bias, optional Operand recurrentBias,
-                  optional boolean resetAfter = true,
-                  optional RecurrentNetworkWeightLayout layout = "zrn",
-                  optional sequence<RecurrentNetworkActivation> activations);
+  Operand gruCell(Operand input, Operand weight, Operand recurrentWeight, 
+                  Operand hiddenState, long hiddenSize, optional GruCellOptions options = {});
 };
 </script>
 <div algorithm=grucell>
@@ -653,16 +675,17 @@ partial interface ModelBuilder {
         - *recurrentWeight*: an {{Operand}}. The 2-D recurrent weight tensor of shape [3 * hidden_size, hidden_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
         - *hiddenState*: an {{Operand}}. The 2-D input hidden state tensor of shape [batch_size, hidden_size].
         - *hiddenSize*: a {{long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
-        - *bias*: an optional {{Operand}}. The 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
-        - *recurrentBias*: an optional {{Operand}}. The 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
-        - *resetAfter*: an optional {{boolean}} indicating whether to apply the reset gate after or before matrix multilication. Default to true.
-        - *layout*: an optional {{RecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"zrn"*.
-        - *activations*: an optional sequence of {{RecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's default to the sigmoid ("sigmoid") and the hyperbolic tangent ("tanh") function respectively.
+        - *options*: an optional {{GruCellOptions}}. The optional parameters of the operation.
+            - *bias*: an {{Operand}}. The 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+            - *recurrentBias*: an {{Operand}}. The 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+            - *resetAfter*: a {{boolean}} indicating whether to apply the reset gate after or before matrix multilication. Default to true.
+            - *layout*: a {{RecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"zrn"*.
+            - *activations*: a sequence of {{RecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's default to the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
 
     **Returns:** an {{Operand}}. The 2-D tensor of shape [batch_size, hidden_size], the cell output hidden state of a single time step of the recurrent network.
 
     <div class="note">
-    The behavior of this operation with default argument values can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     const one = builder.constant(1);
     const zero = builder.constant(0);
@@ -671,8 +694,8 @@ partial interface ModelBuilder {
     let z = builder.sigmoid(
       builder.add(
         builder.add(
-          (bias ? builder.slice(bias, [0], [hiddenSize]) : zero), 
-          (recurrentBias ? builder.slice(recurrentBias, [0], [hiddenSize]) : zero)
+          (options.bias ? builder.slice(options.bias, [0], [hiddenSize]) : zero), 
+          (options.recurrentBias ? builder.slice(options.recurrentBias, [0], [hiddenSize]) : zero)
           ),
         builder.add(
           builder.matmul(
@@ -691,8 +714,8 @@ partial interface ModelBuilder {
     let r = builder.sigmoid(
       builder.add(
         builder.add(
-          (bias ? builder.slice(bias, [hiddenSize], [hiddenSize]) : zero),
-          (recurrentBias ? builder.slice(recurrentBias, [hiddenSize], [hiddenSize]) : zero)
+          (options.bias ? builder.slice(options.bias, [hiddenSize], [hiddenSize]) : zero),
+          (options.recurrentBias ? builder.slice(options.recurrentBias, [hiddenSize], [hiddenSize]) : zero)
           ),
         builder.add(
           builder.matmul(
@@ -712,7 +735,7 @@ partial interface ModelBuilder {
     if (resetAfter) {
       n = builder.tanh(
         builder.add(
-          (bias ? builder.slice(bias, [2 * hiddenSize], [hiddenSize]) : zero),
+          (options.bias ? builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) : zero),
           builder.add(
             builder.matmul(
               input, 
@@ -721,7 +744,7 @@ partial interface ModelBuilder {
             builder.mul(
               r,
               builder.add(
-                (recurrentBias ? builder.slice(recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero),
+                (options.recurrentBias ? builder.slice(options.recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero),
                 builder.matmul(
                   hiddenState, 
                   builder.transpose(builder.slice(recurrentweight, [2 * hiddenSize, 0], [hiddenSize, -1]))
@@ -736,8 +759,8 @@ partial interface ModelBuilder {
       n = builder.tanh(
         builder.add(
           builder.add(
-            (bias ? builder.slice(bias, [2 * hiddenSize], [hiddenSize]) : zero),
-            (recurrentBias ? builder.slice(recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero)
+            (options.bias ? builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) : zero),
+            (options.recurrentBias ? builder.slice(options.recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero)
             ),
           builder.add(
             builder.matmul(
@@ -761,14 +784,19 @@ partial interface ModelBuilder {
 
 ### leakyRelu ### {#api-modelbuilder-leakyrelu}
 <script type=idl>
+dictionary LeakyReluOptions {
+  float alpha = 0.01;
+};
+
 partial interface ModelBuilder {
-  Operand leakyRelu(Operand x, optional float alpha = 0.01);
+  Operand leakyRelu(Operand x, optional LeakyReluOptions options = {});
 };
 </script>
 <div algorithm=leakyrelu>
     **Arguments:**
         - *x*: an {{Operand}}. The input tensor.
-        - *alpha*: an optional {{float}} scalar multiplier, default to 0.01.
+        - *options*: an optional {{LeakyReluOptions}}. The optional parameters of the operation.
+            - *alpha*: a {{float}} scalar multiplier, default to 0.01.
 
     **Returns:** an {{Operand}}. The output tensor of the same shape as *x*.
 
@@ -785,7 +813,7 @@ partial interface ModelBuilder {
     performance standpoint.
     <pre highlight="js">
     return builder.add(builder.max(builder.constant(0), x),
-                  builder.mul(builder.constant(alpha), builder.min(builder.constant(0), x)));
+              builder.mul(builder.constant(options.alpha), builder.min(builder.constant(0), x)));
     </pre>
     </div>
 </div>
@@ -827,45 +855,48 @@ partial interface ModelBuilder {
 ### pooling operations ### {#api-modelbuilder-pool2d}
 Compute a *mean*, *L2 norm*, or *max* reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-modelbuilder-reduce]].
 <script type=idl>
+dictionary Pooling2dOptions {
+  sequence<long> windowDimensions;
+  sequence<long> padding;
+  sequence<long> strides;
+  sequence<long> dilations;
+  OperandLayout layout = "nchw";
+};
+
 partial interface ModelBuilder {
-  Operand averagePool2d(Operand input, optional sequence<long> windowDimensions,
-                        optional sequence<long> padding, optional sequence<long> strides,
-                        optional sequence<long> dilations, optional OperandLayout layout = "nchw");
-  Operand l2Pool2d(Operand input, optional sequence<long> windowDimensions,
-                  optional sequence<long> padding, optional sequence<long> strides,
-                  optional sequence<long> dilations, optional OperandLayout layout = "nchw");
-  Operand maxPool2d(Operand input, optional sequence<long> windowDimensions,
-                    optional sequence<long> padding, optional sequence<long> strides,
-                    optional sequence<long> dilations, optional OperandLayout layout = "nchw");
+  Operand averagePool2d(Operand input, optional Pooling2dOptions options = {});
+  Operand l2Pool2d(Operand input, optional Pooling2dOptions options = {});
+  Operand maxPool2d(Operand input, optional Pooling2dOptions options = {});
 };
 </script>
 <div algorithm=pool2d>
     **Arguments:**
         - *input*: an {{Operand}}. The input 4-D tensor. The logical shape
-            is interpreted according to the value of *layout*.
-        - *windowDimensions*: an optional sequence of {{long}} of length 2. The dimensions of the sliding window,
-            [window_height, window_width]. If not present, the window dimensions are assumed to be the height  
-            and width dimensions of the input shape. 
-        - *padding*: an optional sequence of {{long}} of length 4. The padding for the
-            beginning and ending along each spatial dimension of *input*,
-            [beginning_height, ending_height, beginning_width, ending_width].
-            If not present, the values are assumed to be [0,0,0,0].
-        - *strides*: an optional sequence of {{long}} of length 2. The stride of the
-            sliding window for each spatial dimension of *input*,
-            [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
-        - *dilations*: an optional sequence of {{long}} of length 2. The dilation factor
-            for each spatial dimension of *input*, [dilation_height, dilation_width].
-            If not present, the values are assumed to be [1,1].
-        - *layout*: an optional {{OperandLayout}} with value as "nchw" or
-            "nhwc". The default value is "nchw". This argument specifies the
-            layout format of the input and output.
+            is interpreted according to the value of *options.layout*.
+        - *options*: an optional {{Pooling2dOptions}}. The optional parameters of the operation.
+            - *windowDimensions*: a sequence of {{long}} of length 2. The dimensions of the sliding window,
+                [window_height, window_width]. If not present, the window dimensions are assumed to be the height  
+                and width dimensions of the input shape. 
+            - *padding*: a sequence of {{long}} of length 4. The padding for the
+                beginning and ending along each spatial dimension of *input*,
+                [beginning_height, ending_height, beginning_width, ending_width].
+                If not present, the values are assumed to be [0,0,0,0].
+            - *strides*: a sequence of {{long}} of length 2. The stride of the
+                sliding window for each spatial dimension of *input*,
+                [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
+            - *dilations*: a sequence of {{long}} of length 2. The dilation factor
+                for each spatial dimension of *input*, [dilation_height, dilation_width].
+                If not present, the values are assumed to be [1,1].
+            - *layout*: an {{OperandLayout}} with value as *"nchw"* or
+                *"nhwc"*. The default value is *"nchw"*. This argument specifies the
+                layout format of the input and output.
 
-            "nchw":
-                - input tensor: [batches, channels, height, width]
-                - output tensor: [batches, channels, height, width]
-            "nhwc":
-                - input tensor: [batches, height, width, channels]
-                - output tensor: [batches, height, width, channels]
+                "nchw":
+                    - input tensor: [batches, channels, height, width]
+                    - output tensor: [batches, channels, height, width]
+                "nhwc":
+                    - input tensor: [batches, height, width, channels]
+                    - output tensor: [batches, height, width, channels]
 
     **Returns:** an {{Operand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
@@ -875,7 +906,7 @@ partial interface ModelBuilder {
     A *global* pooling operation such as one for the max pooling operation is a variant of pooling where the window dimensions is the spatial dimensions (last two dimensions) of the input shape, as follow.
     <pre highlight="js">
     // 'global' max pooling
-    maxPool2d(input);
+    builder.maxPool2d(input);
     </pre>
     </div>
 </div>
@@ -883,26 +914,32 @@ partial interface ModelBuilder {
 ### reduction operations ### {#api-modelbuilder-reduce}
 Reduce the input along the dimensions given in *axes*.
 <script type=idl>
+dictionary ReduceOptions {
+  sequence<long> axes = null;
+  boolean keepDimensions = false;
+};
+
 partial interface ModelBuilder {
-  Operand reduceL1(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
-  Operand reduceL2(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
-  Operand reduceLogSum(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
-  Operand reduceLogSumExp(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
-  Operand reduceMax(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
-  Operand reduceMean(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
-  Operand reduceMin(Operand input, optional sequence<long> axe = null, optional boolean keepDimensions = false);
-  Operand reduceProduct(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
-  Operand reduceSum(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
-  Operand reduceSumSquare(Operand input, optional sequence<long> axes = null, optional boolean keepDimensions = false);
+  Operand reduceL1(Operand input, optional ReduceOptions options = {});
+  Operand reduceL2(Operand input, optional ReduceOptions options = {});
+  Operand reduceLogSum(Operand input, optional ReduceOptions options = {});
+  Operand reduceLogSumExp(Operand input, optional ReduceOptions options = {});
+  Operand reduceMax(Operand input, optional ReduceOptions options = {});
+  Operand reduceMean(Operand input, optional ReduceOptions options = {});
+  Operand reduceMin(Operand input, optional ReduceOptions options = {});
+  Operand reduceProduct(Operand input, optional ReduceOptions options = {});
+  Operand reduceSum(Operand input, optional ReduceOptions options = {});
+  Operand reduceSumSquare(Operand input, optional ReduceOptions options = {});
 };
 </script>
 <div algorithm=reduce>
     **Arguments:**
         - *input*: an {{Operand}}. The input tensor.
-        - *axes*: an optional sequence of {{long}}. The dimensions to reduce where -1 means the last dimension.
-            If not present, all dimensions are reduced.
-        - *keepDimensions*: an optional {{boolean}}. If true, retains reduced dimensions with size of 1.
-            The default value is false.
+        - *options*: an optional {{ReduceOptions}}. The optional parameters of the operation.
+            - *axes*: a sequence of {{long}}. The dimensions to reduce where -1 means the last dimension.
+                If not present, all dimensions are reduced.
+            - *keepDimensions*: a {{boolean}}. If true, retains reduced dimensions with size of 1.
+                The default value is false.
 
     **Returns:** an {{Operand}}. The reduced output tensor.
 
@@ -973,9 +1010,13 @@ partial interface ModelBuilder {
 ### slice ### {#api-modelbuilder-slice}
 Produce a slice of the input tensor.
 <script type=idl>
+dictionary SliceOptions {
+  sequence<long> axes;
+};
+
 partial interface ModelBuilder {
   Operand slice(Operand input, sequence<long> starts, sequence<long> sizes,
-                optional sequence<long> axes);
+                optional SliceOptions options = {});
 };
 </script>
 <div algorithm=slice>
@@ -984,7 +1025,8 @@ partial interface ModelBuilder {
         - *starts*: a sequence of {{long}}. The starting indices to slice of the corresponding axes of the input shape. A negative index value is interpreted as counting back from the end. For example, the value -1 
         - *sizes*: a sequence of {{long}}. The lengths to slice of the corresponding axes of the input shape.
             The length value of -1 selects all the remaining elements from the starting index of the given axis.
-        - *axes*: an optional sequence of {{long}}. The dimensions of the input shape to which *starts* and *sizes* apply. The values in the sequence are either within the [0, *r*-1] range where *r* is the input tensor rank, or the [*-r*, -1] range where negative values mean counting back from the end of the input shape. When not specified, the sequence is assumed to be [0,1,..*r-1*].  
+        - *options*: an optional {{SliceOptions}}. The optional parameters of the operation.
+            - *axes*: a sequence of {{long}}. The dimensions of the input shape to which *starts* and *sizes* apply. The values in the sequence are either within the [0, *r*-1] range where *r* is the input tensor rank, or the [*-r*, -1] range where negative values mean counting back from the end of the input shape. When not specified, the sequence is assumed to be [0,1,..*r-1*].  
 
     **Returns:** an {{Operand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
@@ -1015,9 +1057,9 @@ partial interface ModelBuilder {
     // of the input values itself, in order to increase the numerical stability of
     // the result.
     // [1]: https://cs231n.github.io/linear-classify/#softmax
-    const max_x = builder.reduceMax(x, /* axes = */ [1], /* keepDimensions = */ true);
+    const max_x = builder.reduceMax(x, { axes: [1], keepDimensions: true });
     const exp_x = builder.exp(builder.sub(x, max));
-    return builder.div(exp_x, builder.reduceSum(exp_x, /* axes = */ [1], /* keepDimensions = */ true));
+    return builder.div(exp_x, builder.reduceSum(exp_x, { axes: [1], keepDimensions: true }));
     </pre>
     </div>
 </div>
@@ -1025,17 +1067,22 @@ partial interface ModelBuilder {
 ### split ### {#api-modelbuilder-split}
 Split the input tensor into a number of sub tensors along the given axis.
 <script type=idl>
+dictionary SplitOptions {
+  long axis = 0;
+};
+
 partial interface ModelBuilder {
   sequence<Operand> split(Operand input,
                           (unsigned long or sequence<unsigned long>) splits,
-                          optional long axis = 0);
+                          optional SplitOptions options = {});
 };
 </script>
 <div algorithm=split>
     **Arguments:**
         - *input*: an {{Operand}}. The input tensor.
-        - *splits*: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *axis*. The sum of sizes must equal to the dimension size of *input* along *axis*.
-        - *axis*: a {{long}}. The dimension along which to split. Default to 0. A negative value is interpreted as counting back from the end.
+        - *splits*: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
+        - *options*: an optional {{SplitOptions}}. The optional parameters of the operation.
+            - *axis*: a {{long}}. The dimension along which to split. Default to 0. A negative value is interpreted as counting back from the end.
 
     **Returns:** a sequence of {{Operand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the length of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the length of the output sequence equals to the length of *splits*. The shape of the i-th output tensor is the same as as *input* except along *axis* where the dimension size is *splits[i]*.
 
@@ -1049,7 +1096,7 @@ partial interface ModelBuilder {
     const outputs = [];
     let start = 0;
     for (const size of splits) {
-      outputs.push(builder.slice(input, [start], [size], [axis]));
+      outputs.push(builder.slice(input, [start], [size], { axis: [axis] }));
       start += size;
     }
     return outputs;
@@ -1060,14 +1107,19 @@ partial interface ModelBuilder {
 ### squeeze ### {#api-modelbuilder-squeeze}
 Reduce the rank of a tensor without affecting its values by eliminating dimensions with size 1 of the tensor shape.
 <script type=idl>
+dictionary SqueezeOptions {
+  sequence<long> axes;
+};
+
 partial interface ModelBuilder {
-  Operand squeeze(Operand input, optional sequence<long> axes);
+  Operand squeeze(Operand input, optional SqueezeOptions options = {});
 };
 </script>
 <div algorithm=squeeze>
     **Arguments:**
         - *input*: an {{Operand}}. The input tensor.
-        - *axes*: an optional sequence of {{long}}. Indices to the shape dimensions of size 1 to eliminate. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
+        - *options*: an optional {{SqueezeOptions}}. The optional parameters of the operation.
+            - *axes*: a sequence of {{long}}. Indices to the shape dimensions of size 1 to eliminate. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
 
     **Returns:** an {{Operand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
 </div>
@@ -1075,14 +1127,19 @@ partial interface ModelBuilder {
 ### transpose ### {#api-modelbuilder-transpose}
 Permute the dimensions of the input tensor according to the *permutation* argument.
 <script type=idl>
+dictionary TransposeOptions {
+  sequence<long> permutation;
+};
+
 partial interface ModelBuilder {
-  Operand transpose(Operand input, optional sequence<long> permutation);
+  Operand transpose(Operand input, optional TransposeOptions options = {});
 };
 </script>
 <div algorithm=transpose>
     **Arguments:**
         - *input*: an {{Operand}}. The input N-D tensor.
-        - *permutation*: an optional sequence of {{long}} values. The values used to permute the output shape. When it's not specified, it's set to `[N-1...0]`, where `N` is the rank of the input tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
+        - *options*: an optional {{TransposeOptions}}. The optional parameters of the operation.
+            - *permutation*: a sequence of {{long}} values. The values used to permute the output shape. When it's not specified, it's set to `[N-1...0]`, where `N` is the rank of the input tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 
     **Returns:** an {{Operand}}. The permuted or transposed N-D tensor. 
 </div>
@@ -1128,7 +1185,7 @@ typedef record<DOMString, Input> NamedInputs;
 typedef record<DOMString, Output> NamedOutputs;
 
 interface Compilation {
-  Promise<NamedOutputs> compute(NamedInputs inputs, optional NamedOutputs outputs);
+  Promise<NamedOutputs> compute(NamedInputs inputs, optional NamedOutputs outputs = {});
 };
 </script>
 
