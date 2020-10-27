@@ -296,13 +296,13 @@ partial interface ModelBuilder {
     let shape = [1,-1,1,1];
     return builder.add(
         builder.mul(
-          builder.reshape(scale, shape),
+          builder.reshape(options.scale, shape),
           builder.div(
             builder.sub(input, builder.reshape(mean, shape)),
-            builder.sqrt(builder.add(builder.reshape(variance, shape), builder.constant(epsilon)))
+            builder.sqrt(builder.add(builder.reshape(variance, shape), builder.constant(options.epsilon)))
             )
           ),
-        builder.reshape(bias, shape)
+        builder.reshape(options.bias, shape)
       );
     </pre>
     </div>
@@ -337,17 +337,17 @@ partial interface ModelBuilder {
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
     <pre highlight="js">
-    if (minValue === undefined) {
-      if (maxValue === undefined) {
+    if (options.minValue === undefined) {
+      if (options.maxValue === undefined) {
         return x;
       } else {
-        return builder.min(x, maxValue);
+        return builder.min(x, options.maxValue);
       }
     } else {
-      if (maxValue === undefined) {
-        return builder.max(x, minValue);
+      if (options.maxValue === undefined) {
+        return builder.max(x, options.minValue);
       } else {
-        return builder.min(builder.max(x, minValue), maxValue);
+        return builder.min(builder.max(x, options.minValue), options.maxValue);
       }
     }
     </pre>
@@ -531,8 +531,8 @@ partial interface ModelBuilder {
     if (options.bTranspose)
       b = builder.transpose(b);
 
-    let ab = builder.matmul(builder.mul(builder.constant(alpha), a), b);
-    return (c ? builder.add(ab, builder.mul(builder.constant(beta), c)) : ab);
+    let ab = builder.matmul(builder.mul(builder.constant(options.alpha), a), b);
+    return (c ? builder.add(ab, builder.mul(builder.constant(options.beta), c)) : ab);
     </pre>
     </div>
 </div>
@@ -1096,7 +1096,7 @@ partial interface ModelBuilder {
     const outputs = [];
     let start = 0;
     for (const size of splits) {
-      outputs.push(builder.slice(input, [start], [size], { axis: [axis] }));
+      outputs.push(builder.slice(input, [start], [size], { axis: [options.axis] }));
       start += size;
     }
     return outputs;
