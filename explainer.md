@@ -17,10 +17,10 @@ At the heart of neural networks is a computational graph of mathematical operati
 The WebNN API is a specification for constructing and executing computational graphs of neural networks. It provides web applications with the ability to create, compile, and run machine learning networks on the web browsers. The WebNN API may be implemented in web browsers using the available native operating system machine learning APIs for the best performance and reliability of results. The following code sample illustrates a simple usage of this API.
 
 ``` Javascript
-const operandType = { type: 'float32', dimensions: [2, 2] };
-const context = navigator.ml.getNeuralNetworkContext().
+const operandType = {type: 'float32', dimensions: [2, 2]};
+const context = navigator.ml.getNeuralNetworkContext();
 const builder = context.createModelBuilder();
-// 1. Create a model of the computational graph 'C = 0.2 * A + B'
+// 1. Create a model of the computational graph 'C = 0.2 * A + B'.
 const constant = builder.constant(0.2);
 const A = builder.input('A', operandType);
 const B = builder.input('B', operandType);
@@ -28,12 +28,15 @@ const C = builder.add(builder.mul(A, constant), B);
 const model = builder.createModel({'C': C});
 // 2. Compile the model into executable.
 const compilation = await model.compile();
-// 3. Bind inputs to the model and execute for the result
+// 3. Bind inputs to the model and execute for the result.
 const bufferA = new Float32Array(4).fill(1.0);
 const bufferB = new Float32Array(4).fill(0.8);
-let outputs = await compilation.compute({'A': { buffer: bufferA }, 'B': { buffer: bufferB }});
-// The computed result of [[1, 1], [1, 1]] is in the buffer associated with the output operand
-console.log("Output shape: " + outputs.C.dimensions);
+const inputs = {'A': {buffer: bufferA}, 'B': {buffer: bufferB}};
+const outputs = await compilation.compute(inputs);
+// The computed result of [[1, 1], [1, 1]] is in the buffer associated with
+// the output operand.
+console.log('Output shape: ' + outputs.C.dimensions);
+console.log('Output value: ' + outputs.C.buffer);
 ```
 
 ### Goals
