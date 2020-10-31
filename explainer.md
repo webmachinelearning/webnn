@@ -6,13 +6,13 @@ With emerging AI innovations in both software and hardware ecosystem, one of the
 
 ![WebNN architecture](content/webnn_arch.png)
 
-As illustrated in the architecture diagram of the figure above, web browsers may implement the WebNN API using native machine learning API available in the operating system. This architecture allows Javascript frameworks to tap into cutting-edge machine learning innovations in the operating system and the hardware platform underneath it without being tied to platform-specific capabilities, bridging the gap between software and hardware through a hardware-agnostic abstraction layer. 
+As illustrated in the architecture diagram of the figure above, web browsers may implement the WebNN API using native machine learning API available in the operating system. This architecture allows JavaScript frameworks to tap into cutting-edge machine learning innovations in the operating system and the hardware platform underneath it without being tied to platform-specific capabilities, bridging the gap between software and hardware through a hardware-agnostic abstraction layer. 
 
 At the heart of neural networks is a computational graph of mathematical operations. These operations are the building blocks of modern AI and machine learning technologies in computer vision, natural language processing, and robotics. 
 
 The WebNN API is a specification for constructing and executing computational graphs of neural networks. It provides web applications with the ability to create, compile, and run machine learning networks on the web browsers. The WebNN API may be implemented in web browsers using the available native operating system machine learning APIs for the best performance and reliability of results. The following code sample illustrates a simple usage of this API.
 
-``` Javascript
+``` JavaScript
 const operandType = {type: 'float32', dimensions: [2, 2]};
 const context = navigator.ml.getNeuralNetworkContext();
 const builder = context.createModelBuilder();
@@ -74,7 +74,7 @@ This [example](https://webmachinelearning.github.io/webnn/#examples) builds, com
 
 There are many important [application use cases](https://webmachinelearning.github.io/webnn/#usecases-application) for high-performance neural network inference. One such use cases is deep-learning noise suppression (DNS) in web-based video conferencing. The following sample shows the [NSNet](https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline) deep learning model for noise suppression implemented in WebNN.
 
-```Javascript
+```JavaScript
 // Noise Suppression Net (NSNet) Baseline Model for Deep Noise Suppression Challenge (DNS) 2020.
 //      https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline
 async function nsnet(sequenceLength, batchSize) {
@@ -165,7 +165,7 @@ A model-loader API loads a model from a specified URL and outputs a model object
 
 Although this design approach has a clear benefit in its simplicity, it faces a challenge in defining a standard model format that works across the various web browsers and operating systems on the user's devices. In shifting the focus of the design towards the model format, it creates an opportunity for more fragmentation in the way AI is consumed on the web and encourages silos of vendor-specific ecosystems around the particular model formats of choice. Much like in the early days of the image format wars, the web developers will likely have a more difficult time understanding which model formats would work on which combinations of the web browsers and operating systems that they're targeting.
 
-By defining the WebNN API as a model format-agnostic set of neural network operations, we shift the focus of the design towards the abstraction between the web browsers and the underlying operating system services and let the web applications and Javascript frameworks continue to focus on satisfying the needs of the web developers knowing that the neural networks they create will faithfully execute regardless of the browser's underlying platform. What we believe works in our favor is the significant overlap of neural network operations and algorithms across all popular frameworks today. Models available in one format are generally convertible to another with little loss.
+By defining the WebNN API as a model format-agnostic set of neural network operations, we shift the focus of the design towards the abstraction between the web browsers and the underlying operating system services and let the web applications and JavaScript frameworks continue to focus on satisfying the needs of the web developers knowing that the neural networks they create will faithfully execute regardless of the browser's underlying platform. What we believe works in our favor is the significant overlap of neural network operations and algorithms across all popular frameworks today. Models available in one format are generally convertible to another with little loss.
 
 A model-loader API can also be built atop a neural network API without losing the appeal in its simplicity. Our view is that the two APIs are complementary and not mutually exclusive to each other; however we must start with the neural network API to ensure cross-platform interoperability, a cornerstone of the web platform.
 
@@ -183,11 +183,11 @@ To balance the needs of providing for future extensibility while ensuring maximu
 
 ### Stay the course and build machine learning solutions on WebGL/WebGPU
 
-WebGL and WebGPU are Web API abstraction layers to the underlying graphics API, which could be used to implement neural network operations that run on the GPU. Popular Javascript machine learning frameworks such as TensorFlow.JS already uses WebGL and plans to add a WebGPU backend shortly in the future. An alternative to the WebNN proposal is to continue with this architecture and rely on Javascript frameworks implemented with these graphics abstraction layers to address the current and future needs of AI scenarios on the web.
+WebGL and WebGPU are Web API abstraction to the underlying graphics API, which could be used to implement neural network operations that run on the GPU. Popular JavaScript machine learning frameworks such as TensorFlow.JS already uses WebGL and plans to add a WebGPU backend shortly in the future. An alternative to the WebNN proposal is to continue with this architecture and rely on JavaScript frameworks implemented with these graphics abstraction to address the current and future needs of AI scenarios on the web.
 
 We believe this alternative is insufficient for two reasons. First, although graphics abstraction layers provide the flexibility of general programmability of the GPU graphics pipelines, they are unable to tap into hardware-specific optimizations and special instructions that are only available to the operating system internals. Over the years, the hardware ecosystem has invested significantly in innovating in the AI space, and much of that is about improving the performance of intensive computing workload in machine learning scenarios. Key technologies such as massively parallelized matrix multiplication, weight packing, and quantization, to name a few, are fundamental to major performance breakthroughs but are not accessible to applications through generic graphics pipeline states due to its nature of being hardware-dependent.
 
-Secondly, the hardware diversity with numerous driver generations make conformance testing of neural network operations at the framework level challenging. Conformance testing, compatibility, and quality assurance to ensure the quality of hardware results have been the areas of strength of the operating systems, something that should be leveraged by frameworks and applications alike. Neural network models could be used in mission-critical scenarios such as in healthcare or industry processes, the trustworthiness of the results produced by the frameworks are of utmost importance to the users.
+Secondly, the hardware diversity with numerous driver generations make conformance testing of neural network operations at the framework level challenging. Conformance testing, compatibility, and quality assurance of hardware results have been the areas of strength of the operating systems, something that should be leveraged by frameworks and applications alike. Neural network models could be used in mission-critical scenarios such as in healthcare or industry processes, the trustworthiness of the results produced by the frameworks are of utmost importance to the users.
 
 ## References & acknowledgements
 
