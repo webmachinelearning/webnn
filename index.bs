@@ -1218,27 +1218,27 @@ input2    ---+
 </pre>
 <pre highlight="js">
 // Use tensors in 4 dimensions.
-const TENSOR_DIMS = [2, 2, 2, 2];
-const TENSOR_SIZE = 16;
+const TENSOR_DIMS = [1, 2, 2, 2];
+const TENSOR_SIZE = 8;
 
 const builder = nn.createModelBuilder();
 
 // Create OperandDescriptor object.
-const float32TensorType = {type: 'float32', dimensions: TENSOR_DIMS};
+const desc = {type: 'float32', dimensions: TENSOR_DIMS};
 
 // constant1 is a constant operand with the value 0.5.
 const constantBuffer1 = new Float32Array(TENSOR_SIZE).fill(0.5);
-const constant1 = builder.constant(float32TensorType, constantBuffer1);
+const constant1 = builder.constant(desc, constantBuffer1);
 
 // input1 is one of the input operands. Its value will be set before execution.
-const input1 = builder.input('input1', float32TensorType);
+const input1 = builder.input('input1', desc);
 
 // constant2 is another constant operand with the value 0.5.
 const constantBuffer2 = new Float32Array(TENSOR_SIZE).fill(0.5);
-const constant2 = builder.constant(float32TensorType, constantBuffer2);
+const constant2 = builder.constant(desc, constantBuffer2);
 
 // input2 is another input operand. Its value will be set before execution.
-const input2 = builder.input('input2', float32TensorType);
+const input2 = builder.input('input2', desc);
 
 // intermediateOutput1 is the output of the first Add operation.
 const intermediateOutput1 = builder.add(constant1, input1);
@@ -1250,7 +1250,7 @@ const intermediateOutput2 = builder.add(constant2, input2);
 const output = builder.mul(intermediateOutput1, intermediateOutput2);
 
 // Create the model by identifying the outputs.
-const model = builder.createModel({'output', output});
+const model = builder.createModel({'output': output});
 </pre>
 </div>
 
@@ -1259,7 +1259,7 @@ The following code compiles the model by prioritizing lower level of power consu
 over time. This option could be particularly useful for long-running models.
 <pre highlight="js">
 // Compile the constructed model.
-const compilation = await model.compile({ powerPreference: 'low-power' });
+const compilation = await model.compile({powerPreference: 'low-power'});
 </pre>
 </div>
 
@@ -1271,10 +1271,17 @@ const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1);
 const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
 
 // Asynchronously execute the compiled model with the specified inputs.
-let outputs = await compilation.compute({'input1': {buffer: inputBuffer1}, 'input2': {buffer: inputBuffer2}});
+const inputs = {
+  'input1': {buffer: inputBuffer1},
+  'input2': {buffer: inputBuffer2},
+};
+const outputs = await compilation.compute(inputs);
 
-// The computed result in the output operand's buffer.
-console.log(outputs.output.buffer);
+// Log the shape and computed result of the output operand.
+console.log('Output shape: ' + outputs.output.dimensions);
+// Output shape: 1,2,2,2
+console.log('Output value: ' + outputs.output.buffer);
+// Output value: 2.25,2.25,2.25,2.25,2.25,2.25,2.25,2.25
 </pre>
 </div>
 
