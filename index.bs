@@ -634,11 +634,13 @@ partial interface ModelBuilder {
         let slice = (slot == 1 || options.direction == "backward" ? steps - step - 1 : step);
         let cellInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, -1, -1]), { axes: [0] });
 
-        let result = builder.gruCell(
-          cellInput, cellWeight[slot], cellRecurrentWeight[slot], 
-          cellHidden[slot], hiddenSize, { bias: cellBias[slot], 
-          recurrentBias: cellRecurrentBias[slot], resetAfter: options.resetAfter, 
-          layout: options.layout, activations: options.activations });
+        let result = builder.reshape(
+          builder.gruCell(
+            cellInput, cellWeight[slot], cellRecurrentWeight[slot],
+            cellHidden[slot], hiddenSize, { bias: cellBias[slot],
+            recurrentBias: cellRecurrentBias[slot], resetAfter: options.resetAfter,
+            layout: options.layout, activations: options.activations }),
+          [1, -1, hiddenSize]);
 
         cellOutput = (cellOutput ? builder.concat([cellOutput, result], 0) : result);
       }
