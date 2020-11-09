@@ -72,11 +72,10 @@ This [example](https://webmachinelearning.github.io/webnn/#examples) builds, com
 
 ## Key scenarios
 
-There are many important [application use cases](https://webmachinelearning.github.io/webnn/#usecases-application) for high-performance neural network inference. One such use cases is deep-learning noise suppression (DNS) in web-based video conferencing. The following sample shows the [NSNet](https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline) deep learning model for noise suppression implemented in WebNN.
+There are many important [application use cases](https://webmachinelearning.github.io/webnn/#usecases-application) for high-performance neural network inference. One such use cases is deep-learning noise suppression (DNS) in web-based video conferencing. The following sample shows how the NSNet baseline implementation of deep learning-based noise suppression model may be implemented as WebNN calls. The updated version of this model is available [here](https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline).
 
 ```JavaScript
 // Noise Suppression Net (NSNet) Baseline Model for Deep Noise Suppression Challenge (DNS) 2020.
-//      https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline
 async function nsnet(sequenceLength, batchSize) {
     // Constant shapes and sizes
     const HIDDEN_DIMS = [1,1,257];
@@ -185,9 +184,9 @@ To balance the needs of providing for future extensibility while ensuring maximu
 
 WebGL and WebGPU are Web API abstraction to the underlying graphics API, which could be used to implement neural network operations that run on the GPU. Popular JavaScript machine learning frameworks such as TensorFlow.js already uses WebGL and are working on a WebGPU backend. An alternative to the WebNN proposal is to continue with this architecture and rely on JavaScript frameworks implemented with these graphics abstraction to address the current and future needs of AI scenarios on the web.
 
-We believe this alternative is insufficient for two reasons. First, although graphics abstraction layers provide the flexibility of general programmability of the GPU graphics pipelines, they are unable to tap into hardware-specific optimizations and special instructions that are only available to the operating system internals. Over the years, the hardware ecosystem has invested significantly in innovating in the AI space, and much of that is about improving the performance of intensive computing workload in machine learning scenarios. Key technologies such as massively parallelized matrix multiplication, weight packing, and quantization, to name a few, are fundamental to major performance breakthroughs but are not accessible to applications through generic graphics pipeline states due to its nature of being hardware-dependent.
+We believe this alternative is insufficient for two reasons. First, although graphics abstraction layers provide the flexibility of general programmability of the GPU graphics pipelines, they are unable to tap into hardware-specific optimizations and special instructions that are available to the operating system internals. The hardware ecosystem has been investing significantly in innovating in the AI space, and much of that is about improving the performance of intensive compute workloads in machine learning scenarios. Some key technologies that are important to model performance may not be uniformly accessible to applications through generic graphics pipeline states.
 
-Secondly, the hardware diversity with numerous driver generations make conformance testing of neural network operations at the framework level challenging. Conformance testing, compatibility, and quality assurance of hardware results have been the areas of strength of the operating systems, something that should be leveraged by frameworks and applications alike. Since neural network models could be used in mission-critical scenarios such as in healthcare or industry processes, the trustworthiness of the results produced by the frameworks are of utmost importance to the users.
+Secondly, the hardware diversity with numerous driver generations make conformance testing of neural network operations at the framework level more challenging. Conformance testing, compatibility, and quality assurance of hardware results have been the traditional areas of strength of the operating systems, something that should be leveraged by frameworks and applications alike. Since neural network models could be used in mission-critical scenarios such as in healthcare or industry processes, the trustworthiness of the results produced by the frameworks are of utmost importance to the users.
 
 ## References & acknowledgements
 
