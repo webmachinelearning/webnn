@@ -35,6 +35,8 @@ console.log('Output shape: ' + outputs.C.dimensions);
 console.log('Output value: ' + outputs.C.buffer);
 ```
 
+Check it out in [WebNN Code Editor](https://webmachinelearning.github.io/webnn-samples/code/?example=mul_add.js).
+
 ### Goals
 
 Web applications and frameworks can take advantage of the native operating system services for machine learning and the underlying hardware innovations available on the user's computers to implement consistent, efficient, and reliable AI experiences on the web platform.
