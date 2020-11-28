@@ -260,7 +260,7 @@ interface ModelBuilder {
 </script>
 
 ### batchNormalization ### {#api-modelbuilder-batchnorm}
-Normalize the tensor values across dimensions in a batch through a specialized [[BatchNorm]] [transform](https://en.wikipedia.org/wiki/Batch_normalization#Batch_Normalizing_Transform). The *mean* and *variance* tensors are previously calculated during model training pass.
+Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature are computed across the batch dimension during training.
 <script type=idl>
 dictionary BatchNormalizationOptions {
   Operand scale;
@@ -277,33 +277,32 @@ partial interface ModelBuilder {
 <div algorithm=batchnorm>
     **Arguments:**
         - *input*: an {{Operand}}. The input N-D tensor.
-        - *mean*: an {{Operand}}. The 1-D tensor of the batch mean values 
-            whose length is equal to the size of the input dimension denoted by *options.axis*.
-        - *variance*: an {{Operand}}. The 1-D tensor of the batch variance values
-            whose length is equal to the size of the input dimension denoted by *options.axis*.
+        - *mean*: an {{Operand}}. The 1-D tensor of the mean values of the input features across the batch whose length is equal to the size of the input dimension denoted by *options.axis*.
+        - *variance*: an {{Operand}}. The 1-D tensor of the variance values of the input features across the batch whose length is equal to the size of the input dimension denoted by *options.axis*.
         - *options*: an optional {{BatchNormalizationOptions}}. The optional parameters of the operation.
               - *scale*: an {{Operand}}. The 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by *options.axis*.
               - *bias*: an {{Operand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
-              - *axis*: a {{long}} scalar. The index for the feature dimension of the input shape for which the normalizing batch is defined and that the mean and variance values are computed. When it's not specified, the default value is 1.
-              - *epsilon*: a {{float}} scalar. The Epsilon value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
+              - *axis*: a {{long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. When it's not specified, the default value is 1.
+              - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
         
-    **Returns:** an {{Operand}}. The batch normalized N-D tensor of the same shape as the input tensor.
+    **Returns:** an {{Operand}}. The batch-normalized N-D tensor of the same shape as the input tensor.
 
-    When *input* is a 4-D tensor of the *"nchw"* or *"nhwc"* layout, *axis* should be set to 1 or 3 respectively, 
-    to designate the feature dimension of the input tensor.
+    When *input* is a 4-D tensor of the *"nchw"* or *"nhwc"* layout, *options.axis* should be set to 1 or 3 respectively. The axis value designates the feature or channel count dimension of the input tensor.
 
     <div class="note">
     The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout can be generically emulated from 
     the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, 
     therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
-    let shape = [1,-1,1,1];
+    const shape = [1,-1,1,1];
     return builder.add(
         builder.mul(
           builder.reshape(options.scale, shape),
           builder.div(
             builder.sub(input, builder.reshape(mean, shape)),
-            builder.sqrt(builder.add(builder.reshape(variance, shape), builder.constant(options.epsilon)))
+            builder.pow(
+              builder.add(builder.reshape(variance, shape), builder.constant(options.epsilon)),
+              builder.constant(0.5))
             )
           ),
         builder.reshape(options.bias, shape)
@@ -384,8 +383,10 @@ Compute a 2-D convolution given 4-D input and filter tensors
 <script type=idl>
 dictionary Conv2dOptions {
   sequence<long> padding;
+  sequence<long> outputPadding;
   sequence<long> strides;
   sequence<long> dilations;
+  boolean transpose = false;
   long groups = 1;
   OperandLayout layout = "nchw";
 };
@@ -402,8 +403,10 @@ partial interface ModelBuilder {
             interpreted according to the value of *options.layout* and *options.groups*.
         - *options*: an optional {{Conv2dOptions}}. The optional parameters of the operation.
             - *padding*: a sequence of {{long}} of length 4. The padding for the beginning and ending along each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
+            - *outputPadding*: a sequence of {{long}} of length 2. The padding values applied to each spatial dimension of the output tensor when *options.transpose* is set to true. This explicit padding values are needed to disambiguate the output tensor shape for transposed convolution when the value of the *options.strides* is greater than 1. Note that these values are only used to disambiguate output shape when needed; it does not necessarily cause any padding value to be written to the output tensor. If not specified, the values are assumed to be [0,0]. 
             - *strides*: a sequence of {{long}} of length 2. The stride of the sliding window for each spatial dimension of *input*, [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
             - *dilations*: a sequence of {{long}} of length 2. The dilation factor for each spatial dimension of *input*, [dilation_height, dilation_width]. If not present, the values are assumed to be [1,1].
+            - *transpose*: a {{boolean}} indicating that a transposed convolution operation is performed. Transposed convolution is used in upsampling networks to increase the resolution of a feature as opposed to the typical convolution process that reduces the feature's resolution. When transposed convolution is performed, *options.outputPadding* may be needed to disambiguate the output tensor shape. If not present, this option is assumed to be false.
             - *groups*: a {{long}} scalar. The number of groups that input channels and output channels are divided into, default to 1.
             - *layout*: an {{OperandLayout}} with value as *"nchw"* or *"nhwc"*. The default value is *"nchw"*. This argument specifies the layout format of the input, output and filter tensor. Specifically,
 
@@ -418,14 +421,16 @@ partial interface ModelBuilder {
                         output_channels]
                     - output tensor: [batches, height, width, output_channels]
 
-    **Returns:** an {{Operand}}. The output 4-D tensor that contains the
-    result of the convolution. The logical shape is interpreted according to the
-    value of *layout*.
+    **Returns:** an {{Operand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.layout* value. More specifically the sizes of the last two dimensions of the output tensor, the spatial dimensions, for the convolution operation can be calculated as follow:
+
+    *output size = 1 + (input size - filter size + beginning padding + ending padding) / stride*
+
+    Whereas for the transposed convolution with *options.transpose* set to *true*, the *options.outputPadding* may be needed and that the spatial dimension values of the output tensor are as follow:
+
+    *output size = (input size - 1) ** *stride + filter size - beginning padding - ending padding + output padding*
 
     <div class="note">
-    A *depthwise* conv2d operation is a variant of grouped conv2d, used in
-    models like the MobileNet, where the *options.groups* = input_channels =
-    output_channels and the shape of filter tensor is [options.groups, 1, height, width]
+    A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options.groups* = input_channels = output_channels and the shape of filter tensor is [options.groups, 1, height, width]
     for *"nchw"* layout or [height, width, 1, options.groups] for "nhwc" layout.
     </div>
 </div>
@@ -441,6 +446,7 @@ partial interface ModelBuilder {
   Operand div(Operand a, Operand b);
   Operand max(Operand a, Operand b);
   Operand min(Operand a, Operand b);
+  Operand pow(Operand a, Operand b);
 };
 </script>
 <div algorithm=binary>
@@ -455,6 +461,15 @@ partial interface ModelBuilder {
     [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
     rank of the input tensors. For each dimension of the output tensor, its size
     is the maximum size along that dimension of the input tensors.
+
+    **Operation types:**
+        - *add*: Add the values of the two input tensors, element-wise.
+        - *sub*: Subtract the values of the second input tensor from the values of the first input tensor, element-wise.
+        - *mul*: Multiply the values of the two input tensors, element-wise.
+        - *div*: Divide the values of the first input tensor with the values of the second tensor, element-wise.
+        - *max*: Select the greater values of the two input tensors, element-wise.
+        - *min*: Select the lesser values of the two input tensors, element-wise.
+        - *pow*: Compute the values of the values of the first input tensor to the power of the values of the second input tensor, element-wise.
 </div>
 
 ### element-wise unary operations ### {#api-modelbuilder-unary}
@@ -470,7 +485,6 @@ partial interface ModelBuilder {
   Operand neg(Operand x);
   Operand sigmoid(Operand x);
   Operand sin(Operand x);
-  Operand sqrt(Operand x);
   Operand tan(Operand x);
   Operand tanh(Operand x);
 };
@@ -493,7 +507,6 @@ partial interface ModelBuilder {
         - *neg*: Compute the numerical negative value of the input tensor, element-wise.
         - *sigmoid*: Compute the sigmoid function of the input tensor, element-wise.
         - *sin*: Compute the sine of the input tensor, element-wise.
-        - *sqrt*: Compute the square root of the input tensor, element-wise.
         - *tan*: Compute the tangent of the input tensor, element-wise.
         - *tanh*: Compute the hyperbolic tangent of the input tensor, element-wise.
 </div>
@@ -788,6 +801,63 @@ partial interface ModelBuilder {
     </div>
 </div>
 
+### instanceNormalization ### {#api-modelbuilder-instancenorm}
+Normalize the input features per feature instance using [[Instance-Normalization]]. Unlike [[#api-modelbuilder-batchnorm]] where the mean and variance values are computed across the batch dimension during training, the mean and variance values of instance normalization is computed from each individual feature instance on the fly.
+<script type=idl>
+dictionary InstanceNormalizationOptions {
+  Operand scale;
+  Operand bias;
+  float epsilon = 1e-5;
+};
+
+partial interface ModelBuilder {
+  Operand instanceNormalization(Operand input, 
+                                optional InstanceNormalizationOptions options = {});
+};
+</script>
+<div algorithm=instancenorm>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input N-D tensor.
+        - *options*: an optional {{InstanceNormalizationOptions}}. The optional parameters of the operation.
+              - *scale*: an {{Operand}}. The 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by *options.axis*.
+              - *bias*: an {{Operand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
+              - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
+        
+    **Returns:** an {{Operand}}. The instance-normalized N-D tensor of the same shape as the input tensor.
+
+    When *input* is a 4-D tensor of the *"nchw"* or *"nhwc"* layout, *options.axis* should be set to 1 or 3 respectively. The axis value designates the feature or channel count dimension of the input tensor.
+
+    <div class="note">
+    The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout can be generically emulated from 
+    the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, 
+    therefore its usage is encouraged from the performance standpoint.
+    <pre highlight="js">
+    const reduceOptions = { axes: [2,3], keepDimensions: true };
+    const mean = builder.reduceMean(input, reduceOptions);
+    const variance = builder.reduceMean(
+      builder.pow(
+        builder.sub(input, mean), 
+        buider.constant(2)),
+      reduceOptions
+      );
+
+    const shape = [1,-1,1,1];    
+    return builder.add(
+      builder.mul(
+        builder.reshape(options.scale, shape),
+        builder.div(
+          builder.sub(input, mean),
+          buidler.pow(
+            builder.add(variance, options.epsilon), 
+            builder.constant(0.5))
+          )
+        ),
+      builder.reshape(options.bias, shape)
+      );
+    </pre>
+    </div>
+</div>
+
 ### leakyRelu ### {#api-modelbuilder-leakyrelu}
 <script type=idl>
 dictionary LeakyReluOptions {
@@ -831,7 +901,6 @@ partial interface ModelBuilder {
   Operand matmul(Operand a, Operand b);
 };
 </script>
-
 <div algorithm=matmul>
     **Arguments:**
         - *a*: an {{Operand}}. The first input N-D tensor.
@@ -856,6 +925,75 @@ partial interface ModelBuilder {
             its dimensions.
         - If both *a* and *b* are 1-D, the operation is a vector dot-product,
             which produces a scalar output.
+</div>
+
+### pad ### {#api-modelbuilder-pad}
+Inflate the tensor with constant or mirrored values on the edges.
+<script type=idl>
+enum PaddingMode {
+  "constant",
+  "edge",
+  "reflection",
+  "symmetric"
+};
+
+dictionary PadOptions {
+  PaddingMode mode = "constant";
+  float value = 0;
+};
+
+partial interface ModelBuilder {
+  Operand pad(Operand input, Operand padding, optional PadOptions options = {});
+};
+</script>
+<div algorithm=pad>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input tensor.
+        - *padding*: an {{Operand}}. The 2-D Tensor of integer values indicating the number of padding values to add at the beginning and end of each input dimensions. The tensor has shape [*n*, 2] where *n* is the rank of the input tensor. For each dimension *D* of *input*, *padding[D, 0]* indicates how many values to add before the content in that dimension, and *padding[D, 1]* indicates how many values to add after the content in that dimension.
+        - *options*: an optional {{PadOptions}}. The optional parameters of the operation.
+            - *mode*: a {{PaddingMode}}. The different ways to pad the tensor. When not set, it's assumed to be "constant".
+            - *value*: a {{float}}. The pad value when the *options.mode* is set to *"constant"*. When not set, it's assumed to be 0.
+
+    **Returns:** an {{Operand}}. The padded output tensor.
+    <div class="example">
+    <pre highlight="js">
+    // input: [[1,2,3], [4,5,6]]
+    const input = builder.constant(
+      { type: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
+
+    // padding: [[1,1], [2,2]]
+    const padding = builder.constant(
+      { type: 'float32', dimensions: [2,2] }, new Float32Array([1,1,2,2]));
+
+    // "constant" padded:
+    //    [[0,0,0,0,0,0,0],
+    //     [0,0,1,2,3,0,0],
+    //     [0,0,4,5,6,0,0],
+    //     [0,0,0,0,0,0,0]]
+    builder.pad(input, padding);
+
+    // "edge" padded:
+    //    [[1,1,1,2,3,3,3],
+    //     [1,1,1,2,3,3,3],
+    //     [4,4,4,5,6,6,6],
+    //     [4,4,4,5,6,6,6]]
+    builder.pad(input, padding, { mode: "edge" });
+
+    // "reflection" padded:
+    //    [[6,5,4,5,6,5,4],
+    //     [3,2,1,2,3,2,1],
+    //     [6,5,4,5,6,5,4],
+    //     [3,2,1,2,3,2,1]]
+    builder.pad(input, padding, { mode: "reflection" });
+
+    // "symmetric" padded:
+    //    [[2,1,1,2,3,3,2],
+    //     [2,1,1,2,3,3,2],
+    //     [5,4,4,5,6,6,5],
+    //     [5,4,4,5,6,6,5]]
+    builder.pad(input, padding, { mode: "symmetric" });
+    </pre>
+    </div>
 </div>
 
 ### pooling operations ### {#api-modelbuilder-pool2d}
@@ -989,6 +1127,34 @@ partial interface ModelBuilder {
     return builder.max(builder.constant(0), x);
     </pre>
     </div>
+</div>
+
+### resample ### {#api-modelbuilder-resample}
+Resample the tensor values from the source to the destination dimensions according to the scaling factors.
+<script type=idl>
+enum InterpolationMode {
+  "nearest-neighbor",
+  "linear"
+};
+
+dictionary ResampleOptions {
+  InterpolationMode mode = "nearest-neighbor";
+  sequence<float> scales;
+};
+
+partial interface ModelBuilder {
+  Operand resample(Operand input, optional ResampleOptions options = {});
+};
+</script>
+<div algorithm=resample>
+    **Arguments:**
+        - *input*: an {{Operand}}. The input 4-D tensor.
+        - *options*: an optional {{ResampleOptions}}. The optional parameters of the operation.
+            - *mode*: an {{InterpolationMode}}. The interpolation algorithm used to fill the output tensor values.
+                If not set, it is assumed to be the *Nearest Neighbor* interpolation.
+            - *scales*: a sequence of {{float}} of length 4. Each value represents the scaling factor used to scale in each input dimensions.
+
+    **Returns:** an {{Operand}}. The output 4-D tensor.
 </div>
 
 ### reshape ### {#api-modelbuilder-reshape}
@@ -1524,7 +1690,7 @@ Benjamin Poulain for their contributions to the API specification.
     ],
     "date": "September 2014"
   },
-  "BatchNorm": {
+  "Batch-Normalization": {
     "href": "https://arxiv.org/abs/1502.03167",
     "title": "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift",
     "authors": [
@@ -1532,6 +1698,16 @@ Benjamin Poulain for their contributions to the API specification.
       "Christian Szegedy"
     ],
     "date": "March 2015"
+  },
+  "Instance-Normalization": {
+    "href": "https://arxiv.org/abs/1607.08022",
+    "title": "Instance Normalization: The Missing Ingredient for Fast Stylization",
+    "authors": [
+      "Dmitry Ulyanov",
+      "Andrea Vedaldi",
+      "Victor Lempitsky"
+    ],
+    "date": "July 2016"
   }
 }
 </pre>
