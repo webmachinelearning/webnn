@@ -383,9 +383,10 @@ Compute a 2-D convolution given 4-D input and filter tensors
 <script type=idl>
 dictionary Conv2dOptions {
   sequence<long> padding;
-  sequence<long> outputPadding;
   sequence<long> strides;
   sequence<long> dilations;
+  sequence<long> outputPadding;
+  sequence<long> outputSizes;
   boolean transpose = false;
   long groups = 1;
   OperandLayout layout = "nchw";
@@ -403,9 +404,10 @@ partial interface ModelBuilder {
             interpreted according to the value of *options.layout* and *options.groups*.
         - *options*: an optional {{Conv2dOptions}}. The optional parameters of the operation.
             - *padding*: a sequence of {{long}} of length 4. The padding for the beginning and ending along each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
-            - *outputPadding*: a sequence of {{long}} of length 2. The padding values applied to each spatial dimension of the output tensor when *options.transpose* is set to true. This explicit padding values are needed to disambiguate the output tensor shape for transposed convolution when the value of the *options.strides* is greater than 1. Note that these values are only used to disambiguate output shape when needed; it does not necessarily cause any padding value to be written to the output tensor. If not specified, the values are assumed to be [0,0]. 
             - *strides*: a sequence of {{long}} of length 2. The stride of the sliding window for each spatial dimension of *input*, [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
             - *dilations*: a sequence of {{long}} of length 2. The dilation factor for each spatial dimension of *input*, [dilation_height, dilation_width]. If not present, the values are assumed to be [1,1].
+            - *outputPadding*: a sequence of {{long}} of length 2. The padding values applied to each spatial dimension of the output tensor when *options.transpose* is set to true. This explicit padding values are needed to disambiguate the output tensor shape for transposed convolution when the value of the *options.strides* is greater than 1. Note that these values are only used to disambiguate output shape when needed; it does not necessarily cause any padding value to be written to the output tensor. If not specified, the values are assumed to be [0,0].
+            - *outputSizes*: a sequence of {{long}} of length 2. The sizes of the last two dimensions of the output tensor when *options.transpose* is set to true. When the output sizes are explicitly specified, the output padding values in *options.outputPadding* are ignored. If not specified, the output sizes are automatically computed.
             - *transpose*: a {{boolean}} indicating that a transposed convolution operation is performed. Transposed convolution is used in upsampling networks to increase the resolution of a feature as opposed to the typical convolution process that reduces the feature's resolution. When transposed convolution is performed, *options.outputPadding* may be needed to disambiguate the output tensor shape. If not present, this option is assumed to be false.
             - *groups*: a {{long}} scalar. The number of groups that input channels and output channels are divided into, default to 1.
             - *layout*: an {{OperandLayout}} with value as *"nchw"* or *"nhwc"*. The default value is *"nchw"*. This argument specifies the layout format of the input, output and filter tensor. Specifically,
@@ -425,7 +427,7 @@ partial interface ModelBuilder {
 
     *output size = 1 + (input size - filter size + beginning padding + ending padding) / stride*
 
-    Whereas for the transposed convolution with *options.transpose* set to *true*, the *options.outputPadding* may be needed and that the spatial dimension values of the output tensor are as follow:
+    Whereas for the transposed convolution case with *options.transpose* set to *true*, unless the *options.outputSizes* values are explicitly specified, the *options.outputPadding* may be needed to compute the spatial dimension values of the output tensor as follow:
 
     *output size = (input size - 1) ** *stride + filter size - beginning padding - ending padding + output padding*
 
@@ -802,12 +804,13 @@ partial interface ModelBuilder {
 </div>
 
 ### instanceNormalization ### {#api-modelbuilder-instancenorm}
-Normalize the input features per feature instance using [[Instance-Normalization]]. Unlike [[#api-modelbuilder-batchnorm]] where the mean and variance values are computed across the batch dimension during training, the mean and variance values of instance normalization is computed from each individual feature instance on the fly.
+Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-modelbuilder-batchnorm]] where the mean and variance values are computed across the batch dimension during training, the mean and variance values of instance normalization are computed on the fly per input feature.
 <script type=idl>
 dictionary InstanceNormalizationOptions {
   Operand scale;
   Operand bias;
   float epsilon = 1e-5;
+  OperandLayout layout = "nchw";
 };
 
 partial interface ModelBuilder {
@@ -817,21 +820,22 @@ partial interface ModelBuilder {
 </script>
 <div algorithm=instancenorm>
     **Arguments:**
-        - *input*: an {{Operand}}. The input N-D tensor.
+        - *input*: an {{Operand}}. The input 4-D tensor.
         - *options*: an optional {{InstanceNormalizationOptions}}. The optional parameters of the operation.
-              - *scale*: an {{Operand}}. The 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by *options.axis*.
-              - *bias*: an {{Operand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
+              - *scale*: an {{Operand}}. The 1-D tensor of the scaling values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
+              - *bias*: an {{Operand}}. The 1-D tensor of the bias values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
               - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
+              - *layout*: an {{OperandLayout}} with value as *"nchw"* or *"nhwc"*. The default value is *"nchw"*. This argument specifies the layout format of the input.
         
     **Returns:** an {{Operand}}. The instance-normalized N-D tensor of the same shape as the input tensor.
-
-    When *input* is a 4-D tensor of the *"nchw"* or *"nhwc"* layout, *options.axis* should be set to 1 or 3 respectively. The axis value designates the feature or channel count dimension of the input tensor.
 
     <div class="note">
     The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout can be generically emulated from 
     the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, 
     therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
+    // The mean reductions happen over the spatial dimensions of the input
+    // e.g. axis 2 and 3 of the input tensor.
     const reduceOptions = { axes: [2,3], keepDimensions: true };
     const mean = builder.reduceMean(input, reduceOptions);
     const variance = builder.reduceMean(
@@ -841,7 +845,9 @@ partial interface ModelBuilder {
       reduceOptions
       );
 
-    const shape = [1,-1,1,1];    
+    // The scale and bias values are applied per input feature
+    // e.g. axis 1 of the input tensor.
+    const shape = [1,-1,1,1];
     return builder.add(
       builder.mul(
         builder.reshape(options.scale, shape),
@@ -1140,6 +1146,7 @@ enum InterpolationMode {
 dictionary ResampleOptions {
   InterpolationMode mode = "nearest-neighbor";
   sequence<float> scales;
+  sequence<long> sizes;
 };
 
 partial interface ModelBuilder {
