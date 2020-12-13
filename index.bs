@@ -381,12 +381,19 @@ partial interface ModelBuilder {
 ### conv2d ### {#api-modelbuilder-conv2d}
 Compute a 2-D convolution given 4-D input and filter tensors
 <script type=idl>
+enum AutoPad {
+  "explicit",
+  "same-upper",
+  "same-lower"
+};
+
 dictionary Conv2dOptions {
   sequence<long> padding;
   sequence<long> strides;
   sequence<long> dilations;
   sequence<long> outputPadding;
   sequence<long> outputSizes;
+  AutoPad autoPad = "explicit";
   boolean transpose = false;
   long groups = 1;
   OperandLayout layout = "nchw";
@@ -403,11 +410,12 @@ partial interface ModelBuilder {
         - *filter*: an {{Operand}}. The filter 4-D tensor. The logical shape is
             interpreted according to the value of *options.layout* and *options.groups*.
         - *options*: an optional {{Conv2dOptions}}. The optional parameters of the operation.
-            - *padding*: a sequence of {{long}} of length 4. The padding for the beginning and ending along each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
+            - *padding*: a sequence of {{long}} of length 4. The additional rows and columns added to the beginning and ending of each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
             - *strides*: a sequence of {{long}} of length 2. The stride of the sliding window for each spatial dimension of *input*, [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
             - *dilations*: a sequence of {{long}} of length 2. The dilation factor for each spatial dimension of *input*, [dilation_height, dilation_width]. If not present, the values are assumed to be [1,1].
             - *outputPadding*: a sequence of {{long}} of length 2. The padding values applied to each spatial dimension of the output tensor when *options.transpose* is set to true. This explicit padding values are needed to disambiguate the output tensor shape for transposed convolution when the value of the *options.strides* is greater than 1. Note that these values are only used to disambiguate output shape when needed; it does not necessarily cause any padding value to be written to the output tensor. If not specified, the values are assumed to be [0,0].
             - *outputSizes*: a sequence of {{long}} of length 2. The sizes of the last two dimensions of the output tensor when *options.transpose* is set to true. When the output sizes are explicitly specified, the output padding values in *options.outputPadding* are ignored. If not specified, the output sizes are automatically computed.
+            - *autoPad*: an {{AutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
             - *transpose*: a {{boolean}} indicating that a transposed convolution operation is performed. Transposed convolution is used in upsampling networks to increase the resolution of a feature as opposed to the typical convolution process that reduces the feature's resolution. When transposed convolution is performed, *options.outputPadding* may be needed to disambiguate the output tensor shape. If not present, this option is assumed to be false.
             - *groups*: a {{long}} scalar. The number of groups that input channels and output channels are divided into, default to 1.
             - *layout*: an {{OperandLayout}} with value as *"nchw"* or *"nhwc"*. The default value is *"nchw"*. This argument specifies the layout format of the input, output and filter tensor. Specifically,
