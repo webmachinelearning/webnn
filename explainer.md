@@ -60,7 +60,7 @@ The WebNN API is not tied to specific platforms and is implementable by existing
 
 * Android Neural Networks API
 * Windows DirectML API
-* macOS/iOS Metal Performance Shaders and Basic Neural Network Subroutines
+* macOS/iOS ML Compute API
 
 Depending on the underlying hardware capabilities, these platform APIs may make use of CPU parallelism, general-purpose GPU, or dedicated hardware accelerators for machine learning. The WebNN API provides [performance adaptation](https://webmachinelearning.github.io/webnn/#usecase-perf-adapt) options but remains hardware agnostic.
 
