@@ -425,6 +425,7 @@ partial interface ModelBuilder {
                     - filter tensor: [output_channels, input_channels/groups,
                         height, width]
                     - output tensor: [batches, output_channels, height, width]
+                    
                 "nhwc":
                     - input tensor: [batches, height, width, input_channels]
                     - filter tensor: [height, width, input_channels/groups,
@@ -1018,6 +1019,7 @@ dictionary Pool2dOptions {
   sequence<long> padding;
   sequence<long> strides;
   sequence<long> dilations;
+  AutoPad autoPad = "explicit";
   OperandLayout layout = "nchw";
 };
 
@@ -1035,16 +1037,14 @@ partial interface ModelBuilder {
             - *windowDimensions*: a sequence of {{long}} of length 2. The dimensions of the sliding window,
                 [window_height, window_width]. If not present, the window dimensions are assumed to be the height  
                 and width dimensions of the input shape. 
-            - *padding*: a sequence of {{long}} of length 4. The padding for the
-                beginning and ending along each spatial dimension of *input*,
-                [beginning_height, ending_height, beginning_width, ending_width].
-                If not present, the values are assumed to be [0,0,0,0].
+            - *padding*: a sequence of {{long}} of length 4. The additional rows and columns added to the beginning and ending of each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
             - *strides*: a sequence of {{long}} of length 2. The stride of the
                 sliding window for each spatial dimension of *input*,
                 [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
             - *dilations*: a sequence of {{long}} of length 2. The dilation factor
                 for each spatial dimension of *input*, [dilation_height, dilation_width].
                 If not present, the values are assumed to be [1,1].
+            - *autoPad*: an {{AutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
             - *layout*: an {{OperandLayout}} with value as *"nchw"* or
                 *"nhwc"*. The default value is *"nchw"*. This argument specifies the
                 layout format of the input and output.
@@ -1052,6 +1052,7 @@ partial interface ModelBuilder {
                 "nchw":
                     - input tensor: [batches, channels, height, width]
                     - output tensor: [batches, channels, height, width]
+
                 "nhwc":
                     - input tensor: [batches, height, width, channels]
                     - output tensor: [batches, height, width, channels]
