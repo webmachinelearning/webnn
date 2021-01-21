@@ -195,7 +195,7 @@ interface ML {
 
 ## OperandDescriptor ## {#api-operanddescriptor}
 <script type=idl>
-enum OperandLayout {
+enum InputOperandLayout {
   "nchw",
   "nhwc"
 };
@@ -381,6 +381,12 @@ partial interface ModelBuilder {
 ### conv2d ### {#api-modelbuilder-conv2d}
 Compute a 2-D convolution given 4-D input and filter tensors
 <script type=idl>
+enum FilterOperandLayout {
+  "oihw",
+  "hwio",
+  "ohwi"
+};
+
 enum AutoPad {
   "explicit",
   "same-upper",
@@ -396,7 +402,9 @@ dictionary Conv2dOptions {
   AutoPad autoPad = "explicit";
   boolean transpose = false;
   long groups = 1;
-  OperandLayout layout = "nchw";
+  Operand bias;
+  InputOperandLayout inputLayout = "nchw";
+  FilterOperandLayout filterLayout = "oihw";
 };
 
 partial interface ModelBuilder {
@@ -418,19 +426,27 @@ partial interface ModelBuilder {
             - *autoPad*: an {{AutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
             - *transpose*: a {{boolean}} indicating that a transposed convolution operation is performed. Transposed convolution is used in upsampling networks to increase the resolution of a feature as opposed to the typical convolution process that reduces the feature's resolution. When transposed convolution is performed, *options.outputPadding* may be needed to disambiguate the output tensor shape. If not present, this option is assumed to be false.
             - *groups*: a {{long}} scalar. The number of groups that input channels and output channels are divided into, default to 1.
-            - *layout*: an {{OperandLayout}} with value as *"nchw"* or *"nhwc"*. The default value is *"nchw"*. This argument specifies the layout format of the input, output and filter tensor. Specifically,
+            - *bias*: an {{Operand}}. The 1-D tensor of the size equal to the number of output channels, one value for each channel. A bias value for the channel is added to every element in that channel of the output tensor.
+            - *inputLayout*: an {{InputOperandLayout}}. The default value is *"nchw"*. This option specifies the layout format of the input and output tensor as follow:
 
                 "nchw":
                     - input tensor: [batches, input_channels, height, width]
-                    - filter tensor: [output_channels, input_channels/groups,
-                        height, width]
                     - output tensor: [batches, output_channels, height, width]
                     
                 "nhwc":
                     - input tensor: [batches, height, width, input_channels]
-                    - filter tensor: [height, width, input_channels/groups,
-                        output_channels]
                     - output tensor: [batches, height, width, output_channels]
+
+            - *filterLayout*: a {{FilterOperandLayout}}. The default value is *"oihw"*. This option specifies the layout format of the filter tensor as follow:
+
+                "oihw":
+                    - [output_channels, input_channels/groups, height, width]
+                    
+                "hwio":
+                    - [height, width, input_channels/groups, output_channels]
+                    
+                "ohwi":
+                    - [output_channels, height, width, input_channels/groups]
 
     **Returns:** an {{Operand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.layout* value. More specifically the sizes of the last two dimensions of the output tensor, the spatial dimensions, for the convolution operation can be calculated as follow:
 
@@ -819,7 +835,7 @@ dictionary InstanceNormalizationOptions {
   Operand scale;
   Operand bias;
   float epsilon = 1e-5;
-  OperandLayout layout = "nchw";
+  InputOperandLayout layout = "nchw";
 };
 
 partial interface ModelBuilder {
@@ -834,7 +850,7 @@ partial interface ModelBuilder {
               - *scale*: an {{Operand}}. The 1-D tensor of the scaling values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
               - *bias*: an {{Operand}}. The 1-D tensor of the bias values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
               - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
-              - *layout*: an {{OperandLayout}} with value as *"nchw"* or *"nhwc"*. This argument specifies the layout format of the input. The default value is *"nchw"*.
+              - *layout*: an {{InputOperandLayout}}. This option specifies the layout format of the input. The default value is *"nchw"*.
         
     **Returns:** an {{Operand}}. The instance-normalized 4-D tensor of the same shape as the input tensor.
 
@@ -1020,7 +1036,7 @@ dictionary Pool2dOptions {
   sequence<long> strides;
   sequence<long> dilations;
   AutoPad autoPad = "explicit";
-  OperandLayout layout = "nchw";
+  InputOperandLayout layout = "nchw";
 };
 
 partial interface ModelBuilder {
@@ -1045,9 +1061,8 @@ partial interface ModelBuilder {
                 for each spatial dimension of *input*, [dilation_height, dilation_width].
                 If not present, the values are assumed to be [1,1].
             - *autoPad*: an {{AutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
-            - *layout*: an {{OperandLayout}} with value as *"nchw"* or
-                *"nhwc"*. The default value is *"nchw"*. This argument specifies the
-                layout format of the input and output.
+            - *layout*: an {{InputOperandLayout}}. The default value is *"nchw"*. This option specifies the
+                layout format of the input and output tensor as follow:
 
                 "nchw":
                     - input tensor: [batches, channels, height, width]
