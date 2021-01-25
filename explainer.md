@@ -74,90 +74,128 @@ This [example](https://webmachinelearning.github.io/webnn/#examples) builds, com
 
 ## Key scenarios
 
-There are many important [application use cases](https://webmachinelearning.github.io/webnn/#usecases-application) for high-performance neural network inference. One such use cases is deep-learning noise suppression (DNS) in web-based video conferencing. The following sample shows how the NSNet baseline implementation of deep learning-based noise suppression model may be implemented as WebNN calls. The updated version of this model is available [here](https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline).
+There are many important [application use cases](https://webmachinelearning.github.io/webnn/#usecases-application) for high-performance neural network inference. One such use cases is deep-learning noise suppression (DNS) in web-based video conferencing. The following sample shows how the [NSNet2](https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline) baseline implementation of deep learning-based noise suppression model may be implemented as WebNN calls.
 
 ```JavaScript
-// Noise Suppression Net (NSNet) Baseline Model for Deep Noise Suppression Challenge (DNS) 2020.
-async function nsnet(sequenceLength, batchSize) {
-    // Constant shapes and sizes
-    const HIDDEN_DIMS = [1,1,257];
-    const HIDDEN_SIZE = 257;
-    const WEIGHT_DIMS = [1,771,257];
-    const WEIGHT_SIZE = 771 * 257;
-    const BIAS_DIMS = [1,1542];
-    const BIAS_SIZE = 1542;
-    const MATMUL96_INIT_DIMS = [257,257];
-    const MATMUL96_INIT_SIZE = 257 * 257;
-    const ADD97_INIT_DIMS = [257];
-    const ADD97_INIT_SIZE = 257;
-    const INPUT_DIMS = [sequenceLength, batchSize, 257];
-    const INPUT_SIZE = sequenceLength * batchSize * 257;
-    // Load pre-trained constant data and initializers
-    let response = await fetch(hiddenUrl);
-    let buffer = await response.arrayBuffer();
-    const hiddenData1 = new Float32Array(buffer, 0, HIDDEN_SIZE);
-    const hiddenData2 = new Float32Array(buffer, HIDDEN_SIZE, HIDDEN_SIZE);
-    const hiddenData3 = new Float32Array(buffer, 2 * HIDDEN_SIZE, HIDDEN_SIZE);
-    response = await fetch(weightUrl);
-    buffer = await response.arrayBuffer();
-    const weightData117 = new Float32Array(buffer, 0, WEIGHT_SIZE);
-    const weightData118 = new Float32Array(buffer, WEIGHT_SIZE, WEIGHT_SIZE);
-    const weightData137 = new Float32Array(buffer, 2 * WEIGHT_SIZE, WEIGHT_SIZE);
-    const weightData138 = new Float32Array(buffer, 3 * WEIGHT_SIZE, WEIGHT_SIZE);
-    const weightData157 = new Float32Array(buffer, 4 * WEIGHT_SIZE, WEIGHT_SIZE);
-    const weightData158 = new Float32Array(buffer, 5 * WEIGHT_SIZE, WEIGHT_SIZE);
-    response = await fetch(biasUrl);
-    buffer = await response.arrayBuffer();
-    const biasData119 = new Float32Array(buffer, 0, BIAS_SIZE);
-    const biasData139 = new Float32Array(buffer, BIAS_SIZE, BIAS_SIZE);
-    const biasData159 = new Float32Array(buffer, 2 * BIAS_SIZE, BIAS_SIZE);
-    response = await fetch(initializerUrl);
-    buffer = await response.arrayBuffer();
-    const initData160 = new Float32Array(buffer, 0, MATMUL96_INIT_SIZE);
-    const initData170 = new Float32Array(buffer, MATMUL96_INIT_SIZE, ADD97_INIT_SIZE);
-    // Create constant operands
-    const builder = navigator.ml.getNeuralNetworkContext().creatModelBuilder();
-    const hidden1 = builder.constant({ type: 'float32', dimensions: HIDDEN_DIMS }, hiddenData1);
-    const hidden2 = builder.constant({ type: 'float32', dimensions: HIDDEN_DIMS }, hiddenData2);
-    const hidden3 = builder.constant({ type: 'float32', dimensions: HIDDEN_DIMS }, hiddenData3);
-    const weight117 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData117);
-    const weight118 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData118);
-    const weight137 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData137);
-    const weight138 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData138);
-    const weight157 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData157);
-    const weight158 = builder.constant({ type: 'float32', dimensions: WEIGHT_DIMS }, weightData158);
-    const bias119 = builder.constant({ type: 'float32', dimensions: BIAS_DIMS }, biasData119);
-    const bias139 = builder.constant({ type: 'float32', dimensions: BIAS_DIMS }, biasData139);
-    const bias159 = builder.constant({ type: 'float32', dimensions: BIAS_DIMS }, biasData159);
-    const init160 = builder.constant({ type: 'float32', dimensions: MATMUL96_INIT_DIMS }, initData160);
-    const init170 = builder.constant({ type: 'float32', dimensions: ADD97_INIT_DIMS }, initData170);
-    // Build up the network
-    const input = builder.input('input', { type:'float32', dimensions: INPUT_DIMS });
-    const [gru43, gru42] = builder.gru(input, weight117, weight118, sequenceLength, 257, 
-                                { bias: bias119, initialHiddenState: hidden1, returnSequence: true });
-    const add45 = builder.add(input, builder.squeeze(gru42, { axes: [1] }));
-    const [gru68, gru67] = builder.gru(add45, weight137, weight138, sequenceLength, 257, 
-                                { bias: bias139, initialHiddenState: hidden2, returnSequence: true });
-    const add70 = builder.add(add45, builder.squeeze(gru67, { axes: [1] }));
-    const [gru93, gru92] = builder.gru(add70, weight157, weight158, sequenceLength, 257, 
-                                { bias: bias159, initialHiddenState: hidden3, returnSequence: true });
-    const output = builder.clamp(
-                    builder.sigmoid(
-                        builder.add(
-                            builder.matmul(builder.squeeze(gru92, { axes: [1] }), init160), 
-                            init170)
-                        ), { minValue: builder.constant(0) });
-    // Compile the model
-    const model = builder.createModel({ 'output': output });
-    return await model.compile();
+// Noise Suppression Net 2 (NSNet2) Baseline Model for Deep Noise Suppression Challenge (DNS) 2021.
+async function nsnet2(weightUrl, batchSize, frames) {
+  // Constant shapes and sizes
+  const HIDDEN_SIZE = 400;
+  const FRAME_SIZE = 161;
+  const INPUT_DIMS = [batchSize, frames, FRAME_SIZE];
+  const HIDDEN_DIMS = [1, batchSize, HIDDEN_SIZE];
+  const WEIGHT172_DIMS = [FRAME_SIZE, HIDDEN_SIZE];
+  const WEIGHT172_SIZE = FRAME_SIZE * HIDDEN_SIZE;
+  const WEIGHT_GRU_DIMS = [1, 3 * HIDDEN_SIZE, HIDDEN_SIZE];
+  const WEIGHT_GRU_SIZE = 3 * HIDDEN_SIZE * HIDDEN_SIZE;
+  const BIAS_GRU_DIMS = [1, 3 * HIDDEN_SIZE];
+  const BIAS_GRU_SIZE = 3 * HIDDEN_SIZE;
+  const FC_SIZE = 600;
+  const WEIGHT215_DIMS = [HIDDEN_SIZE, FC_SIZE];
+  const WEIGHT215_SIZE = HIDDEN_SIZE * FC_SIZE;
+  const WEIGHT216_DIMS = [FC_SIZE, FC_SIZE];
+  const WEIGHT216_SIZE = FC_SIZE * FC_SIZE;
+  const WEIGHT217_DIMS = [FC_SIZE, FRAME_SIZE];
+  const WEIGHT217_SIZE = FC_SIZE * FRAME_SIZE;
+
+  // Load pre-trained constant data and initializers
+  let response = await fetch(weightUrl);
+  let buffer = await response.arrayBuffer();
+  let byteOffset = 0;
+  const weightData172 = new Float32Array(buffer, byteOffset, WEIGHT172_SIZE);
+  byteOffset += WEIGHT172_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const biasDataFcIn0 = new Float32Array(buffer, byteOffset, HIDDEN_SIZE);
+  byteOffset += HIDDEN_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const weightData192 = new Float32Array(buffer, byteOffset, WEIGHT_GRU_SIZE);
+  byteOffset += WEIGHT_GRU_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const recurrentWeightData193 = new Float32Array(buffer, byteOffset, WEIGHT_GRU_SIZE);
+  byteOffset += WEIGHT_GRU_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const biasData194 = new Float32Array(buffer, byteOffset, BIAS_GRU_SIZE);
+  byteOffset += BIAS_GRU_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const recurrentBiasData194 = new Float32Array(buffer, byteOffset, BIAS_GRU_SIZE);
+  byteOffset += BIAS_GRU_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const weightData212 = new Float32Array(buffer, byteOffset, WEIGHT_GRU_SIZE);
+  byteOffset += WEIGHT_GRU_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const recurrentWeightData213 = new Float32Array(buffer, byteOffset, WEIGHT_GRU_SIZE);
+  byteOffset += WEIGHT_GRU_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const biasData214 = new Float32Array(buffer, byteOffset, BIAS_GRU_SIZE);
+  byteOffset += BIAS_GRU_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const recurrentBiasData214 = new Float32Array(buffer, byteOffset, BIAS_GRU_SIZE);
+  byteOffset += BIAS_GRU_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const weightData215 = new Float32Array(buffer, byteOffset, WEIGHT215_SIZE);
+  byteOffset += WEIGHT215_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const biasDataFcOut0 = new Float32Array(buffer, byteOffset, FC_SIZE);
+  byteOffset += FC_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const weightData216 = new Float32Array(buffer, byteOffset, WEIGHT216_SIZE);
+  byteOffset += WEIGHT216_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const biasDataFcOut2 = new Float32Array(buffer, byteOffset, FC_SIZE);
+  byteOffset += FC_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const weightData217 = new Float32Array(buffer, byteOffset, WEIGHT217_SIZE);
+  byteOffset += WEIGHT217_SIZE * Float32Array.BYTES_PER_ELEMENT;
+  const biasDataFcOut4 = new Float32Array(buffer, byteOffset, FRAME_SIZE);
+
+  // Create constant operands
+  const builder = navigator.ml.getNeuralNetworkContext().createModelBuilder();
+  const weight172 = builder.constant({ type: 'float32', dimensions: WEIGHT172_DIMS }, weightData172);
+  const biasFcIn0 = builder.constant({ type: 'float32', dimensions: [HIDDEN_SIZE] }, biasDataFcIn0);
+  const weight192 = builder.constant({ type: 'float32', dimensions: WEIGHT_GRU_DIMS }, weightData192);
+  const recurrentWeight193 = builder.constant({ type: 'float32', dimensions: WEIGHT_GRU_DIMS }, recurrentWeightData193);
+  const bias194 = builder.constant({ type: 'float32', dimensions: BIAS_GRU_DIMS }, biasData194);
+  const recurrentBias194 = builder.constant({ type: 'float32', dimensions: BIAS_GRU_DIMS }, recurrentBiasData194);
+  const weight212 = builder.constant({ type: 'float32', dimensions: WEIGHT_GRU_DIMS }, weightData212);
+  const recurrentWeight213 = builder.constant({ type: 'float32', dimensions: WEIGHT_GRU_DIMS }, recurrentWeightData213);
+  const bias214 = builder.constant({ type: 'float32', dimensions: BIAS_GRU_DIMS }, biasData214);
+  const recurrentBias214 = builder.constant({ type: 'float32', dimensions: BIAS_GRU_DIMS }, recurrentBiasData214);
+  const weight215 = builder.constant({ type: 'float32', dimensions: WEIGHT215_DIMS }, weightData215);
+  const biasFcOut0 = builder.constant({ type: 'float32', dimensions: [FC_SIZE] }, biasDataFcOut0);
+  const weight216 = builder.constant({ type: 'float32', dimensions: WEIGHT216_DIMS }, weightData216);
+  const biasFcOut2 = builder.constant({ type: 'float32', dimensions: [FC_SIZE] }, biasDataFcOut2);
+  const weight217 = builder.constant({ type: 'float32', dimensions: WEIGHT217_DIMS }, weightData217);
+  const biasFcOut4 = builder.constant({ type: 'float32', dimensions: [FRAME_SIZE] }, biasDataFcOut4);
+
+  // Build up the network
+  const input = builder.input('input', { type: 'float32', dimensions: INPUT_DIMS });
+  const matmul18 = builder.matmul(input, weight172);
+  const add19 = builder.add(matmul18, biasFcIn0);
+  const relu20 = builder.relu(add19);
+  const transpose31 = builder.transpose(relu20, { permutation: [1, 0, 2] });
+  const initialHiddenState92 = builder.input('initialHiddenState92', { type: 'float32', dimensions: HIDDEN_DIMS });
+  const [gru94, gru93] = builder.gru(transpose31, weight192, recurrentWeight193, frames, HIDDEN_SIZE,
+      { bias: bias194, recurrentBias: recurrentBias194, initialHiddenState: initialHiddenState92, returnSequence: true });
+  const squeeze95 = builder.squeeze(gru93, { axes: [1] });
+  const initialHiddenState155 = builder.input('initialHiddenState155', { type: 'float32', dimensions: HIDDEN_DIMS });
+  const [gru157, gru156] = builder.gru(squeeze95, weight212, recurrentWeight213, frames, HIDDEN_SIZE,
+      { bias: bias214, recurrentBias: recurrentBias214, initialHiddenState: initialHiddenState155, returnSequence: true});
+  const squeeze158 = builder.squeeze(gru156, { axes: [1] });
+  const transpose159 = builder.transpose(squeeze158, { permutation: [1, 0, 2] });
+  const matmul161 = builder.matmul(transpose159, weight215);
+  const add162 = builder.add(matmul161, biasFcOut0);
+  const relu163 = builder.relu(add162);
+  const matmul165 = builder.matmul(relu163, weight216);
+  const add166 = builder.add(matmul165, biasFcOut2);
+  const relu167 = builder.relu(add166);
+  const matmul169 = builder.matmul(relu167, weight217);
+  const add170 = builder.add(matmul169, biasFcOut4);
+  const output = builder.sigmoid(add170);
+
+  // Compile the model
+  const model = builder.createModel({ output, gru94, gru157 });
+  return await model.compile();
 }
 
-async function run(model, inputBuffer) {
-    // Run the compiled model with the input data
-    return await model.compute({ 'input': { buffer: inputBuffer } });
+async function run(compiledModel, inputBuffer, initialHiddenState92Buffer, initialHiddenState155Buffer) {
+  // Run the compiled model with the input data
+  const inputs = {
+    input: { buffer: inputBuffer },
+    initialHiddenState92: { buffer: initialHiddenState92Buffer },
+    initialHiddenState155: { buffer: initialHiddenState155Buffer },
+  };
+  return await compiledModel.compute(inputs);
 }
-
 ```
+
+Try the live version of the [WebNN NSNet2 example](https://webmachinelearning.github.io/webnn-samples/nsnet2/).
+
 ## Detailed design discussion
 
 ### Do we need a neural network API? Can we standardize on just a model-loader API?
