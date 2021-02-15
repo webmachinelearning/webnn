@@ -260,7 +260,7 @@ interface ModelBuilder {
 </script>
 
 ### batchNormalization ### {#api-modelbuilder-batchnorm}
-Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature are computed across the batch dimension during training.
+Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phrase of this operation.
 <script type=idl>
 dictionary BatchNormalizationOptions {
   Operand scale;
@@ -508,6 +508,7 @@ partial interface ModelBuilder {
   Operand floor(Operand x);
   Operand log(Operand x);
   Operand neg(Operand x);
+  Operand relu(Operand x);
   Operand sigmoid(Operand x);
   Operand sin(Operand x);
   Operand tan(Operand x);
@@ -530,6 +531,7 @@ partial interface ModelBuilder {
         - *floor*: Compute the floor of the input tensor, element-wise.
         - *log*: Compute the natural logarithm of the input tensor, element-wise.
         - *neg*: Compute the numerical negative value of the input tensor, element-wise.
+        - *relu*: Compute the [rectified linear function](https://en.wikipedia.org/wiki/Rectifier_(neural_networks) of the input tensor, element-wise.
         - *sigmoid*: Compute the sigmoid function of the input tensor, element-wise.
         - *sin*: Compute the sine of the input tensor, element-wise.
         - *tan*: Compute the tangent of the input tensor, element-wise.
@@ -827,7 +829,7 @@ partial interface ModelBuilder {
 </div>
 
 ### instanceNormalization ### {#api-modelbuilder-instancenorm}
-Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-modelbuilder-batchnorm]] where the mean and variance values are computed across the batch dimension during training, the mean and variance values of instance normalization are computed on the fly per input feature.
+Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-modelbuilder-batchnorm]] where the mean and variance values used in the calculation are previously computed across the batch dimension during the model training phrase, the mean and variance values used in the calculation of an instance normalization are computed internally on the fly per input feature.
 <script type=idl>
 dictionary InstanceNormalizationOptions {
   Operand scale;
@@ -1128,35 +1130,6 @@ partial interface ModelBuilder {
         - *SumSquare*: Compute the sum of the square of all the input values along the axes.
 </div>
 
-### relu ### {#api-modelbuilder-relu}
-Calculate the [rectified linear](https://en.wikipedia.org/wiki/Rectifier_(neural_networks) function on the input tensor element-wise. The calculation follows the expression `max(0, x)`.
-<script type=idl>
-partial interface ModelBuilder {
-  Operand relu(Operand x);
-};
-</script>
-<div algorithm=relu>
-    **Arguments:**
-        - *x*: an {{Operand}}. The input tensor.
-
-    **Returns:** an {{Operand}}. The output tensor of the same shape as *x*.
-
-    Calculate the <a
-    href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">rectified
-    linear function</a> on the input tensor element-wise. The calculation
-    follows the expression `max(0, x)`.
-
-    <div class="note">
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
-    <pre highlight="js">
-    return builder.max(builder.constant(0), x);
-    </pre>
-    </div>
-</div>
-
 ### resample ### {#api-modelbuilder-resample}
 Resample the tensor values from the source to the destination dimensions according to the scaling factors.
 <script type=idl>
@@ -1188,7 +1161,7 @@ partial interface ModelBuilder {
 </div>
 
 ### reshape ### {#api-modelbuilder-reshape}
-Reshapes a tensor to a given new shape.
+Alter the shape of a tensor to a new shape. Reshape does not copy or change the content of the tensor. It just changes the tensor's logical dimensions for the subsequent operations.
 <script type=idl>
 partial interface ModelBuilder {
   Operand reshape(Operand input, sequence<long> newShape);
@@ -1307,7 +1280,7 @@ partial interface ModelBuilder {
 </div>
 
 ### squeeze ### {#api-modelbuilder-squeeze}
-Reduce the rank of a tensor without affecting its values by eliminating dimensions with size 1 of the tensor shape.
+Reduce the rank of a tensor by eliminating dimensions with size 1 of the tensor shape. Squeeze only affects the tensor's logical dimensions. It does not copy or change the content in the tensor.
 <script type=idl>
 dictionary SqueezeOptions {
   sequence<long> axes;
