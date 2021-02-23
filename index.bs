@@ -30,6 +30,142 @@ urlPrefix: https://gpuweb.github.io/gpuweb/; spec: WEBGPU
         text: GPUTexture; url: texture-interface
 </pre>
 
+<pre class="link-defaults">
+spec:html;
+    type:interface; text:Navigator
+spec:webidl;
+    type:dfn; text:record
+</pre>
+
+<style>
+/* Make <dl> blocks more distinct from their surroundings. */
+dl:not(.switch) {
+    border-left: thin solid #f3e48c;
+    padding-left: .5em;
+}
+
+/* <p> by default has these margins. Update ul/ol/dl to match,
+ * since they are also put in places where paragraphs go. */
+p, ul, ol, dl {
+    margin: 1em 0;
+}
+
+/* Box for Valid Usage requirements. */
+div.validusage {
+    padding: .5em;
+    border: thin solid #88e !important;
+    border-radius: .5em;
+}
+
+/*
+ * Stylistic labels, for clarity of presentation of these blocks.
+ *
+ * NOTE: This text is non-accessible and non-selectable; surrounding
+ * text must also explain the context.
+ */
+.validusage {
+    position: relative;
+}
+.validusage::before {
+    font-weight: bold;
+    font-style: italic;
+    font-size: 130%;
+    color: rgba(0, 0, 0, 0.15);
+    color: var(--watermark-text);
+    position: absolute;
+    right: .3em;
+    top: -.1em;
+}
+.validusage::before {
+    content: "Valid Usage";
+}
+
+/*
+ * Ensure that argumentdef blocks don't overflow algorithm section borders. This is made far harder
+ * than it needs to be because the top-level W3C stylesheet has several @media + min-width variants
+ * that mark themselves as !important and then proceed to do the wrong thing.
+ */
+@media screen and (min-width: 78em) {
+    body:not(.toc-inline) .algorithm .overlarge {
+        margin-right: auto !important;
+    }
+}
+@media screen and (min-width: 90em) {
+    body:not(.toc-inline) .algorithm .overlarge {
+        margin-right: auto !important;
+    }
+}
+.algorithm .overlarge {
+    margin-right: auto !important;
+}
+
+/*
+ * The default algorithm style has a caption that doesn't suit this spec's
+ * formatting particularly well. Hide it.
+ */
+.algorithm .argumentdef {
+    margin-top: 0;
+}
+.algorithm .argumentdef>caption {
+    display: none;
+}
+
+/*
+ * Add vertical lines to demarcate multi-column cells.
+ */
+table.data td[colspan] {
+    border-left-style: dotted;
+    border-right-style: dotted;
+}
+
+table.data.no-colspan-center td[colspan],
+table.data.no-colspan-center th[colspan] {
+    text-align: unset;
+}
+
+table.data tr.row-continuation td,
+table.data tr.row-continuation th {
+    border-top: none;
+}
+
+/*
+ * Sticky table headers.
+ */
+.overlarge {
+    /* position: sticky doesn't work inside scrollable elements. */
+    overflow-x: unset;
+}
+thead.stickyheader th, th.stickyheader {
+    position: sticky;
+    top: 0;
+    background: #f8f8f8;
+    background: var(--stickyheader-background);
+}
+
+/*
+ * Darkmode colors
+ */
+:root {
+    --watermark-text: rgba(0, 0, 0, 15%);
+    --stickyheader-background: #f8f8f8;
+    --tint-red: rgba(255, 0, 0, 6%);
+    --tint-green: rgba(0, 255, 0, 10%);
+    --tint-blue: rgba(0, 0, 255, 5%);
+    --tint-purple: rgba(255, 0, 255, 5%);
+}
+@media (prefers-color-scheme:dark) {
+    :root {
+        --watermark-text: rgba(255, 255, 255, 25%);
+        --stickyheader-background: #181818;
+        --tint-red: rgba(255, 0, 0, 20%);
+        --tint-green: rgba(0, 255, 0, 18%);
+        --tint-blue: rgba(0, 130, 255, 24%);
+        --tint-purple: rgba(255, 0, 255, 22%);
+    }
+}
+
+</style>
+
 Introduction {#intro}
 =====================
 
@@ -1396,6 +1532,218 @@ interface MLGraph {
 };
 </script>
 
+{{Compilation}} has the following internal slots:
+
+<dl dfn-type=attribute dfn-for="Compilation">
+    : <dfn>\[[inputOperands]]</dfn> of type [=record=]&lt;{{DOMString}}, {{OperandDescriptor}}&gt;.
+    ::
+        Maps the name of an input {{Operand}} to its {{OperandDescriptor}} for all input {{Operand}}s of the {{Model}} that this {{Compilation}} is compiled from.
+
+    : <dfn>\[[outputOperands]]</dfn> of type [=sequence=]&lt;{{DOMString}}&gt;.
+    ::
+        Contains the names of all output {{Operand}}s of the {{Model}} that this {{Compilation}} is compiled from.
+
+    : <dfn>\[[implementation]]</dfn>
+    ::
+        Underlying compilation implemenation provided by the User Agent.
+</dl>
+
+<dl dfn-type=method dfn-for=Compilation>
+    : <dfn>compute(inputs, outputs)</dfn>
+    ::
+        Schedules an asynchronous computation of the {{Compilation}} given {{NamedInputs}} and optional {{NamedOutputs}}. The returned {{Promise}} resolves when the computaton results in {{NamedOutputs}} are ready to be consumed.
+
+        <div algorithm=Compilation.compute>
+            **Called on:** {{Compilation}} |this|.
+
+            **Arguments:**
+            <pre class=argumentdef for="Compilation/compute(inputs, outputs)">
+                |inputs|: The given computation inputs of type {{NamedInputs}}. Specifies the input buffers and optional dimensions.
+                |outputs|: The optional given outputs of type {{NamedOutputs}}. Specifies the output names and pre-allocated buffers. Default to be an empty [=record=].
+            </pre>
+
+            **Returns:** {{Promise}}&lt;{{NamedOutputs}}&gt;
+
+            1. Let |promise| be [=a new promise=].
+            <!-- Validate inputs and outputs -->
+            1. If any of the following requirements are unmet, [=reject=] |promise| with a {{TypeError}} and stop.
+
+                <div class=validusage>
+                    1. For each |key| -> |value| of |inputs|:
+                        1. |this|.{{Compilation/[[inputOperands]]}}[|key|] must exist.
+                        1. Let |inputOperand| be |this|.{{Compilation/[[inputOperands]]}}[|key|].
+                        1. The |value|.{{Input/buffer}} of type {{ArrayBufferView}} must be compatible to |inputOperand|.{{OperandDescriptor/type}} according to [this table](#operandtype-arraybufferview-compatibility).
+                        1. If |value|.{{Input/dimensions}} was given, then:
+                            1. The size of |value|.{{Input/dimensions}} must be the same as the size of |inputOperand|.{{OperandDescriptor/dimensions}}.
+                            1. Let |i| be 0.
+                            1. While true:
+                                1. Let |dimension| be |value|.{{Input/dimensions}}[|i|].
+                                1. The value of |dimension| must be greater than 0.
+                                1. If the value of |inputOperand|.{{OperandDescriptor/dimensions}}[|i|] is greater than 0, then:
+                                    1. The value of |dimension| must be the same as the value of |inputOperand|.{{OperandDescriptor/dimensions}}[|i|].
+                                1. Set |i| to |i| + 1.
+                                1. If |i| equals to the size of |value|.{{Input/dimensions}}, then break.
+                        1. Otherwise:
+                            1. For each |dimension| of |inputOperand|.{{OperandDescriptor/dimensions}}:
+                                1. The value of |dimension| must be greater than 0.
+
+                    1. If |outputs| was not an empty [=record=], then:
+                        1. For each |key| -> |value| of |outputs|:
+                            1. |this|.{{Compilation/[[outputOperands]]}}[|key|] must exist.
+                            1. If |value|.{{Output/buffer}} was given, then:
+                                1. Let |outputOperand| be |this|.{{Compilation/[[outputOperands]]}}[|key|].
+                                1. The |value|.{{Output/buffer}} of type {{ArrayBufferView}} must be compatible to |outputOperand|.{{OperandDescriptor/type}} according to [this table](#operandtype-arraybufferview-compatibility).
+                </div>
+            <!-- Filter the required outputs -->
+            1. Let |requiredOutputNames| be a new [=ordered set=]&lt;{{DOMString}}&gt;.
+            1. If |outputs| was not an empty [=record=], then:
+                1. For each |key| -> |value| of |outputs|:
+                    1. Append |key| to |requiredOutputNames|.
+            1. Otherwise:
+                1. For each |key| -> |value| of |this|.{{Compilation/[[outputOperands]]}}:
+                    1. Append |key| to |requiredOutputNames|.
+            <!-- Copy the inputs -->
+            1. Let |copiedInputs| be a new {{NamedInputs}}.
+            1. For each |key| -> |value| of |inputs|:
+                1. Let |input| be a new {{Input}}.
+                1. Let |input|.{{Input/buffer}} be a new {{ArrayBufferView}} that has the same kind as |value|.{{Input/buffer}}'s.
+                1. Copy the bytes held by |value|.{{Input/buffer}} to |input|.{{Input/buffer}}.
+                1. Let |input|.{{Input/dimensions}} be a new [=sequence=]&lt;{{long}}&gt;.
+                1. Copy the values heold by |value|.{{Input/dimensions}} to |input|.{{Input/dimensions}}.
+                1. Set |copiedInputs|[key] to |input|.
+            <!-- Compute -->
+            1. Let |results| be a new {{NamedOutputs}}.
+            1. Let |remainingOutputNames| be a new [=ordered set=]&lt;{{DOMString}}&gt;.
+            1. For each |outputName| of |requiredOutputNames|:
+                1. Append |outputName| to |remainingOutputNames|.
+            1. For each |outputName| of |requiredOutputNames|:
+                1. Issue an asynchronous computation of |this|.{{Compilation/[[implementation]]}} for output whose name is |outputName| with given |copiedInputs|.
+                1. When the asynchronous computation is completed:
+                    1. If there is an error returned by |this|.{{Compilation/[[implementation]]}}, then:
+                        1. [=reject=] |promise| with an {{OperationError}} and stop.
+                    1. Otherwise:
+                      1. Let |outputDemisions| be a new [=sequence=]&lt;{{long}}&gt; that contains the dimensions returned by |this|.{{Compilation/[[implementation]]}} for |outputName|.
+                      1. Let |outputBuffer| be a new {{ArrayBufferView}} that holds the bytes returned by |this|.{{Compilation/[[implementation]]}} for |outputName|.
+                      1. Set |results|[|outputName|].{{Output/dimensions}} to |outputDemisions|.
+                      1. If |outputs|[|outputName|].{{Output/buffer}} was given, then:
+                          1. If the kind of |outputs|[|outputName|].{{Output/buffer}} is not the same as |outputBuffer|, then:
+                              1. [=reject=] |promise| with a {{TypeError}} and stop.
+                          1. If the length of |outputs|[|outputName|].{{Output/buffer}} is not the same as |outputBuffer|, then:
+                              1. [=reject=] |promise| with a {{TypeError}} and stop.
+                          1. Copy the bytes held by |outputBuffer| to |outputs|[|outputName|].{{Output/buffer}}.
+                      1. Otherwise:
+                          1. Let |buffer| be a new {{ArrayBufferView}} that has the same kind and length as |outputBuffer|.
+                          1. Copy the bytes held by |outputBuffer| to |buffer|.
+                          1. Set |results|[|outputName|].{{Output/buffer}} to |buffer|.
+                      1. Remove |outputName| from |remainingOutputNames|.
+                      1. If |remainingOutputNames| is empty, then:
+                          1. Resolve |promise| with |results|.
+            1. Return |promise|.
+        </div>
+</dl>
+
+### Examples ### {#compilation-examples}
+
+<div class="example">
+The following code showcases the computation with dynamic input dimensions.
+<pre highlight="js">
+const nn = navigator.ml.getNeuralNetworkContext();
+
+// Create a model with dynamic shaped inputs.
+const builder = nn.createModelBuilder();
+const descA = {type: 'float32', dimensions: [-1, 4]};
+const a = builder.input('a', descA);
+const descB = {type: 'float32', dimensions: [4, -1]};
+const b = builder.input('b', descB);
+const c = builder.matmul(a, b);
+const model = builder.createModel({c});
+
+const compiledModel = await model.compile();
+
+async function compute(shapeA, shapeB) {
+  const bufferA = new Float32Array(sizeOfShape(shapeA)).fill(0.5);
+  const bufferB = new Float32Array(sizeOfShape(shapeB)).fill(0.5);
+
+  // Specify the shape of inputs when computing.
+  const inputs = {
+    'a': {buffer: bufferA, dimensions: shapeA},
+    'b': {buffer: bufferB, dimensions: shapeB},
+  };
+  const outputs = await compiledModel.compute(inputs);
+  console.log(&#96;shape: [${outputs.c.dimensions}], values: ${outputs.c.buffer}&#96;);
+}
+
+await compute([3, 4], [4, 3]);
+await compute([4, 4], [4, 4]);
+await compute([5, 4], [4, 5]);
+</pre>
+</div>
+
+<div class="example">
+The following code showcases the computation with pre-allocated output buffers.
+<pre highlight="js">
+const nn = navigator.ml.getNeuralNetworkContext();
+
+// The following code multiplies matrix a [3, 4] with matrix b [4, 3]
+// into matrix c [3, 3].
+const builder = nn.createModelBuilder();
+const descA = {type: 'float32', dimensions: [3, 4]};
+const a = builder.input('a', descA);
+const descB = {type: 'float32', dimensions: [4, 3]};
+const bufferB = new Float32Array(sizeOfShape(descB.dimensions)).fill(0.5);
+const b = builder.constant(descB, bufferB);
+const c = builder.matmul(a, b);
+const model = builder.createModel({c});
+
+const compiledModel = await model.compile();
+const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
+const inputs = {'a': {buffer: bufferA}};
+// Pre-allocate output buffer for c.
+const outputs = {'c': {buffer: new Float32Array(sizeOfShape([3, 3]))}};
+await compiledModel.compute(inputs, outputs);
+console.log(&#96;values: ${outputs.c.buffer}&#96;);
+</pre>
+</div>
+
+<div class="example">
+The following code showcases the computation with optional outputs.
+<pre highlight="js">
+const nn = navigator.ml.getNeuralNetworkContext();
+
+// Build a model with two outputs.
+const builder = nn.createModelBuilder();
+const descA = {type: 'float32', dimensions: [3, 4]};
+const a = builder.input('a', descA);
+const descB = {type: 'float32', dimensions: [4, 3]};
+const bufferB = new Float32Array(sizeOfShape(descB.dimensions)).fill(0.5);
+const b = builder.constant(descB, bufferB);
+const descC = {type: 'float32', dimensions: [3, 3]};
+const bufferC = new Float32Array(sizeOfShape(descC.dimensions)).fill(1);
+const c = builder.constant(descC, bufferC);
+const d = builder.matmul(a, b);
+const e = builder.add(d, c);
+const model = builder.createModel({d, e});
+
+const compiledModel = await model.compile();
+const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
+const inputs = {'a': {buffer: bufferA}};
+
+// Compute both d and e.
+let outputs = await compiledModel.compute(inputs);
+console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
+
+// Compute d.
+outputs = await compiledModel.compute(inputs, {d});
+console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
+console.log(&#96;shape: [${outputs.d.dimensions}], values: ${outputs.d.buffer}&#96;);
+
+// Compute e.
+outputs = await compiledModel.compute(inputs, {e});
+console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
+console.log(&#96;shape: [${outputs.e.dimensions}], values: ${outputs.e.buffer}&#96;);
+</pre>
+</div>
+
 Examples {#examples}
 =====================
 
@@ -1481,6 +1829,35 @@ console.log('Output value: ' + outputs.output.data);
 // Output value: 2.25,2.25,2.25,2.25,2.25,2.25,2.25,2.25
 </pre>
 </div>
+
+# Appendices # {#appendices}
+
+## {{OperandType}} and {{ArrayBufferView}} compatibility ## {#operandtype-arraybufferview-compatibility}
+
+<table class='data'>
+    <thead class=stickyheader>
+        <tr>
+            <th>{{OperandType}}
+            <th>{{ArrayBufferView}}
+    </thead>
+    <tr>
+        <td>{{OperandType/float32}}
+        <td>{{Float32Array}}
+    <tr>
+        <td>{{OperandType/int32}}
+        <td>{{Int32Array}}
+    <tr>
+        <td>{{OperandType/uint32}}
+        <td>{{Uint32Array}}
+    <tr>
+        <td>{{OperandType/int8}}
+        <td>{{Int8Array}}
+    <tr>
+        <td>{{OperandType/uint8}}
+        <td>{{Uint8Array}}
+</table>
+
+Issue(webmachinelearning/webnn#127): clarify the usage of {{ArrayBufferView}} for {{OperandType/float16}}.
 
 <h2 id="acknowledgements">Acknowledgements</h2>
 
