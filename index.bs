@@ -187,20 +187,62 @@ partial interface Navigator {
 
 ## ML ## {#api-ml}
 <script type=idl>
+// WebGL specification:
+// (https://www.khronos.org/registry/webgl/specs/latest/2.0/#2.1)
+[SecureContext, Exposed=Window]
+interface WebGLRenderingContext {
+  // ...
+};
+
+// WebGPU specification:
+// (https://gpuweb.github.io/gpuweb/#gpu-device)
+[SecureContext, Exposed=Window]
+interface GPUDevice {
+  // ...
+};
+
+enum MLPowerPreference {
+  // Let the user agent decide the most suitable behavior
+  "default",
+  // Prioritizes execution speed over power consumption
+  "high-performance",
+  // Prioritizes power consumption over other considerations such as execution speed
+  "low-power"
+};
+
+dictionary MLContextOptions {
+  // Preference as related to power consumption
+  MLPowerPreference powerPreference = "default";
+};
+
 [SecureContext, Exposed=Window]
 interface ML {
-  NeuralNetworkContext getNeuralNetworkContext();
+  // Create a context with options
+  MLContext createContext(optional MLContextOptions options = {});
+
+  // Create a context from WebGL rendering context
+  MLContext createContext(WebGLRenderingContext glContext);
+
+  // Create a context from WebGPU device
+  MLContext createContext(GPUDevice gpuDevice);
 };
 </script>
 
-## OperandDescriptor ## {#api-operanddescriptor}
+## MLContext ## {#api-mlcontext}
+The {{MLContext}} interface represents a global state of neural network compute workload and execution processes.
 <script type=idl>
-enum InputOperandLayout {
+[SecureContext, Exposed=Window]
+interface MLContext {};
+</script>
+
+## MLOperandDescriptor ## {#api-mloperanddescriptor}
+<script type=idl>
+enum MLInputOperandLayout {
   "nchw",
   "nhwc"
 };
 
-enum OperandType {
+enum MLOperandType {
   "float32",
   "float16",
   "int32",
@@ -209,9 +251,9 @@ enum OperandType {
   "uint8"
 };
 
-dictionary OperandDescriptor {
+dictionary MLOperandDescriptor {
   // The operand type.
-  required OperandType type;
+  required MLOperandType type;
 
   // The dimensions field is only required for tensor operands.
   // The negative value means an unknown dimension.
@@ -219,73 +261,87 @@ dictionary OperandDescriptor {
 };
 </script>
 
-## Operand ## {#api-operand}
+## MLOperand ## {#api-mloperand}
 <script type=idl>
 [SecureContext, Exposed=Window]
-interface Operand {};
+interface MLOperand {};
 </script>
 
-## NeuralNetworkContext ## {#api-neuralnetworkcontext}
+## MLModelBuilder ## {#api-mlmodelbuilder}
 
-The {{NeuralNetworkContext}} interface represents a global state of neural network compute workload and execution processes.
+The {{MLModelBuilder}} interface defines a set of operations as identified by the [[#usecases]] that can be composed into a computational graph. It also represents the intermediate state of a graph building session.
 
 <script type=idl>
+// WebGL specification:
+// (https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.4)
 [SecureContext, Exposed=Window]
-interface NeuralNetworkContext {
-  ModelBuilder createModelBuilder();
+interface WebGLBuffer {
+  // ...
 };
-</script>
 
-## ModelBuilder ## {#api-modelbuilder}
+// WebGPU specification:
+// (https://gpuweb.github.io/gpuweb/#buffer-interface)
+[SecureContext, Exposed=Window]
+interface GPUBuffer {
+  // ...
+};
 
-The {{ModelBuilder}} interface defines a set of operations as identified by the [[#usecases]] that can be composed into a computational graph. It also represents the intermediate state of a graph building session.
-
-<script type=idl>
-typedef record<DOMString, Operand> NamedOperands;
+typedef record<DOMString, MLOperand> MLNamedOperands;
 
 [SecureContext, Exposed=Window]
-interface ModelBuilder {
-  // Create an operand that represents a model input.
-  Operand input(DOMString name, OperandDescriptor desc);
+interface MLModelBuilder {
+  // Construct the model builder from the context.
+  constructor(MLContext context);
 
-  // Create an operand that represents a model constant.
-  Operand constant(OperandDescriptor desc, ArrayBufferView value);
+  // Create an operand for a model input.
+  MLOperand input(DOMString name, MLOperandDescriptor desc);
+
+  // Create an operand for a model constant.
+  MLOperand constant(MLOperandDescriptor desc, ArrayBufferView bufferView);
+
+  // Create an operand for a model constant from a WebGL buffer.
+  MLOperand constant(MLOperandDescriptor desc, WebGLBuffer glBuffer, 
+                     optional long offset = 0, optional long size);
+
+  // Create an operand for a model constant from a WebGPU buffer.
+  MLOperand constant(MLOperandDescriptor desc, GPUBuffer gpuBuffer, 
+                     optional long offset = 0, optional long size);
 
   // Create a single-value operand from the specified number of the specified type.
-  Operand constant(double value, optional OperandType type = "float32");
+  MLOperand constant(double value, optional MLOperandType type = "float32");
 
   // Create a model that encapsulates the composition of operands by identifying the output operands.
-  Model createModel(NamedOperands outputs);
+  MLModel createModel(MLNamedOperands outputs);
 };
 </script>
 
-### batchNormalization ### {#api-modelbuilder-batchnorm}
+### batchNormalization ### {#api-mlmodelbuilder-batchnorm}
 Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phrase of this operation.
 <script type=idl>
-dictionary BatchNormalizationOptions {
-  Operand scale;
-  Operand bias;
+dictionary MLBatchNormalizationOptions {
+  MLOperand scale;
+  MLOperand bias;
   long axis = 1;
   float epsilon = 1e-5;
 };
 
-partial interface ModelBuilder {
-  Operand batchNormalization(Operand input, Operand mean, Operand variance,
-                             optional BatchNormalizationOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand batchNormalization(MLOperand input, MLOperand mean, MLOperand variance,
+                             optional MLBatchNormalizationOptions options = {});
 };
 </script>
 <div algorithm=batchnorm>
     **Arguments:**
-        - *input*: an {{Operand}}. The input N-D tensor.
-        - *mean*: an {{Operand}}. The 1-D tensor of the mean values of the input features across the batch whose length is equal to the size of the input dimension denoted by *options.axis*.
-        - *variance*: an {{Operand}}. The 1-D tensor of the variance values of the input features across the batch whose length is equal to the size of the input dimension denoted by *options.axis*.
-        - *options*: an optional {{BatchNormalizationOptions}}. The optional parameters of the operation.
-              - *scale*: an {{Operand}}. The 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by *options.axis*.
-              - *bias*: an {{Operand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
+        - *input*: an {{MLOperand}}. The input N-D tensor.
+        - *mean*: an {{MLOperand}}. The 1-D tensor of the mean values of the input features across the batch whose length is equal to the size of the input dimension denoted by *options.axis*.
+        - *variance*: an {{MLOperand}}. The 1-D tensor of the variance values of the input features across the batch whose length is equal to the size of the input dimension denoted by *options.axis*.
+        - *options*: an optional {{MLBatchNormalizationOptions}}. The optional parameters of the operation.
+              - *scale*: an {{MLOperand}}. The 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by *options.axis*.
+              - *bias*: an {{MLOperand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
               - *axis*: a {{long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. When it's not specified, the default value is 1.
               - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
         
-    **Returns:** an {{Operand}}. The batch-normalized N-D tensor of the same shape as the input tensor.
+    **Returns:** an {{MLOperand}}. The batch-normalized N-D tensor of the same shape as the input tensor.
 
     When *input* is a 4-D tensor of the *"nchw"* or *"nhwc"* layout, *options.axis* should be set to 1 or 3 respectively. The axis value designates the feature or channel count dimension of the input tensor.
 
@@ -311,26 +367,26 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### clamp ### {#api-modelbuilder-clamp}
+### clamp ### {#api-mlmodelbuilder-clamp}
 Clamp the input tensor element-wise within a range specified by the minimum and maximum values.
 <script type=idl>
-dictionary ClampOptions {
-  Operand minValue;
-  Operand maxValue;
+dictionary MLClampOptions {
+  MLOperand minValue;
+  MLOperand maxValue;
 };
 
-partial interface ModelBuilder {
-  Operand clamp(Operand x, optional ClampOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand clamp(MLOperand x, optional MLClampOptions options = {});
 };
 </script>
 <div algorithm=clamp>
     **Arguments:**
-        - *x*: an {{Operand}}. The input tensor.
-        - *options*: an optional {{ClampOptions}}. The optional parameters of the operation.
-            - *minValue*: an {{Operand}}. Specifies the minimum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the lower limit of the range.
-            - *maxValue*: an {{Operand}}. Specifies the maximum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the upper limit of the range.
+        - *x*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
+            - *minValue*: an {{MLOperand}}. Specifies the minimum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the lower limit of the range.
+            - *maxValue*: an {{MLOperand}}. Specifies the maximum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the upper limit of the range.
 
-    **Returns:** an {{Operand}}. The output tensor of the same shape as *x*.
+    **Returns:** an {{MLOperand}}. The output tensor of the same shape as *x*.
 
     Clamp the input tensor element-wise within a range specified by *minValue* and *maxValue*. The calculation follows the expression min(max(x, minValue), maxValue). When *minValue* is not specified, the clamping is not performed on the lower limit. When *maxValue* is not specified, the clamping is not performed on the upper limit.
 
@@ -357,75 +413,75 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### concat ### {#api-modelbuilder-concat}
+### concat ### {#api-mlmodelbuilder-concat}
 Concatenates the input tensors along a given axis.
 <script type=idl>
-partial interface ModelBuilder {
-  Operand concat(sequence<Operand> inputs, long axis);
+partial interface MLModelBuilder {
+  MLOperand concat(sequence<MLOperand> inputs, long axis);
 };
 </script>
 <div algorithm=concat>
     **Arguments:**
-        - *inputs*: a sequence of {{Operand}}. All input tensors must have the
+        - *inputs*: a sequence of {{MLOperand}}. All input tensors must have the
             same shape, except for the size of the dimension to concatenate on.
         - *axis*: a {{long}} scalar. The axis that the inputs concatenate along, with
             the value in the interval [0, N) where N is the rank of all the
             inputs.
         
-    **Returns:** an {{Operand}}. The concatenated tensor of all the inputs along
+    **Returns:** an {{MLOperand}}. The concatenated tensor of all the inputs along
     the *axis*. The output tensor has the same shape except on the dimension
     that all the inputs concatenated along. The size of that dimension is
     computed as the sum of all the input sizes of the same dimension.
 </div>
 
-### conv2d ### {#api-modelbuilder-conv2d}
+### conv2d ### {#api-mlmodelbuilder-conv2d}
 Compute a 2-D convolution given 4-D input and filter tensors
 <script type=idl>
-enum FilterOperandLayout {
+enum MLFilterOperandLayout {
   "oihw",
   "hwio",
   "ohwi"
 };
 
-enum AutoPad {
+enum MLAutoPad {
   "explicit",
   "same-upper",
   "same-lower"
 };
 
-dictionary Conv2dOptions {
+dictionary MLConv2dOptions {
   sequence<long> padding;
   sequence<long> strides;
   sequence<long> dilations;
   sequence<long> outputPadding;
   sequence<long> outputSizes;
-  AutoPad autoPad = "explicit";
+  MLAutoPad autoPad = "explicit";
   boolean transpose = false;
   long groups = 1;
-  InputOperandLayout inputLayout = "nchw";
-  FilterOperandLayout filterLayout = "oihw";
+  MLInputOperandLayout inputLayout = "nchw";
+  MLFilterOperandLayout filterLayout = "oihw";
 };
 
-partial interface ModelBuilder {
-  Operand conv2d(Operand input, Operand filter, optional Conv2dOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand conv2d(MLOperand input, MLOperand filter, optional MLConv2dOptions options = {});
 };
 </script>
 <div algorithm=conv2d>
     **Arguments:**
-        - *input*: an {{Operand}}. The input 4-D tensor. The logical shape
+        - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *options.layout*.
-        - *filter*: an {{Operand}}. The filter 4-D tensor. The logical shape is
+        - *filter*: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
             interpreted according to the value of *options.layout* and *options.groups*.
-        - *options*: an optional {{Conv2dOptions}}. The optional parameters of the operation.
+        - *options*: an optional {{MLConv2dOptions}}. The optional parameters of the operation.
             - *padding*: a sequence of {{long}} of length 4. The additional rows and columns added to the beginning and ending of each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
             - *strides*: a sequence of {{long}} of length 2. The stride of the sliding window for each spatial dimension of *input*, [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
             - *dilations*: a sequence of {{long}} of length 2. The dilation factor for each spatial dimension of *input*, [dilation_height, dilation_width]. If not present, the values are assumed to be [1,1].
             - *outputPadding*: a sequence of {{long}} of length 2. The padding values applied to each spatial dimension of the output tensor when *options.transpose* is set to true. This explicit padding values are needed to disambiguate the output tensor shape for transposed convolution when the value of the *options.strides* is greater than 1. Note that these values are only used to disambiguate output shape when needed; it does not necessarily cause any padding value to be written to the output tensor. If not specified, the values are assumed to be [0,0].
             - *outputSizes*: a sequence of {{long}} of length 2. The sizes of the last two dimensions of the output tensor when *options.transpose* is set to true. When the output sizes are explicitly specified, the output padding values in *options.outputPadding* are ignored. If not specified, the output sizes are automatically computed.
-            - *autoPad*: an {{AutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
+            - *autoPad*: an {{MLAutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
             - *transpose*: a {{boolean}} indicating that a transposed convolution operation is performed. Transposed convolution is used in upsampling networks to increase the resolution of a feature as opposed to the typical convolution process that reduces the feature's resolution. When transposed convolution is performed, *options.outputPadding* may be needed to disambiguate the output tensor shape. If not present, this option is assumed to be false.
             - *groups*: a {{long}} scalar. The number of groups that input channels and output channels are divided into, default to 1.
-            - *inputLayout*: an {{InputOperandLayout}}. The default value is *"nchw"*. This option specifies the layout format of the input and output tensor as follow:
+            - *inputLayout*: an {{MLInputOperandLayout}}. The default value is *"nchw"*. This option specifies the layout format of the input and output tensor as follow:
 
                 "nchw":
                     - input tensor: [batches, input_channels, height, width]
@@ -435,7 +491,7 @@ partial interface ModelBuilder {
                     - input tensor: [batches, height, width, input_channels]
                     - output tensor: [batches, height, width, output_channels]
 
-            - *filterLayout*: a {{FilterOperandLayout}}. The default value is *"oihw"*. This option specifies the layout format of the filter tensor as follow:
+            - *filterLayout*: a {{MLFilterOperandLayout}}. The default value is *"oihw"*. This option specifies the layout format of the filter tensor as follow:
 
                 "oihw":
                     - [output_channels, input_channels/groups, height, width]
@@ -446,7 +502,7 @@ partial interface ModelBuilder {
                 "ohwi":
                     - [output_channels, height, width, input_channels/groups]
 
-    **Returns:** an {{Operand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.layout* value. More specifically the sizes of the last two dimensions of the output tensor, the spatial dimensions, for the convolution operation can be calculated as follow:
+    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.layout* value. More specifically the sizes of the last two dimensions of the output tensor, the spatial dimensions, for the convolution operation can be calculated as follow:
 
     *output size = 1 + (input size - filter size + beginning padding + ending padding) / stride*
 
@@ -460,26 +516,26 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### element-wise binary operations ### {#api-modelbuilder-binary}
+### element-wise binary operations ### {#api-mlmodelbuilder-binary}
 Compute the element-wise binary addition, subtraction, multiplication, division,
 maximum and minimum of the two input tensors.
 <script type=idl>
-partial interface ModelBuilder {
-  Operand add(Operand a, Operand b);
-  Operand sub(Operand a, Operand b);
-  Operand mul(Operand a, Operand b);
-  Operand div(Operand a, Operand b);
-  Operand max(Operand a, Operand b);
-  Operand min(Operand a, Operand b);
-  Operand pow(Operand a, Operand b);
+partial interface MLModelBuilder {
+  MLOperand add(MLOperand a, MLOperand b);
+  MLOperand sub(MLOperand a, MLOperand b);
+  MLOperand mul(MLOperand a, MLOperand b);
+  MLOperand div(MLOperand a, MLOperand b);
+  MLOperand max(MLOperand a, MLOperand b);
+  MLOperand min(MLOperand a, MLOperand b);
+  MLOperand pow(MLOperand a, MLOperand b);
 };
 </script>
 <div algorithm=binary>
     **Arguments:**
-        - *a*: an {{Operand}}. The first input tensor.
-        - *b*: an {{Operand}}. The second input tensor.
+        - *a*: an {{MLOperand}}. The first input tensor.
+        - *b*: an {{MLOperand}}. The second input tensor.
 
-    **Returns:** an {{Operand}}. The output tensor that contains the result of
+    **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise binary operation of the two input tensors.
 
     The element-wise binary operation will be broadcasted according to
@@ -497,29 +553,29 @@ partial interface ModelBuilder {
         - *pow*: Compute the values of the values of the first input tensor to the power of the values of the second input tensor, element-wise.
 </div>
 
-### element-wise unary operations ### {#api-modelbuilder-unary}
+### element-wise unary operations ### {#api-mlmodelbuilder-unary}
 Compute the element-wise unary operation for input tensor.
 <script type=idl>
-partial interface ModelBuilder {
-  Operand abs(Operand x);
-  Operand ceil(Operand x);
-  Operand cos(Operand x);
-  Operand exp(Operand x);
-  Operand floor(Operand x);
-  Operand log(Operand x);
-  Operand neg(Operand x);
-  Operand relu(Operand x);
-  Operand sigmoid(Operand x);
-  Operand sin(Operand x);
-  Operand tan(Operand x);
-  Operand tanh(Operand x);
+partial interface MLModelBuilder {
+  MLOperand abs(MLOperand x);
+  MLOperand ceil(MLOperand x);
+  MLOperand cos(MLOperand x);
+  MLOperand exp(MLOperand x);
+  MLOperand floor(MLOperand x);
+  MLOperand log(MLOperand x);
+  MLOperand neg(MLOperand x);
+  MLOperand relu(MLOperand x);
+  MLOperand sigmoid(MLOperand x);
+  MLOperand sin(MLOperand x);
+  MLOperand tan(MLOperand x);
+  MLOperand tanh(MLOperand x);
 };
 </script>
 <div algorithm=unary>
     **Arguments:**
-        - *x*: an {{Operand}}. The input tensor.
+        - *x*: an {{MLOperand}}. The input tensor.
 
-    **Returns:** an {{Operand}}. The output tensor that contains the result of
+    **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise unary operation of the input tensor. The shape of the output
     tensor is the same as the shape of input tensor.
 
@@ -547,33 +603,33 @@ partial interface ModelBuilder {
         - *tanh*: Compute the hyperbolic tangent of the input tensor, element-wise.
 </div>
 
-### gemm ### {#api-modelbuilder-gemm}
+### gemm ### {#api-mlmodelbuilder-gemm}
 Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A`, `B`, and `C` are matrices, and `A` and `B` may optionally be transposed prior to the calculation.
 <script type=idl>
-dictionary GemmOptions {
-  Operand c;
+dictionary MLGemmOptions {
+  MLOperand c;
   float alpha = 1.0;
   float beta = 1.0;
   boolean aTranspose = false;
   boolean bTranspose = false;
 };
 
-partial interface ModelBuilder {
-  Operand gemm(Operand a, Operand b, optional GemmOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand gemm(MLOperand a, MLOperand b, optional MLGemmOptions options = {});
 };
 </script>
 <div algorithm=gemm>
     **Arguments:**
-        - *a*: an {{Operand}}. The first input 2-D tensor.
-        - *b*: an {{Operand}}. The second input 2-D tensor.
-        - *options*: an optional {{GemmOptions}}. The optional parameters of the operation.
-            - *c*: an {{Operand}}. The third input 2-D tensor.
+        - *a*: an {{MLOperand}}. The first input 2-D tensor.
+        - *b*: an {{MLOperand}}. The second input 2-D tensor.
+        - *options*: an optional {{MLGemmOptions}}. The optional parameters of the operation.
+            - *c*: an {{MLOperand}}. The third input 2-D tensor.
             - *alpha*: a {{float}} scalar multiplier for the first input, default to 1.0.
             - *beta*: a {{float}} scalar multiplier for the third input, default to 1.0.
             - *aTranspose*: a {{boolean}} indicating if the first input should be transposed prior to calculating the output, default to false.
             - *bTranspose*: a {{boolean}} indicating if the second input should be transposed prior to calculating the output, default to false.
 
-    **Returns:** an {{Operand}}. The output 2-D tensor that contains the calculated product of all the inputs.
+    **Returns:** an {{MLOperand}}. The output 2-D tensor that contains the calculated product of all the inputs.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
@@ -590,60 +646,60 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### gru ### {#api-modelbuilder-gru}
+### gru ### {#api-mlmodelbuilder-gru}
 Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of the Network
 <script type=idl>
-enum RecurrentNetworkWeightLayout {
+enum MLRecurrentNetworkWeightLayout {
   "zrn",  // update-reset-new gate ordering
   "rzn"   // reset-update-new gate ordering
 };
 
-enum RecurrentNetworkActivation {
+enum MLRecurrentNetworkActivation {
   "relu",
   "sigmoid",
   "tanh"
 };
 
-enum RecurrentNetworkDirection {
+enum MLRecurrentNetworkDirection {
   "forward",
   "backward",
   "both"
 };
 
-dictionary GruOptions {
-  Operand bias;
-  Operand recurrentBias;
-  Operand initialHiddenState;
+dictionary MLGruOptions {
+  MLOperand bias;
+  MLOperand recurrentBias;
+  MLOperand initialHiddenState;
   boolean resetAfter = true;
   boolean returnSequence = false;
-  RecurrentNetworkDirection direction = "forward";
-  RecurrentNetworkWeightLayout layout = "zrn";
-  sequence<RecurrentNetworkActivation> activations;
+  MLRecurrentNetworkDirection direction = "forward";
+  MLRecurrentNetworkWeightLayout layout = "zrn";
+  sequence<MLRecurrentNetworkActivation> activations;
 };
 
-partial interface ModelBuilder {
-  sequence<Operand> gru(Operand input, Operand weight, Operand recurrentWeight, 
-                        long steps, long hiddenSize, optional GruOptions options = {});
+partial interface MLModelBuilder {
+  sequence<MLOperand> gru(MLOperand input, MLOperand weight, MLOperand recurrentWeight, 
+                        long steps, long hiddenSize, optional MLGruOptions options = {});
 };
 </script>
 <div algorithm=gru>
     **Arguments:**
-        - *input*: an {{Operand}}. The input 3-D tensor of shape [steps, batch_size, input_size]. 
-        - *weight*: an {{Operand}}. The 3-D input weight tensor of shape [num_directions, 3 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
-        - *recurrentWeight*: an {{Operand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
+        - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batch_size, input_size]. 
+        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 3 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
         - *steps*: a {{long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
         - *hiddenSize*: a {{long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{GruOptions}}. The optional parameters of the operation.
-            - *bias*: an {{Operand}}. The 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *recurrentBias*: an {{Operand}}. The 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *initialHiddenState*: an {{Operand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
+        - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
+            - *bias*: an {{MLOperand}}. The 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+            - *recurrentBias*: an {{MLOperand}}. The 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+            - *initialHiddenState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
             - *resetAfter*: a {{boolean}} indicating whether to apply the reset gate after or before matrix multiplication. Default to true.
             - *returnSequence*: a {{boolean}} indicating whether to also return the entire sequence with every cell output from each time step in it in addition to the cell output of the last time step. Default to false.
-            - *direction*: a {{RecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
-            - *layout*: a {{RecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is *"zrn"*.
-            - *activations*: a sequence of {{RecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's assumed to be the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
+            - *direction*: a {{MLRecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
+            - *layout*: a {{MLRecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is *"zrn"*.
+            - *activations*: a sequence of {{MLRecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's assumed to be the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
 
-    **Returns:** a sequence of {{Operand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if *returnSequence* is set to true, the second element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if *returnSequence* is set to true, the second element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
@@ -707,37 +763,37 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### gruCell ### {#api-modelbuilder-grucell}
+### gruCell ### {#api-mlmodelbuilder-grucell}
 A single time step of the Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of a recurrent network.
 <script type=idl>
-dictionary GruCellOptions {
-  Operand bias;
-  Operand recurrentBias;
+dictionary MLGruCellOptions {
+  MLOperand bias;
+  MLOperand recurrentBias;
   boolean resetAfter = true;
-  RecurrentNetworkWeightLayout layout = "zrn";
-  sequence<RecurrentNetworkActivation> activations;
+  MLRecurrentNetworkWeightLayout layout = "zrn";
+  sequence<MLRecurrentNetworkActivation> activations;
 };
 
-partial interface ModelBuilder {
-  Operand gruCell(Operand input, Operand weight, Operand recurrentWeight, 
-                  Operand hiddenState, long hiddenSize, optional GruCellOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand gruCell(MLOperand input, MLOperand weight, MLOperand recurrentWeight, 
+                  MLOperand hiddenState, long hiddenSize, optional MLGruCellOptions options = {});
 };
 </script>
 <div algorithm=grucell>
     **Arguments:**
-        - *input*: an {{Operand}}. The input 2-D tensor of shape [batch_size, input_size]. 
-        - *weight*: an {{Operand}}. The 2-D input weight tensor of shape [3 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
-        - *recurrentWeight*: an {{Operand}}. The 2-D recurrent weight tensor of shape [3 * hidden_size, hidden_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
-        - *hiddenState*: an {{Operand}}. The 2-D input hidden state tensor of shape [batch_size, hidden_size].
+        - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batch_size, input_size]. 
+        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [3 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape [3 * hidden_size, hidden_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
+        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape [batch_size, hidden_size].
         - *hiddenSize*: a {{long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{GruCellOptions}}. The optional parameters of the operation.
-            - *bias*: an {{Operand}}. The 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *recurrentBias*: an {{Operand}}. The 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *options*: an optional {{MLGruCellOptions}}. The optional parameters of the operation.
+            - *bias*: an {{MLOperand}}. The 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+            - *recurrentBias*: an {{MLOperand}}. The 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
             - *resetAfter*: a {{boolean}} indicating whether to apply the reset gate after or before matrix multiplication. Default to true.
-            - *layout*: a {{RecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"zrn"*.
-            - *activations*: a sequence of {{RecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's default to the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
+            - *layout*: a {{MLRecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"zrn"*.
+            - *activations*: a sequence of {{MLRecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's default to the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
 
-    **Returns:** an {{Operand}}. The 2-D tensor of shape [batch_size, hidden_size], the cell output hidden state of a single time step of the recurrent network.
+    **Returns:** an {{MLOperand}}. The 2-D tensor of shape [batch_size, hidden_size], the cell output hidden state of a single time step of the recurrent network.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
@@ -837,31 +893,31 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### instanceNormalization ### {#api-modelbuilder-instancenorm}
-Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-modelbuilder-batchnorm]] where the mean and variance values used in the calculation are previously computed across the batch dimension during the model training phrase, the mean and variance values used in the calculation of an instance normalization are computed internally on the fly per input feature.
+### instanceNormalization ### {#api-mlmodelbuilder-instancenorm}
+Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-mlmodelbuilder-batchnorm]] where the mean and variance values used in the calculation are previously computed across the batch dimension during the model training phrase, the mean and variance values used in the calculation of an instance normalization are computed internally on the fly per input feature.
 <script type=idl>
-dictionary InstanceNormalizationOptions {
-  Operand scale;
-  Operand bias;
+dictionary MLInstanceNormalizationOptions {
+  MLOperand scale;
+  MLOperand bias;
   float epsilon = 1e-5;
-  InputOperandLayout layout = "nchw";
+  MLInputOperandLayout layout = "nchw";
 };
 
-partial interface ModelBuilder {
-  Operand instanceNormalization(Operand input, 
-                                optional InstanceNormalizationOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand instanceNormalization(MLOperand input, 
+                                optional MLInstanceNormalizationOptions options = {});
 };
 </script>
 <div algorithm=instancenorm>
     **Arguments:**
-        - *input*: an {{Operand}}. The input 4-D tensor.
-        - *options*: an optional {{InstanceNormalizationOptions}}. The optional parameters of the operation.
-              - *scale*: an {{Operand}}. The 1-D tensor of the scaling values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
-              - *bias*: an {{Operand}}. The 1-D tensor of the bias values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
+        - *input*: an {{MLOperand}}. The input 4-D tensor.
+        - *options*: an optional {{MLInstanceNormalizationOptions}}. The optional parameters of the operation.
+              - *scale*: an {{MLOperand}}. The 1-D tensor of the scaling values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
+              - *bias*: an {{MLOperand}}. The 1-D tensor of the bias values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
               - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
-              - *layout*: an {{InputOperandLayout}}. This option specifies the layout format of the input. The default value is *"nchw"*.
+              - *layout*: an {{MLInputOperandLayout}}. This option specifies the layout format of the input. The default value is *"nchw"*.
         
-    **Returns:** an {{Operand}}. The instance-normalized 4-D tensor of the same shape as the input tensor.
+    **Returns:** an {{MLOperand}}. The instance-normalized 4-D tensor of the same shape as the input tensor.
 
     <div class="note">
     The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout can be generically emulated from 
@@ -898,23 +954,23 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### leakyRelu ### {#api-modelbuilder-leakyrelu}
+### leakyRelu ### {#api-mlmodelbuilder-leakyrelu}
 <script type=idl>
-dictionary LeakyReluOptions {
+dictionary MLLeakyReluOptions {
   float alpha = 0.01;
 };
 
-partial interface ModelBuilder {
-  Operand leakyRelu(Operand x, optional LeakyReluOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand leakyRelu(MLOperand x, optional MLLeakyReluOptions options = {});
 };
 </script>
 <div algorithm=leakyrelu>
     **Arguments:**
-        - *x*: an {{Operand}}. The input tensor.
-        - *options*: an optional {{LeakyReluOptions}}. The optional parameters of the operation.
+        - *x*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
             - *alpha*: a {{float}} scalar multiplier, default to 0.01.
 
-    **Returns:** an {{Operand}}. The output tensor of the same shape as *x*.
+    **Returns:** an {{MLOperand}}. The output tensor of the same shape as *x*.
 
     Calculate the <a
     href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Leaky_ReLU">
@@ -934,19 +990,19 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### matmul ### {#api-modelbuilder-matmul}
+### matmul ### {#api-mlmodelbuilder-matmul}
 Compute the matrix product of two input tensors.
 <script type=idl>
-partial interface ModelBuilder {
-  Operand matmul(Operand a, Operand b);
+partial interface MLModelBuilder {
+  MLOperand matmul(MLOperand a, MLOperand b);
 };
 </script>
 <div algorithm=matmul>
     **Arguments:**
-        - *a*: an {{Operand}}. The first input N-D tensor.
-        - *b*: an {{Operand}}. The second input N-D tensor.
+        - *a*: an {{MLOperand}}. The first input N-D tensor.
+        - *b*: an {{MLOperand}}. The second input N-D tensor.
 
-    **Returns:** an {{Operand}}. The output N-D tensor that contains the matrix
+    **Returns:** an {{MLOperand}}. The output N-D tensor that contains the matrix
     product of two input tensors.
 
     Compute the matrix product of two input tensors. It behaves as following:
@@ -967,34 +1023,34 @@ partial interface ModelBuilder {
             which produces a scalar output.
 </div>
 
-### pad ### {#api-modelbuilder-pad}
+### pad ### {#api-mlmodelbuilder-pad}
 Inflate the tensor with constant or mirrored values on the edges.
 <script type=idl>
-enum PaddingMode {
+enum MLPaddingMode {
   "constant",
   "edge",
   "reflection",
   "symmetric"
 };
 
-dictionary PadOptions {
-  PaddingMode mode = "constant";
+dictionary MLPadOptions {
+  MLPaddingMode mode = "constant";
   float value = 0;
 };
 
-partial interface ModelBuilder {
-  Operand pad(Operand input, Operand padding, optional PadOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand pad(MLOperand input, MLOperand padding, optional MLPadOptions options = {});
 };
 </script>
 <div algorithm=pad>
     **Arguments:**
-        - *input*: an {{Operand}}. The input tensor.
-        - *padding*: an {{Operand}}. The 2-D Tensor of integer values indicating the number of padding values to add at the beginning and end of each input dimensions. The tensor has shape [*n*, 2] where *n* is the rank of the input tensor. For each dimension *D* of *input*, *padding[D, 0]* indicates how many values to add before the content in that dimension, and *padding[D, 1]* indicates how many values to add after the content in that dimension.
-        - *options*: an optional {{PadOptions}}. The optional parameters of the operation.
-            - *mode*: a {{PaddingMode}}. The different ways to pad the tensor. When not set, it's assumed to be "constant".
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *padding*: an {{MLOperand}}. The 2-D Tensor of integer values indicating the number of padding values to add at the beginning and end of each input dimensions. The tensor has shape [*n*, 2] where *n* is the rank of the input tensor. For each dimension *D* of *input*, *padding[D, 0]* indicates how many values to add before the content in that dimension, and *padding[D, 1]* indicates how many values to add after the content in that dimension.
+        - *options*: an optional {{MLPadOptions}}. The optional parameters of the operation.
+            - *mode*: a {{MLPaddingMode}}. The different ways to pad the tensor. When not set, it's assumed to be "constant".
             - *value*: a {{float}}. The pad value when the *options.mode* is set to *"constant"*. When not set, it's assumed to be 0.
 
-    **Returns:** an {{Operand}}. The padded output tensor.
+    **Returns:** an {{MLOperand}}. The padded output tensor.
     <div class="example">
     <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
@@ -1036,29 +1092,29 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### pooling operations ### {#api-modelbuilder-pool2d}
-Compute a *mean*, *L2 norm*, or *max* reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-modelbuilder-reduce]].
+### pooling operations ### {#api-mlmodelbuilder-pool2d}
+Compute a *mean*, *L2 norm*, or *max* reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-mlmodelbuilder-reduce]].
 <script type=idl>
-dictionary Pool2dOptions {
+dictionary MLPool2dOptions {
   sequence<long> windowDimensions;
   sequence<long> padding;
   sequence<long> strides;
   sequence<long> dilations;
-  AutoPad autoPad = "explicit";
-  InputOperandLayout layout = "nchw";
+  MLAutoPad autoPad = "explicit";
+  MLInputOperandLayout layout = "nchw";
 };
 
-partial interface ModelBuilder {
-  Operand averagePool2d(Operand input, optional Pool2dOptions options = {});
-  Operand l2Pool2d(Operand input, optional Pool2dOptions options = {});
-  Operand maxPool2d(Operand input, optional Pool2dOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand averagePool2d(MLOperand input, optional MLPool2dOptions options = {});
+  MLOperand l2Pool2d(MLOperand input, optional MLPool2dOptions options = {});
+  MLOperand maxPool2d(MLOperand input, optional MLPool2dOptions options = {});
 };
 </script>
 <div algorithm=pool2d>
     **Arguments:**
-        - *input*: an {{Operand}}. The input 4-D tensor. The logical shape
+        - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *options.layout*.
-        - *options*: an optional {{Pool2dOptions}}. The optional parameters of the operation.
+        - *options*: an optional {{MLPool2dOptions}}. The optional parameters of the operation.
             - *windowDimensions*: a sequence of {{long}} of length 2. The dimensions of the sliding window,
                 [window_height, window_width]. If not present, the window dimensions are assumed to be the height  
                 and width dimensions of the input shape. 
@@ -1069,8 +1125,8 @@ partial interface ModelBuilder {
             - *dilations*: a sequence of {{long}} of length 2. The dilation factor
                 for each spatial dimension of *input*, [dilation_height, dilation_width].
                 If not present, the values are assumed to be [1,1].
-            - *autoPad*: an {{AutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
-            - *layout*: an {{InputOperandLayout}}. The default value is *"nchw"*. This option specifies the
+            - *autoPad*: an {{MLAutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
+            - *layout*: an {{MLInputOperandLayout}}. The default value is *"nchw"*. This option specifies the
                 layout format of the input and output tensor as follow:
 
                 "nchw":
@@ -1081,7 +1137,7 @@ partial interface ModelBuilder {
                     - input tensor: [batches, height, width, channels]
                     - output tensor: [batches, height, width, channels]
 
-    **Returns:** an {{Operand}}. The output 4-D tensor that contains the
+    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
     value of *layout*.
 
@@ -1094,37 +1150,37 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### reduction operations ### {#api-modelbuilder-reduce}
+### reduction operations ### {#api-mlmodelbuilder-reduce}
 Reduce the input along the dimensions given in *axes*.
 <script type=idl>
-dictionary ReduceOptions {
+dictionary MLReduceOptions {
   sequence<long> axes = null;
   boolean keepDimensions = false;
 };
 
-partial interface ModelBuilder {
-  Operand reduceL1(Operand input, optional ReduceOptions options = {});
-  Operand reduceL2(Operand input, optional ReduceOptions options = {});
-  Operand reduceLogSum(Operand input, optional ReduceOptions options = {});
-  Operand reduceLogSumExp(Operand input, optional ReduceOptions options = {});
-  Operand reduceMax(Operand input, optional ReduceOptions options = {});
-  Operand reduceMean(Operand input, optional ReduceOptions options = {});
-  Operand reduceMin(Operand input, optional ReduceOptions options = {});
-  Operand reduceProduct(Operand input, optional ReduceOptions options = {});
-  Operand reduceSum(Operand input, optional ReduceOptions options = {});
-  Operand reduceSumSquare(Operand input, optional ReduceOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand reduceL1(MLOperand input, optional MLReduceOptions options = {});
+  MLOperand reduceL2(MLOperand input, optional MLReduceOptions options = {});
+  MLOperand reduceLogSum(MLOperand input, optional MLReduceOptions options = {});
+  MLOperand reduceLogSumExp(MLOperand input, optional MLReduceOptions options = {});
+  MLOperand reduceMax(MLOperand input, optional MLReduceOptions options = {});
+  MLOperand reduceMean(MLOperand input, optional MLReduceOptions options = {});
+  MLOperand reduceMin(MLOperand input, optional MLReduceOptions options = {});
+  MLOperand reduceProduct(MLOperand input, optional MLReduceOptions options = {});
+  MLOperand reduceSum(MLOperand input, optional MLReduceOptions options = {});
+  MLOperand reduceSumSquare(MLOperand input, optional MLReduceOptions options = {});
 };
 </script>
 <div algorithm=reduce>
     **Arguments:**
-        - *input*: an {{Operand}}. The input tensor.
-        - *options*: an optional {{ReduceOptions}}. The optional parameters of the operation.
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLReduceOptions}}. The optional parameters of the operation.
             - *axes*: a sequence of {{long}}. The dimensions to reduce where -1 means the last dimension.
                 If not present, all dimensions are reduced.
             - *keepDimensions*: a {{boolean}}. If true, retains reduced dimensions with size of 1.
                 The default value is false.
 
-    **Returns:** an {{Operand}}. The reduced output tensor.
+    **Returns:** an {{MLOperand}}. The reduced output tensor.
 
     **Reduction types:**
         - *L1*: Compute the <a href="https://mathworld.wolfram.com/L1-Norm.html">L1 norm</a> of all the input values along the axes.
@@ -1139,46 +1195,46 @@ partial interface ModelBuilder {
         - *SumSquare*: Compute the sum of the square of all the input values along the axes.
 </div>
 
-### resample ### {#api-modelbuilder-resample}
+### resample ### {#api-mlmodelbuilder-resample}
 Resample the tensor values from the source to the destination dimensions according to the scaling factors.
 <script type=idl>
-enum InterpolationMode {
+enum MLInterpolationMode {
   "nearest-neighbor",
   "linear"
 };
 
-dictionary ResampleOptions {
-  InterpolationMode mode = "nearest-neighbor";
+dictionary MLResampleOptions {
+  MLInterpolationMode mode = "nearest-neighbor";
   sequence<float> scales;
   sequence<long> sizes;
 };
 
-partial interface ModelBuilder {
-  Operand resample(Operand input, optional ResampleOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand resample(MLOperand input, optional MLResampleOptions options = {});
 };
 </script>
 <div algorithm=resample>
     **Arguments:**
-        - *input*: an {{Operand}}. The input 4-D tensor.
-        - *options*: an optional {{ResampleOptions}}. The optional parameters of the operation.
-            - *mode*: an {{InterpolationMode}}. The interpolation algorithm used to fill the output tensor values.
+        - *input*: an {{MLOperand}}. The input 4-D tensor.
+        - *options*: an optional {{MLResampleOptions}}. The optional parameters of the operation.
+            - *mode*: an {{MLInterpolationMode}}. The interpolation algorithm used to fill the output tensor values.
                 If not set, it is assumed to be the *Nearest Neighbor* interpolation.
             - *scales*: a sequence of {{float}} of length 4. Each value represents the scaling factor used to scale in each input dimensions.
             - *sizes*: a sequence of {{long}} of length 4. The target sizes for each input dimensions. When the target sizes are specified, the *options.scales* argument is ignored as the scaling factor values are derived from the target sizes of each input dimension.
 
-    **Returns:** an {{Operand}}. The output 4-D tensor.
+    **Returns:** an {{MLOperand}}. The output 4-D tensor.
 </div>
 
-### reshape ### {#api-modelbuilder-reshape}
+### reshape ### {#api-mlmodelbuilder-reshape}
 Alter the shape of a tensor to a new shape. Reshape does not copy or change the content of the tensor. It just changes the tensor's logical dimensions for the subsequent operations.
 <script type=idl>
-partial interface ModelBuilder {
-  Operand reshape(Operand input, sequence<long> newShape);
+partial interface MLModelBuilder {
+  MLOperand reshape(MLOperand input, sequence<long> newShape);
 };
 </script>
 <div algorithm=reshape>
     **Arguments:**
-        - *input*: an {{Operand}}. The input tensor.
+        - *input*: an {{MLOperand}}. The input tensor.
         - *newShape*: a sequence of {{long}}. The shape of the output tensor.
             The number of elements implied by *newShape* must be the same as the
             number of elements in the input tensor. Only one component of
@@ -1186,48 +1242,48 @@ partial interface ModelBuilder {
             with the value -1 is computed so that the total size remains
             constant.
 
-    **Returns:** an {{Operand}}. The output tensor. The values of the output
+    **Returns:** an {{MLOperand}}. The output tensor. The values of the output
     tensor are the same as values of the input tensor. The shape of the output
     tensor is specified by the *newShape* argument.
 </div>
 
-### slice ### {#api-modelbuilder-slice}
+### slice ### {#api-mlmodelbuilder-slice}
 Produce a slice of the input tensor.
 <script type=idl>
-dictionary SliceOptions {
+dictionary MLSliceOptions {
   sequence<long> axes;
 };
 
-partial interface ModelBuilder {
-  Operand slice(Operand input, sequence<long> starts, sequence<long> sizes,
-                optional SliceOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand slice(MLOperand input, sequence<long> starts, sequence<long> sizes,
+                optional MLSliceOptions options = {});
 };
 </script>
 <div algorithm=slice>
     **Arguments:**
-        - *input*: an {{Operand}}. The input tensor.
+        - *input*: an {{MLOperand}}. The input tensor.
         - *starts*: a sequence of {{long}}. The starting indices to slice of the corresponding axes of the input shape. A negative index value is interpreted as counting back from the end. For example, the value -1 
         - *sizes*: a sequence of {{long}}. The lengths to slice of the corresponding axes of the input shape.
             The length value of -1 selects all the remaining elements from the starting index of the given axis.
-        - *options*: an optional {{SliceOptions}}. The optional parameters of the operation.
+        - *options*: an optional {{MLSliceOptions}}. The optional parameters of the operation.
             - *axes*: a sequence of {{long}}. The dimensions of the input shape to which *starts* and *sizes* apply. The values in the sequence are either within the [0, *r*-1] range where *r* is the input tensor rank, or the [*-r*, -1] range where negative values mean counting back from the end of the input shape. When not specified, the sequence is assumed to be [0,1,..*r-1*].  
 
-    **Returns:** an {{Operand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
+    **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
 
-### softmax ### {#api-modelbuilder-softmax}
+### softmax ### {#api-mlmodelbuilder-softmax}
 Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
 the 2-D input tensor along axis 1.
 <script type=idl>
-partial interface ModelBuilder {
-  Operand softmax(Operand x);
+partial interface MLModelBuilder {
+  MLOperand softmax(MLOperand x);
 };
 </script>
 <div algorithm=softmax>
     **Arguments:**
-        - *x*: an {{Operand}}. The input 2-D tensor.
+        - *x*: an {{MLOperand}}. The input 2-D tensor.
 
-    **Returns:** an {{Operand}}. The output 2-D tensor that contains the softmax
+    **Returns:** an {{MLOperand}}. The output 2-D tensor that contains the softmax
     results, of the same shape as the input tensor.
 
     <div class="note">
@@ -1248,27 +1304,27 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### split ### {#api-modelbuilder-split}
+### split ### {#api-mlmodelbuilder-split}
 Split the input tensor into a number of sub tensors along the given axis.
 <script type=idl>
-dictionary SplitOptions {
+dictionary MLSplitOptions {
   long axis = 0;
 };
 
-partial interface ModelBuilder {
-  sequence<Operand> split(Operand input,
+partial interface MLModelBuilder {
+  sequence<MLOperand> split(MLOperand input,
                           (unsigned long or sequence<unsigned long>) splits,
-                          optional SplitOptions options = {});
+                          optional MLSplitOptions options = {});
 };
 </script>
 <div algorithm=split>
     **Arguments:**
-        - *input*: an {{Operand}}. The input tensor.
+        - *input*: an {{MLOperand}}. The input tensor.
         - *splits*: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
-        - *options*: an optional {{SplitOptions}}. The optional parameters of the operation.
+        - *options*: an optional {{MLSplitOptions}}. The optional parameters of the operation.
             - *axis*: a {{long}}. The dimension along which to split. Default to 0. A negative value is interpreted as counting back from the end.
 
-    **Returns:** a sequence of {{Operand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the length of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the length of the output sequence equals to the length of *splits*. The shape of the i-th output tensor is the same as as *input* except along *axis* where the dimension size is *splits[i]*.
+    **Returns:** a sequence of {{MLOperand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the length of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the length of the output sequence equals to the length of *splits*. The shape of the i-th output tensor is the same as as *input* except along *axis* where the dimension size is *splits[i]*.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -1288,90 +1344,123 @@ partial interface ModelBuilder {
     </div>
 </div>
 
-### squeeze ### {#api-modelbuilder-squeeze}
+### squeeze ### {#api-mlmodelbuilder-squeeze}
 Reduce the rank of a tensor by eliminating dimensions with size 1 of the tensor shape. Squeeze only affects the tensor's logical dimensions. It does not copy or change the content in the tensor.
 <script type=idl>
-dictionary SqueezeOptions {
+dictionary MLSqueezeOptions {
   sequence<long> axes;
 };
 
-partial interface ModelBuilder {
-  Operand squeeze(Operand input, optional SqueezeOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand squeeze(MLOperand input, optional MLSqueezeOptions options = {});
 };
 </script>
 <div algorithm=squeeze>
     **Arguments:**
-        - *input*: an {{Operand}}. The input tensor.
-        - *options*: an optional {{SqueezeOptions}}. The optional parameters of the operation.
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLSqueezeOptions}}. The optional parameters of the operation.
             - *axes*: a sequence of {{long}}. Indices to the shape dimensions of size 1 to eliminate. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
 
-    **Returns:** an {{Operand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
+    **Returns:** an {{MLOperand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
 </div>
 
-### transpose ### {#api-modelbuilder-transpose}
+### transpose ### {#api-mlmodelbuilder-transpose}
 Permute the dimensions of the input tensor according to the *permutation* argument.
 <script type=idl>
-dictionary TransposeOptions {
+dictionary MLTransposeOptions {
   sequence<long> permutation;
 };
 
-partial interface ModelBuilder {
-  Operand transpose(Operand input, optional TransposeOptions options = {});
+partial interface MLModelBuilder {
+  MLOperand transpose(MLOperand input, optional MLTransposeOptions options = {});
 };
 </script>
 <div algorithm=transpose>
     **Arguments:**
-        - *input*: an {{Operand}}. The input N-D tensor.
-        - *options*: an optional {{TransposeOptions}}. The optional parameters of the operation.
+        - *input*: an {{MLOperand}}. The input N-D tensor.
+        - *options*: an optional {{MLTransposeOptions}}. The optional parameters of the operation.
             - *permutation*: a sequence of {{long}} values. The values used to permute the output shape. When it's not specified, it's set to `[N-1...0]`, where `N` is the rank of the input tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 
-    **Returns:** an {{Operand}}. The permuted or transposed N-D tensor. 
+    **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor. 
 </div>
 
-## Model ## {#api-model}
-The {{Model}} interface represents an immutable computational graph constructed by the {{ModelBuilder}} interface. The operands to the starting operations of the graph are assumed to be the model's input operands.
+## MLModel ## {#api-mlmodel}
+The {{MLModel}} interface represents an immutable computational graph constructed by the {{MLModelBuilder}} interface. The operands to the starting operations of the graph are assumed to be the model's input operands.
 
 <script type=idl>
-enum PowerPreference {
-  // Let the user agent decide the most suitable behavior. This is the default value.
-  "default",
-  // Prioritizes execution speed over other considerations e.g. power consumption
-  "high-performance",
-  // Prioritizes power consumption over other considerations e.g. execution speed
-  "low-power"
-};
-
-dictionary CompilationOptions {
-  // Compilation preference as related to power consumption level
-  PowerPreference powerPreference = "default";
-};
-
 [SecureContext, Exposed=Window]
-interface Model {
-  Promise<Compilation> compile(optional CompilationOptions options = {});
+interface MLModel {
+  Promise<MLCompilation> compile();
 };
 </script>
 
-## Compilation ## {#api-compilation}
-The {{Compilation}} interface represents a compiled version of the computational graph of a {{Model}} according to the compilation options. A compilation of a graph once constructed is immutable and cannot be subsequently changed.
+## Compilation ## {#api-mlcompilation}
+The {{MLCompilation}} interface represents a compiled version of the computational graph of a {{MLModel}} according to the compilation options. A compilation of a graph once constructed is immutable and cannot be subsequently changed.
 
 <script type=idl>
-dictionary Input {
-  required ArrayBufferView buffer;
+// WebGL specification:
+// (https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.9)
+[SecureContext, Exposed=Window]
+interface WebGLTexture {
+  // ...
+};
+
+// WebGPU specification:
+// (https://gpuweb.github.io/gpuweb/#texture-interface)
+[SecureContext, Exposed=Window]
+interface GPUTexture {
+  // ...
+};
+
+dictionary MLInput {
+  required ArrayBufferView bufferView;
   sequence<long> dimensions;
 };
 
-dictionary Output {
-  ArrayBufferView buffer;
+dictionary MLOutput {
+  ArrayBufferView bufferView;
   sequence<long> dimensions;
 };
 
-typedef record<DOMString, Input> NamedInputs;
-typedef record<DOMString, Output> NamedOutputs;
+dictionary MLWebGLInput {
+  required WebGLTexture glTexture;
+  sequence<long> dimensions;
+};
+
+dictionary MLWebGLOutput {
+  WebGLTexture glTexture;
+  sequence<long> dimensions;
+};
+
+dictionary MLGPUInput {
+  required GPUTexture gpuTexture;
+  sequence<long> dimensions;
+};
+
+dictionary MLGPUOutput {
+  GPUTexture gpuTexture;
+  sequence<long> dimensions;
+};
+
+typedef record<DOMString, MLInput> MLNamedInputs;
+typedef record<DOMString, MLOutput> MLNamedOutputs;
+
+typedef record<DOMString, MLWebGLInput> MLNamedWebGLInputs;
+typedef record<DOMString, MLWebGLOutput> MLNamedWebGLOutputs;
+
+typedef record<DOMString, MLGPUInput> MLNamedGPUInputs;
+typedef record<DOMString, MLGPUOutput> MLNamedGPUOutputs;
 
 [SecureContext, Exposed=Window]
-interface Compilation {
-  Promise<NamedOutputs> compute(NamedInputs inputs, optional NamedOutputs outputs = {});
+interface MLCompilation {
+  Promise<MLNamedOutputs> compute(MLNamedInputs inputs, 
+                                  optional MLNamedOutputs outputs = {});
+
+  Promise<MLNamedWebGLOutputs> compute(MLNamedWebGLInputs glInputs, 
+                                       optional MLNamedWebGLOutputs glOutputs = {});
+
+  Promise<MLNamedGPUOutputs> compute(MLNamedGPUInputs gpuInputs, 
+                                     optional MLNamedGPUOutputs gpuOutputs = {});
 };
 </script>
 
@@ -1379,9 +1468,9 @@ Examples {#examples}
 =====================
 
 <div class="example">
-The following code gets the NeuralNetworkContext object.
+The following code gets the MLContext object.
 <pre highlight="js">
-const nn = navigator.ml.getNeuralNetworkContext();
+const context = navigator.ml.createContext({powerPreference: 'low-power'});
 </pre>
 </div>
 
@@ -1401,23 +1490,23 @@ input2    ---+
 const TENSOR_DIMS = [1, 2, 2, 2];
 const TENSOR_SIZE = 8;
 
-const builder = nn.createModelBuilder();
+const builder = new MLModelBuilder(context);
 
-// Create OperandDescriptor object.
+// Create MLOperandDescriptor object.
 const desc = {type: 'float32', dimensions: TENSOR_DIMS};
 
-// constant1 is a constant operand with the value 0.5.
+// constant1 is a constant MLOperand with the value 0.5.
 const constantBuffer1 = new Float32Array(TENSOR_SIZE).fill(0.5);
 const constant1 = builder.constant(desc, constantBuffer1);
 
-// input1 is one of the input operands. Its value will be set before execution.
+// input1 is one of the input MLOperands. Its value will be set before execution.
 const input1 = builder.input('input1', desc);
 
-// constant2 is another constant operand with the value 0.5.
+// constant2 is another constant MLOperand with the value 0.5.
 const constantBuffer2 = new Float32Array(TENSOR_SIZE).fill(0.5);
 const constant2 = builder.constant(desc, constantBuffer2);
 
-// input2 is another input operand. Its value will be set before execution.
+// input2 is another input MLOperand. Its value will be set before execution.
 const input2 = builder.input('input2', desc);
 
 // intermediateOutput1 is the output of the first Add operation.
@@ -1426,7 +1515,7 @@ const intermediateOutput1 = builder.add(constant1, input1);
 // intermediateOutput2 is the output of the second Add operation.
 const intermediateOutput2 = builder.add(constant2, input2);
 
-// output is the output operand of the Mul operation.
+// output is the output MLOperand of the Mul operation.
 const output = builder.mul(intermediateOutput1, intermediateOutput2);
 
 // Create the model by identifying the outputs.
@@ -1439,7 +1528,7 @@ The following code compiles the model by prioritizing lower level of power consu
 over time. This option could be particularly useful for long-running models.
 <pre highlight="js">
 // Compile the constructed model.
-const compilation = await model.compile({powerPreference: 'low-power'});
+const compilation = await model.compile();
 </pre>
 </div>
 
@@ -1452,8 +1541,8 @@ const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
 
 // Asynchronously execute the compiled model with the specified inputs.
 const inputs = {
-  'input1': {buffer: inputBuffer1},
-  'input2': {buffer: inputBuffer2},
+  'input1': {bufferView: inputBuffer1},
+  'input2': {bufferView: inputBuffer2},
 };
 const outputs = await compilation.compute(inputs);
 

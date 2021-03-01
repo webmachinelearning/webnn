@@ -14,8 +14,8 @@ The WebNN API is a specification for constructing and executing computational gr
 
 ``` JavaScript
 const operandType = {type: 'float32', dimensions: [2, 2]};
-const context = navigator.ml.getNeuralNetworkContext();
-const builder = context.createModelBuilder();
+const context = navigator.ml.createContext();
+const builder = new MLModelBuilder(context);
 // 1. Create a model of the computational graph 'C = 0.2 * A + B'.
 const constant = builder.constant(0.2);
 const A = builder.input('A', operandType);
@@ -27,7 +27,7 @@ const compilation = await model.compile();
 // 3. Bind inputs to the model and execute for the result.
 const bufferA = new Float32Array(4).fill(1.0);
 const bufferB = new Float32Array(4).fill(0.8);
-const inputs = {'A': {buffer: bufferA}, 'B': {buffer: bufferB}};
+const inputs = {'A': {bufferView: bufferA}, 'B': {bufferView: bufferB}};
 const outputs = await compilation.compute(inputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
@@ -87,8 +87,8 @@ export class NSNet2 {
   }
 
   async load(baseUrl, batchSize, frames) {
-    const nn = navigator.ml.getNeuralNetworkContext();
-    const builder = nn.createModelBuilder();
+    const context = navigator.ml.createContext();
+    const builder = new MLModelBuilder(context);
     // Create constants by loading pre-trained data from .npy files.
     const weight172 = await buildConstantByNpy(builder, baseUrl + '172.npy');
     const biasFcIn0 = await buildConstantByNpy(builder, baseUrl + 'fc_in_0_bias.npy');
@@ -131,9 +131,9 @@ export class NSNet2 {
 
   async compute(inputBuffer, initialState92Buffer, initialState155Buffer) {
     const inputs = {
-      input: {buffer: inputBuffer},
-      initialState92: {buffer: initialState92Buffer},
-      initialState155: {buffer: initialState155Buffer},
+      input: {bufferView: inputBuffer},
+      initialState92: {bufferView: initialState92Buffer},
+      initialState155: {bufferView: initialState155Buffer},
     };
     return await this.compiledModel.compute(inputs);
   }
