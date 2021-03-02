@@ -2,7 +2,7 @@
 
 ## What’s all this then?
 
-[Machine Learning](https://en.wikipedia.org/wiki/Machine_learning), and in particular its subfield [Deep Learning](https://en.wikipedia.org/wiki/Deep_learning) with its various neural network architectures, enable new compelling user experiences for web applications. Use cases range from intelligent video conferencing to privacy-enhancing and accessibility-improving features. Some common use cases that apply to a wide range of web applications include e.g.:
+[Machine Learning](https://en.wikipedia.org/wiki/Machine_learning), and in particular its subfield [Deep Learning](https://en.wikipedia.org/wiki/Deep_learning) with its various neural network architectures, enables new compelling user experiences for web applications. Use cases range from improved video conferencing to accessibility-improving features, with potential improved privacy over cloud-based solutions. Some common use cases that apply to a wide range of web applications include e.g.:
 
 - Person detection
 - Face detection
