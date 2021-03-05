@@ -2,13 +2,31 @@
 
 ## What’s all this then?
 
-With emerging AI innovations in both software and hardware ecosystem, one of the main challenges for the web is to bridge this software and hardware development and bring together a solution that scales across hardware platforms and works with any framework for web AI experiences. We propose the WebNN API as an abstraction for neural networks in the web browsers.
+[Machine Learning](https://en.wikipedia.org/wiki/Machine_learning) (ML) is a branch of [Artificial Intelligence](https://en.wikipedia.org/wiki/Artificial_intelligence). A subfield of ML called [Deep Learning](https://en.wikipedia.org/wiki/Deep_learning) with its various neural network architectures enables new compelling user experiences for web applications. Use cases range from improved video conferencing to accessibility-improving features, with potential improved privacy over cloud-based solutions. Some common use cases that apply to a wide range of web applications include e.g.:
+
+- Person detection
+- Face detection
+- Semantic segmentation
+- Skeleton detection
+- Style transfer
+- Super resolution
+- Image captioning
+- Machine translation
+- Noise suppression
+
+These use cases and more are elaborated in the [use cases section of the API specification](https://webmachinelearning.github.io/webnn/#usecases).
+
+While some of these use cases can be implemented in a constrained manner with existing Web APIs (e.g. WebGL graphics API, as demonstrated by the [WebNN API polyfill](https://github.com/webmachinelearning/webnn-polyfill) and the first-wave JS ML frameworks), the lack of access to platform capabilities beneficial for ML such as dedicated ML hardware accelerators constraints the scope of experiences and leads to inefficient implementations on modern hardware. This disadvantages the web platform in comparison to native platforms.
+
+The design process of the [Web Neural Network API](http://webmachinelearning.github.io/webnn/) (WebNN API) started by identifying the [key use cases](https://webmachinelearning.github.io/webnn/#usecases) working with the [diverse participants](https://www.w3.org/community/webmachinelearning/participants) including major browser vendors, key ML JS frameworks, interested hardware vendors, and web developers. After identification of the key use cases, the group worked down the levels of abstraction and [decomposed the key use cases into requirements](https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md). The aim of this use case-driven design process was to put [user needs first](https://w3ctag.github.io/design-principles/#priority-of-constituencies).
+
+With emerging ML innovations in both software and hardware ecosystem, one of the main challenges for the web is to bridge this software and hardware development and bring together a solution that scales across hardware platforms and works with any framework for web-based machine learning experiences. We propose the WebNN API as an abstraction for neural networks in the web browsers.
 
 ![WebNN architecture](content/webnn_arch.png)
 
 As illustrated in the architecture diagram of the figure above, web browsers may implement the WebNN API using native machine learning API available in the operating system. This architecture allows JavaScript frameworks to tap into cutting-edge machine learning innovations in the operating system and the hardware platform underneath it without being tied to platform-specific capabilities, bridging the gap between software and hardware through a hardware-agnostic abstraction layer. 
 
-At the heart of neural networks is a computational graph of mathematical operations. These operations are the building blocks of modern AI and machine learning technologies in computer vision, natural language processing, and robotics. 
+At the heart of neural networks is a computational graph of mathematical operations. These operations are the building blocks of modern machine learning technologies in computer vision, natural language processing, and robotics.
 
 The WebNN API is a specification for constructing and executing computational graphs of neural networks. It provides web applications with the ability to create, compile, and run machine learning networks on the web browsers. The WebNN API may be implemented in web browsers using the available native operating system machine learning APIs for the best performance and reliability of results. The following code sample illustrates a simple usage of this API.
 
@@ -39,7 +57,7 @@ Check it out in [WebNN Code Editor](https://webmachinelearning.github.io/webnn-s
 
 ### Goals
 
-Web applications and frameworks can take advantage of the native operating system services for machine learning and the underlying hardware innovations available on the user's computers to implement consistent, efficient, and reliable AI experiences on the web platform.
+Web applications and frameworks can take advantage of the native operating system services for machine learning and the underlying hardware innovations available on the user's computers to implement consistent, efficient, and reliable ML experiences on the web platform.
 
 ### Non-goals
 
@@ -68,7 +86,7 @@ Depending on the underlying hardware capabilities, these platform APIs may make 
 
 A core abstraction behind popular neural networks is a computational graph, a directed graph with its nodes corresponding to operations (ops) and input variables. One node's output value is the input to another node. The WebNN API brings this abstraction to the web.
 
-In the WebNN API, the [`Operand`](https://webmachinelearning.github.io/webnn/#operand) objects represent input, output, and constant multi-dimensional arrays known as [tensors](https://mathworld.wolfram.com/Tensor.html). The [`NeuralNetworkContext`](https://webmachinelearning.github.io/webnn/#api-neuralnetworkcontext) defines a set of operations that facilitate the construction and execution of this computational graph. Such operations may be accelerated with dedicated hardware such as the GPUs, CPUs with extensions for deep learning, or dedicated AI accelerators. These operations defined by the WebNN API are required by [models](https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md) that address key application use cases. Additionally, the WebNN API provides affordances to builder a computational graph, compile the graph, execute the graph, and integrate the graph with other Web APIs that provide input data to the graph e.g. media APIs for image or video frames and sensor APIs for sensory data.
+In the WebNN API, the [`Operand`](https://webmachinelearning.github.io/webnn/#operand) objects represent input, output, and constant multi-dimensional arrays known as [tensors](https://mathworld.wolfram.com/Tensor.html). The [`NeuralNetworkContext`](https://webmachinelearning.github.io/webnn/#api-neuralnetworkcontext) defines a set of operations that facilitate the construction and execution of this computational graph. Such operations may be accelerated with dedicated hardware such as the GPUs, CPUs with extensions for deep learning, or dedicated ML accelerators. These operations defined by the WebNN API are required by [models](https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md) that address key application use cases. Additionally, the WebNN API provides affordances to builder a computational graph, compile the graph, execute the graph, and integrate the graph with other Web APIs that provide input data to the graph e.g. media APIs for image or video frames and sensor APIs for sensory data.
 
 This [example](https://webmachinelearning.github.io/webnn/#examples) builds, compiles, and executes a graph comprised of three ops, takes four inputs and returns one output.
 
@@ -144,17 +162,31 @@ Try the live version of the [WebNN NSNet2 example](https://webmachinelearning.gi
 
 ## Detailed design discussion
 
-### Do we need a neural network API? Can we standardize on just a model-loader API?
+### Do we need a Web Neural Network API? Can we standardize on just a Model Loader API?
 
-A model-loader API loads a model from a specified URL and outputs a model object on which the caller can execute. It leaves all the responsibilities of loading and processing a neural network model to the web browsers and the underlying operating systems while offering the web developers a simple API surface, akin to an image loading API.
+A [Model Loader API](https://github.com/webmachinelearning/model-loader/blob/master/explainer.md) loads a model from a specified URL and outputs a model object on which the caller can execute. It leaves all the responsibilities of loading and processing a neural network model to the web browsers and the underlying operating systems while offering the web developers a simple API surface, akin to an image loading API.
 
-Although this design approach has a clear benefit in its simplicity, it faces a challenge in defining a standard model format that works across the various web browsers and operating systems on the user's devices. In shifting the focus of the design towards the model format, it creates an opportunity for more fragmentation in the way AI is consumed on the web and encourages silos of vendor-specific ecosystems around the particular model formats of choice. Much like in the early days of the image format wars, the web developers will likely have a more difficult time understanding which model formats would work on which combinations of the web browsers and operating systems that they're targeting.
+Although this design approach has a clear benefit in its simplicity, it faces a challenge in defining a standard model format that works across the various web browsers and operating systems on the user's devices. In shifting the focus of the design towards the model format, it creates an opportunity for more fragmentation in the way ML is consumed on the web and encourages silos of vendor-specific ecosystems around the particular model formats of choice. Much like in the early days of the image format wars, the web developers will likely have a more difficult time understanding which model formats would work on which combinations of the web browsers and operating systems that they're targeting.
 
 By defining the WebNN API as a model format-agnostic set of neural network operations, we shift the focus of the design towards the abstraction between the web browsers and the underlying operating system services and let the web applications and JavaScript frameworks continue to focus on satisfying the needs of the web developers knowing that the neural networks they create will faithfully execute regardless of the browser's underlying platform. What we believe works in our favor is the significant overlap of neural network operations and algorithms across all popular frameworks today. Models available in one format are generally convertible to another with little loss.
 
-A model-loader API can also be built atop a neural network API without losing the appeal in its simplicity. Our view is that the two APIs are complementary and not mutually exclusive to each other; however we must start with the neural network API to ensure cross-platform interoperability, a cornerstone of the web platform.
+A Model Loader API can also be built atop a Web Neural Network API without losing the appeal in its simplicity. Our view is that the two APIs are complementary and not mutually exclusive to each other; however we must start with the Web Neural Network API to ensure cross-platform interoperability, a cornerstone of the web platform.
 
-An explainer for the model-loader API can be found [here](https://github.com/webmachinelearning/model-loader/blob/master/explainer.md).
+An explainer for the Model Loader API can be found [here](https://github.com/webmachinelearning/model-loader/blob/master/explainer.md).
+
+|                 | Web Neural Network API           | Model Loader API                         |
+| ---             | ---                              | ----                                     |
+| API style       | Graph builder (~low-level)       | Model loader (~high-level)               |
+| Spec status     | Advancing to WG                  | Explainer                                |
+| Impl experience | Chromium POC, webnn-native       | No                                       |
+| Key customer    | JS ML frameworks                 | Web developers                           |
+| Inference       | Yes                              | Yes                                      |
+| Training        | No, but possible in future       | No                                       |
+| Polyfill        | Yes                              | No, possible on top of WebNN API         |
+| Interop         | Supported by major OS APIs       | No, due to lack of standard model format |
+
+[1]: https://github.com/webmachinelearning/webnn-polyfill
+[2]: https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md
 
 ### What is the right level of abstraction for the neural network operations?
 
@@ -168,9 +200,9 @@ To balance the needs of providing for future extensibility while ensuring maximu
 
 ### Stay the course and build machine learning solutions on WebGL/WebGPU
 
-WebGL and WebGPU are Web API abstraction to the underlying graphics API, which could be used to implement neural network operations that run on the GPU. Popular JavaScript machine learning frameworks such as TensorFlow.js already uses WebGL and are working on a WebGPU backend. An alternative to the WebNN proposal is to continue with this architecture and rely on JavaScript frameworks implemented with these graphics abstraction to address the current and future needs of AI scenarios on the web.
+WebGL and WebGPU are Web API abstraction to the underlying graphics API, which could be used to implement neural network operations that run on the GPU. Popular JavaScript machine learning frameworks such as TensorFlow.js already uses WebGL and are working on a WebGPU backend. An alternative to the WebNN proposal is to continue with this architecture and rely on JavaScript frameworks implemented with these graphics abstraction to address the current and future needs of ML scenarios on the web.
 
-We believe this alternative is insufficient for two reasons. First, although graphics abstraction layers provide the flexibility of general programmability of the GPU graphics pipelines, they are unable to tap into hardware-specific optimizations and special instructions that are available to the operating system internals. The hardware ecosystem has been investing significantly in innovating in the AI space, and much of that is about improving the performance of intensive compute workloads in machine learning scenarios. Some key technologies that are important to model performance may not be uniformly accessible to applications through generic graphics pipeline states.
+We believe this alternative is insufficient for two reasons. First, although graphics abstraction layers provide the flexibility of general programmability of the GPU graphics pipelines, they are unable to tap into hardware-specific optimizations and special instructions that are available to the operating system internals. The hardware ecosystem has been investing significantly in innovating in the ML space, and much of that is about improving the performance of intensive compute workloads in machine learning scenarios. Some key technologies that are important to model performance may not be uniformly accessible to applications through generic graphics pipeline states.
 
 Secondly, the hardware diversity with numerous driver generations make conformance testing of neural network operations at the framework level more challenging. Conformance testing, compatibility, and quality assurance of hardware results have been the traditional areas of strength of the operating systems, something that should be leveraged by frameworks and applications alike. Since neural network models could be used in mission-critical scenarios such as in healthcare or industry processes, the trustworthiness of the results produced by the frameworks are of utmost importance to the users.
 
