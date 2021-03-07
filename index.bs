@@ -17,6 +17,18 @@ Markup Shorthands: idl yes
 Markup Shorthands: css no
 Logo: https://webmachinelearning.github.io/webmachinelearning-logo.png
 </pre>
+<pre class="anchors">
+urlPrefix: https://www.khronos.org/registry/webgl/specs/latest/1.0/; spec: WEBGL-1
+    type: interface
+        text: WebGLRenderingContext; url: 5.14
+        text: WebGLBuffer; url: 5.4
+        text: WebGLTexture; url: 5.9
+urlPrefix: https://gpuweb.github.io/gpuweb/; spec: WEBGPU
+    type: interface
+        text: GPUDevice; url: gpu-device
+        text: GPUBuffer; url: buffer-interface
+        text: GPUTexture; url: texture-interface
+</pre>
 
 Introduction {#intro}
 =====================
@@ -187,20 +199,6 @@ partial interface Navigator {
 
 ## ML ## {#api-ml}
 <script type=idl>
-// WebGL specification:
-// (https://www.khronos.org/registry/webgl/specs/latest/2.0/#2.1)
-[SecureContext, Exposed=Window]
-interface WebGLRenderingContext {
-  // ...
-};
-
-// WebGPU specification:
-// (https://gpuweb.github.io/gpuweb/#gpu-device)
-[SecureContext, Exposed=Window]
-interface GPUDevice {
-  // ...
-};
-
 enum MLPowerPreference {
   // Let the user agent decide the most suitable behavior
   "default",
@@ -272,20 +270,6 @@ interface MLOperand {};
 The {{MLModelBuilder}} interface defines a set of operations as identified by the [[#usecases]] that can be composed into a computational graph. It also represents the intermediate state of a graph building session.
 
 <script type=idl>
-// WebGL specification:
-// (https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.4)
-[SecureContext, Exposed=Window]
-interface WebGLBuffer {
-  // ...
-};
-
-// WebGPU specification:
-// (https://gpuweb.github.io/gpuweb/#buffer-interface)
-[SecureContext, Exposed=Window]
-interface GPUBuffer {
-  // ...
-};
-
 typedef record<DOMString, MLOperand> MLNamedOperands;
 
 [SecureContext, Exposed=Window]
@@ -1398,20 +1382,6 @@ interface MLModel {
 The {{MLCompilation}} interface represents a compiled version of the computational graph of a {{MLModel}} according to the compilation options. A compilation of a graph once constructed is immutable and cannot be subsequently changed.
 
 <script type=idl>
-// WebGL specification:
-// (https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.9)
-[SecureContext, Exposed=Window]
-interface WebGLTexture {
-  // ...
-};
-
-// WebGPU specification:
-// (https://gpuweb.github.io/gpuweb/#texture-interface)
-[SecureContext, Exposed=Window]
-interface GPUTexture {
-  // ...
-};
-
 dictionary MLInput {
   required ArrayBufferView bufferView;
   sequence<long> dimensions;
@@ -1422,45 +1392,85 @@ dictionary MLOutput {
   sequence<long> dimensions;
 };
 
-dictionary MLWebGLInput {
+dictionary MLWebGLTextureInput {
   required WebGLTexture glTexture;
   sequence<long> dimensions;
 };
 
-dictionary MLWebGLOutput {
+dictionary MLWebGLTextureOutput {
   WebGLTexture glTexture;
   sequence<long> dimensions;
 };
 
-dictionary MLGPUInput {
+dictionary MLWebGLBufferInput {
+  required WebGLBuffer glBuffer;
+  long offset;
+  long size;
+  sequence<long> dimensions;
+};
+
+dictionary MLWebGLBufferOutput {
+  WebGLBuffer glBuffer;
+  long offset;
+  long size;
+  sequence<long> dimensions;
+};
+
+dictionary MLGPUTextureInput {
   required GPUTexture gpuTexture;
   sequence<long> dimensions;
 };
 
-dictionary MLGPUOutput {
+dictionary MLGPUTextureOutput {
   GPUTexture gpuTexture;
+  sequence<long> dimensions;
+};
+
+dictionary MLGPUBufferInput {
+  required GPUBuffer gpuBuffer;
+  long offset;
+  long size;
+  sequence<long> dimensions;
+};
+
+dictionary MLGPUBufferOutput {
+  GPUBuffer gpuBuffer;
+  long offset;
+  long size;
   sequence<long> dimensions;
 };
 
 typedef record<DOMString, MLInput> MLNamedInputs;
 typedef record<DOMString, MLOutput> MLNamedOutputs;
 
-typedef record<DOMString, MLWebGLInput> MLNamedWebGLInputs;
-typedef record<DOMString, MLWebGLOutput> MLNamedWebGLOutputs;
+typedef record<DOMString, MLWebGLTextureInput> MLNamedWebGLTextureInputs;
+typedef record<DOMString, MLWebGLTextureOutput> MLNamedWebGLTextureOutputs;
 
-typedef record<DOMString, MLGPUInput> MLNamedGPUInputs;
-typedef record<DOMString, MLGPUOutput> MLNamedGPUOutputs;
+typedef record<DOMString, MLWebGLBufferInput> MLNamedWebGLBufferInputs;
+typedef record<DOMString, MLWebGLBufferOutput> MLNamedWebGLBufferOutputs;
+
+typedef record<DOMString, MLGPUTextureInput> MLNamedGPUTextureInputs;
+typedef record<DOMString, MLGPUTextureOutput> MLNamedGPUTextureOutputs;
+
+typedef record<DOMString, MLGPUBufferInput> MLNamedGPUBufferInputs;
+typedef record<DOMString, MLGPUBufferOutput> MLNamedGPUBufferOutputs;
 
 [SecureContext, Exposed=Window]
 interface MLCompilation {
   Promise<MLNamedOutputs> compute(MLNamedInputs inputs, 
                                   optional MLNamedOutputs outputs = {});
 
-  Promise<MLNamedWebGLOutputs> compute(MLNamedWebGLInputs glInputs, 
-                                       optional MLNamedWebGLOutputs glOutputs = {});
+  Promise<MLNamedWebGLOutputs> compute(MLNamedWebGLTextureInputs glTextureInputs, 
+                                       optional MLNamedWebGLTextureOutputs glTextureOutputs = {});
 
-  Promise<MLNamedGPUOutputs> compute(MLNamedGPUInputs gpuInputs, 
-                                     optional MLNamedGPUOutputs gpuOutputs = {});
+  Promise<MLNamedWebGLOutputs> compute(MLNamedWebGLBufferInputs glBufferInputs, 
+                                       optional MLNamedWebGLBufferOutputs glBufferOutputs = {});
+
+  Promise<MLNamedGPUOutputs> compute(MLNamedGPUTextureInputs gpuTextureInputs,
+                                     optional MLNamedGPUTextureOutputs gpuTextureOutputs = {});
+
+  Promise<MLNamedGPUOutputs> compute(MLNamedGPUBufferInputs gpuBufferInputs,
+                                     optional MLNamedGPUBufferOutputs gpuBufferOutputs = {});
 };
 </script>
 
