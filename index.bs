@@ -272,6 +272,12 @@ The {{MLModelBuilder}} interface defines a set of operations as identified by th
 <script type=idl>
 typedef record<DOMString, MLOperand> MLNamedOperands;
 
+dictionary MLBuffer {
+  required (ArrayBufferView or WebGLBuffer or GPUBuffer) resource;
+  unsigned long long offset = 0;
+  unsigned long long size;
+};
+
 [SecureContext, Exposed=Window]
 interface MLModelBuilder {
   // Construct the model builder from the context.
@@ -281,21 +287,13 @@ interface MLModelBuilder {
   MLOperand input(DOMString name, MLOperandDescriptor desc);
 
   // Create an operand for a model constant.
-  MLOperand constant(MLOperandDescriptor desc, ArrayBufferView bufferView);
-
-  // Create an operand for a model constant from a WebGL buffer.
-  MLOperand constant(MLOperandDescriptor desc, WebGLBuffer glBuffer, 
-                     optional long offset = 0, optional long size);
-
-  // Create an operand for a model constant from a WebGPU buffer.
-  MLOperand constant(MLOperandDescriptor desc, GPUBuffer gpuBuffer, 
-                     optional long offset = 0, optional long size);
+  MLOperand constant(MLOperandDescriptor desc, MLBuffer buffer);
 
   // Create a single-value operand from the specified number of the specified type.
   MLOperand constant(double value, optional MLOperandType type = "float32");
 
-  // Create a model that encapsulates the composition of operands by identifying the output operands.
-  MLModel createModel(MLNamedOperands outputs);
+  // Compile the model up to the specified output operands
+  Promise<MLCompilation> compile(MLNamedOperands outputs);
 };
 </script>
 
@@ -1368,109 +1366,27 @@ partial interface MLModelBuilder {
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor. 
 </div>
 
-## MLModel ## {#api-mlmodel}
-The {{MLModel}} interface represents an immutable computational graph constructed by the {{MLModelBuilder}} interface. The operands to the starting operations of the graph are assumed to be the model's input operands.
-
-<script type=idl>
-[SecureContext, Exposed=Window]
-interface MLModel {
-  Promise<MLCompilation> compile();
-};
-</script>
-
 ## Compilation ## {#api-mlcompilation}
 The {{MLCompilation}} interface represents a compiled version of the computational graph of a {{MLModel}} according to the compilation options. A compilation of a graph once constructed is immutable and cannot be subsequently changed.
 
 <script type=idl>
 dictionary MLInput {
-  required ArrayBufferView bufferView;
+  required (MLBuffer or WebGLTexture or GPUTexture) resource;
   sequence<long> dimensions;
 };
 
 dictionary MLOutput {
-  ArrayBufferView bufferView;
-  sequence<long> dimensions;
-};
-
-dictionary MLWebGLTextureInput {
-  required WebGLTexture glTexture;
-  sequence<long> dimensions;
-};
-
-dictionary MLWebGLTextureOutput {
-  WebGLTexture glTexture;
-  sequence<long> dimensions;
-};
-
-dictionary MLWebGLBufferInput {
-  required WebGLBuffer glBuffer;
-  long offset;
-  long size;
-  sequence<long> dimensions;
-};
-
-dictionary MLWebGLBufferOutput {
-  WebGLBuffer glBuffer;
-  long offset;
-  long size;
-  sequence<long> dimensions;
-};
-
-dictionary MLGPUTextureInput {
-  required GPUTexture gpuTexture;
-  sequence<long> dimensions;
-};
-
-dictionary MLGPUTextureOutput {
-  GPUTexture gpuTexture;
-  sequence<long> dimensions;
-};
-
-dictionary MLGPUBufferInput {
-  required GPUBuffer gpuBuffer;
-  long offset;
-  long size;
-  sequence<long> dimensions;
-};
-
-dictionary MLGPUBufferOutput {
-  GPUBuffer gpuBuffer;
-  long offset;
-  long size;
+  (MLBuffer or WebGLTexture or GPUTexture) resource;
   sequence<long> dimensions;
 };
 
 typedef record<DOMString, MLInput> MLNamedInputs;
 typedef record<DOMString, MLOutput> MLNamedOutputs;
 
-typedef record<DOMString, MLWebGLTextureInput> MLNamedWebGLTextureInputs;
-typedef record<DOMString, MLWebGLTextureOutput> MLNamedWebGLTextureOutputs;
-
-typedef record<DOMString, MLWebGLBufferInput> MLNamedWebGLBufferInputs;
-typedef record<DOMString, MLWebGLBufferOutput> MLNamedWebGLBufferOutputs;
-
-typedef record<DOMString, MLGPUTextureInput> MLNamedGPUTextureInputs;
-typedef record<DOMString, MLGPUTextureOutput> MLNamedGPUTextureOutputs;
-
-typedef record<DOMString, MLGPUBufferInput> MLNamedGPUBufferInputs;
-typedef record<DOMString, MLGPUBufferOutput> MLNamedGPUBufferOutputs;
-
 [SecureContext, Exposed=Window]
 interface MLCompilation {
   Promise<MLNamedOutputs> compute(MLNamedInputs inputs, 
                                   optional MLNamedOutputs outputs = {});
-
-  Promise<MLNamedWebGLOutputs> compute(MLNamedWebGLTextureInputs glTextureInputs, 
-                                       optional MLNamedWebGLTextureOutputs glTextureOutputs = {});
-
-  Promise<MLNamedWebGLOutputs> compute(MLNamedWebGLBufferInputs glBufferInputs, 
-                                       optional MLNamedWebGLBufferOutputs glBufferOutputs = {});
-
-  Promise<MLNamedGPUOutputs> compute(MLNamedGPUTextureInputs gpuTextureInputs,
-                                     optional MLNamedGPUTextureOutputs gpuTextureOutputs = {});
-
-  Promise<MLNamedGPUOutputs> compute(MLNamedGPUBufferInputs gpuBufferInputs,
-                                     optional MLNamedGPUBufferOutputs gpuBufferOutputs = {});
 };
 </script>
 
@@ -1527,18 +1443,14 @@ const intermediateOutput2 = builder.add(constant2, input2);
 
 // output is the output MLOperand of the Mul operation.
 const output = builder.mul(intermediateOutput1, intermediateOutput2);
-
-// Create the model by identifying the outputs.
-const model = builder.createModel({'output': output});
 </pre>
 </div>
 
 <div class="example">
-The following code compiles the model by prioritizing lower level of power consumption
-over time. This option could be particularly useful for long-running models.
+Compile the model up to the output operand.
 <pre highlight="js">
 // Compile the constructed model.
-const compilation = await model.compile();
+const compilation = await builder.compile({'output': output});
 </pre>
 </div>
 
@@ -1551,8 +1463,8 @@ const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
 
 // Asynchronously execute the compiled model with the specified inputs.
 const inputs = {
-  'input1': {bufferView: inputBuffer1},
-  'input2': {bufferView: inputBuffer2},
+  'input1': {resource: inputBuffer1},
+  'input2': {resource: inputBuffer2},
 };
 const outputs = await compilation.compute(inputs);
 
