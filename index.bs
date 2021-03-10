@@ -273,7 +273,7 @@ The {{MLModelBuilder}} interface defines a set of operations as identified by th
 typedef record<DOMString, MLOperand> MLNamedOperands;
 
 dictionary MLBuffer {
-  required (ArrayBufferView or WebGLBuffer or GPUBuffer) resource;
+  required (ArrayBuffer or WebGLBuffer or GPUBuffer) resource;
   unsigned long long offset = 0;
   unsigned long long size;
 };
@@ -692,7 +692,7 @@ partial interface MLModelBuilder {
     if (!hiddenState) {
       const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
-      hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
+      hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0).buffer);
     }
 
     let sequence = null;
@@ -1037,11 +1037,11 @@ partial interface MLModelBuilder {
     <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
     const input = builder.constant(
-      { type: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
+      { type: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]).buffer);
 
     // padding: [[1,1], [2,2]]
     const padding = builder.constant(
-      { type: 'float32', dimensions: [2,2] }, new Float32Array([1,1,2,2]));
+      { type: 'float32', dimensions: [2,2] }, new Float32Array([1,1,2,2]).buffer);
 
     // "constant" padded:
     //    [[0,0,0,0,0,0,0],
@@ -1367,7 +1367,7 @@ partial interface MLModelBuilder {
 </div>
 
 ## Compilation ## {#api-mlcompilation}
-The {{MLCompilation}} interface represents a compiled version of the computational graph of a {{MLModel}} according to the compilation options. A compilation of a graph once constructed is immutable and cannot be subsequently changed.
+The {{MLCompilation}} interface represents a compiled computational graph. A compilation of a graph once constructed is immutable and cannot be subsequently changed.
 
 <script type=idl>
 dictionary MLInput {
@@ -1422,14 +1422,14 @@ const builder = new MLModelBuilder(context);
 const desc = {type: 'float32', dimensions: TENSOR_DIMS};
 
 // constant1 is a constant MLOperand with the value 0.5.
-const constantBuffer1 = new Float32Array(TENSOR_SIZE).fill(0.5);
+const constantBuffer1 = new Float32Array(TENSOR_SIZE).fill(0.5).buffer;
 const constant1 = builder.constant(desc, constantBuffer1);
 
 // input1 is one of the input MLOperands. Its value will be set before execution.
 const input1 = builder.input('input1', desc);
 
 // constant2 is another constant MLOperand with the value 0.5.
-const constantBuffer2 = new Float32Array(TENSOR_SIZE).fill(0.5);
+const constantBuffer2 = new Float32Array(TENSOR_SIZE).fill(0.5).buffer;
 const constant2 = builder.constant(desc, constantBuffer2);
 
 // input2 is another input MLOperand. Its value will be set before execution.
@@ -1458,8 +1458,8 @@ const compilation = await builder.compile({'output': output});
 The following code executes the compiled model.
 <pre highlight="js">
 // Setup the input buffers with value 1.
-const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1);
-const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
+const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1).buffer;
+const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1).buffer;
 
 // Asynchronously execute the compiled model with the specified inputs.
 const inputs = {
@@ -1471,7 +1471,7 @@ const outputs = await compilation.compute(inputs);
 // Log the shape and computed result of the output operand.
 console.log('Output shape: ' + outputs.output.dimensions);
 // Output shape: 1,2,2,2
-console.log('Output value: ' + outputs.output.buffer);
+console.log('Output value: ' + new Float32Array(outputs.output.resource));
 // Output value: 2.25,2.25,2.25,2.25,2.25,2.25,2.25,2.25
 </pre>
 </div>

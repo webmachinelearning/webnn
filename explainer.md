@@ -24,14 +24,14 @@ const C = builder.add(builder.mul(A, constant), B);
 // 2. Compile it into executable.
 const compilation = await builder.compile({'C': C});
 // 3. Bind inputs to the model and execute for the result.
-const bufferA = new Float32Array(4).fill(1.0);
-const bufferB = new Float32Array(4).fill(0.8);
+const bufferA = new Float32Array(4).fill(1.0).buffer;
+const bufferB = new Float32Array(4).fill(0.8).buffer;
 const inputs = {'A': {resource: bufferA}, 'B': {resource: bufferB}};
 const outputs = await compilation.compute(inputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
 console.log('Output shape: ' + outputs.C.dimensions);
-console.log('Output value: ' + outputs.C.resource);
+console.log('Output value: ' + new Float32Array(outputs.C.resource));
 ```
 
 Check it out in [WebNN Code Editor](https://webmachinelearning.github.io/webnn-samples/code/?example=mul_add.js).
@@ -79,7 +79,6 @@ There are many important [application use cases](https://webmachinelearning.gith
 // Noise Suppression Net 2 (NSNet2) Baseline Model for Deep Noise Suppression Challenge (DNS) 2021.
 export class NSNet2 {
   constructor() {
-    this.model = null;
     this.compiledModel = null;
     this.frameSize = 161;
     this.hiddenSize = 400;
