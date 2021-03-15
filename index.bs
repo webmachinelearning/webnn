@@ -265,9 +265,9 @@ dictionary MLOperandDescriptor {
 interface MLOperand {};
 </script>
 
-## MLModelBuilder ## {#api-mlmodelbuilder}
+## MLGraphBuilder ## {#api-mlgraphbuilder}
 
-The {{MLModelBuilder}} interface defines a set of operations as identified by the [[#usecases]] that can be composed into a computational graph. It also represents the intermediate state of a graph building session.
+The {{MLGraphBuilder}} interface defines a set of operations as identified by the [[#usecases]] that can be composed into a computational graph. It also represents the intermediate state of a graph building session.
 
 <script type=idl>
 typedef record<DOMString, MLOperand> MLNamedOperands;
@@ -281,25 +281,25 @@ dictionary MLBufferResourceView {
 typedef (ArrayBufferView or MLBufferResourceView) MLBufferView;
 
 [SecureContext, Exposed=Window]
-interface MLModelBuilder {
-  // Construct the model builder from the context.
+interface MLGraphBuilder {
+  // Construct the graph builder from the context.
   constructor(MLContext context);
 
-  // Create an operand for a model input.
+  // Create an operand for a graph input.
   MLOperand input(DOMString name, MLOperandDescriptor desc);
 
-  // Create an operand for a model constant.
+  // Create an operand for a graph constant.
   MLOperand constant(MLOperandDescriptor desc, MLBufferView bufferView);
 
   // Create a single-value operand from the specified number of the specified type.
   MLOperand constant(double value, optional MLOperandType type = "float32");
 
-  // Compile the model up to the specified output operands
-  Promise<MLCompilation> compile(MLNamedOperands outputs);
+  // Compile the graph up to the specified output operands
+  Promise<MLGraph> build(MLNamedOperands outputs);
 };
 </script>
 
-### batchNormalization ### {#api-mlmodelbuilder-batchnorm}
+### batchNormalization ### {#api-mlgraphbuilder-batchnorm}
 Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phrase of this operation.
 <script type=idl>
 dictionary MLBatchNormalizationOptions {
@@ -309,7 +309,7 @@ dictionary MLBatchNormalizationOptions {
   float epsilon = 1e-5;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand batchNormalization(MLOperand input, MLOperand mean, MLOperand variance,
                              optional MLBatchNormalizationOptions options = {});
 };
@@ -351,7 +351,7 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### clamp ### {#api-mlmodelbuilder-clamp}
+### clamp ### {#api-mlgraphbuilder-clamp}
 Clamp the input tensor element-wise within a range specified by the minimum and maximum values.
 <script type=idl>
 dictionary MLClampOptions {
@@ -359,7 +359,7 @@ dictionary MLClampOptions {
   MLOperand maxValue;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand clamp(MLOperand x, optional MLClampOptions options = {});
 };
 </script>
@@ -397,10 +397,10 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### concat ### {#api-mlmodelbuilder-concat}
+### concat ### {#api-mlgraphbuilder-concat}
 Concatenates the input tensors along a given axis.
 <script type=idl>
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand concat(sequence<MLOperand> inputs, long axis);
 };
 </script>
@@ -418,7 +418,7 @@ partial interface MLModelBuilder {
     computed as the sum of all the input sizes of the same dimension.
 </div>
 
-### conv2d ### {#api-mlmodelbuilder-conv2d}
+### conv2d ### {#api-mlgraphbuilder-conv2d}
 Compute a 2-D convolution given 4-D input and filter tensors
 <script type=idl>
 enum MLFilterOperandLayout {
@@ -446,7 +446,7 @@ dictionary MLConv2dOptions {
   MLFilterOperandLayout filterLayout = "oihw";
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand conv2d(MLOperand input, MLOperand filter, optional MLConv2dOptions options = {});
 };
 </script>
@@ -500,11 +500,11 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### element-wise binary operations ### {#api-mlmodelbuilder-binary}
+### element-wise binary operations ### {#api-mlgraphbuilder-binary}
 Compute the element-wise binary addition, subtraction, multiplication, division,
 maximum and minimum of the two input tensors.
 <script type=idl>
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand add(MLOperand a, MLOperand b);
   MLOperand sub(MLOperand a, MLOperand b);
   MLOperand mul(MLOperand a, MLOperand b);
@@ -537,10 +537,10 @@ partial interface MLModelBuilder {
         - *pow*: Compute the values of the values of the first input tensor to the power of the values of the second input tensor, element-wise.
 </div>
 
-### element-wise unary operations ### {#api-mlmodelbuilder-unary}
+### element-wise unary operations ### {#api-mlgraphbuilder-unary}
 Compute the element-wise unary operation for input tensor.
 <script type=idl>
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand abs(MLOperand x);
   MLOperand ceil(MLOperand x);
   MLOperand cos(MLOperand x);
@@ -587,7 +587,7 @@ partial interface MLModelBuilder {
         - *tanh*: Compute the hyperbolic tangent of the input tensor, element-wise.
 </div>
 
-### gemm ### {#api-mlmodelbuilder-gemm}
+### gemm ### {#api-mlgraphbuilder-gemm}
 Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A`, `B`, and `C` are matrices, and `A` and `B` may optionally be transposed prior to the calculation.
 <script type=idl>
 dictionary MLGemmOptions {
@@ -598,7 +598,7 @@ dictionary MLGemmOptions {
   boolean bTranspose = false;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand gemm(MLOperand a, MLOperand b, optional MLGemmOptions options = {});
 };
 </script>
@@ -630,7 +630,7 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### gru ### {#api-mlmodelbuilder-gru}
+### gru ### {#api-mlgraphbuilder-gru}
 Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of the Network
 <script type=idl>
 enum MLRecurrentNetworkWeightLayout {
@@ -661,7 +661,7 @@ dictionary MLGruOptions {
   sequence<MLRecurrentNetworkActivation> activations;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   sequence<MLOperand> gru(MLOperand input, MLOperand weight, MLOperand recurrentWeight, 
                         long steps, long hiddenSize, optional MLGruOptions options = {});
 };
@@ -747,7 +747,7 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### gruCell ### {#api-mlmodelbuilder-grucell}
+### gruCell ### {#api-mlgraphbuilder-grucell}
 A single time step of the Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of a recurrent network.
 <script type=idl>
 dictionary MLGruCellOptions {
@@ -758,7 +758,7 @@ dictionary MLGruCellOptions {
   sequence<MLRecurrentNetworkActivation> activations;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand gruCell(MLOperand input, MLOperand weight, MLOperand recurrentWeight, 
                   MLOperand hiddenState, long hiddenSize, optional MLGruCellOptions options = {});
 };
@@ -877,8 +877,8 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### instanceNormalization ### {#api-mlmodelbuilder-instancenorm}
-Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-mlmodelbuilder-batchnorm]] where the mean and variance values used in the calculation are previously computed across the batch dimension during the model training phrase, the mean and variance values used in the calculation of an instance normalization are computed internally on the fly per input feature.
+### instanceNormalization ### {#api-mlgraphbuilder-instancenorm}
+Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-mlgraphbuilder-batchnorm]] where the mean and variance values used in the calculation are previously computed across the batch dimension during the model training phrase, the mean and variance values used in the calculation of an instance normalization are computed internally on the fly per input feature.
 <script type=idl>
 dictionary MLInstanceNormalizationOptions {
   MLOperand scale;
@@ -887,7 +887,7 @@ dictionary MLInstanceNormalizationOptions {
   MLInputOperandLayout layout = "nchw";
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand instanceNormalization(MLOperand input, 
                                 optional MLInstanceNormalizationOptions options = {});
 };
@@ -938,13 +938,13 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### leakyRelu ### {#api-mlmodelbuilder-leakyrelu}
+### leakyRelu ### {#api-mlgraphbuilder-leakyrelu}
 <script type=idl>
 dictionary MLLeakyReluOptions {
   float alpha = 0.01;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand leakyRelu(MLOperand x, optional MLLeakyReluOptions options = {});
 };
 </script>
@@ -974,10 +974,10 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### matmul ### {#api-mlmodelbuilder-matmul}
+### matmul ### {#api-mlgraphbuilder-matmul}
 Compute the matrix product of two input tensors.
 <script type=idl>
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand matmul(MLOperand a, MLOperand b);
 };
 </script>
@@ -1007,7 +1007,7 @@ partial interface MLModelBuilder {
             which produces a scalar output.
 </div>
 
-### pad ### {#api-mlmodelbuilder-pad}
+### pad ### {#api-mlgraphbuilder-pad}
 Inflate the tensor with constant or mirrored values on the edges.
 <script type=idl>
 enum MLPaddingMode {
@@ -1022,7 +1022,7 @@ dictionary MLPadOptions {
   float value = 0;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand pad(MLOperand input, MLOperand padding, optional MLPadOptions options = {});
 };
 </script>
@@ -1076,8 +1076,8 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### pooling operations ### {#api-mlmodelbuilder-pool2d}
-Compute a *mean*, *L2 norm*, or *max* reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-mlmodelbuilder-reduce]].
+### pooling operations ### {#api-mlgraphbuilder-pool2d}
+Compute a *mean*, *L2 norm*, or *max* reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-mlgraphbuilder-reduce]].
 <script type=idl>
 dictionary MLPool2dOptions {
   sequence<long> windowDimensions;
@@ -1088,7 +1088,7 @@ dictionary MLPool2dOptions {
   MLInputOperandLayout layout = "nchw";
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand averagePool2d(MLOperand input, optional MLPool2dOptions options = {});
   MLOperand l2Pool2d(MLOperand input, optional MLPool2dOptions options = {});
   MLOperand maxPool2d(MLOperand input, optional MLPool2dOptions options = {});
@@ -1134,7 +1134,7 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### reduction operations ### {#api-mlmodelbuilder-reduce}
+### reduction operations ### {#api-mlgraphbuilder-reduce}
 Reduce the input along the dimensions given in *axes*.
 <script type=idl>
 dictionary MLReduceOptions {
@@ -1142,7 +1142,7 @@ dictionary MLReduceOptions {
   boolean keepDimensions = false;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand reduceL1(MLOperand input, optional MLReduceOptions options = {});
   MLOperand reduceL2(MLOperand input, optional MLReduceOptions options = {});
   MLOperand reduceLogSum(MLOperand input, optional MLReduceOptions options = {});
@@ -1179,7 +1179,7 @@ partial interface MLModelBuilder {
         - *SumSquare*: Compute the sum of the square of all the input values along the axes.
 </div>
 
-### resample ### {#api-mlmodelbuilder-resample}
+### resample ### {#api-mlgraphbuilder-resample}
 Resample the tensor values from the source to the destination dimensions according to the scaling factors.
 <script type=idl>
 enum MLInterpolationMode {
@@ -1193,7 +1193,7 @@ dictionary MLResampleOptions {
   sequence<long> sizes;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand resample(MLOperand input, optional MLResampleOptions options = {});
 };
 </script>
@@ -1209,10 +1209,10 @@ partial interface MLModelBuilder {
     **Returns:** an {{MLOperand}}. The output 4-D tensor.
 </div>
 
-### reshape ### {#api-mlmodelbuilder-reshape}
+### reshape ### {#api-mlgraphbuilder-reshape}
 Alter the shape of a tensor to a new shape. Reshape does not copy or change the content of the tensor. It just changes the tensor's logical dimensions for the subsequent operations.
 <script type=idl>
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand reshape(MLOperand input, sequence<long> newShape);
 };
 </script>
@@ -1231,14 +1231,14 @@ partial interface MLModelBuilder {
     tensor is specified by the *newShape* argument.
 </div>
 
-### slice ### {#api-mlmodelbuilder-slice}
+### slice ### {#api-mlgraphbuilder-slice}
 Produce a slice of the input tensor.
 <script type=idl>
 dictionary MLSliceOptions {
   sequence<long> axes;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand slice(MLOperand input, sequence<long> starts, sequence<long> sizes,
                 optional MLSliceOptions options = {});
 };
@@ -1255,11 +1255,11 @@ partial interface MLModelBuilder {
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
 
-### softmax ### {#api-mlmodelbuilder-softmax}
+### softmax ### {#api-mlgraphbuilder-softmax}
 Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
 the 2-D input tensor along axis 1.
 <script type=idl>
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand softmax(MLOperand x);
 };
 </script>
@@ -1288,14 +1288,14 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### split ### {#api-mlmodelbuilder-split}
+### split ### {#api-mlgraphbuilder-split}
 Split the input tensor into a number of sub tensors along the given axis.
 <script type=idl>
 dictionary MLSplitOptions {
   long axis = 0;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   sequence<MLOperand> split(MLOperand input,
                           (unsigned long or sequence<unsigned long>) splits,
                           optional MLSplitOptions options = {});
@@ -1328,14 +1328,14 @@ partial interface MLModelBuilder {
     </div>
 </div>
 
-### squeeze ### {#api-mlmodelbuilder-squeeze}
+### squeeze ### {#api-mlgraphbuilder-squeeze}
 Reduce the rank of a tensor by eliminating dimensions with size 1 of the tensor shape. Squeeze only affects the tensor's logical dimensions. It does not copy or change the content in the tensor.
 <script type=idl>
 dictionary MLSqueezeOptions {
   sequence<long> axes;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand squeeze(MLOperand input, optional MLSqueezeOptions options = {});
 };
 </script>
@@ -1348,14 +1348,14 @@ partial interface MLModelBuilder {
     **Returns:** an {{MLOperand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
 </div>
 
-### transpose ### {#api-mlmodelbuilder-transpose}
+### transpose ### {#api-mlgraphbuilder-transpose}
 Permute the dimensions of the input tensor according to the *permutation* argument.
 <script type=idl>
 dictionary MLTransposeOptions {
   sequence<long> permutation;
 };
 
-partial interface MLModelBuilder {
+partial interface MLGraphBuilder {
   MLOperand transpose(MLOperand input, optional MLTransposeOptions options = {});
 };
 </script>
@@ -1368,8 +1368,8 @@ partial interface MLModelBuilder {
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor. 
 </div>
 
-## Compilation ## {#api-mlcompilation}
-The {{MLCompilation}} interface represents a compiled computational graph. A compilation of a graph once constructed is immutable and cannot be subsequently changed.
+## MLGraph ## {#api-mlgraph}
+The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
 
 <script type=idl>
 dictionary MLInput {
@@ -1386,7 +1386,7 @@ typedef record<DOMString, MLInput> MLNamedInputs;
 typedef record<DOMString, MLOutput> MLNamedOutputs;
 
 [SecureContext, Exposed=Window]
-interface MLCompilation {
+interface MLGraph {
   Promise<MLNamedOutputs> compute(MLNamedInputs inputs, 
                                   optional MLNamedOutputs outputs = {});
 };
@@ -1418,7 +1418,7 @@ input2    ---+
 const TENSOR_DIMS = [1, 2, 2, 2];
 const TENSOR_SIZE = 8;
 
-const builder = new MLModelBuilder(context);
+const builder = new MLGraphBuilder(context);
 
 // Create MLOperandDescriptor object.
 const desc = {type: 'float32', dimensions: TENSOR_DIMS};
@@ -1449,26 +1449,26 @@ const output = builder.mul(intermediateOutput1, intermediateOutput2);
 </div>
 
 <div class="example">
-Compile the model up to the output operand.
+Compile the graph up to the output operand.
 <pre highlight="js">
-// Compile the constructed model.
-const compilation = await builder.compile({'output': output});
+// Compile the constructed graph.
+const graph = await builder.build({'output': output});
 </pre>
 </div>
 
 <div class="example">
-The following code executes the compiled model.
+The following code executes the compiled graph.
 <pre highlight="js">
 // Setup the input buffers with value 1.
 const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1);
 const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
 
-// Asynchronously execute the compiled model with the specified inputs.
+// Asynchronously execute the compiled graph with the specified inputs.
 const inputs = {
   'input1': {data: inputBuffer1},
   'input2': {data: inputBuffer2},
 };
-const outputs = await compilation.compute(inputs);
+const outputs = await graph.compute(inputs);
 
 // Log the shape and computed result of the output operand.
 console.log('Output shape: ' + outputs.output.dimensions);
