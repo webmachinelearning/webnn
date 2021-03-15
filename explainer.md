@@ -24,14 +24,14 @@ const C = builder.add(builder.mul(A, constant), B);
 // 2. Compile it into executable.
 const compilation = await builder.compile({'C': C});
 // 3. Bind inputs to the model and execute for the result.
-const bufferA = new Float32Array(4).fill(1.0).buffer;
-const bufferB = new Float32Array(4).fill(0.8).buffer;
-const inputs = {'A': {resource: bufferA}, 'B': {resource: bufferB}};
+const bufferA = new Float32Array(4).fill(1.0);
+const bufferB = new Float32Array(4).fill(0.8);
+const inputs = {'A': {data: bufferA}, 'B': {data: bufferB}};
 const outputs = await compilation.compute(inputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
 console.log('Output shape: ' + outputs.C.dimensions);
-console.log('Output value: ' + new Float32Array(outputs.C.resource));
+console.log('Output value: ' + outputs.C.data);
 ```
 
 Check it out in [WebNN Code Editor](https://webmachinelearning.github.io/webnn-samples/code/?example=mul_add.js).
@@ -129,9 +129,9 @@ export class NSNet2 {
 
   async compute(inputBuffer, initialState92Buffer, initialState155Buffer) {
     const inputs = {
-      input: {resource: inputBuffer},
-      initialState92: {resource: initialState92Buffer},
-      initialState155: {resource: initialState155Buffer},
+      input: {data: inputBuffer},
+      initialState92: {data: initialState92Buffer},
+      initialState155: {data: initialState155Buffer},
     };
     return await this.compiledModel.compute(inputs);
   }
