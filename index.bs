@@ -1626,6 +1626,10 @@ interface MLGraph {
 {{MLGraph}} has the following internal slots:
 
 <dl dfn-type=attribute dfn-for="MLGraph">
+    : <dfn>\[[context]]</dfn> of type {{MLContext}}
+    ::
+        The context of type {{MLContext}} associated with this {{MLGraph}}.
+
     : <dfn>\[[inputOperands]]</dfn> of type [=record=]&lt;{{DOMString}}, {{MLOperandDescriptor}}&gt;
     ::
         Maps the name of an input {{MLOperand}} to its {{MLOperandDescriptor}} for all input {{MLOperand}}s of this {{MLGraph}}.
@@ -1636,7 +1640,7 @@ interface MLGraph {
 
     : <dfn>\[[implementation]]</dfn>
     ::
-        Underlying compilation implemenation provided by the User Agent.
+        The underlying implemenation provided by the User Agent.
 </dl>
 
 <dl dfn-type=method dfn-for=MLGraph>
@@ -1649,11 +1653,11 @@ interface MLGraph {
 
             **Arguments:**
             <pre class=argumentdef for="MLGraph/compute(inputs, outputs)">
-                |inputs|: a {{MLNamedInputs}}. The buffers and optional dimensions of inputs for the compute request.
-                |outputs|: an optional {{MLNamedOutputs}}. The names and pre-allocated buffers of required outputs for the compute request. Default to be an empty [=record=] which means that the compute request is for all outputs.
+                |inputs|: a {{MLNamedInputs}}. The data and optional dimensions of inputs for the compute request.
+                |outputs|: an optional {{MLNamedOutputs}}. The names and pre-allocated resources of required outputs for the compute request. Default to be an empty [=record=] which means that the compute request is for all outputs.
             </pre>
 
-            **Returns:** {{Promise}}&lt;{{MLNamedOutputs}}&gt;. The dimensions and buffers of outputs returned by the compute request.
+            **Returns:** {{Promise}}&lt;{{MLNamedOutputs}}&gt;. The dimensions and data of outputs returned by the compute request.
 
             1. Let |promise| be [=a new promise=].
             <!-- Validate inputs and outputs -->
@@ -1663,7 +1667,8 @@ interface MLGraph {
                     1. For each |key| -> |value| of |inputs|:
                         1. |this|.{{MLGraph/[[inputOperands]]}}[|key|] must exist.
                         1. Let |inputOperand| be |this|.{{MLGraph/[[inputOperands]]}}[|key|].
-                        1. The kind of |value|.{{MLInput/data}} must be compatible to |inputOperand|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                        1. If |value|.{{MLInput/data}} is an {{ArrayBufferView}}, then:
+                            1. The kind of |value|.{{MLInput/data}} must be compatible to |inputOperand|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
                         1. If |value|.{{MLInput/dimensions}} was given, then:
                             1. The length of |value|.{{MLInput/dimensions}} must be the same as the length of |inputOperand|.{{MLOperandDescriptor/dimensions}}.
                             1. Let |i| be 0.
@@ -1693,12 +1698,12 @@ interface MLGraph {
             <!-- Copy the inputs -->
             1. Let |copiedInputs| be a new {{MLNamedInputs}}.
             1. For each |key| -> |value| of |inputs|:
-                1. Let |copyiedInput| be a new {{MLInput}}.
-                1. Let |copyiedInput|.{{MLInput/data}} be a new {{ArrayBufferView}} that has the same kind and length as |value|.{{MLInput/data}}'s.
-                1. Set the content of |copyiedInput|.{{MLInput/data}} to the content of |value|.{{MLInput/data}}.
-                1. Let |copyiedInput|.{{MLInput/dimensions}} be a new [=sequence=]&lt;{{long}}&gt; that has the same length of |value|.{{MLInput/dimensions}}'s.
-                1. Set the content of |copyiedInput|.{{MLInput/dimensions}} to the content of |value|.{{MLInput/dimensions}}.
-                1. Set |copiedInputs|[key] to |copyiedInput|.
+                1. Let |copiedInputs| be a new {{MLInput}}.
+                1. Let |copiedInputs|.{{MLInput/data}} be a new {{ArrayBufferView}} that has the same kind and length as |value|.{{MLInput/data}}'s.
+                1. Set the content of |copiedInputs|.{{MLInput/data}} to the content of |value|.{{MLInput/data}}.
+                1. Let |copiedInputs|.{{MLInput/dimensions}} be a new [=sequence=]&lt;{{long}}&gt; that has the same length of |value|.{{MLInput/dimensions}}'s.
+                1. Set the content of |copiedInputs|.{{MLInput/dimensions}} to the content of |value|.{{MLInput/dimensions}}.
+                1. Set |copiedInputs|[key] to |copiedInputs|.
             <!-- Compute -->
             1. Let |results| be a new {{MLNamedOutputs}}.
             1. Let |remainingOutputNames| be a new [=ordered set=]&lt;{{DOMString}}&gt;.
@@ -1723,19 +1728,23 @@ interface MLGraph {
                                         1. Set |i| to |i| + 1.
                                         1. If |i| is equal to |outputRank|, then break.
                                     1. Set |results|[|outputName|].{{MLOutput/dimensions}} to |outputDemisions|.
-                                    1. If |outputs|[|outputName|].{{MLOutput/data}} was given, then:
-                                        1. If the kind of |outputs|[|outputName|].{{MLOutput/data}} is not compatible to output tensor according to [this table](#appendices-mloperandtype-arraybufferview-compatibility), then [=reject=] |promise| with a {{TypeError}} and stop.
-                                        1. If the length of |outputs|[|outputName|].{{MLOutput/data}} is less than |outputSize|, then [=reject=] |promise| with a {{TypeError}} and stop.
-                                        1. Set the content of |outputs|[|outputName|].{{MLOutput/data}} to the content of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
-                                    1. Else:
-                                        1. Let |results|[|outputName|].{{MLOutput/data}} be a new {{ArrayBufferView}} of size |outputSize| and  kind that is compatible to output tensor according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                                        1. Set the content of |results|[|outputName|].{{MLOutput/data}} to the content of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
+                                    1. If |this|.{{MLGraph/[[context]]}} is created from {{MLContextOptions}}, then:
+                                        1. If |outputs|[|outputName|].{{MLOutput/data}} was given, then:
+                                            1. If outputs|[|outputName|].{{MLOutput/data}} is not an {{ArrayBufferView}}, then [=reject=] |promise| with an {{TypeError}} and stop.
+                                            1. If the kind of |outputs|[|outputName|].{{MLOutput/data}} is not compatible to output tensor according to [this table](#appendices-mloperandtype-arraybufferview-compatibility), then [=reject=] |promise| with a {{TypeError}} and stop.
+                                            1. If the length of |outputs|[|outputName|].{{MLOutput/data}} is less than |outputSize|, then [=reject=] |promise| with a {{TypeError}} and stop.
+                                            1. Set the content of |outputs|[|outputName|].{{MLOutput/data}} to the content of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
+                                        1. Else:
+                                            1. Let |results|[|outputName|].{{MLOutput/data}} be a new {{ArrayBufferView}} of size |outputSize| and kind that is compatible to output tensor according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                                            1. Set the content of |results|[|outputName|].{{MLOutput/data}} to the content of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
                                     1. Remove |outputName| from |remainingOutputNames|.
                                     1. If |remainingOutputNames| is empty, then resolve |promise| with |results| and stop.
                             </div>
                 </div>
 
             1. Return |promise|.
+
+            Issue: Describe the algorithm steps for |this|.{{MLGraph/[[context]]}} created from {{WebGLRenderingContext}} and {{GPUDevice}}.
         </div>
 </dl>
 
