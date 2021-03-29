@@ -1751,20 +1751,18 @@ interface MLGraph {
 ### Examples ### {#compilation-examples}
 
 <div class="example">
-The following code showcases the computation with dynamic input dimensions. Check out [a live version](https://webmachinelearning.github.io/webnn-samples/code/?example=dynamic_shape.js) of this example in WebNN Code Editor.
+The following code showcases the computation with dynamic input dimensions.
 <pre highlight="js">
-const nn = navigator.ml.getNeuralNetworkContext();
+const context = navigator.ml.createContext();
 
-// Create a model with dynamic shaped inputs.
-const builder = nn.createModelBuilder();
+// Create a graph with dynamic shaped inputs.
+const builder = new MLGraphBuilder(context);
 const descA = {type: 'float32', dimensions: [-1, 4]};
 const a = builder.input('a', descA);
 const descB = {type: 'float32', dimensions: [4, -1]};
 const b = builder.input('b', descB);
 const c = builder.matmul(a, b);
-const model = builder.createModel({c});
-
-const compiledModel = await model.compile();
+const graph = await builder.build({c});
 
 async function compute(shapeA, shapeB) {
   const bufferA = new Float32Array(sizeOfShape(shapeA)).fill(0.5);
@@ -1772,11 +1770,11 @@ async function compute(shapeA, shapeB) {
 
   // Specify the shape of inputs when computing.
   const inputs = {
-    'a': {buffer: bufferA, dimensions: shapeA},
-    'b': {buffer: bufferB, dimensions: shapeB},
+    'a': {data: bufferA, dimensions: shapeA},
+    'b': {data: bufferB, dimensions: shapeB},
   };
-  const outputs = await compiledModel.compute(inputs);
-  console.log(&#96;shape: [${outputs.c.dimensions}], values: ${outputs.c.buffer}&#96;);
+  const outputs = await graph.compute(inputs);
+  console.log(&#96;shape: [${outputs.c.dimensions}], values: ${outputs.c.data}&#96;);
 }
 
 await compute([3, 4], [4, 3]);
@@ -1786,38 +1784,37 @@ await compute([5, 4], [4, 5]);
 </div>
 
 <div class="example">
-The following code showcases the computation with pre-allocated output buffers. Check out [a live version](https://webmachinelearning.github.io/webnn-samples/code/?example=preallocated_outputs.js) of this example in WebNN Code Editor.
+The following code showcases the computation with pre-allocated output buffers.
 <pre highlight="js">
-const nn = navigator.ml.getNeuralNetworkContext();
+const context = navigator.ml.createContext();
 
-// The following code multiplies matrix a [3, 4] with matrix b [4, 3]
-// into matrix c [3, 3].
-const builder = nn.createModelBuilder();
+// The following code multiplies matrix a of shape [3, 4] with matrix b of shape [4, 3]
+// into matrix c of shape [3, 3].
+const builder = new MLGraphBuilder(context);
 const descA = {type: 'float32', dimensions: [3, 4]};
 const a = builder.input('a', descA);
 const descB = {type: 'float32', dimensions: [4, 3]};
 const bufferB = new Float32Array(sizeOfShape(descB.dimensions)).fill(0.5);
 const b = builder.constant(descB, bufferB);
 const c = builder.matmul(a, b);
-const model = builder.createModel({c});
+const graph = await builder.build({c});
 
-const compiledModel = await model.compile();
 const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
-const inputs = {'a': {buffer: bufferA}};
+const inputs = {'a': {data: bufferA}};
 // Pre-allocate output buffer for c.
-const outputs = {'c': {buffer: new Float32Array(sizeOfShape([3, 3]))}};
-await compiledModel.compute(inputs, outputs);
-console.log(&#96;values: ${outputs.c.buffer}&#96;);
+const outputs = {'c': {data: new Float32Array(sizeOfShape([3, 3]))}};
+await graph.compute(inputs, outputs);
+console.log(&#96;values: ${outputs.c.data}&#96;);
 </pre>
 </div>
 
 <div class="example">
-The following code showcases the computation with optional outputs. Check out [a live version](https://webmachinelearning.github.io/webnn-samples/code/?example=optional_outputs.js) of this example in WebNN Code Editor.
+The following code showcases the computation with optional outputs.
 <pre highlight="js">
-const nn = navigator.ml.getNeuralNetworkContext();
+const context = navigator.ml.createContext();
 
-// Build a model with two outputs.
-const builder = nn.createModelBuilder();
+// Build a graph with two outputs.
+const builder = new MLGraphBuilder(context);
 const descA = {type: 'float32', dimensions: [3, 4]};
 const a = builder.input('a', descA);
 const descB = {type: 'float32', dimensions: [4, 3]};
@@ -1828,25 +1825,24 @@ const bufferC = new Float32Array(sizeOfShape(descC.dimensions)).fill(1);
 const c = builder.constant(descC, bufferC);
 const d = builder.matmul(a, b);
 const e = builder.add(d, c);
-const model = builder.createModel({d, e});
+const graph = await builder.build({d, e});
 
-const compiledModel = await model.compile();
 const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
-const inputs = {'a': {buffer: bufferA}};
+const inputs = {'a': {data: bufferA}};
 
 // Compute both d and e.
-let outputs = await compiledModel.compute(inputs);
+let outputs = await graph.compute(inputs);
 console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
 
 // Compute d.
-outputs = await compiledModel.compute(inputs, {d});
+outputs = await graph.compute(inputs, {d});
 console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
-console.log(&#96;shape: [${outputs.d.dimensions}], values: ${outputs.d.buffer}&#96;);
+console.log(&#96;shape: [${outputs.d.dimensions}], values: ${outputs.d.data}&#96;);
 
 // Compute e.
-outputs = await compiledModel.compute(inputs, {e});
+outputs = await graph.compute(inputs, {e});
 console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
-console.log(&#96;shape: [${outputs.e.dimensions}], values: ${outputs.e.buffer}&#96;);
+console.log(&#96;shape: [${outputs.e.dimensions}], values: ${outputs.e.data}&#96;);
 </pre>
 </div>
 
