@@ -44,12 +44,13 @@ const graph = await builder.build({'C': C});
 // 3. Bind inputs to the graph and execute for the result.
 const bufferA = new Float32Array(4).fill(1.0);
 const bufferB = new Float32Array(4).fill(0.8);
-const inputs = {'A': {data: bufferA}, 'B': {data: bufferB}};
-const outputs = await graph.compute(inputs);
+const inputs = {'A': new MLTensor(bufferA), 'B': new MLTensor(bufferB)};
+const outputs = graph.compute(inputs);
+const data = await outputs.C.data();
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
-console.log('Output shape: ' + outputs.C.dimensions);
-console.log('Output value: ' + outputs.C.data);
+console.log('Output shape: ' + outputs.C.dimensions());
+console.log('Output value: ' + data);
 ```
 
 Check it out in [WebNN Code Editor](https://webmachinelearning.github.io/webnn-samples/code/?example=mul_add.js).
@@ -145,13 +146,13 @@ export class NSNet2 {
     this.graph = await this.builder.build({output, gru94, gru157});
   }
 
-  async compute(inputBuffer, initialState92Buffer, initialState155Buffer) {
+  compute(inputBuffer, initialState92Buffer, initialState155Buffer) {
     const inputs = {
-      input: {data: inputBuffer},
-      initialState92: {data: initialState92Buffer},
-      initialState155: {data: initialState155Buffer},
+      input: new MLTensor(inputBuffer),
+      initialState92: new MLTensor(initialState92Buffer),
+      initialState155: new MLTensor(initialState155Buffer)
     };
-    return await this.graph.compute(inputs);
+    return this.graph.compute(inputs);
   }
 }
 ```

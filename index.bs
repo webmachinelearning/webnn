@@ -202,6 +202,20 @@ thead.stickyheader th, th.stickyheader {
 }
 
 /*
+ * Generic table format.
+ */
+th {
+  text-align: left;
+}
+
+th, td {
+  border-bottom: 1px solid black;
+  border-collapse: collapse;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+/*
  * Darkmode colors
  */
 :root {
@@ -222,7 +236,6 @@ thead.stickyheader th, th.stickyheader {
         --tint-purple: rgba(255, 0, 255, 22%);
     }
 }
-
 </style>
 
 Introduction {#intro}
@@ -429,10 +442,38 @@ They are represented by callbacks and promises in JavaScript.
 <div class="example">
 {{MLGraph/compute()|MLGraph.compute()}}:
 
-  1. User issues a compute request by calling {{MLGraph/compute()|MLGraph.compute()}} on the [=Content timeline=] and gets a promise in return.
-  2. User agent processes the compute request on the [=Device timeline=] by calling the OS ML API.
-  3. After the ML device operating on [=Queue timeline=] is done, the user agent makes the results ready to be consumed by user and [=resolves=] the promise.
+  1. User issues a compute request by calling {{MLGraph/compute()|MLGraph.compute()}} on the [=Content timeline=].
+  2. user agent processes the compute request on the [=Device timeline=] by calling the OS ML API.
+  3. After the ML device operating on [=Queue timeline=] is done, the output is returned.
+  4. User issues a data download request by calling {{MLTensor/data()|MLTensor/data()}} on the [=Content timeline=] and gets a promise in return.
+  5. user agent processes the download request on the [=Device timeline=] by calling the OS API.
+  6. After the data download on [=Queue timeline=] is done, the data is available to the user.
+  7. user agent makes the results ready to be consumed by the user and [=resolves=] the promise.
 
+</div>
+
+## Device Selection ## {#programming-model-device-selection}
+
+An {{MLContext}} interface represents a global state of neural network execution. An important context state is the underlying execution device that manages the resources and facilitates the compilation and eventual execution of the neural network graph. {{MLContext}} may be created from a specific GPU device such as {{GPUDevice}} or {{WebGLRenderingContext}} that is already in use by the application, in which case the corresponding {{GPUBuffer}} or {{WebGLBuffer}} resources used as graph constants, as well as the {{GPUTexture}} and {{WebGLTexture}} as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for {{MLContext}} must be created from the same adapter as the device used to allocate and manage the resources referenced in the graph. If a graph constant or an input is an {{ArrayBufferView}} in the system memory, it is automatically uploaded from the system memory to the GPU memory, and vice versa downloaded to an {{ArrayBufferView}} for a graph output.
+
+When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's preference as defined in the {{MLDevicePreference}} option. 
+- The *"graphics"* device provides the broadest range of achievable performance across hardware platforms from consumer devices to professional workstations. 
+- The *"compute"* device takes advantage of dedicated compute devices for specific kinds of workload with great power efficiency over a long period of execution time. 
+- The *"software"* device provides the broadest reach of compute availability, but with limited scalability of execution performance on the more complex neural networks. 
+- When the device preference is not specified (*"default"*), the user agent selects the most suitable device to use. 
+
+The following table summarizes all the supported device types and the resource types of constants, inputs, and outputs that each of the device types supports.
+
+<div class="note">
+<table>
+  <tr><th>Device Type<th>ArrayBufferView<th>GPUBuffer<th>GPUTexture<th>WebGLBuffer<th>WebGLTexture
+  <tr><td>GPUDevice<td>Yes<td>Yes<td>Yes<td>No<td>No
+  <tr><td>WebGLRenderingContext<td>Yes<td>No<td>No<td>Yes<td>Yes
+  <tr><td>default<td>Yes<td>No<td>No<td>No<td>No
+  <tr><td>graphics<td>Yes<td>No<td>No<td>No<td>No
+  <tr><td>compute<td>Yes<td>No<td>No<td>No<td>No
+  <tr><td>software<td>Yes<td>No<td>No<td>No<td>No
+</table>
 </div>
 
 API {#api}
@@ -447,16 +488,29 @@ partial interface Navigator {
 
 ## ML ## {#api-ml}
 <script type=idl>
-enum MLPowerPreference {
-  // Let the user agent decide the most suitable behavior
+enum MLDevicePreference {
+  // Let the user agent decide the most suitable device to use.
   "default",
-  // Prioritizes execution speed over power consumption
+  // Prefer a graphics processor or GPU.
+  "graphics",
+  // Prefer a compute-specific processor such as a neural engine or NPU.
+  "compute",
+  // Prefer a traditional software-based device such as a CPU.
+  "software"
+};
+
+enum MLPowerPreference {
+  // Let the user agent decide the most suitable behavior.
+  "default",
+  // Prioritizes execution speed over power consumption.
   "high-performance",
-  // Prioritizes power consumption over other considerations such as execution speed
+  // Prioritizes power consumption over other considerations such as execution speed.
   "low-power"
 };
 
 dictionary MLContextOptions {
+  // Preferred kind of device used
+  MLDevicePreference devicePreference = "default";
   // Preference as related to power consumption
   MLPowerPreference powerPreference = "default";
 };
@@ -1616,27 +1670,37 @@ partial interface MLGraphBuilder {
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor. 
 </div>
 
+## MLTensor ## {#api-mltensor}
+The {{MLTensor}} interface represents a multidimensional array of numbers with a shape.
+
+<script type=idl>
+typedef (MLBufferView or WebGLTexture or GPUTexture) MLResource;
+
+[SecureContext, Exposed=Window]
+interface MLTensor {
+  // Construct a tensor from a resource
+  constructor(MLResource resource, optional sequence<long> dimensions);
+
+  // The tensor dimensions
+  sequence<long> dimensions();
+
+  // The underlying resource of the tensor
+  MLResource resource();
+
+  // Asynchronously download the result of a computation onto a typed array.
+  Promise<ArrayBufferView> data();
+};
+</script>
+
 ## MLGraph ## {#api-mlgraph}
 The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
 
 <script type=idl>
-dictionary MLInput {
-  required (MLBufferView or WebGLTexture or GPUTexture) data;
-  sequence<long> dimensions;
-};
-
-dictionary MLOutput {
-  (MLBufferView or WebGLTexture or GPUTexture) data;
-  sequence<long> dimensions;
-};
-
-typedef record<DOMString, MLInput> MLNamedInputs;
-typedef record<DOMString, MLOutput> MLNamedOutputs;
+typedef record<DOMString, MLTensor> MLNamedTensors;
 
 [SecureContext, Exposed=Window]
 interface MLGraph {
-  Promise<MLNamedOutputs> compute(MLNamedInputs inputs, 
-                                  optional MLNamedOutputs outputs = {});
+  MLNamedTensors compute(MLNamedTensors inputs, optional MLNamedTensors outputs = {});
 };
 </script>
 
@@ -1657,44 +1721,43 @@ interface MLGraph {
 
     : <dfn>\[[implementation]]</dfn>
     ::
-        The underlying implemenation provided by the User Agent.
+        The underlying implemenation provided by the user agent.
 </dl>
 
 <dl dfn-type=method dfn-for=MLGraph>
     : <dfn>compute(inputs, outputs)</dfn>
     ::
-        Issue a compute request of the {{MLGraph}} given {{MLNamedInputs}} and optional {{MLNamedOutputs}}. The returned {{Promise}} resolves when the results in {{MLNamedOutputs}} are ready to be consumed.
+        Issue a compute request of the {{MLGraph}} given an input {{MLNamedTensors}} and optional output {{MLNamedTensors}}. The returned {{MLNamedTensors}} are the results ready to be consumed.
 
         <div algorithm=MLGraph.compute>
             **Called on:** {{MLGraph}} |this|.
 
             **Arguments:**
             <pre class=argumentdef for="MLGraph/compute(inputs, outputs)">
-                |inputs|: a {{MLNamedInputs}}. The data and optional dimensions of inputs for the compute request.
-                |outputs|: an optional {{MLNamedOutputs}}. The names and pre-allocated resources of required outputs for the compute request. Default to be an empty [=record=] which means that the compute request is for all outputs.
+                |inputs|: a {{MLNamedTensors}}. The data and optional dimensions of inputs for the compute request.
+                |outputs|: an optional {{MLNamedTensors}}. The names and pre-allocated resources of required outputs for the compute request. Default to be an empty [=record=] which means that the compute request is for all outputs.
             </pre>
 
-            **Returns:** {{Promise}}&lt;{{MLNamedOutputs}}&gt;. The dimensions and data of outputs returned by the compute request.
+            **Returns:** {{MLNamedTensors}}. The dimensions and data of outputs returned by the compute request.
 
-            1. Let |promise| be [=a new promise=].
             <!-- Validate inputs and outputs -->
-            1. If any of the following requirements are unmet, then [=reject=] |promise| with a {{TypeError}} and stop.
+            1. If any of the following requirements are unmet, then stop.
 
                 <div class=validusage>
                     1. For each |key| -> |value| of |inputs|:
                         1. |this|.{{MLGraph/[[inputOperands]]}}[|key|] must exist.
                         1. Let |inputOperand| be |this|.{{MLGraph/[[inputOperands]]}}[|key|].
-                        1. If |value|.{{MLInput/data}} is an {{ArrayBufferView}}, then:
-                            1. The kind of |value|.{{MLInput/data}} must be compatible to |inputOperand|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                        1. If |value|.{{MLInput/dimensions}} was given, then:
-                            1. The length of |value|.{{MLInput/dimensions}} must be the same as the length of |inputOperand|.{{MLOperandDescriptor/dimensions}}.
+                        1. If |value|.{{MLTensor/resource}} is an {{ArrayBufferView}}, then:
+                            1. The kind of |value|.{{MLTensor/resource}} must be compatible to |inputOperand|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                        1. If |value|.{{MLTensor/dimensions}} was given, then:
+                            1. The length of |value|.{{MLTensor/dimensions}} must be the same as the length of |inputOperand|.{{MLOperandDescriptor/dimensions}}.
                             1. Let |i| be 0.
                             1. While true:
-                                1. Let |dimension| be |value|.{{MLInput/dimensions}}[|i|].
+                                1. Let |dimension| be |value|.{{MLTensor/dimensions}}[|i|].
                                 1. |dimension| must be greater than 0.
                                 1. If |inputOperand|.{{MLOperandDescriptor/dimensions}}[|i|] is greater than 0, then |dimension| must be equal to |inputOperand|.{{MLOperandDescriptor/dimensions}}[|i|].
                                 1. Set |i| to |i| + 1.
-                                1. If |i| if equal to the length of |value|.{{MLInput/dimensions}}, then break.
+                                1. If |i| if equal to the length of |value|.{{MLTensor/dimensions}}, then break.
                         1. Else:
                             1. For each |dimension| of |inputOperand|.{{MLOperandDescriptor/dimensions}}:
                                 1. The value of |dimension| must be greater than 0.
@@ -1702,7 +1765,7 @@ interface MLGraph {
                     1. If |outputs| was not an empty [=record=], then:
                         1. For each |key| -> |value| of |outputs|:
                             1. |this|.{{MLGraph/[[outputOperands]]}}[|key|] must exist.
-                            1. If |value|.{{MLOutput/data}} was given, then the kind of |value|.{{MLOutput/data}} must be compatible to |this|.{{MLGraph/[[outputOperands]]}}[|key|] according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                            1. If |value|.{{MLTensor/resource}} was given, then the kind of |value|.{{MLTensor/resource}} must be compatible to |this|.{{MLGraph/[[outputOperands]]}}[|key|] according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
                 </div>
             <!-- Filter the required outputs -->
             1. Let |requiredOutputNames| be a new [=ordered set=]&lt;{{DOMString}}&gt;.
@@ -1713,16 +1776,16 @@ interface MLGraph {
                 1. For each |key| -> |value| of |this|.{{MLGraph/[[outputOperands]]}}:
                     1. Append |key| to |requiredOutputNames|.
             <!-- Copy the inputs -->
-            1. Let |copiedInputs| be a new {{MLNamedInputs}}.
+            1. Let |copiedInputs| be a new {{MLNamedTensors}}.
             1. For each |key| -> |value| of |inputs|:
-                1. Let |copiedInputs| be a new {{MLInput}}.
-                1. Let |copiedInputs|.{{MLInput/data}} be a new {{ArrayBufferView}} that has the same kind and length as |value|.{{MLInput/data}}'s.
-                1. Set the content of |copiedInputs|.{{MLInput/data}} to the content of |value|.{{MLInput/data}}.
-                1. Let |copiedInputs|.{{MLInput/dimensions}} be a new [=sequence=]&lt;{{long}}&gt; that has the same length of |value|.{{MLInput/dimensions}}'s.
-                1. Set the content of |copiedInputs|.{{MLInput/dimensions}} to the content of |value|.{{MLInput/dimensions}}.
+                1. Let |copiedInputs| be a new {{MLTensor}}.
+                1. Let |copiedInputs|.{{MLTensor/resource}} be a new {{ArrayBufferView}} that has the same kind and length as |value|.{{MLTensor/resource}}'s.
+                1. Set the content of |copiedInputs|.{{MLTensor/resource}} to the content of |value|.{{MLTensor/resource}}.
+                1. Let |copiedInputs|.{{MLTensor/dimensions}} be a new [=sequence=]&lt;{{long}}&gt; that has the same length of |value|.{{MLTensor/dimensions}}'s.
+                1. Set the content of |copiedInputs|.{{MLTensor/dimensions}} to the content of |value|.{{MLTensor/dimensions}}.
                 1. Set |copiedInputs|[key] to |copiedInputs|.
             <!-- Compute -->
-            1. Let |results| be a new {{MLNamedOutputs}}.
+            1. Let |results| be a new {{MLNamedTensors}}.
             1. Let |remainingOutputNames| be a new [=ordered set=]&lt;{{DOMString}}&gt;.
             1. Set the content of |remainingOutputNames| to the content of |requiredOutputNames|.
             1. Issue the following steps on the [=Device timeline=] of |this|.{{MLGraph/[[implementation]]}}:
@@ -1744,18 +1807,18 @@ interface MLGraph {
                                         1. Set |outputSize| to |outputSize| * |outputDimensions|[|i|].
                                         1. Set |i| to |i| + 1.
                                         1. If |i| is equal to |outputRank|, then break.
-                                    1. Set |results|[|outputName|].{{MLOutput/dimensions}} to |outputDemisions|.
+                                    1. Set |results|[|outputName|].{{MLTensor/dimensions}} to |outputDemisions|.
                                     1. If |this|.{{MLGraph/[[context]]}} is created from {{MLContextOptions}}, then:
-                                        1. If |outputs|[|outputName|].{{MLOutput/data}} was given, then:
-                                            1. If outputs|[|outputName|].{{MLOutput/data}} is not an {{ArrayBufferView}}, then [=reject=] |promise| with an {{TypeError}} and stop.
-                                            1. If the kind of |outputs|[|outputName|].{{MLOutput/data}} is not compatible to output tensor according to [this table](#appendices-mloperandtype-arraybufferview-compatibility), then [=reject=] |promise| with a {{TypeError}} and stop.
-                                            1. If the length of |outputs|[|outputName|].{{MLOutput/data}} is less than |outputSize|, then [=reject=] |promise| with a {{TypeError}} and stop.
-                                            1. Set the content of |outputs|[|outputName|].{{MLOutput/data}} to the content of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
+                                        1. If |outputs|[|outputName|].{{MLTensor/resource}} was given, then:
+                                            1. If outputs|[|outputName|].{{MLTensor/resource}} is not an {{ArrayBufferView}}, then stop.
+                                            1. If the kind of |outputs|[|outputName|].{{MLTensor/resource}} is not compatible to output tensor according to [this table](#appendices-mloperandtype-arraybufferview-compatibility), then stop.
+                                            1. If the length of |outputs|[|outputName|].{{MLTensor/resource}} is less than |outputSize|, then stop.
+                                            1. Set the content of |outputs|[|outputName|].{{MLTensor/resource}} to the content of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
                                         1. Else:
-                                            1. Let |results|[|outputName|].{{MLOutput/data}} be a new {{ArrayBufferView}} of size |outputSize| and kind that is compatible to output tensor according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                                            1. Set the content of |results|[|outputName|].{{MLOutput/data}} to the content of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
+                                            1. Let |results|[|outputName|].{{MLTensor/resource}} be a new {{ArrayBufferView}} of size |outputSize| and kind that is compatible to output tensor according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                                            1. Set the content of |results|[|outputName|].{{MLTensor/resource}} to the content of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
                                     1. Remove |outputName| from |remainingOutputNames|.
-                                    1. If |remainingOutputNames| is empty, then resolve |promise| with |results| and stop.
+                                    1. If |remainingOutputNames| is empty, then stop.
                             </div>
                 </div>
 
@@ -1787,11 +1850,12 @@ async function compute(shapeA, shapeB) {
 
   // Specify the shape of inputs when computing.
   const inputs = {
-    'a': {data: bufferA, dimensions: shapeA},
-    'b': {data: bufferB, dimensions: shapeB},
+    'a': new MLTensor(bufferA, shapeA),
+    'b': new MLTensor(bufferB, shapeB)
   };
-  const outputs = await graph.compute(inputs);
-  console.log(&#96;shape: [${outputs.c.dimensions}], values: ${outputs.c.data}&#96;);
+  const outputs = graph.compute(inputs);
+  const data = await outputs.c.data();
+  console.log(&#96;shape: [${outputs.c.dimensions()}], values: ${data}&#96;);
 }
 
 await compute([3, 4], [4, 3]);
@@ -1817,11 +1881,12 @@ const c = builder.matmul(a, b);
 const graph = await builder.build({c});
 
 const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
-const inputs = {'a': {data: bufferA}};
+const inputs = {'a': new MLTensor(bufferA)};
 // Pre-allocate output buffer for c.
-const outputs = {'c': {data: new Float32Array(sizeOfShape([3, 3]))}};
-await graph.compute(inputs, outputs);
-console.log(&#96;values: ${outputs.c.data}&#96;);
+const outputs = {'c': new MLTensor(new Float32Array(sizeOfShape([3, 3])))};
+graph.compute(inputs, outputs);
+const data = await outputs.c.data();
+console.log(&#96;values: ${data}&#96;);
 </pre>
 </div>
 
@@ -1845,21 +1910,23 @@ const e = builder.add(d, c);
 const graph = await builder.build({d, e});
 
 const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
-const inputs = {'a': {data: bufferA}};
+const inputs = {'a': new MLTensor(bufferA)};
 
 // Compute both d and e.
-let outputs = await graph.compute(inputs);
+let outputs = graph.compute(inputs);
 console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
 
 // Compute d.
-outputs = await graph.compute(inputs, {d});
+outputs = graph.compute(inputs, {d});
+let data = await outputs.d.data();
 console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
-console.log(&#96;shape: [${outputs.d.dimensions}], values: ${outputs.d.data}&#96;);
+console.log(&#96;shape: [${outputs.d.dimensions()}], values: ${data}&#96;);
 
 // Compute e.
-outputs = await graph.compute(inputs, {e});
+outputs = graph.compute(inputs, {e});
+data = await outputs.e.data();
 console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
-console.log(&#96;shape: [${outputs.e.dimensions}], values: ${outputs.e.data}&#96;);
+console.log(&#96;shape: [${outputs.e.dimensions()}], values: ${data}&#96;);
 </pre>
 </div>
 
@@ -1934,17 +2001,18 @@ The following code executes the compiled graph.
 const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1);
 const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
 
-// Asynchronously execute the compiled graph with the specified inputs.
+// Execute the compiled graph with the specified inputs and asynchronously download the result.
 const inputs = {
-  'input1': {data: inputBuffer1},
-  'input2': {data: inputBuffer2},
+  'input1': new MLTensor(inputBuffer1),
+  'input2': new MLTensor(inputBuffer2),
 };
-const outputs = await graph.compute(inputs);
+const outputs = graph.compute(inputs);
+const data = await outputs.output.data();
 
 // Log the shape and computed result of the output operand.
-console.log('Output shape: ' + outputs.output.dimensions);
+console.log('Output shape: ' + outputs.output.dimensions());
 // Output shape: 1,2,2,2
-console.log('Output value: ' + outputs.output.data);
+console.log('Output value: ' + data);
 // Output value: 2.25,2.25,2.25,2.25,2.25,2.25,2.25,2.25
 </pre>
 </div>
