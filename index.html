@@ -2226,7 +2226,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"><a class="logo" href="https://webmachinelearning.github.io/"> <img alt="Logo" height="100" src="https://webmachinelearning.github.io/webmachinelearning-logo.png" width="100"> </a> </p>
    <h1 class="p-name no-ref" id="title">Web Neural Network API</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="subtitle"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2021-04-05">5 April 2021</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="subtitle"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2021-04-15">15 April 2021</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2754,7 +2754,8 @@ inputs.</p>
 <pre class="idl highlight def"><c- b>enum</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="enum" data-export id="enumdef-mlfilteroperandlayout"><code><c- g>MLFilterOperandLayout</c-></code></dfn> {
   <dfn class="idl-code" data-dfn-for="MLFilterOperandLayout" data-dfn-type="enum-value" data-export id="dom-mlfilteroperandlayout-oihw"><code><c- s>"oihw"</c-></code><a class="self-link" href="#dom-mlfilteroperandlayout-oihw"></a></dfn>,
   <dfn class="idl-code" data-dfn-for="MLFilterOperandLayout" data-dfn-type="enum-value" data-export id="dom-mlfilteroperandlayout-hwio"><code><c- s>"hwio"</c-></code><a class="self-link" href="#dom-mlfilteroperandlayout-hwio"></a></dfn>,
-  <dfn class="idl-code" data-dfn-for="MLFilterOperandLayout" data-dfn-type="enum-value" data-export id="dom-mlfilteroperandlayout-ohwi"><code><c- s>"ohwi"</c-></code><a class="self-link" href="#dom-mlfilteroperandlayout-ohwi"></a></dfn>
+  <dfn class="idl-code" data-dfn-for="MLFilterOperandLayout" data-dfn-type="enum-value" data-export id="dom-mlfilteroperandlayout-ohwi"><code><c- s>"ohwi"</c-></code><a class="self-link" href="#dom-mlfilteroperandlayout-ohwi"></a></dfn>,
+  <dfn class="idl-code" data-dfn-for="MLFilterOperandLayout" data-dfn-type="enum-value" data-export id="dom-mlfilteroperandlayout-ihwo"><code><c- s>"ihwo"</c-></code><a class="self-link" href="#dom-mlfilteroperandlayout-ihwo"></a></dfn>
 };
 
 <c- b>enum</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="enum" data-export id="enumdef-mlautopad"><code><c- g>MLAutoPad</c-></code></dfn> {
@@ -2841,6 +2842,11 @@ interpreted according to the value of <em>options.layout</em> and <em>options.gr
          <li data-md>
           <p>[output_channels, height, width, input_channels/groups]</p>
         </ul>
+        <p>"ihwo":</p>
+        <ul>
+         <li data-md>
+          <p>[input_channels/groups, height, width, output_channels]</p>
+        </ul>
       </ul>
     </ul>
     <p><strong>Returns:</strong> an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand③③">MLOperand</a></code>. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the <em>options.layout</em> value. More specifically the sizes of the last two dimensions of the output tensor, the spatial dimensions, for the convolution operation can be calculated as follow:</p>
@@ -2848,7 +2854,7 @@ interpreted according to the value of <em>options.layout</em> and <em>options.gr
     <p>Whereas for the transposed convolution case with <em>options.transpose</em> set to <em>true</em>, unless the <em>options.outputSizes</em> values are explicitly specified, the <em>options.outputPadding</em> may be needed to compute the spatial dimension values of the output tensor as follow:</p>
     <p><em>output size = (input size - 1) </em>* <em>stride + filter size - beginning padding - ending padding + output padding</em></p>
     <div class="note" role="note"> A <em>depthwise</em> conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the <em>options.groups</em> = input_channels = output_channels and the shape of filter tensor is [options.groups, 1, height, width]
-    for <em>"nchw"</em> layout or [height, width, 1, options.groups] for "nhwc" layout. </div>
+    for <em>"oihw"</em> layout, [height, width, 1, options.groups] for <em>"hwio"</em> layout, [options.groups, height, width, 1] for <em>"ohwi"</em> layout and [1, height, width, options.groups] for <em>"ihwo"</em> layout. </div>
    </div>
    <h4 class="heading settled" data-level="4.6.5" id="api-mlgraphbuilder-binary"><span class="secno">4.6.5. </span><span class="content">element-wise binary operations</span><a class="self-link" href="#api-mlgraphbuilder-binary"></a></h4>
     Compute the element-wise binary addition, subtraction, multiplication, division,
@@ -4460,6 +4466,7 @@ Benjamin Poulain for their contributions to the API specification.</p>
    <li><a href="#dom-mlgraphbuilder-gru">gru(input, weight, recurrentWeight, steps, hiddenSize, options)</a><span>, in §4.6.8</span>
    <li><a href="#dom-mlpowerpreference-high-performance">"high-performance"</a><span>, in §4.2</span>
    <li><a href="#dom-mlfilteroperandlayout-hwio">"hwio"</a><span>, in §4.6.4</span>
+   <li><a href="#dom-mlfilteroperandlayout-ihwo">"ihwo"</a><span>, in §4.6.4</span>
    <li><a href="#dom-mlgraph-implementation-slot">[[implementation]]</a><span>, in §4.7</span>
    <li><a href="#dom-mlgruoptions-initialhiddenstate">initialHiddenState</a><span>, in §4.6.8</span>
    <li><a href="#dom-mlconv2doptions-inputlayout">inputLayout</a><span>, in §4.6.4</span>
@@ -5120,7 +5127,8 @@ Benjamin Poulain for their contributions to the API specification.</p>
 <c- b>enum</c-> <a href="#enumdef-mlfilteroperandlayout"><code><c- g>MLFilterOperandLayout</c-></code></a> {
   <a href="#dom-mlfilteroperandlayout-oihw"><code><c- s>"oihw"</c-></code></a>,
   <a href="#dom-mlfilteroperandlayout-hwio"><code><c- s>"hwio"</c-></code></a>,
-  <a href="#dom-mlfilteroperandlayout-ohwi"><code><c- s>"ohwi"</c-></code></a>
+  <a href="#dom-mlfilteroperandlayout-ohwi"><code><c- s>"ohwi"</c-></code></a>,
+  <a href="#dom-mlfilteroperandlayout-ihwo"><code><c- s>"ihwo"</c-></code></a>
 };
 
 <c- b>enum</c-> <a href="#enumdef-mlautopad"><code><c- g>MLAutoPad</c-></code></a> {
