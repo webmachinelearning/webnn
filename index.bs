@@ -454,15 +454,13 @@ They are represented by callbacks and promises in JavaScript.
 
 ## Device Selection ## {#programming-model-device-selection}
 
-An {{MLContext}} interface represents a global state of neural network execution. An important context state is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. An {{MLContext}} could be created from a specific GPU device such as {{GPUDevice}} or {{WebGLRenderingContext}} that is already in use by the application, in which case the corresponding {{GPUBuffer}} or {{WebGLBuffer}} resources used as graph constants, as well as the {{GPUTexture}} and {{WebGLTexture}} as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for {{MLContext}} must be created from the same adapter as the device used to allocate the resources referenced in the graph.
+An {{MLContext}} interface represents a global state of neural network execution. An important context state is the underlying execution device that manages the resources and facilitates the compilation and eventual execution of the neural network graph. {{MLContext}} may be created from a specific GPU device such as {{GPUDevice}} or {{WebGLRenderingContext}} that is already in use by the application, in which case the corresponding {{GPUBuffer}} or {{WebGLBuffer}} resources used as graph constants, as well as the {{GPUTexture}} and {{WebGLTexture}} as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for {{MLContext}} must be created from the same adapter as the device used to allocate and manage the resources referenced in the graph. If a graph constant or an input is an {{ArrayBufferView}} in the system memory, it is automatically uploaded from the system memory to the GPU memory, and vice versa downloaded to an {{ArrayBufferView}} for a graph output.
 
-In a situation when a GPU context executes a graph with constants or inputs given as {{ArrayBufferView}}, the content of such constant or input is automatically uploaded from the system memory to the GPU memory. Likewise, the content of the execution result is downloaded to the system memory as {{ArrayBufferView}} upon requested.
-
-When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's preference specified in the {{MLDevicePreference}} option. 
+When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's preference as defined in the {{MLDevicePreference}} option. 
 - The *"graphics"* device provides the broadest range of achievable performance across hardware platforms from consumer devices to professional workstations. 
-- The *"compute"* device takes advantage of special-purpose hardware for specific kinds of workload with great power efficiency over a long period of execution time. 
+- The *"compute"* device takes advantage of dedicated compute devices for specific kinds of workload with great power efficiency over a long period of execution time. 
 - The *"software"* device provides the broadest reach of compute availability, but with limited scalability of execution performance on the more complex neural networks. 
-- When the device preference is not specified (*"default"*), the user agent automatically selects the most suitable device to use. 
+- When the device preference is not specified (*"default"*), the user agent selects the most suitable device to use. 
 
 The following table summarizes all the supported device types and the resource types of constants, inputs, and outputs that each of the device types supports.
 
@@ -513,7 +511,6 @@ enum MLPowerPreference {
 dictionary MLContextOptions {
   // Preferred kind of device used
   MLDevicePreference devicePreference = "default";
-
   // Preference as related to power consumption
   MLPowerPreference powerPreference = "default";
 };
@@ -1674,7 +1671,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ## MLTensor ## {#api-mltensor}
-The {{MLTensor}} interface represents a resource of a multidimensional array of numbers with a shape.
+The {{MLTensor}} interface represents a multidimensional array of numbers with a shape.
 
 <script type=idl>
 typedef (MLBufferView or WebGLTexture or GPUTexture) MLResource;
