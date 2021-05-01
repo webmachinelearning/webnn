@@ -523,7 +523,31 @@ interface ML {
 };
 </script>
 
+=======
+The {{ML/createContext()}} method steps are:
+1. If the [=responsible document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then throw a "{{SecurityError!!exception}}" {{DOMException}} and abort these steps.
+1. Let |context| be a new {{MLContext}} object.
+1. Switch on the method's first argument:
+    <dl class=switch>
+    <dt>{{MLContextOptions}}
+    <dd>Set |context|'s [=context type=] to [=default-context|default=].
 
+    <dt>{{WebGLRenderingContext}}
+    <dd>Set |context|'s [=context type=] to [=webgl-context|webgl=].
+
+    <dt>{{GPUDevice}}
+    <dd>Set |context|'s [=context type=] to [=webgpu-context|webgpu=].
+
+    <dt>Otherwise
+    <dd>Set |context|'s [=context type=] to [=default-context|default=].
+    </dl>
+1. Return |context|.
+
+### Permissions Policy Integration ### {#permissions-policy-integration}
+
+This specification defines a <a>policy-controlled feature</a> identified by the
+string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
+Its <a>default allowlist</a> is <code>'self'</code>.
 
 ## MLContext ## {#api-mlcontext}
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes.
@@ -531,6 +555,8 @@ The {{MLContext}} interface represents a global state of neural network compute 
 [SecureContext, Exposed=Window]
 interface MLContext {};
 </script>
+
+The <dfn>context type</dfn> for an {{MLContext}} is either "<code><dfn data-lt="default-context">default</dfn></code>", "<code><dfn data-lt="webgl-context">webgl</dfn></code>" or "<code><dfn data-lt="webgpu-context">webgpu</dfn></code>".
 
 ## MLOperandDescriptor ## {#api-mloperanddescriptor}
 <script type=idl>
@@ -723,7 +749,8 @@ Compute a 2-D convolution given 4-D input and filter tensors
 enum MLFilterOperandLayout {
   "oihw",
   "hwio",
-  "ohwi"
+  "ohwi",
+  "ihwo"
 };
 
 enum MLAutoPad {
@@ -785,6 +812,9 @@ partial interface MLGraphBuilder {
                 "ohwi":
                     - [output_channels, height, width, input_channels/groups]
 
+                "ihwo":
+                    - [input_channels/groups, height, width, output_channels]
+
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.layout* value. More specifically the sizes of the last two dimensions of the output tensor, the spatial dimensions, for the convolution operation can be calculated as follow:
 
     *output size = 1 + (input size - filter size + beginning padding + ending padding) / stride*
@@ -795,7 +825,7 @@ partial interface MLGraphBuilder {
 
     <div class="note">
     A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options.groups* = input_channels = output_channels and the shape of filter tensor is [options.groups, 1, height, width]
-    for *"nchw"* layout or [height, width, 1, options.groups] for "nhwc" layout.
+    for *"oihw"* layout, [height, width, 1, options.groups] for *"hwio"* layout, [options.groups, height, width, 1] for *"ohwi"* layout and [1, height, width, options.groups] for *"ihwo"* layout.
     </div>
 </div>
 
