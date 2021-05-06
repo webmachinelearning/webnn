@@ -1637,6 +1637,20 @@ thead.stickyheader th, th.stickyheader {
 }
 
 /*
+ * Generic table format.
+ */
+th {
+  text-align: left;
+}
+
+th, td {
+  border-bottom: 1px solid black;
+  border-collapse: collapse;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+/*
  * Darkmode colors
  */
 :root {
@@ -2230,7 +2244,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"><a class="logo" href="https://webmachinelearning.github.io/"> <img alt="Logo" height="100" src="https://webmachinelearning.github.io/webmachinelearning-logo.png" width="100"> </a> </p>
    <h1 class="p-name no-ref" id="title">Web Neural Network API</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2021-04-22">22 April 2021</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2021-05-05">5 May 2021</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2304,6 +2318,7 @@ A human-readable <a href="http://www.w3.org/community/about/agreements/cla-deed/
      <a href="#programming-model"><span class="secno">3</span> <span class="content">Programming Model</span></a>
      <ol class="toc">
       <li><a href="#programming-model-timelines"><span class="secno">3.1</span> <span class="content">Timelines</span></a>
+      <li><a href="#programming-model-device-selection"><span class="secno">3.2</span> <span class="content">Device Selection</span></a>
      </ol>
     <li>
      <a href="#api"><span class="secno">4</span> <span class="content">API</span></a>
@@ -2533,6 +2548,66 @@ They are represented by callbacks and promises in JavaScript.</p>
       <p>After the ML device operating on <a data-link-type="dfn" href="#queue-timeline" id="ref-for-queue-timeline">Queue timeline</a> is done, the user agent makes the results ready to be consumed by user and <a data-link-type="dfn" href="https://heycam.github.io/webidl/#resolve" id="ref-for-resolve">resolves</a> the promise.</p>
     </ol>
    </div>
+   <h3 class="heading settled" data-level="3.2" id="programming-model-device-selection"><span class="secno">3.2. </span><span class="content">Device Selection</span><a class="self-link" href="#programming-model-device-selection"></a></h3>
+   <p>An <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext">MLContext</a></code> interface represents a global state of neural network execution. One of the important context states is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. An <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①">MLContext</a></code> could be created from a specific GPU device such as <code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#gpu-device" id="ref-for-gpu-device">GPUDevice</a></code> or <code class="idl"><a data-link-type="idl" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" id="ref-for-5.14">WebGLRenderingContext</a></code> that is already in use by the application, in which case the corresponding <code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#buffer-interface" id="ref-for-buffer-interface">GPUBuffer</a></code> or <code class="idl"><a data-link-type="idl" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.4" id="ref-for-5.4">WebGLBuffer</a></code> resources used as graph constants, as well as the <code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#texture-interface" id="ref-for-texture-interface">GPUTexture</a></code> and <code class="idl"><a data-link-type="idl" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.9" id="ref-for-5.9">WebGLTexture</a></code> as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext②">MLContext</a></code> must be created from the same adapter as the device used to allocate the resources referenced in the graph.</p>
+   <p>In a situation when a GPU context executes a graph with a constant or an input in the system memory as an <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView">ArrayBufferView</a></code>, the input content is automatically uploaded from the system memory to the GPU memory, and downloaded back to the system memory of an <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView①">ArrayBufferView</a></code> output buffer at the end of the graph execution. This data upload and download cycles will only occur whenever the execution device requires the data to be copied out of and back into the system memory, such as in the case of the GPU. It doesn’t occur when the device is a CPU device. Additionally, the result of the graph execution is in a known layout format. While the execution may be optimized for a native memory access pattern in an intermediate result within the graph, the output of the last operation of the graph must convert the content back to a known layout format at the end of the graph in order to maintain the expected behavior from the caller’s perspective.</p>
+   <p>When an <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext③">MLContext</a></code> is created with <code class="idl"><a data-link-type="idl" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions">MLContextOptions</a></code>, the user agent selects and creates the underlying execution device by taking into account the application’s preference specified in the <code class="idl"><a data-link-type="idl" href="#enumdef-mlpowerpreference" id="ref-for-enumdef-mlpowerpreference">MLPowerPreference</a></code> and the <code class="idl"><a data-link-type="idl" href="#enumdef-mldevicepreference" id="ref-for-enumdef-mldevicepreference">MLDevicePreference</a></code> options:</p>
+   <ul>
+    <li data-md>
+     <p>The <em>"gpu"</em> device provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations.</p>
+    <li data-md>
+     <p>The <em>"cpu"</em> device provides the broadest reach of software compute availability, but with limited scalability of execution performance on the more complex neural networks.</p>
+    <li data-md>
+     <p>When the device preference is not specified (<em>"default"</em>), the user agent selects the most suitable device to use.</p>
+   </ul>
+   <p>The following table summarizes the types of resource supported by the device selected.</p>
+   <div class="note" role="note">
+    <table>
+     <tbody>
+      <tr>
+       <th>Device Type
+       <th>ArrayBufferView
+       <th>GPUBuffer
+       <th>GPUTexture
+       <th>WebGLBuffer
+       <th>WebGLTexture 
+      <tr>
+       <td>GPUDevice
+       <td>Yes
+       <td>Yes
+       <td>Yes
+       <td>No
+       <td>No 
+      <tr>
+       <td>WebGLRenderingContext
+       <td>Yes
+       <td>No
+       <td>No
+       <td>Yes
+       <td>Yes 
+      <tr>
+       <td>default
+       <td>Yes
+       <td>No
+       <td>No
+       <td>No
+       <td>No 
+      <tr>
+       <td>gpu
+       <td>Yes
+       <td>No
+       <td>No
+       <td>No
+       <td>No 
+      <tr>
+       <td>cpu
+       <td>Yes
+       <td>No
+       <td>No
+       <td>No
+       <td>No 
+    </table>
+   </div>
    <h2 class="heading settled" data-level="4" id="api"><span class="secno">4. </span><span class="content">API</span><a class="self-link" href="#api"></a></h2>
    <h3 class="heading settled" data-level="4.1" id="api-navigator"><span class="secno">4.1. </span><span class="content">Navigator</span><a class="self-link" href="#api-navigator"></a></h3>
 <pre class="idl highlight def"><c- b>partial</c-> <c- b>interface</c-> <a class="idl-code" data-link-type="interface" href="https://html.spec.whatwg.org/multipage/system-state.html#navigator" id="ref-for-navigator"><c- g>Navigator</c-></a> {
@@ -2540,46 +2615,58 @@ They are represented by callbacks and promises in JavaScript.</p>
 };
 </pre>
    <h3 class="heading settled" data-level="4.2" id="api-ml"><span class="secno">4.2. </span><span class="content">ML</span><a class="self-link" href="#api-ml"></a></h3>
-<pre class="idl highlight def"><c- b>enum</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="enum" data-export id="enumdef-mlpowerpreference"><code><c- g>MLPowerPreference</c-></code></dfn> {
-  // Let the user agent decide the most suitable behavior
+<pre class="idl highlight def"><c- b>enum</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="enum" data-export id="enumdef-mldevicepreference"><code><c- g>MLDevicePreference</c-></code></dfn> {
+  <dfn class="idl-code" data-dfn-for="MLDevicePreference" data-dfn-type="enum-value" data-export id="dom-mldevicepreference-default"><code><c- s>"default"</c-></code><a class="self-link" href="#dom-mldevicepreference-default"></a></dfn>,
+  <dfn class="idl-code" data-dfn-for="MLDevicePreference" data-dfn-type="enum-value" data-export id="dom-mldevicepreference-gpu"><code><c- s>"gpu"</c-></code><a class="self-link" href="#dom-mldevicepreference-gpu"></a></dfn>,
+  <dfn class="idl-code" data-dfn-for="MLDevicePreference" data-dfn-type="enum-value" data-export id="dom-mldevicepreference-cpu"><code><c- s>"cpu"</c-></code><a class="self-link" href="#dom-mldevicepreference-cpu"></a></dfn>
+};
+
+<c- b>enum</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="enum" data-export id="enumdef-mlpowerpreference"><code><c- g>MLPowerPreference</c-></code></dfn> {
+  // Let the user agent select the most suitable behavior.
   <dfn class="idl-code" data-dfn-for="MLPowerPreference" data-dfn-type="enum-value" data-export id="dom-mlpowerpreference-default"><code><c- s>"default"</c-></code><a class="self-link" href="#dom-mlpowerpreference-default"></a></dfn>,
-  // Prioritizes execution speed over power consumption
+
+  // Prioritizes execution speed over power consumption.
   <dfn class="idl-code" data-dfn-for="MLPowerPreference" data-dfn-type="enum-value" data-export id="dom-mlpowerpreference-high-performance"><code><c- s>"high-performance"</c-></code><a class="self-link" href="#dom-mlpowerpreference-high-performance"></a></dfn>,
-  // Prioritizes power consumption over other considerations such as execution speed
+  
+  // Prioritizes power consumption over other considerations such as execution speed.
   <dfn class="idl-code" data-dfn-for="MLPowerPreference" data-dfn-type="enum-value" data-export id="dom-mlpowerpreference-low-power"><code><c- s>"low-power"</c-></code><a class="self-link" href="#dom-mlpowerpreference-low-power"></a></dfn>
 };
 
 <c- b>dictionary</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="dictionary" data-export id="dictdef-mlcontextoptions"><code><c- g>MLContextOptions</c-></code></dfn> {
+  // Preferred kind of device used
+  <a data-link-type="idl-name" href="#enumdef-mldevicepreference" id="ref-for-enumdef-mldevicepreference①"><c- n>MLDevicePreference</c-></a> <dfn class="idl-code" data-default="&quot;default&quot;" data-dfn-for="MLContextOptions" data-dfn-type="dict-member" data-export data-type="MLDevicePreference " id="dom-mlcontextoptions-devicepreference"><code><c- g>devicePreference</c-></code><a class="self-link" href="#dom-mlcontextoptions-devicepreference"></a></dfn> = "default";
+
   // Preference as related to power consumption
-  <a data-link-type="idl-name" href="#enumdef-mlpowerpreference" id="ref-for-enumdef-mlpowerpreference"><c- n>MLPowerPreference</c-></a> <dfn class="idl-code" data-default="&quot;default&quot;" data-dfn-for="MLContextOptions" data-dfn-type="dict-member" data-export data-type="MLPowerPreference " id="dom-mlcontextoptions-powerpreference"><code><c- g>powerPreference</c-></code><a class="self-link" href="#dom-mlcontextoptions-powerpreference"></a></dfn> = "default";
+  <a data-link-type="idl-name" href="#enumdef-mlpowerpreference" id="ref-for-enumdef-mlpowerpreference①"><c- n>MLPowerPreference</c-></a> <dfn class="idl-code" data-default="&quot;default&quot;" data-dfn-for="MLContextOptions" data-dfn-type="dict-member" data-export data-type="MLPowerPreference " id="dom-mlcontextoptions-powerpreference"><code><c- g>powerPreference</c-></code><a class="self-link" href="#dom-mlcontextoptions-powerpreference"></a></dfn> = "default";
 };
 
 [<a class="idl-code" data-link-type="extended-attribute" href="https://heycam.github.io/webidl/#SecureContext" id="ref-for-SecureContext①"><c- g>SecureContext</c-></a>, <a class="idl-code" data-link-type="extended-attribute" href="https://heycam.github.io/webidl/#Exposed" id="ref-for-Exposed"><c- g>Exposed</c-></a>=<c- n>Window</c->]
 <c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="ml"><code><c- g>ML</c-></code></dfn> {
   // Create a context with options
-  <a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext"><c- n>MLContext</c-></a> <dfn class="dfn-paneled idl-code" data-dfn-for="ML" data-dfn-type="method" data-export data-lt="createContext(options)|createContext()" id="dom-ml-createcontext"><code><c- g>createContext</c-></code></dfn>(<c- b>optional</c-> <a data-link-type="idl-name" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions"><c- n>MLContextOptions</c-></a> <dfn class="idl-code" data-dfn-for="ML/createContext(options), ML/createContext()" data-dfn-type="argument" data-export id="dom-ml-createcontext-options-options"><code><c- g>options</c-></code><a class="self-link" href="#dom-ml-createcontext-options-options"></a></dfn> = {});
+  <a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext④"><c- n>MLContext</c-></a> <dfn class="dfn-paneled idl-code" data-dfn-for="ML" data-dfn-type="method" data-export data-lt="createContext(options)|createContext()" id="dom-ml-createcontext"><code><c- g>createContext</c-></code></dfn>(<c- b>optional</c-> <a data-link-type="idl-name" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions①"><c- n>MLContextOptions</c-></a> <dfn class="idl-code" data-dfn-for="ML/createContext(options), ML/createContext()" data-dfn-type="argument" data-export id="dom-ml-createcontext-options-options"><code><c- g>options</c-></code><a class="self-link" href="#dom-ml-createcontext-options-options"></a></dfn> = {});
 
   // Create a context from WebGL rendering context
-  <a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext①"><c- n>MLContext</c-></a> <dfn class="idl-code" data-dfn-for="ML" data-dfn-type="method" data-export data-lt="createContext(glContext)" id="dom-ml-createcontext-glcontext"><code><c- g>createContext</c-></code><a class="self-link" href="#dom-ml-createcontext-glcontext"></a></dfn>(<a data-link-type="idl-name" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" id="ref-for-5.14"><c- n>WebGLRenderingContext</c-></a> <dfn class="idl-code" data-dfn-for="ML/createContext(glContext)" data-dfn-type="argument" data-export id="dom-ml-createcontext-glcontext-glcontext"><code><c- g>glContext</c-></code><a class="self-link" href="#dom-ml-createcontext-glcontext-glcontext"></a></dfn>);
+  <a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext⑤"><c- n>MLContext</c-></a> <dfn class="idl-code" data-dfn-for="ML" data-dfn-type="method" data-export data-lt="createContext(glContext)" id="dom-ml-createcontext-glcontext"><code><c- g>createContext</c-></code><a class="self-link" href="#dom-ml-createcontext-glcontext"></a></dfn>(<a data-link-type="idl-name" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" id="ref-for-5.14①"><c- n>WebGLRenderingContext</c-></a> <dfn class="idl-code" data-dfn-for="ML/createContext(glContext)" data-dfn-type="argument" data-export id="dom-ml-createcontext-glcontext-glcontext"><code><c- g>glContext</c-></code><a class="self-link" href="#dom-ml-createcontext-glcontext-glcontext"></a></dfn>);
 
   // Create a context from WebGPU device
-  <a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext②"><c- n>MLContext</c-></a> <dfn class="idl-code" data-dfn-for="ML" data-dfn-type="method" data-export data-lt="createContext(gpuDevice)" id="dom-ml-createcontext-gpudevice"><code><c- g>createContext</c-></code><a class="self-link" href="#dom-ml-createcontext-gpudevice"></a></dfn>(<a data-link-type="idl-name" href="https://gpuweb.github.io/gpuweb/#gpu-device" id="ref-for-gpu-device"><c- n>GPUDevice</c-></a> <dfn class="idl-code" data-dfn-for="ML/createContext(gpuDevice)" data-dfn-type="argument" data-export id="dom-ml-createcontext-gpudevice-gpudevice"><code><c- g>gpuDevice</c-></code><a class="self-link" href="#dom-ml-createcontext-gpudevice-gpudevice"></a></dfn>);
+  <a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext⑥"><c- n>MLContext</c-></a> <dfn class="idl-code" data-dfn-for="ML" data-dfn-type="method" data-export data-lt="createContext(gpuDevice)" id="dom-ml-createcontext-gpudevice"><code><c- g>createContext</c-></code><a class="self-link" href="#dom-ml-createcontext-gpudevice"></a></dfn>(<a data-link-type="idl-name" href="https://gpuweb.github.io/gpuweb/#gpu-device" id="ref-for-gpu-device①"><c- n>GPUDevice</c-></a> <dfn class="idl-code" data-dfn-for="ML/createContext(gpuDevice)" data-dfn-type="argument" data-export id="dom-ml-createcontext-gpudevice-gpudevice"><code><c- g>gpuDevice</c-></code><a class="self-link" href="#dom-ml-createcontext-gpudevice-gpudevice"></a></dfn>);
 };
 </pre>
-   <p>The <code class="idl"><a data-link-type="idl" href="#dom-ml-createcontext" id="ref-for-dom-ml-createcontext">createContext()</a></code> method steps are:</p>
+    =======
+The <code class="idl"><a data-link-type="idl" href="#dom-ml-createcontext" id="ref-for-dom-ml-createcontext">createContext()</a></code> method steps are: 
    <ol>
     <li data-md>
      <p>If the <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/webappapis.html#responsible-document" id="ref-for-responsible-document">responsible document</a> is not <a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/iframe-embed-object.html#allowed-to-use" id="ref-for-allowed-to-use">allowed to use</a> the <a data-link-type="dfn" href="#webnn-feature" id="ref-for-webnn-feature">webnn</a> feature, then throw a "<code class="idl"><a class="idl-code" data-link-type="exception" href="https://heycam.github.io/webidl/#securityerror" id="ref-for-securityerror">SecurityError</a></code>" <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#idl-DOMException" id="ref-for-idl-DOMException">DOMException</a></code> and abort these steps.</p>
     <li data-md>
-     <p>Let <var>context</var> be a new <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext③">MLContext</a></code> object.</p>
+     <p>Let <var>context</var> be a new <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext⑦">MLContext</a></code> object.</p>
     <li data-md>
      <p>Switch on the method’s first argument:</p>
      <dl class="switch">
-      <dt><code class="idl"><a data-link-type="idl" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions①">MLContextOptions</a></code> 
+      <dt><code class="idl"><a data-link-type="idl" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions②">MLContextOptions</a></code> 
       <dd>Set <var>context</var>’s <a data-link-type="dfn" href="#context-type" id="ref-for-context-type">context type</a> to <a data-link-type="dfn" href="#default-context" id="ref-for-default-context">default</a>. 
-      <dt><code class="idl"><a data-link-type="idl" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" id="ref-for-5.14①">WebGLRenderingContext</a></code> 
+      <dt><code class="idl"><a data-link-type="idl" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" id="ref-for-5.14②">WebGLRenderingContext</a></code> 
       <dd>Set <var>context</var>’s <a data-link-type="dfn" href="#context-type" id="ref-for-context-type①">context type</a> to <a data-link-type="dfn" href="#webgl-context" id="ref-for-webgl-context">webgl</a>. 
-      <dt><code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#gpu-device" id="ref-for-gpu-device①">GPUDevice</a></code> 
+      <dt><code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#gpu-device" id="ref-for-gpu-device②">GPUDevice</a></code> 
       <dd>Set <var>context</var>’s <a data-link-type="dfn" href="#context-type" id="ref-for-context-type②">context type</a> to <a data-link-type="dfn" href="#webgpu-context" id="ref-for-webgpu-context">webgpu</a>. 
       <dt>Otherwise 
       <dd>Set <var>context</var>’s <a data-link-type="dfn" href="#context-type" id="ref-for-context-type③">context type</a> to <a data-link-type="dfn" href="#default-context" id="ref-for-default-context①">default</a>. 
@@ -2592,11 +2679,11 @@ They are represented by callbacks and promises in JavaScript.</p>
 string "<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="webnn-feature" data-noexport id="webnn-feature">webnn</dfn></code>".
 Its <a data-link-type="dfn" href="https://w3c.github.io/webappsec-permissions-policy/#default-allowlist" id="ref-for-default-allowlist">default allowlist</a> is <code>'self'</code>.</p>
    <h3 class="heading settled" data-level="4.3" id="api-mlcontext"><span class="secno">4.3. </span><span class="content">MLContext</span><a class="self-link" href="#api-mlcontext"></a></h3>
-    The <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext④">MLContext</a></code> interface represents a global state of neural network compute workload and execution processes. 
+    The <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext⑧">MLContext</a></code> interface represents a global state of neural network compute workload and execution processes. 
 <pre class="idl highlight def">[<a class="idl-code" data-link-type="extended-attribute" href="https://heycam.github.io/webidl/#SecureContext" id="ref-for-SecureContext②"><c- g>SecureContext</c-></a>, <a class="idl-code" data-link-type="extended-attribute" href="https://heycam.github.io/webidl/#Exposed" id="ref-for-Exposed①"><c- g>Exposed</c-></a>=<c- n>Window</c->]
 <c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="mlcontext"><code><c- g>MLContext</c-></code></dfn> {};
 </pre>
-   <p>The <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="context-type">context type</dfn> for an <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext⑤">MLContext</a></code> is either "<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="default-context" data-noexport id="default-context">default</dfn></code>", "<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="webgl-context" data-noexport id="webgl-context">webgl</dfn></code>" or "<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="webgpu-context" data-noexport id="webgpu-context">webgpu</dfn></code>".</p>
+   <p>The <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="context-type">context type</dfn> for an <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext⑨">MLContext</a></code> is either "<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="default-context" data-noexport id="default-context">default</dfn></code>", "<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="webgl-context" data-noexport id="webgl-context">webgl</dfn></code>" or "<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="webgpu-context" data-noexport id="webgpu-context">webgpu</dfn></code>".</p>
    <h3 class="heading settled" data-level="4.4" id="api-mloperanddescriptor"><span class="secno">4.4. </span><span class="content">MLOperandDescriptor</span><a class="self-link" href="#api-mloperanddescriptor"></a></h3>
 <pre class="idl highlight def"><c- b>enum</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="enum" data-export id="enumdef-mlinputoperandlayout"><code><c- g>MLInputOperandLayout</c-></code></dfn> {
   <dfn class="idl-code" data-dfn-for="MLInputOperandLayout" data-dfn-type="enum-value" data-export id="dom-mlinputoperandlayout-nchw"><code><c- s>"nchw"</c-></code><a class="self-link" href="#dom-mlinputoperandlayout-nchw"></a></dfn>,
@@ -2630,17 +2717,17 @@ Its <a data-link-type="dfn" href="https://w3c.github.io/webappsec-permissions-po
 <pre class="idl highlight def"><c- b>typedef</c-> <a data-link-type="dfn" href="https://heycam.github.io/webidl/#idl-record" id="ref-for-idl-record"><c- b>record</c-></a>&lt;<a class="idl-code" data-link-type="interface" href="https://heycam.github.io/webidl/#idl-DOMString" id="ref-for-idl-DOMString"><c- b>DOMString</c-></a>, <a data-link-type="idl-name" href="#mloperand" id="ref-for-mloperand"><c- n>MLOperand</c-></a>> <dfn class="dfn-paneled idl-code" data-dfn-type="typedef" data-export id="typedefdef-mlnamedoperands"><code><c- g>MLNamedOperands</c-></code></dfn>;
 
 <c- b>dictionary</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="dictionary" data-export id="dictdef-mlbufferresourceview"><code><c- g>MLBufferResourceView</c-></code></dfn> {
-  <c- b>required</c-> (<a data-link-type="idl-name" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.4" id="ref-for-5.4"><c- n>WebGLBuffer</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="https://gpuweb.github.io/gpuweb/#buffer-interface" id="ref-for-buffer-interface"><c- n>GPUBuffer</c-></a>) <dfn class="idl-code" data-dfn-for="MLBufferResourceView" data-dfn-type="dict-member" data-export data-type="(WebGLBuffer or GPUBuffer) " id="dom-mlbufferresourceview-resource"><code><c- g>resource</c-></code><a class="self-link" href="#dom-mlbufferresourceview-resource"></a></dfn>;
+  <c- b>required</c-> (<a data-link-type="idl-name" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.4" id="ref-for-5.4①"><c- n>WebGLBuffer</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="https://gpuweb.github.io/gpuweb/#buffer-interface" id="ref-for-buffer-interface①"><c- n>GPUBuffer</c-></a>) <dfn class="idl-code" data-dfn-for="MLBufferResourceView" data-dfn-type="dict-member" data-export data-type="(WebGLBuffer or GPUBuffer) " id="dom-mlbufferresourceview-resource"><code><c- g>resource</c-></code><a class="self-link" href="#dom-mlbufferresourceview-resource"></a></dfn>;
   <a class="idl-code" data-link-type="interface" href="https://heycam.github.io/webidl/#idl-unsigned-long-long" id="ref-for-idl-unsigned-long-long"><c- b>unsigned</c-> <c- b>long</c-> <c- b>long</c-></a> <dfn class="idl-code" data-default="0" data-dfn-for="MLBufferResourceView" data-dfn-type="dict-member" data-export data-type="unsigned long long " id="dom-mlbufferresourceview-offset"><code><c- g>offset</c-></code><a class="self-link" href="#dom-mlbufferresourceview-offset"></a></dfn> = 0;
   <a class="idl-code" data-link-type="interface" href="https://heycam.github.io/webidl/#idl-unsigned-long-long" id="ref-for-idl-unsigned-long-long①"><c- b>unsigned</c-> <c- b>long</c-> <c- b>long</c-></a> <dfn class="idl-code" data-dfn-for="MLBufferResourceView" data-dfn-type="dict-member" data-export data-type="unsigned long long " id="dom-mlbufferresourceview-size"><code><c- g>size</c-></code><a class="self-link" href="#dom-mlbufferresourceview-size"></a></dfn>;
 };
 
-<c- b>typedef</c-> (<a data-link-type="idl-name" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView"><c- n>ArrayBufferView</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="#dictdef-mlbufferresourceview" id="ref-for-dictdef-mlbufferresourceview"><c- n>MLBufferResourceView</c-></a>) <dfn class="dfn-paneled idl-code" data-dfn-type="typedef" data-export id="typedefdef-mlbufferview"><code><c- g>MLBufferView</c-></code></dfn>;
+<c- b>typedef</c-> (<a data-link-type="idl-name" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView②"><c- n>ArrayBufferView</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="#dictdef-mlbufferresourceview" id="ref-for-dictdef-mlbufferresourceview"><c- n>MLBufferResourceView</c-></a>) <dfn class="dfn-paneled idl-code" data-dfn-type="typedef" data-export id="typedefdef-mlbufferview"><code><c- g>MLBufferView</c-></code></dfn>;
 
 [<a class="idl-code" data-link-type="extended-attribute" href="https://heycam.github.io/webidl/#SecureContext" id="ref-for-SecureContext④"><c- g>SecureContext</c-></a>, <a class="idl-code" data-link-type="extended-attribute" href="https://heycam.github.io/webidl/#Exposed" id="ref-for-Exposed③"><c- g>Exposed</c-></a>=<c- n>Window</c->]
 <c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="mlgraphbuilder"><code><c- g>MLGraphBuilder</c-></code></dfn> {
   // Construct the graph builder from the context.
-  <dfn class="idl-code" data-dfn-for="MLGraphBuilder" data-dfn-type="constructor" data-export data-lt="MLGraphBuilder(context)|constructor(context)" id="dom-mlgraphbuilder-mlgraphbuilder"><code><c- g>constructor</c-></code><a class="self-link" href="#dom-mlgraphbuilder-mlgraphbuilder"></a></dfn>(<a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext⑥"><c- n>MLContext</c-></a> <dfn class="idl-code" data-dfn-for="MLGraphBuilder/MLGraphBuilder(context), MLGraphBuilder/constructor(context)" data-dfn-type="argument" data-export id="dom-mlgraphbuilder-mlgraphbuilder-context-context"><code><c- g>context</c-></code><a class="self-link" href="#dom-mlgraphbuilder-mlgraphbuilder-context-context"></a></dfn>);
+  <dfn class="idl-code" data-dfn-for="MLGraphBuilder" data-dfn-type="constructor" data-export data-lt="MLGraphBuilder(context)|constructor(context)" id="dom-mlgraphbuilder-mlgraphbuilder"><code><c- g>constructor</c-></code><a class="self-link" href="#dom-mlgraphbuilder-mlgraphbuilder"></a></dfn>(<a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext①⓪"><c- n>MLContext</c-></a> <dfn class="idl-code" data-dfn-for="MLGraphBuilder/MLGraphBuilder(context), MLGraphBuilder/constructor(context)" data-dfn-type="argument" data-export id="dom-mlgraphbuilder-mlgraphbuilder-context-context"><code><c- g>context</c-></code><a class="self-link" href="#dom-mlgraphbuilder-mlgraphbuilder-context-context"></a></dfn>);
 
   // Create an operand for a graph input.
   <a data-link-type="idl-name" href="#mloperand" id="ref-for-mloperand①"><c- n>MLOperand</c-></a> <dfn class="idl-code" data-dfn-for="MLGraphBuilder" data-dfn-type="method" data-export data-lt="input(name, desc)" id="dom-mlgraphbuilder-input"><code><c- g>input</c-></code><a class="self-link" href="#dom-mlgraphbuilder-input"></a></dfn>(<a class="idl-code" data-link-type="interface" href="https://heycam.github.io/webidl/#idl-DOMString" id="ref-for-idl-DOMString①"><c- b>DOMString</c-></a> <dfn class="idl-code" data-dfn-for="MLGraphBuilder/input(name, desc)" data-dfn-type="argument" data-export id="dom-mlgraphbuilder-input-name-desc-name"><code><c- g>name</c-></code><a class="self-link" href="#dom-mlgraphbuilder-input-name-desc-name"></a></dfn>, <a data-link-type="idl-name" href="#dictdef-mloperanddescriptor" id="ref-for-dictdef-mloperanddescriptor"><c- n>MLOperandDescriptor</c-></a> <dfn class="idl-code" data-dfn-for="MLGraphBuilder/input(name, desc)" data-dfn-type="argument" data-export id="dom-mlgraphbuilder-input-name-desc-desc"><code><c- g>desc</c-></code><a class="self-link" href="#dom-mlgraphbuilder-input-name-desc-desc"></a></dfn>);
@@ -3875,12 +3962,12 @@ the 2-D input tensor along axis 1.
    <h3 class="heading settled" data-level="4.7" id="api-mlgraph"><span class="secno">4.7. </span><span class="content">MLGraph</span><a class="self-link" href="#api-mlgraph"></a></h3>
     The <code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph①">MLGraph</a></code> interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed. 
 <pre class="idl highlight def"><c- b>dictionary</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="dictionary" data-export id="dictdef-mlinput"><code><c- g>MLInput</c-></code></dfn> {
-  <c- b>required</c-> (<a data-link-type="idl-name" href="#typedefdef-mlbufferview" id="ref-for-typedefdef-mlbufferview①"><c- n>MLBufferView</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.9" id="ref-for-5.9"><c- n>WebGLTexture</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="https://gpuweb.github.io/gpuweb/#texture-interface" id="ref-for-texture-interface"><c- n>GPUTexture</c-></a>) <dfn class="dfn-paneled idl-code" data-dfn-for="MLInput" data-dfn-type="dict-member" data-export data-type="(MLBufferView or WebGLTexture or GPUTexture) " id="dom-mlinput-data"><code><c- g>data</c-></code></dfn>;
+  <c- b>required</c-> (<a data-link-type="idl-name" href="#typedefdef-mlbufferview" id="ref-for-typedefdef-mlbufferview①"><c- n>MLBufferView</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.9" id="ref-for-5.9①"><c- n>WebGLTexture</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="https://gpuweb.github.io/gpuweb/#texture-interface" id="ref-for-texture-interface①"><c- n>GPUTexture</c-></a>) <dfn class="dfn-paneled idl-code" data-dfn-for="MLInput" data-dfn-type="dict-member" data-export data-type="(MLBufferView or WebGLTexture or GPUTexture) " id="dom-mlinput-data"><code><c- g>data</c-></code></dfn>;
   <a data-link-type="dfn" href="https://heycam.github.io/webidl/#idl-sequence" id="ref-for-idl-sequence②⑤"><c- b>sequence</c-></a>&lt;<a class="idl-code" data-link-type="interface" href="https://heycam.github.io/webidl/#idl-long" id="ref-for-idl-long④⑨"><c- b>long</c-></a>> <dfn class="dfn-paneled idl-code" data-dfn-for="MLInput" data-dfn-type="dict-member" data-export data-type="sequence<long> " id="dom-mlinput-dimensions"><code><c- g>dimensions</c-></code></dfn>;
 };
 
 <c- b>dictionary</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="dictionary" data-export id="dictdef-mloutput"><code><c- g>MLOutput</c-></code></dfn> {
-  (<a data-link-type="idl-name" href="#typedefdef-mlbufferview" id="ref-for-typedefdef-mlbufferview②"><c- n>MLBufferView</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.9" id="ref-for-5.9①"><c- n>WebGLTexture</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="https://gpuweb.github.io/gpuweb/#texture-interface" id="ref-for-texture-interface①"><c- n>GPUTexture</c-></a>) <dfn class="dfn-paneled idl-code" data-dfn-for="MLOutput" data-dfn-type="dict-member" data-export data-type="(MLBufferView or WebGLTexture or GPUTexture) " id="dom-mloutput-data"><code><c- g>data</c-></code></dfn>;
+  (<a data-link-type="idl-name" href="#typedefdef-mlbufferview" id="ref-for-typedefdef-mlbufferview②"><c- n>MLBufferView</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.9" id="ref-for-5.9②"><c- n>WebGLTexture</c-></a> <c- b>or</c-> <a data-link-type="idl-name" href="https://gpuweb.github.io/gpuweb/#texture-interface" id="ref-for-texture-interface②"><c- n>GPUTexture</c-></a>) <dfn class="dfn-paneled idl-code" data-dfn-for="MLOutput" data-dfn-type="dict-member" data-export data-type="(MLBufferView or WebGLTexture or GPUTexture) " id="dom-mloutput-data"><code><c- g>data</c-></code></dfn>;
   <a data-link-type="dfn" href="https://heycam.github.io/webidl/#idl-sequence" id="ref-for-idl-sequence②⑥"><c- b>sequence</c-></a>&lt;<a class="idl-code" data-link-type="interface" href="https://heycam.github.io/webidl/#idl-long" id="ref-for-idl-long⑤⓪"><c- b>long</c-></a>> <dfn class="dfn-paneled idl-code" data-dfn-for="MLOutput" data-dfn-type="dict-member" data-export data-type="sequence<long> " id="dom-mloutput-dimensions"><code><c- g>dimensions</c-></code></dfn>;
 };
 
@@ -3895,9 +3982,9 @@ the 2-D input tensor along axis 1.
 </pre>
    <p><code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph②">MLGraph</a></code> has the following internal slots:</p>
    <dl>
-    <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLGraph" data-dfn-type="attribute" data-export id="dom-mlgraph-context-slot"><code>[[context]]</code></dfn> of type <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext⑦">MLContext</a></code>
+    <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLGraph" data-dfn-type="attribute" data-export id="dom-mlgraph-context-slot"><code>[[context]]</code></dfn> of type <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①①">MLContext</a></code>
     <dd data-md>
-     <p>The context of type <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext⑧">MLContext</a></code> associated with this <code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph③">MLGraph</a></code>.</p>
+     <p>The context of type <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①②">MLContext</a></code> associated with this <code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph③">MLGraph</a></code>.</p>
     <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLGraph" data-dfn-type="attribute" data-export id="dom-mlgraph-inputoperands-slot"><code>[[inputOperands]]</code></dfn> of type <a data-link-type="dfn" href="https://heycam.github.io/webidl/#idl-record" id="ref-for-idl-record③">record</a>&lt;<code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#idl-DOMString" id="ref-for-idl-DOMString④">DOMString</a></code>, <code class="idl"><a data-link-type="idl" href="#dictdef-mloperanddescriptor" id="ref-for-dictdef-mloperanddescriptor②">MLOperandDescriptor</a></code>>
     <dd data-md>
      <p>Maps the name of an input <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand②⓪②">MLOperand</a></code> to its <code class="idl"><a data-link-type="idl" href="#dictdef-mloperanddescriptor" id="ref-for-dictdef-mloperanddescriptor③">MLOperandDescriptor</a></code> for all input <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand②⓪③">MLOperand</a></code>s of this <code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph④">MLGraph</a></code>.</p>
@@ -3954,7 +4041,7 @@ the 2-D input tensor along axis 1.
             <li data-md>
              <p>Let <var>inputOperand</var> be <var>this</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlgraph-inputoperands-slot" id="ref-for-dom-mlgraph-inputoperands-slot①">[[inputOperands]]</a></code>[<var>key</var>].</p>
             <li data-md>
-             <p>If <var>value</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlinput-data" id="ref-for-dom-mlinput-data">data</a></code> is an <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView①">ArrayBufferView</a></code>, then:</p>
+             <p>If <var>value</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlinput-data" id="ref-for-dom-mlinput-data">data</a></code> is an <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView③">ArrayBufferView</a></code>, then:</p>
              <ol>
               <li data-md>
                <p>The kind of <var>value</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlinput-data" id="ref-for-dom-mlinput-data①">data</a></code> must be compatible to <var>inputOperand</var>.<code class="idl"><a data-link-type="idl" href="#dom-mloperanddescriptor-type" id="ref-for-dom-mloperanddescriptor-type">type</a></code> according to <a href="#appendices-mloperandtype-arraybufferview-compatibility">this table</a>.</p>
@@ -4036,7 +4123,7 @@ the 2-D input tensor along axis 1.
          <li data-md>
           <p>Let <var>copiedInputs</var> be a new <code class="idl"><a data-link-type="idl" href="#dictdef-mlinput" id="ref-for-dictdef-mlinput①">MLInput</a></code>.</p>
          <li data-md>
-          <p>Let <var>copiedInputs</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlinput-data" id="ref-for-dom-mlinput-data②">data</a></code> be a new <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView②">ArrayBufferView</a></code> that has the same kind and length as <var>value</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlinput-data" id="ref-for-dom-mlinput-data③">data</a></code>'s.</p>
+          <p>Let <var>copiedInputs</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlinput-data" id="ref-for-dom-mlinput-data②">data</a></code> be a new <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView④">ArrayBufferView</a></code> that has the same kind and length as <var>value</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlinput-data" id="ref-for-dom-mlinput-data③">data</a></code>'s.</p>
          <li data-md>
           <p>Set the content of <var>copiedInputs</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlinput-data" id="ref-for-dom-mlinput-data④">data</a></code> to the content of <var>value</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlinput-data" id="ref-for-dom-mlinput-data⑤">data</a></code>.</p>
          <li data-md>
@@ -4099,13 +4186,13 @@ the 2-D input tensor along axis 1.
                  <li data-md>
                   <p>Set <var>results</var>[<var>outputName</var>].<code class="idl"><a data-link-type="idl" href="#dom-mloutput-dimensions" id="ref-for-dom-mloutput-dimensions">dimensions</a></code> to <var>outputDemisions</var>.</p>
                  <li data-md>
-                  <p>If <var>this</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlgraph-context-slot" id="ref-for-dom-mlgraph-context-slot">[[context]]</a></code> is created from <code class="idl"><a data-link-type="idl" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions②">MLContextOptions</a></code>, then:</p>
+                  <p>If <var>this</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlgraph-context-slot" id="ref-for-dom-mlgraph-context-slot">[[context]]</a></code> is created from <code class="idl"><a data-link-type="idl" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions③">MLContextOptions</a></code>, then:</p>
                   <ol>
                    <li data-md>
                     <p>If <var>outputs</var>[<var>outputName</var>].<code class="idl"><a data-link-type="idl" href="#dom-mloutput-data" id="ref-for-dom-mloutput-data②">data</a></code> was given, then:</p>
                     <ol>
                      <li data-md>
-                      <p>If outputs|[<var>outputName</var>].<code class="idl"><a data-link-type="idl" href="#dom-mloutput-data" id="ref-for-dom-mloutput-data③">data</a></code> is not an <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView③">ArrayBufferView</a></code>, then <a data-link-type="dfn" href="https://heycam.github.io/webidl/#reject" id="ref-for-reject②">reject</a> <var>promise</var> with an <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#exceptiondef-typeerror" id="ref-for-exceptiondef-typeerror①">TypeError</a></code> and stop.</p>
+                      <p>If outputs|[<var>outputName</var>].<code class="idl"><a data-link-type="idl" href="#dom-mloutput-data" id="ref-for-dom-mloutput-data③">data</a></code> is not an <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView⑤">ArrayBufferView</a></code>, then <a data-link-type="dfn" href="https://heycam.github.io/webidl/#reject" id="ref-for-reject②">reject</a> <var>promise</var> with an <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#exceptiondef-typeerror" id="ref-for-exceptiondef-typeerror①">TypeError</a></code> and stop.</p>
                      <li data-md>
                       <p>If the kind of <var>outputs</var>[<var>outputName</var>].<code class="idl"><a data-link-type="idl" href="#dom-mloutput-data" id="ref-for-dom-mloutput-data④">data</a></code> is not compatible to output tensor according to <a href="#appendices-mloperandtype-arraybufferview-compatibility">this table</a>, then <a data-link-type="dfn" href="https://heycam.github.io/webidl/#reject" id="ref-for-reject③">reject</a> <var>promise</var> with a <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#exceptiondef-typeerror" id="ref-for-exceptiondef-typeerror②">TypeError</a></code> and stop.</p>
                      <li data-md>
@@ -4117,7 +4204,7 @@ the 2-D input tensor along axis 1.
                     <p>Else:</p>
                     <ol>
                      <li data-md>
-                      <p>Let <var>results</var>[<var>outputName</var>].<code class="idl"><a data-link-type="idl" href="#dom-mloutput-data" id="ref-for-dom-mloutput-data⑦">data</a></code> be a new <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView④">ArrayBufferView</a></code> of size <var>outputSize</var> and kind that is compatible to output tensor according to <a href="#appendices-mloperandtype-arraybufferview-compatibility">this table</a>.</p>
+                      <p>Let <var>results</var>[<var>outputName</var>].<code class="idl"><a data-link-type="idl" href="#dom-mloutput-data" id="ref-for-dom-mloutput-data⑦">data</a></code> be a new <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView⑥">ArrayBufferView</a></code> of size <var>outputSize</var> and kind that is compatible to output tensor according to <a href="#appendices-mloperandtype-arraybufferview-compatibility">this table</a>.</p>
                      <li data-md>
                       <p>Set the content of <var>results</var>[<var>outputName</var>].<code class="idl"><a data-link-type="idl" href="#dom-mloutput-data" id="ref-for-dom-mloutput-data⑧">data</a></code> to the content of output tensor returned by <var>this</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlgraph-implementation-slot" id="ref-for-dom-mlgraph-implementation-slot⑥">[[implementation]]</a></code>.</p>
                     </ol>
@@ -4135,7 +4222,7 @@ the 2-D input tensor along axis 1.
        <li data-md>
         <p>Return <var>promise</var>.</p>
       </ol>
-      <p class="issue" id="issue-e40c670b"><a class="self-link" href="#issue-e40c670b"></a> Describe the algorithm steps for <var>this</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlgraph-context-slot" id="ref-for-dom-mlgraph-context-slot①">[[context]]</a></code> created from <code class="idl"><a data-link-type="idl" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" id="ref-for-5.14②">WebGLRenderingContext</a></code> and <code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#gpu-device" id="ref-for-gpu-device②">GPUDevice</a></code>.</p>
+      <p class="issue" id="issue-e40c670b"><a class="self-link" href="#issue-e40c670b"></a> Describe the algorithm steps for <var>this</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlgraph-context-slot" id="ref-for-dom-mlgraph-context-slot①">[[context]]</a></code> created from <code class="idl"><a data-link-type="idl" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" id="ref-for-5.14③">WebGLRenderingContext</a></code> and <code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#gpu-device" id="ref-for-gpu-device③">GPUDevice</a></code>.</p>
      </div>
    </dl>
    <h4 class="heading settled" data-level="4.7.1" id="compilation-examples"><span class="secno">4.7.1. </span><span class="content">Examples</span><a class="self-link" href="#compilation-examples"></a></h4>
@@ -4305,12 +4392,12 @@ console<c- p>.</c->log<c- p>(</c-><c- t>'Output value: '</c-> <c- o>+</c-> outpu
 </pre>
    </div>
    <h2 class="heading settled" data-level="6" id="appendices"><span class="secno">6. </span><span class="content">Appendices</span><a class="self-link" href="#appendices"></a></h2>
-   <h3 class="heading settled" data-level="6.1" id="appendices-mloperandtype-arraybufferview-compatibility"><span class="secno">6.1. </span><span class="content"><code class="idl"><a data-link-type="idl" href="#enumdef-mloperandtype" id="ref-for-enumdef-mloperandtype②">MLOperandType</a></code> and <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView⑤">ArrayBufferView</a></code> compatibility</span><a class="self-link" href="#appendices-mloperandtype-arraybufferview-compatibility"></a></h3>
+   <h3 class="heading settled" data-level="6.1" id="appendices-mloperandtype-arraybufferview-compatibility"><span class="secno">6.1. </span><span class="content"><code class="idl"><a data-link-type="idl" href="#enumdef-mloperandtype" id="ref-for-enumdef-mloperandtype②">MLOperandType</a></code> and <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView⑦">ArrayBufferView</a></code> compatibility</span><a class="self-link" href="#appendices-mloperandtype-arraybufferview-compatibility"></a></h3>
    <table class="data">
     <thead class="stickyheader">
      <tr>
       <th><code class="idl"><a data-link-type="idl" href="#enumdef-mloperandtype" id="ref-for-enumdef-mloperandtype③">MLOperandType</a></code> 
-      <th><code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView⑥">ArrayBufferView</a></code> 
+      <th><code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView⑧">ArrayBufferView</a></code> 
     <tbody>
      <tr>
       <td><code class="idl"><a data-link-type="idl" href="#dom-mloperandtype-float32" id="ref-for-dom-mloperandtype-float32">float32</a></code> 
@@ -4328,7 +4415,7 @@ console<c- p>.</c->log<c- p>(</c-><c- t>'Output value: '</c-> <c- o>+</c-> outpu
       <td><code class="idl"><a data-link-type="idl" href="#dom-mloperandtype-uint8" id="ref-for-dom-mloperandtype-uint8">uint8</a></code> 
       <td><code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#idl-Uint8Array" id="ref-for-idl-Uint8Array">Uint8Array</a></code> 
    </table>
-   <p class="issue" id="issue-6951340c"><a class="self-link" href="#issue-6951340c"></a> clarify the usage of <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView⑦">ArrayBufferView</a></code> for <code class="idl"><a data-link-type="idl" href="#dom-mloperandtype-float16" id="ref-for-dom-mloperandtype-float16">float16</a></code>. <a href="https://github.com/webmachinelearning/webnn/issues/127">&lt;https://github.com/webmachinelearning/webnn/issues/127></a></p>
+   <p class="issue" id="issue-6951340c"><a class="self-link" href="#issue-6951340c"></a> clarify the usage of <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#ArrayBufferView" id="ref-for-ArrayBufferView⑨">ArrayBufferView</a></code> for <code class="idl"><a data-link-type="idl" href="#dom-mloperandtype-float16" id="ref-for-dom-mloperandtype-float16">float16</a></code>. <a href="https://github.com/webmachinelearning/webnn/issues/127">&lt;https://github.com/webmachinelearning/webnn/issues/127></a></p>
    <h2 class="heading settled" data-level="7" id="acknowledgements"><span class="secno">7. </span><span class="content">Acknowledgements</span><a class="self-link" href="#acknowledgements"></a></h2>
    <p>This specification follows the concepts of the Android Neural Networks API C
 API.</p>
@@ -4451,6 +4538,7 @@ Benjamin Poulain for their contributions to the API specification.</p>
    <li><a href="#dom-mlgraphbuilder-conv2d">conv2d(input, filter)</a><span>, in §4.6.4</span>
    <li><a href="#dom-mlgraphbuilder-conv2d">conv2d(input, filter, options)</a><span>, in §4.6.4</span>
    <li><a href="#dom-mlgraphbuilder-cos">cos(x)</a><span>, in §4.6.6</span>
+   <li><a href="#dom-mldevicepreference-cpu">"cpu"</a><span>, in §4.2</span>
    <li><a href="#dom-ml-createcontext">createContext()</a><span>, in §4.2</span>
    <li><a href="#dom-ml-createcontext-glcontext">createContext(glContext)</a><span>, in §4.2</span>
    <li><a href="#dom-ml-createcontext-gpudevice">createContext(gpuDevice)</a><span>, in §4.2</span>
@@ -4461,8 +4549,14 @@ Benjamin Poulain for their contributions to the API specification.</p>
      <li><a href="#dom-mlinput-data">dict-member for MLInput</a><span>, in §4.7</span>
      <li><a href="#dom-mloutput-data">dict-member for MLOutput</a><span>, in §4.7</span>
     </ul>
-   <li><a href="#dom-mlpowerpreference-default">"default"</a><span>, in §4.2</span>
+   <li>
+    "default"
+    <ul>
+     <li><a href="#dom-mldevicepreference-default">enum-value for MLDevicePreference</a><span>, in §4.2</span>
+     <li><a href="#dom-mlpowerpreference-default">enum-value for MLPowerPreference</a><span>, in §4.2</span>
+    </ul>
    <li><a href="#default-context">default-context</a><span>, in §4.3</span>
+   <li><a href="#dom-mlcontextoptions-devicepreference">devicePreference</a><span>, in §4.2</span>
    <li><a href="#device-timeline">Device timeline</a><span>, in §3.1</span>
    <li>
     dilations
@@ -4495,6 +4589,7 @@ Benjamin Poulain for their contributions to the API specification.</p>
    <li><a href="#dom-mlrecurrentnetworkdirection-forward">"forward"</a><span>, in §4.6.8</span>
    <li><a href="#dom-mlgraphbuilder-gemm">gemm(a, b)</a><span>, in §4.6.7</span>
    <li><a href="#dom-mlgraphbuilder-gemm">gemm(a, b, options)</a><span>, in §4.6.7</span>
+   <li><a href="#dom-mldevicepreference-gpu">"gpu"</a><span>, in §4.2</span>
    <li><a href="#dom-mlconv2doptions-groups">groups</a><span>, in §4.6.4</span>
    <li><a href="#dom-mlgraphbuilder-grucell">gruCell(input, weight, recurrentWeight, hiddenState, hiddenSize)</a><span>, in §4.6.9</span>
    <li><a href="#dom-mlgraphbuilder-grucell">gruCell(input, weight, recurrentWeight, hiddenState, hiddenSize, options)</a><span>, in §4.6.9</span>
@@ -4545,6 +4640,7 @@ Benjamin Poulain for their contributions to the API specification.</p>
    <li><a href="#mlcontext">MLContext</a><span>, in §4.3</span>
    <li><a href="#dictdef-mlcontextoptions">MLContextOptions</a><span>, in §4.2</span>
    <li><a href="#dictdef-mlconv2doptions">MLConv2dOptions</a><span>, in §4.6.4</span>
+   <li><a href="#enumdef-mldevicepreference">MLDevicePreference</a><span>, in §4.2</span>
    <li><a href="#enumdef-mlfilteroperandlayout">MLFilterOperandLayout</a><span>, in §4.6.4</span>
    <li><a href="#dictdef-mlgemmoptions">MLGemmOptions</a><span>, in §4.6.7</span>
    <li><a href="#mlgraph">MLGraph</a><span>, in §4.7</span>
@@ -4731,47 +4827,54 @@ Benjamin Poulain for their contributions to the API specification.</p>
   <aside class="dfn-panel" data-for="term-for-5.4">
    <a href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.4">https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.4</a><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-5.4">4.6. MLGraphBuilder</a>
+    <li><a href="#ref-for-5.4">3.2. Device Selection</a>
+    <li><a href="#ref-for-5.4①">4.6. MLGraphBuilder</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="term-for-5.14">
    <a href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14">https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14</a><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-5.14">4.2. ML</a> <a href="#ref-for-5.14①">(2)</a>
-    <li><a href="#ref-for-5.14②">4.7. MLGraph</a>
+    <li><a href="#ref-for-5.14">3.2. Device Selection</a>
+    <li><a href="#ref-for-5.14①">4.2. ML</a> <a href="#ref-for-5.14②">(2)</a>
+    <li><a href="#ref-for-5.14③">4.7. MLGraph</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="term-for-5.9">
    <a href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.9">https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.9</a><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-5.9">4.7. MLGraph</a> <a href="#ref-for-5.9①">(2)</a>
+    <li><a href="#ref-for-5.9">3.2. Device Selection</a>
+    <li><a href="#ref-for-5.9①">4.7. MLGraph</a> <a href="#ref-for-5.9②">(2)</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="term-for-buffer-interface">
    <a href="https://gpuweb.github.io/gpuweb/#buffer-interface">https://gpuweb.github.io/gpuweb/#buffer-interface</a><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-buffer-interface">4.6. MLGraphBuilder</a>
+    <li><a href="#ref-for-buffer-interface">3.2. Device Selection</a>
+    <li><a href="#ref-for-buffer-interface①">4.6. MLGraphBuilder</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="term-for-gpu-device">
    <a href="https://gpuweb.github.io/gpuweb/#gpu-device">https://gpuweb.github.io/gpuweb/#gpu-device</a><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-gpu-device">4.2. ML</a> <a href="#ref-for-gpu-device①">(2)</a>
-    <li><a href="#ref-for-gpu-device②">4.7. MLGraph</a>
+    <li><a href="#ref-for-gpu-device">3.2. Device Selection</a>
+    <li><a href="#ref-for-gpu-device①">4.2. ML</a> <a href="#ref-for-gpu-device②">(2)</a>
+    <li><a href="#ref-for-gpu-device③">4.7. MLGraph</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="term-for-texture-interface">
    <a href="https://gpuweb.github.io/gpuweb/#texture-interface">https://gpuweb.github.io/gpuweb/#texture-interface</a><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-texture-interface">4.7. MLGraph</a> <a href="#ref-for-texture-interface①">(2)</a>
+    <li><a href="#ref-for-texture-interface">3.2. Device Selection</a>
+    <li><a href="#ref-for-texture-interface①">4.7. MLGraph</a> <a href="#ref-for-texture-interface②">(2)</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="term-for-ArrayBufferView">
    <a href="https://heycam.github.io/webidl/#ArrayBufferView">https://heycam.github.io/webidl/#ArrayBufferView</a><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-ArrayBufferView">4.6. MLGraphBuilder</a>
-    <li><a href="#ref-for-ArrayBufferView①">4.7. MLGraph</a> <a href="#ref-for-ArrayBufferView②">(2)</a> <a href="#ref-for-ArrayBufferView③">(3)</a> <a href="#ref-for-ArrayBufferView④">(4)</a>
-    <li><a href="#ref-for-ArrayBufferView⑤">6.1. MLOperandType and ArrayBufferView compatibility</a> <a href="#ref-for-ArrayBufferView⑥">(2)</a> <a href="#ref-for-ArrayBufferView⑦">(3)</a>
+    <li><a href="#ref-for-ArrayBufferView">3.2. Device Selection</a> <a href="#ref-for-ArrayBufferView①">(2)</a>
+    <li><a href="#ref-for-ArrayBufferView②">4.6. MLGraphBuilder</a>
+    <li><a href="#ref-for-ArrayBufferView③">4.7. MLGraph</a> <a href="#ref-for-ArrayBufferView④">(2)</a> <a href="#ref-for-ArrayBufferView⑤">(3)</a> <a href="#ref-for-ArrayBufferView⑥">(4)</a>
+    <li><a href="#ref-for-ArrayBufferView⑦">6.1. MLOperandType and ArrayBufferView compatibility</a> <a href="#ref-for-ArrayBufferView⑧">(2)</a> <a href="#ref-for-ArrayBufferView⑨">(3)</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="term-for-idl-DOMException">
@@ -5103,16 +5206,27 @@ Benjamin Poulain for their contributions to the API specification.</p>
   [<a class="idl-code" data-link-type="extended-attribute" href="https://heycam.github.io/webidl/#SecureContext"><c- g>SecureContext</c-></a>] <c- b>readonly</c-> <c- b>attribute</c-> <a data-link-type="idl-name" href="#ml"><c- n>ML</c-></a> <a data-readonly data-type="ML" href="#dom-navigator-ml"><code><c- g>ml</c-></code></a>;
 };
 
+<c- b>enum</c-> <a href="#enumdef-mldevicepreference"><code><c- g>MLDevicePreference</c-></code></a> {
+  <a href="#dom-mldevicepreference-default"><code><c- s>"default"</c-></code></a>,
+  <a href="#dom-mldevicepreference-gpu"><code><c- s>"gpu"</c-></code></a>,
+  <a href="#dom-mldevicepreference-cpu"><code><c- s>"cpu"</c-></code></a>
+};
+
 <c- b>enum</c-> <a href="#enumdef-mlpowerpreference"><code><c- g>MLPowerPreference</c-></code></a> {
-  // Let the user agent decide the most suitable behavior
+  // Let the user agent select the most suitable behavior.
   <a href="#dom-mlpowerpreference-default"><code><c- s>"default"</c-></code></a>,
-  // Prioritizes execution speed over power consumption
+
+  // Prioritizes execution speed over power consumption.
   <a href="#dom-mlpowerpreference-high-performance"><code><c- s>"high-performance"</c-></code></a>,
-  // Prioritizes power consumption over other considerations such as execution speed
+  
+  // Prioritizes power consumption over other considerations such as execution speed.
   <a href="#dom-mlpowerpreference-low-power"><code><c- s>"low-power"</c-></code></a>
 };
 
 <c- b>dictionary</c-> <a href="#dictdef-mlcontextoptions"><code><c- g>MLContextOptions</c-></code></a> {
+  // Preferred kind of device used
+  <a data-link-type="idl-name" href="#enumdef-mldevicepreference"><c- n>MLDevicePreference</c-></a> <a data-default="&quot;default&quot;" data-type="MLDevicePreference " href="#dom-mlcontextoptions-devicepreference"><code><c- g>devicePreference</c-></code></a> = "default";
+
   // Preference as related to power consumption
   <a data-link-type="idl-name" href="#enumdef-mlpowerpreference"><c- n>MLPowerPreference</c-></a> <a data-default="&quot;default&quot;" data-type="MLPowerPreference " href="#dom-mlcontextoptions-powerpreference"><code><c- g>powerPreference</c-></code></a> = "default";
 };
@@ -5500,17 +5614,26 @@ Benjamin Poulain for their contributions to the API specification.</p>
     <li><a href="#ref-for-queue-timeline①">4.7. MLGraph</a>
    </ul>
   </aside>
+  <aside class="dfn-panel" data-for="enumdef-mldevicepreference">
+   <b><a href="#enumdef-mldevicepreference">#enumdef-mldevicepreference</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-enumdef-mldevicepreference">3.2. Device Selection</a>
+    <li><a href="#ref-for-enumdef-mldevicepreference①">4.2. ML</a>
+   </ul>
+  </aside>
   <aside class="dfn-panel" data-for="enumdef-mlpowerpreference">
    <b><a href="#enumdef-mlpowerpreference">#enumdef-mlpowerpreference</a></b><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-enumdef-mlpowerpreference">4.2. ML</a>
+    <li><a href="#ref-for-enumdef-mlpowerpreference">3.2. Device Selection</a>
+    <li><a href="#ref-for-enumdef-mlpowerpreference①">4.2. ML</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="dictdef-mlcontextoptions">
    <b><a href="#dictdef-mlcontextoptions">#dictdef-mlcontextoptions</a></b><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-dictdef-mlcontextoptions">4.2. ML</a> <a href="#ref-for-dictdef-mlcontextoptions①">(2)</a>
-    <li><a href="#ref-for-dictdef-mlcontextoptions②">4.7. MLGraph</a>
+    <li><a href="#ref-for-dictdef-mlcontextoptions">3.2. Device Selection</a>
+    <li><a href="#ref-for-dictdef-mlcontextoptions①">4.2. ML</a> <a href="#ref-for-dictdef-mlcontextoptions②">(2)</a>
+    <li><a href="#ref-for-dictdef-mlcontextoptions③">4.7. MLGraph</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="ml">
@@ -5534,10 +5657,11 @@ Benjamin Poulain for their contributions to the API specification.</p>
   <aside class="dfn-panel" data-for="mlcontext">
    <b><a href="#mlcontext">#mlcontext</a></b><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-mlcontext">4.2. ML</a> <a href="#ref-for-mlcontext①">(2)</a> <a href="#ref-for-mlcontext②">(3)</a> <a href="#ref-for-mlcontext③">(4)</a>
-    <li><a href="#ref-for-mlcontext④">4.3. MLContext</a> <a href="#ref-for-mlcontext⑤">(2)</a>
-    <li><a href="#ref-for-mlcontext⑥">4.6. MLGraphBuilder</a>
-    <li><a href="#ref-for-mlcontext⑦">4.7. MLGraph</a> <a href="#ref-for-mlcontext⑧">(2)</a>
+    <li><a href="#ref-for-mlcontext">3.2. Device Selection</a> <a href="#ref-for-mlcontext①">(2)</a> <a href="#ref-for-mlcontext②">(3)</a> <a href="#ref-for-mlcontext③">(4)</a>
+    <li><a href="#ref-for-mlcontext④">4.2. ML</a> <a href="#ref-for-mlcontext⑤">(2)</a> <a href="#ref-for-mlcontext⑥">(3)</a> <a href="#ref-for-mlcontext⑦">(4)</a>
+    <li><a href="#ref-for-mlcontext⑧">4.3. MLContext</a> <a href="#ref-for-mlcontext⑨">(2)</a>
+    <li><a href="#ref-for-mlcontext①⓪">4.6. MLGraphBuilder</a>
+    <li><a href="#ref-for-mlcontext①①">4.7. MLGraph</a> <a href="#ref-for-mlcontext①②">(2)</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="context-type">
