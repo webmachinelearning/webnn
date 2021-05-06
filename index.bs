@@ -202,6 +202,20 @@ thead.stickyheader th, th.stickyheader {
 }
 
 /*
+ * Generic table format.
+ */
+th {
+  text-align: left;
+}
+
+th, td {
+  border-bottom: 1px solid black;
+  border-collapse: collapse;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+/*
  * Darkmode colors
  */
 :root {
@@ -435,6 +449,30 @@ They are represented by callbacks and promises in JavaScript.
 
 </div>
 
+## Device Selection ## {#programming-model-device-selection}
+
+An {{MLContext}} interface represents a global state of neural network execution. One of the important context states is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. An {{MLContext}} could be created from a specific GPU device such as {{GPUDevice}} or {{WebGLRenderingContext}} that is already in use by the application, in which case the corresponding {{GPUBuffer}} or {{WebGLBuffer}} resources used as graph constants, as well as the {{GPUTexture}} and {{WebGLTexture}} as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for {{MLContext}} must be created from the same adapter as the device used to allocate the resources referenced in the graph.
+
+In a situation when a GPU context executes a graph with a constant or an input in the system memory as an {{ArrayBufferView}}, the input content is automatically uploaded from the system memory to the GPU memory, and downloaded back to the system memory of an {{ArrayBufferView}} output buffer at the end of the graph execution. This data upload and download cycles will only occur whenever the execution device requires the data to be copied out of and back into the system memory, such as in the case of the GPU. It doesn't occur when the device is a CPU device. Additionally, the result of the graph execution is in a known layout format. While the execution may be optimized for a native memory access pattern in an intermediate result within the graph, the output of the last operation of the graph must convert the content back to a known layout format at the end of the graph in order to maintain the expected behavior from the caller's perspective.
+
+When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's preference specified in the {{MLPowerPreference}} and the {{MLDevicePreference}} options:
+- The *"gpu"* device provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations. 
+- The *"cpu"* device provides the broadest reach of software compute availability, but with limited scalability of execution performance on the more complex neural networks. 
+- When the device preference is not specified (*"default"*), the user agent selects the most suitable device to use. 
+
+The following table summarizes the types of resource supported by the device selected.
+
+<div class="note">
+<table>
+  <tr><th>Device Type<th>ArrayBufferView<th>GPUBuffer<th>GPUTexture<th>WebGLBuffer<th>WebGLTexture
+  <tr><td>GPUDevice<td>Yes<td>Yes<td>Yes<td>No<td>No
+  <tr><td>WebGLRenderingContext<td>Yes<td>No<td>No<td>Yes<td>Yes
+  <tr><td>default<td>Yes<td>No<td>No<td>No<td>No
+  <tr><td>gpu<td>Yes<td>No<td>No<td>No<td>No
+  <tr><td>cpu<td>Yes<td>No<td>No<td>No<td>No
+</table>
+</div>
+
 API {#api}
 =====================
 
@@ -447,16 +485,27 @@ partial interface Navigator {
 
 ## ML ## {#api-ml}
 <script type=idl>
-enum MLPowerPreference {
-  // Let the user agent decide the most suitable behavior
+enum MLDevicePreference {
   "default",
-  // Prioritizes execution speed over power consumption
+  "gpu",
+  "cpu"
+};
+
+enum MLPowerPreference {
+  // Let the user agent select the most suitable behavior.
+  "default",
+
+  // Prioritizes execution speed over power consumption.
   "high-performance",
-  // Prioritizes power consumption over other considerations such as execution speed
+  
+  // Prioritizes power consumption over other considerations such as execution speed.
   "low-power"
 };
 
 dictionary MLContextOptions {
+  // Preferred kind of device used
+  MLDevicePreference devicePreference = "default";
+
   // Preference as related to power consumption
   MLPowerPreference powerPreference = "default";
 };
@@ -474,6 +523,7 @@ interface ML {
 };
 </script>
 
+=======
 The {{ML/createContext()}} method steps are:
 1. If the [=responsible document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then throw a "{{SecurityError!!exception}}" {{DOMException}} and abort these steps.
 1. Let |context| be a new {{MLContext}} object.
