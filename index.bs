@@ -476,11 +476,17 @@ The following table summarizes the types of resource supported by the device sel
 API {#api}
 =====================
 
-## Navigator ## {#api-navigator}
+## navigator.ml ## {#api-navigator-ml}
+
+A {{ML}} object is available in the {{Window}} and {{DedicatedWorkerGlobalScope}} contexts through the {{Navigator}}
+and {{WorkerNavigator}} interfaces respectively and is exposed via `navigator.ml`:
+
 <script type=idl>
-partial interface Navigator {
-  [SecureContext] readonly attribute ML ml;
+interface mixin NavigatorML {
+  [SecureContext, SameObject] readonly attribute ML ml;
 };
+Navigator includes NavigatorML;
+WorkerNavigator includes NavigatorML;
 </script>
 
 ## ML ## {#api-ml}
@@ -510,7 +516,7 @@ dictionary MLContextOptions {
   MLPowerPreference powerPreference = "default";
 };
 
-[SecureContext, Exposed=Window]
+[SecureContext, Exposed=(Window, DedicatedWorker)]
 interface ML {
   // Create a context with options
   MLContext createContext(optional MLContextOptions options = {});
@@ -552,7 +558,7 @@ Its <a>default allowlist</a> is <code>'self'</code>.
 ## MLContext ## {#api-mlcontext}
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes.
 <script type=idl>
-[SecureContext, Exposed=Window]
+[SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLContext {};
 </script>
 
@@ -586,7 +592,7 @@ dictionary MLOperandDescriptor {
 
 ## MLOperand ## {#api-mloperand}
 <script type=idl>
-[SecureContext, Exposed=Window]
+[SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLOperand {};
 </script>
 
@@ -605,7 +611,7 @@ dictionary MLBufferResourceView {
 
 typedef (ArrayBufferView or MLBufferResourceView) MLBufferView;
 
-[SecureContext, Exposed=Window]
+[SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLGraphBuilder {
   // Construct the graph builder from the context.
   constructor(MLContext context);
@@ -1714,7 +1720,7 @@ dictionary MLOutput {
 typedef record<DOMString, MLInput> MLNamedInputs;
 typedef record<DOMString, MLOutput> MLNamedOutputs;
 
-[SecureContext, Exposed=Window]
+[SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLGraph {
   Promise<MLNamedOutputs> compute(MLNamedInputs inputs, 
                                   optional MLNamedOutputs outputs = {});
