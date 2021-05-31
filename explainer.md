@@ -45,8 +45,8 @@ const graph = builder.build({'C': C});
 const bufferA = new Float32Array(4).fill(1.0);
 const bufferB = new Float32Array(4).fill(0.8);
 const bufferC = new Float32Array(4);
-const inputs = {'A': {data: bufferA}, 'B': {data: bufferB}};
-const outputs = {'C': {data: BufferC}};
+const inputs = {'A': bufferA, 'B': bufferB};
+const outputs = {'C': bufferC};
 graph.compute(inputs, outputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
@@ -144,14 +144,14 @@ export class NSNet2 {
 
   compute(inputBuffer, initialState92Buffer, initialState155Buffer, outputBuffer, gru94Buffer, gru157Buffer) {
     const inputs = {
-      'input': {data: inputBuffer},
-      'initialState92': {data: initialState92Buffer},
-      'initialState155': {data: initialState155Buffer},
+      'input': inputBuffer,
+      'initialState92': initialState92Buffer,
+      'initialState155': initialState155Buffer,
     };
     const outputs = {
-      'output': {data: outputBuffer},
-      'gru94': {data: gru94Buffer},
-      'gru157': {data: gru157Buffer}
+      'output': outputBuffer,
+      'gru94': gru94Buffer,
+      'gru157': gru157Buffer
     };
     return this.graph.compute(inputs, outputs);
   }
