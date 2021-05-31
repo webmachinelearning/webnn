@@ -2243,7 +2243,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"><a class="logo" href="https://webmachinelearning.github.io/"> <img alt="Logo" height="100" src="https://webmachinelearning.github.io/webmachinelearning-logo.png" width="100"> </a> </p>
    <h1 class="p-name no-ref" id="title">Web Neural Network API</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2021-05-27">27 May 2021</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Draft Community Group Report, <time class="dt-updated" datetime="2021-05-30">30 May 2021</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -3097,7 +3097,7 @@ performance standpoint.
     </ul>
    </div>
    <h4 class="heading settled" data-level="6.6.7" id="api-mlgraphbuilder-gemm"><span class="secno">6.6.7. </span><span class="content">gemm</span><a class="self-link" href="#api-mlgraphbuilder-gemm"></a></h4>
-    Calculate the <a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3">general matrix multiplication of the Basic Linear Algebra Subprograms</a>. The calculation follows the expression <code>alpha * A * B + beta * C</code>, where <code>A</code>, <code>B</code>, and <code>C</code> are matrices, and <code>A</code> and <code>B</code> may optionally be transposed prior to the calculation. 
+    Calculate the <a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3">general matrix multiplication of the Basic Linear Algebra Subprograms</a>. The calculation follows the expression <code>alpha * A * B + beta * C</code>, where <code>A</code> is a 2-D tensor with shape [M, K] or [K, M], <code>B</code> is a 2-D tensor with shape [K, N] or [N, K], and <code>C</code> is broadcastable to the shape [M, N]. <code>A</code> and <code>B</code> may optionally be transposed prior to the calculation. 
 <pre class="idl highlight def"><c- b>dictionary</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="dictionary" data-export id="dictdef-mlgemmoptions"><code><c- g>MLGemmOptions</c-></code></dfn> {
   <a data-link-type="idl-name" href="#mloperand" id="ref-for-mloperand⑧④"><c- n>MLOperand</c-></a> <dfn class="idl-code" data-dfn-for="MLGemmOptions" data-dfn-type="dict-member" data-export data-type="MLOperand " id="dom-mlgemmoptions-c"><code><c- g>c</c-></code><a class="self-link" href="#dom-mlgemmoptions-c"></a></dfn>;
   <a class="idl-code" data-link-type="interface" href="https://heycam.github.io/webidl/#idl-float" id="ref-for-idl-float②"><c- b>float</c-></a> <dfn class="idl-code" data-default="1.0" data-dfn-for="MLGemmOptions" data-dfn-type="dict-member" data-export data-type="float " id="dom-mlgemmoptions-alpha"><code><c- g>alpha</c-></code><a class="self-link" href="#dom-mlgemmoptions-alpha"></a></dfn> = 1.0;
@@ -3114,14 +3114,14 @@ performance standpoint.
      <strong>Arguments:</strong> 
     <ul>
      <li data-md>
-      <p><em>a</em>: an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand⑧⑧">MLOperand</a></code>. The first input 2-D tensor.</p>
+      <p><em>a</em>: an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand⑧⑧">MLOperand</a></code>. The first input 2-D tensor with shape [M, K] if <em>aTranspose</em> is false, or [K, M] if <em>aTranspose</em> is true.</p>
      <li data-md>
-      <p><em>b</em>: an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand⑧⑨">MLOperand</a></code>. The second input 2-D tensor.</p>
+      <p><em>b</em>: an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand⑧⑨">MLOperand</a></code>. The second input 2-D tensor with shape [K, N] if <em>bTranspose</em> is false, or [N, K] if <em>bTranspose</em> is true.</p>
      <li data-md>
       <p><em>options</em>: an optional <code class="idl"><a data-link-type="idl" href="#dictdef-mlgemmoptions" id="ref-for-dictdef-mlgemmoptions①">MLGemmOptions</a></code>. The optional parameters of the operation.</p>
       <ul>
        <li data-md>
-        <p><em>c</em>: an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand⑨⓪">MLOperand</a></code>. The third input 2-D tensor.</p>
+        <p><em>c</em>: an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand⑨⓪">MLOperand</a></code>. The third input tensor. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape [M, N] according to <a data-link-type="biblio" href="#biblio-numpy-broadcasting-rule">[numpy-broadcasting-rule]</a>. When it is not specified, the computation is done as if <em>c</em> is a scalar 0.0.</p>
        <li data-md>
         <p><em>alpha</em>: a <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#idl-float" id="ref-for-idl-float④">float</a></code> scalar multiplier for the first input, default to 1.0.</p>
        <li data-md>
@@ -3132,7 +3132,7 @@ performance standpoint.
         <p><em>bTranspose</em>: a <code class="idl"><a data-link-type="idl" href="https://heycam.github.io/webidl/#idl-boolean" id="ref-for-idl-boolean⑤">boolean</a></code> indicating if the second input should be transposed prior to calculating the output, default to false.</p>
       </ul>
     </ul>
-    <p><strong>Returns:</strong> an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand⑨①">MLOperand</a></code>. The output 2-D tensor that contains the calculated product of all the inputs.</p>
+    <p><strong>Returns:</strong> an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand⑨①">MLOperand</a></code>. The output 2-D tensor of shape [M, N] that contains the calculated product of all the inputs.</p>
     <div class="note" role="note">
       The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint. 
 <pre class="highlight"><c- k>if</c-> <c- p>(</c->options<c- p>.</c->aTranspose<c- p>)</c->

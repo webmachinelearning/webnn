@@ -944,7 +944,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### gemm ### {#api-mlgraphbuilder-gemm}
-Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A`, `B`, and `C` are matrices, and `A` and `B` may optionally be transposed prior to the calculation.
+Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape [M, K] or [K, M], `B` is a 2-D tensor with shape [K, N] or [N, K], and `C` is broadcastable to the shape [M, N]. `A` and `B` may optionally be transposed prior to the calculation.
 <script type=idl>
 dictionary MLGemmOptions {
   MLOperand c;
@@ -960,16 +960,16 @@ partial interface MLGraphBuilder {
 </script>
 <div algorithm=gemm>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input 2-D tensor.
-        - *b*: an {{MLOperand}}. The second input 2-D tensor.
+        - *a*: an {{MLOperand}}. The first input 2-D tensor with shape [M, K] if *aTranspose* is false, or [K, M] if *aTranspose* is true.
+        - *b*: an {{MLOperand}}. The second input 2-D tensor with shape [K, N] if *bTranspose* is false, or [N, K] if *bTranspose* is true.
         - *options*: an optional {{MLGemmOptions}}. The optional parameters of the operation.
-            - *c*: an {{MLOperand}}. The third input 2-D tensor.
+            - *c*: an {{MLOperand}}. The third input tensor. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape [M, N] according to [[!numpy-broadcasting-rule]]. When it is not specified, the computation is done as if *c* is a scalar 0.0.
             - *alpha*: a {{float}} scalar multiplier for the first input, default to 1.0.
             - *beta*: a {{float}} scalar multiplier for the third input, default to 1.0.
             - *aTranspose*: a {{boolean}} indicating if the first input should be transposed prior to calculating the output, default to false.
             - *bTranspose*: a {{boolean}} indicating if the second input should be transposed prior to calculating the output, default to false.
 
-    **Returns:** an {{MLOperand}}. The output 2-D tensor that contains the calculated product of all the inputs.
+    **Returns:** an {{MLOperand}}. The output 2-D tensor of shape [M, N] that contains the calculated product of all the inputs.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
