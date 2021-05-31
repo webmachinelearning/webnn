@@ -40,16 +40,17 @@ const A = builder.input('A', operandType);
 const B = builder.input('B', operandType);
 const C = builder.add(builder.mul(A, constant), B);
 // 2. Compile it into an executable.
-const graph = await builder.build({'C': C});
+const graph = builder.build({'C': C});
 // 3. Bind inputs to the graph and execute for the result.
 const bufferA = new Float32Array(4).fill(1.0);
 const bufferB = new Float32Array(4).fill(0.8);
+const bufferC = new Float32Array(4);
 const inputs = {'A': {data: bufferA}, 'B': {data: bufferB}};
-const outputs = await graph.compute(inputs);
+const outputs = {'C': {data: BufferC}};
+graph.compute(inputs, outputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
-console.log('Output shape: ' + outputs.C.dimensions);
-console.log('Output value: ' + outputs.C.data);
+console.log('Output value: ' + bufferC);
 ```
 
 Check it out in [WebNN Code Editor](https://webmachinelearning.github.io/webnn-samples/code/?example=mul_add.js).
@@ -102,7 +103,7 @@ export class NSNet2 {
     this.hiddenSize = 400;
   }
 
-  async load(baseUrl, batchSize, frames) {
+  async build(baseUrl, batchSize, frames) {
     const context = navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
     // Create constants by loading pre-trained data from .npy files.
@@ -138,20 +139,21 @@ export class NSNet2 {
     const relu163 = builder.relu(builder.add(builder.matmul(transpose159, weight215), biasFcOut0));
     const relu167 = builder.relu(builder.add(builder.matmul(relu163, weight216), biasFcOut2));
     const output = builder.sigmoid(builder.add(builder.matmul(relu167, weight217), biasFcOut4));
-    this.builder = builder;
+    this.graph = builder.build({'output': output, 'gru94': gru94, 'gru157': gru157});
   }
 
-  async build() {
-    this.graph = await this.builder.build({output, gru94, gru157});
-  }
-
-  async compute(inputBuffer, initialState92Buffer, initialState155Buffer) {
+  compute(inputBuffer, initialState92Buffer, initialState155Buffer, outputBuffer, gru94Buffer, gru157Buffer) {
     const inputs = {
-      input: {data: inputBuffer},
-      initialState92: {data: initialState92Buffer},
-      initialState155: {data: initialState155Buffer},
+      'input': {data: inputBuffer},
+      'initialState92': {data: initialState92Buffer},
+      'initialState155': {data: initialState155Buffer},
     };
-    return await this.graph.compute(inputs);
+    const outputs = {
+      'output': {data: outputBuffer},
+      'gru94': {data: gru94Buffer},
+      'gru157': {data: gru157Buffer}
+    };
+    return this.graph.compute(inputs, outputs);
   }
 }
 ```
