@@ -1759,6 +1759,11 @@ interface MLGraph {
 <div class="example">
 The following code showcases the computation with dynamic input dimensions.
 <pre highlight="js">
+function sizeOfShape(array) {
+  return array.reduce(
+      (accumulator, currentValue) => accumulator * currentValue);
+}
+
 const context = navigator.ml.createContext();
 
 // Create a graph with dynamic shaped inputs.
@@ -1770,7 +1775,7 @@ const b = builder.input('b', descB);
 const c = builder.matmul(a, b);
 const graph = builder.build({'c': c});
 
-function compute(shapeA, shapeB, shapeC) {
+function allocateAndCompute(shapeA, shapeB, shapeC) {
   const bufferA = new Float32Array(sizeOfShape(shapeA)).fill(0.5);
   const bufferB = new Float32Array(sizeOfShape(shapeB)).fill(0.5);
   const bufferC = new Float32Array(sizeOfShape(shapeC));
@@ -1785,9 +1790,9 @@ function compute(shapeA, shapeB, shapeC) {
   console.log(&#96;values: ${bufferC}&#96;);
 }
 
-compute([3, 4], [4, 3], [3, 3]);
-compute([4, 4], [4, 4], [4, 4]);
-compute([5, 4], [4, 5], [5, 5]);
+allocateAndCompute([3, 4], [4, 3], [3, 3]);
+allocateAndCompute([4, 4], [4, 4], [4, 4]);
+allocateAndCompute([5, 4], [4, 5], [5, 5]);
 </pre>
 </div>
 
