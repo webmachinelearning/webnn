@@ -74,35 +74,6 @@ div.validusage {
     border: thin solid #88e !important;
     border-radius: .5em;
 }
-/*
- * If the Valid Usage requirements are the first child of a *-timeline block give it a larger top
- * margin to prevent the block labels from overlapping.
- */
-.content-timeline>.validusage:first-child,
-.device-timeline>.validusage:first-child,
-.queue-timeline>.validusage:first-child {
-    margin-top: 1.5em;
-}
-
-/*
- * Boxes for steps that occur on a particular timeline.
- */
-div.content-timeline, div.device-timeline, div.queue-timeline {
-    padding: .5em;
-    border-radius: .5em;
-}
-.content-timeline {
-    background: rgba(0, 255, 0, 0.05);
-    background: var(--tint-green);
-}
-.device-timeline {
-    background: rgba(255, 0, 0, 0.05);
-    background: var(--tint-red);
-}
-.queue-timeline {
-    background: rgba(255, 0, 255, 0.05);
-    background: var(--tint-purple);
-}
 
 /*
  * Stylistic labels, for clarity of presentation of these blocks.
@@ -110,13 +81,10 @@ div.content-timeline, div.device-timeline, div.queue-timeline {
  * NOTE: This text is non-accessible and non-selectable; surrounding
  * text must also explain the context.
  */
-.validusage, .content-timeline, .device-timeline, .queue-timeline {
+.validusage {
     position: relative;
 }
-.validusage::before,
-.content-timeline::before,
-.device-timeline::before,
-.queue-timeline::before {
+.validusage::before {
     font-weight: bold;
     font-style: italic;
     font-size: 130%;
@@ -128,15 +96,6 @@ div.content-timeline, div.device-timeline, div.queue-timeline {
 }
 .validusage::before {
     content: "Valid Usage";
-}
-.content-timeline::before {
-    content: "Content Timeline";
-}
-.device-timeline::before {
-    content: "Device Timeline";
-}
-.queue-timeline::before {
-    content: "Queue Timeline";
 }
 
 /*
@@ -422,54 +381,6 @@ Implementers of this API are expected to be familiar with the <a href="https://g
 
 
 # Programming Model # {#programming-model}
-## Timelines ## {#programming-model-timelines}
-
-*This section is non-normative.*
-
-A computer system with a user agent at the front-end and ML device at the back-end
-has components working on different timelines in parallel:
-
-: <dfn dfn>Content timeline</dfn>
-:: Associated with the execution of the Web script.
-    It includes calling all methods described by this specification.
-
-    <div class=content-timeline>
-        Steps executed on the content timeline look like this.
-    </div>
-
-: <dfn dfn>Device timeline</dfn>
-:: Associated with the ML device operations
-    that are issued by the user agent.
-    It includes creation of ML devices and resources
-    and state objects, which are typically synchronous operations from the point
-    of view of the user agent part that controls the ML device,
-    but can live in a separate OS process.
-
-    <div class=device-timeline>
-        Steps executed on the device timeline look like this.
-    </div>
-
-: <dfn dfn>Queue timeline</dfn>
-:: Associated with the execution of operations on the compute units of the ML device.
-    It includes actual copy and compute jobs that run on the ML device.
-
-    <div class=queue-timeline>
-        Steps executed on the queue timeline look like this.
-    </div>
-
-In this specification, asynchronous operations are used when the result value
-depends on work that happens on any timeline other than the [=Content timeline=].
-They are represented by callbacks and promises in JavaScript.
-
-<div class="example">
-{{MLGraph/compute()|MLGraph.compute()}}:
-
-  1. User issues a compute request by calling {{MLGraph/compute()|MLGraph.compute()}} on the [=Content timeline=] and gets a promise in return.
-  2. User agent processes the compute request on the [=Device timeline=] by calling the OS ML API.
-  3. After the ML device operating on [=Queue timeline=] is done, the user agent makes the results ready to be consumed by user and [=resolves=] the promise.
-
-</div>
-
 ## Device Selection ## {#programming-model-device-selection}
 
 An {{MLContext}} interface represents a global state of neural network execution. One of the important context states is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. An {{MLContext}} could be created from a specific GPU device such as {{GPUDevice}} or {{WebGLRenderingContext}} that is already in use by the application, in which case the corresponding {{GPUBuffer}} or {{WebGLBuffer}} resources used as graph constants, as well as the {{GPUTexture}} and {{WebGLTexture}} as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for {{MLContext}} must be created from the same adapter as the device used to allocate the resources referenced in the graph.
@@ -647,7 +558,7 @@ interface MLGraphBuilder {
   MLOperand constant(double value, optional MLOperandType type = "float32");
 
   // Compile the graph up to the specified output operands
-  Promise<MLGraph> build(MLNamedOperands outputs);
+  MLGraph build(MLNamedOperands outputs);
 };
 </script>
 
@@ -1728,23 +1639,19 @@ partial interface MLGraphBuilder {
 The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
 
 <script type=idl>
+typedef (MLBufferView or WebGLTexture or GPUTexture) MLResource;
+
 dictionary MLInput {
-  required (MLBufferView or WebGLTexture or GPUTexture) data;
-  sequence<long> dimensions;
+  required MLResource resource;
+  required sequence<long> dimensions;
 };
 
-dictionary MLOutput {
-  (MLBufferView or WebGLTexture or GPUTexture) data;
-  sequence<long> dimensions;
-};
-
-typedef record<DOMString, MLInput> MLNamedInputs;
-typedef record<DOMString, MLOutput> MLNamedOutputs;
+typedef record<DOMString, (MLResource or MLInput)> MLNamedInputs;
+typedef record<DOMString, MLResource> MLNamedOutputs;
 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLGraph {
-  Promise<MLNamedOutputs> compute(MLNamedInputs inputs, 
-                                  optional MLNamedOutputs outputs = {});
+  undefined compute(MLNamedInputs inputs, MLNamedOutputs outputs);
 };
 </script>
 
@@ -1755,11 +1662,11 @@ interface MLGraph {
     ::
         The context of type {{MLContext}} associated with this {{MLGraph}}.
 
-    : <dfn>\[[inputOperands]]</dfn> of type [=record=]&lt;{{DOMString}}, {{MLOperandDescriptor}}&gt;
+    : <dfn>\[[inputDescriptors]]</dfn> of type [=record=]&lt;{{DOMString}}, {{MLOperandDescriptor}}&gt;
     ::
         Maps the name of an input {{MLOperand}} to its {{MLOperandDescriptor}} for all input {{MLOperand}}s of this {{MLGraph}}.
 
-    : <dfn>\[[outputOperands]]</dfn> of type [=sequence=]&lt;{{DOMString}}&gt;
+    : <dfn>\[[outputNames]]</dfn> of type [=sequence=]&lt;{{DOMString}}&gt;
     ::
         Contains the names of all output {{MLOperand}}s of this {{MLGraph}}.
 
@@ -1771,103 +1678,77 @@ interface MLGraph {
 <dl dfn-type=method dfn-for=MLGraph>
     : <dfn>compute(inputs, outputs)</dfn>
     ::
-        Issue a compute request of the {{MLGraph}} given {{MLNamedInputs}} and optional {{MLNamedOutputs}}. The returned {{Promise}} resolves when the results in {{MLNamedOutputs}} are ready to be consumed.
+        Compute the {{MLGraph}} given {{MLNamedInputs}} and {{MLNamedOutputs}}. Return once the compute has completed and the results in {{MLNamedOutputs}} are ready to be consumed.
 
         <div algorithm=MLGraph.compute>
             **Called on:** {{MLGraph}} |this|.
 
             **Arguments:**
             <pre class=argumentdef for="MLGraph/compute(inputs, outputs)">
-                |inputs|: a {{MLNamedInputs}}. The data and optional dimensions of inputs for the compute request.
-                |outputs|: an optional {{MLNamedOutputs}}. The names and pre-allocated resources of required outputs for the compute request. Default to be an empty [=record=] which means that the compute request is for all outputs.
+                |inputs|: an {{MLNamedInputs}}. The resources and optional dimensions of inputs for the compute.
+                |outputs|: an {{MLNamedOutputs}}. The pre-allocated resources of required outputs for the compute.
             </pre>
 
-            **Returns:** {{Promise}}&lt;{{MLNamedOutputs}}&gt;. The dimensions and data of outputs returned by the compute request.
+            **Returns:** {{undefined}}.
 
-            1. Let |promise| be [=a new promise=].
-            <!-- Validate inputs and outputs -->
-            1. If any of the following requirements are unmet, then [=reject=] |promise| with a {{TypeError}} and stop.
-
+            1. If any of the following requirements are unmet, then throw a {{DataError}} {{DOMException}} and stop.
                 <div class=validusage>
                     1. For each |key| -> |value| of |inputs|:
-                        1. |this|.{{MLGraph/[[inputOperands]]}}[|key|] must exist.
-                        1. Let |inputOperand| be |this|.{{MLGraph/[[inputOperands]]}}[|key|].
-                        1. If |value|.{{MLInput/data}} is an {{ArrayBufferView}}, then:
-                            1. The kind of |value|.{{MLInput/data}} must be compatible to |inputOperand|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                        1. If |value|.{{MLInput/dimensions}} was given, then:
-                            1. The length of |value|.{{MLInput/dimensions}} must be the same as the length of |inputOperand|.{{MLOperandDescriptor/dimensions}}.
+                        1. |this|.{{MLGraph/[[inputDescriptors]]}}[|key|] must exist.
+                        1. Let |inputDesc| be |this|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+                        1. Let |inputSize| be 1.
+                        1. If |value| is an {{MLInput}}, then:
+                            1. The length of |value|.{{MLInput/dimensions}} must be the same as the length of |inputDesc|.{{MLOperandDescriptor/dimensions}}.
                             1. Let |i| be 0.
                             1. While true:
                                 1. Let |dimension| be |value|.{{MLInput/dimensions}}[|i|].
                                 1. |dimension| must be greater than 0.
-                                1. If |inputOperand|.{{MLOperandDescriptor/dimensions}}[|i|] is greater than 0, then |dimension| must be equal to |inputOperand|.{{MLOperandDescriptor/dimensions}}[|i|].
-                                1. Set |i| to |i| + 1.
+                                1. If |inputDesc|.{{MLOperandDescriptor/dimensions}}[|i|] is greater than 0, then |dimension| must be equal to |inputDesc|.{{MLOperandDescriptor/dimensions}}[|i|].
+                                1. Set |inputSize| to the product of |inputSize| and |dimension|.
+                                1. Increment |i| by 1.
                                 1. If |i| if equal to the length of |value|.{{MLInput/dimensions}}, then break.
                         1. Else:
-                            1. For each |dimension| of |inputOperand|.{{MLOperandDescriptor/dimensions}}:
+                            1. For each |dimension| of |inputDesc|.{{MLOperandDescriptor/dimensions}}:
                                 1. The value of |dimension| must be greater than 0.
+                                1. Set |inputSize| to the product of |inputSize| and |dimension|.
+                        1. If |value| is an {{MLInput}}, then let |resource| be |value|.{{MLInput/resource}}.
+                        1. If |value| is an {{MLResource}}, then let |resource| be |value|.
+                        1. If |resource| is an {{ArrayBufferView}}, then:
+                            1. The kind of |resource| must be compatible with |inputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                            1. The length of |resource| must be the same as |inputSize|.
 
-                    1. If |outputs| was not an empty [=record=], then:
-                        1. For each |key| -> |value| of |outputs|:
-                            1. |this|.{{MLGraph/[[outputOperands]]}}[|key|] must exist.
-                            1. If |value|.{{MLOutput/data}} was given, then the kind of |value|.{{MLOutput/data}} must be compatible to |this|.{{MLGraph/[[outputOperands]]}}[|key|] according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                    1. For each |key| -> |value| of |outputs|:
+                        1. |this|.{{MLGraph/[[outputNames]]}}[|key|] must exist.
                 </div>
-            <!-- Filter the required outputs -->
-            1. Let |requiredOutputNames| be a new [=ordered set=]&lt;{{DOMString}}&gt;.
-            1. If |outputs| was not an empty [=record=], then:
-                1. For each |key| -> |value| of |outputs|:
-                    1. Append |key| to |requiredOutputNames|.
-            1. Else:
-                1. For each |key| -> |value| of |this|.{{MLGraph/[[outputOperands]]}}:
-                    1. Append |key| to |requiredOutputNames|.
-            <!-- Copy the inputs -->
-            1. Let |copiedInputs| be a new {{MLNamedInputs}}.
-            1. For each |key| -> |value| of |inputs|:
-                1. Let |copiedInputs| be a new {{MLInput}}.
-                1. Let |copiedInputs|.{{MLInput/data}} be a new {{ArrayBufferView}} that has the same kind and length as |value|.{{MLInput/data}}'s.
-                1. Set the content of |copiedInputs|.{{MLInput/data}} to the content of |value|.{{MLInput/data}}.
-                1. Let |copiedInputs|.{{MLInput/dimensions}} be a new [=sequence=]&lt;{{long}}&gt; that has the same length of |value|.{{MLInput/dimensions}}'s.
-                1. Set the content of |copiedInputs|.{{MLInput/dimensions}} to the content of |value|.{{MLInput/dimensions}}.
-                1. Set |copiedInputs|[key] to |copiedInputs|.
             <!-- Compute -->
-            1. Let |results| be a new {{MLNamedOutputs}}.
-            1. Let |remainingOutputNames| be a new [=ordered set=]&lt;{{DOMString}}&gt;.
-            1. Set the content of |remainingOutputNames| to the content of |requiredOutputNames|.
-            1. Issue the following steps on the [=Device timeline=] of |this|.{{MLGraph/[[implementation]]}}:
-                <div class=device-timeline>
-                    1. For each |outputName| of |requiredOutputNames|:
-                        1. Issue a compute request of |this|.{{MLGraph/[[implementation]]}} for output whose name is |outputName| with given |copiedInputs|.
-                        1. When the compute request is completed, issue the following steps on the appropriate [=Queue timeline=]:
-                            <div class=queue-timeline>
-                                1. If there is an error returned by |this|.{{MLGraph/[[implementation]]}}, then:
-                                    1. [=reject=] |promise| with an {{OperationError}} and stop.
-                                1. Else:
-                                    1. Let |outputRank| be a {{unsigned long}}.
-                                    1. Set |outputRank| to the rank of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
-                                    1. Let |outputDemisions| be a new [=sequence=]&lt;{{long}}&gt; of size |outputRank|.
-                                    1. Let |i| be 0.
-                                    1. Let |outputSize| to 1.
-                                    1. While true:
-                                        1. Set |outputDimensions|[|i|] to the dimension at |i|th axis of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
-                                        1. Set |outputSize| to |outputSize| * |outputDimensions|[|i|].
-                                        1. Set |i| to |i| + 1.
-                                        1. If |i| is equal to |outputRank|, then break.
-                                    1. Set |results|[|outputName|].{{MLOutput/dimensions}} to |outputDemisions|.
-                                    1. If |this|.{{MLGraph/[[context]]}} is created from {{MLContextOptions}}, then:
-                                        1. If |outputs|[|outputName|].{{MLOutput/data}} was given, then:
-                                            1. If outputs|[|outputName|].{{MLOutput/data}} is not an {{ArrayBufferView}}, then [=reject=] |promise| with an {{TypeError}} and stop.
-                                            1. If the kind of |outputs|[|outputName|].{{MLOutput/data}} is not compatible to output tensor according to [this table](#appendices-mloperandtype-arraybufferview-compatibility), then [=reject=] |promise| with a {{TypeError}} and stop.
-                                            1. If the length of |outputs|[|outputName|].{{MLOutput/data}} is less than |outputSize|, then [=reject=] |promise| with a {{TypeError}} and stop.
-                                            1. Set the content of |outputs|[|outputName|].{{MLOutput/data}} to the content of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
-                                        1. Else:
-                                            1. Let |results|[|outputName|].{{MLOutput/data}} be a new {{ArrayBufferView}} of size |outputSize| and kind that is compatible to output tensor according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                                            1. Set the content of |results|[|outputName|].{{MLOutput/data}} to the content of output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
-                                    1. Remove |outputName| from |remainingOutputNames|.
-                                    1. If |remainingOutputNames| is empty, then resolve |promise| with |results| and stop.
-                            </div>
-                </div>
-
-            1. Return |promise|.
+            1. For each |key| -> |value| of |inputs|:
+                1. Let |inputDesc| be |this|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+                1. Let |inputTensor| be a new tensor for |this|.{{MLGraph/[[implementation]]}} of data type that is compatible with |inputDesc|.{{MLOperandDescriptor/type}}.
+                1. If |value| is an {{MLInput}}, then:
+                    1. Set the dimensions of |inputTensor| to |value|.{{MLInput/dimensions}}.
+                1. Else:
+                    1. Set the dimensions of |inputTensor| to |inputDesc|.{{MLOperandDescriptor/dimensions}}.
+                1. If |value| is an {{MLInput}}, then:
+                    1. Set the values of |inputTensor| to the values of |value|.{{MLInput/resource}}.
+                1. If |value| is an {{MLResource}}, then:
+                    1. Set the values of |inputTensor| to the values of |value|.
+                1. Set the input of |this|.{{MLGraph/[[implementation]]}} that is associated with |key| to |inputTensor|.
+            1. For each |key| -> |value| of |outputs|:
+                1. Issue a compute request for output of |this|.{{MLGraph/[[implementation]]}} that is associated with |key|.
+                1. Wait for the compute request to be completed.
+                1. If there is an error returned by |this|.{{MLGraph/[[implementation]]}}, then:
+                    1. Throw an {{OperationError}} {{DOMException}} and stop.
+                1. Else:
+                    1. Let |outputTensor| be the output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
+                    1. If the kind of |value| is not compatible with the value type of |outputTensor|, then throw a {{DataError}} {{DOMException}} and stop.
+                    1. Let |outputSize| be 1.
+                    1. For each |dimension| of dimensions of |outputTensor|:
+                        1. Set |outputSize| to the product of |outputSize| and |dimension|.
+                    1. If |outputSize| is greater than the length of |value|, then:
+                        1. Throw a {{DataError}} {{DOMException}} and stop.
+                    1. Else:
+                        1. Set the values of |value| to the values of |outputTensor|.
+            1. Return {{undefined}}.
 
             Issue: Describe the algorithm steps for |this|.{{MLGraph/[[context]]}} created from {{WebGLRenderingContext}} and {{GPUDevice}}.
         </div>
@@ -1878,6 +1759,11 @@ interface MLGraph {
 <div class="example">
 The following code showcases the computation with dynamic input dimensions.
 <pre highlight="js">
+function sizeOfShape(array) {
+  return array.reduce(
+      (accumulator, currentValue) => accumulator * currentValue);
+}
+
 const context = navigator.ml.createContext();
 
 // Create a graph with dynamic shaped inputs.
@@ -1887,49 +1773,26 @@ const a = builder.input('a', descA);
 const descB = {type: 'float32', dimensions: [4, -1]};
 const b = builder.input('b', descB);
 const c = builder.matmul(a, b);
-const graph = await builder.build({c});
+const graph = builder.build({'c': c});
 
-async function compute(shapeA, shapeB) {
+function allocateAndCompute(shapeA, shapeB, shapeC) {
   const bufferA = new Float32Array(sizeOfShape(shapeA)).fill(0.5);
   const bufferB = new Float32Array(sizeOfShape(shapeB)).fill(0.5);
+  const bufferC = new Float32Array(sizeOfShape(shapeC));
 
   // Specify the shape of inputs when computing.
   const inputs = {
-    'a': {data: bufferA, dimensions: shapeA},
-    'b': {data: bufferB, dimensions: shapeB},
+    'a': {resource: bufferA, dimensions: shapeA},
+    'b': {resource: bufferB, dimensions: shapeB},
   };
-  const outputs = await graph.compute(inputs);
-  console.log(&#96;shape: [${outputs.c.dimensions}], values: ${outputs.c.data}&#96;);
+  const outputs = {'c': bufferC};
+  graph.compute(inputs, outputs);
+  console.log(&#96;values: ${bufferC}&#96;);
 }
 
-await compute([3, 4], [4, 3]);
-await compute([4, 4], [4, 4]);
-await compute([5, 4], [4, 5]);
-</pre>
-</div>
-
-<div class="example">
-The following code showcases the computation with pre-allocated output buffers.
-<pre highlight="js">
-const context = navigator.ml.createContext();
-
-// The following code multiplies matrix a of shape [3, 4] with matrix b of shape [4, 3]
-// into matrix c of shape [3, 3].
-const builder = new MLGraphBuilder(context);
-const descA = {type: 'float32', dimensions: [3, 4]};
-const a = builder.input('a', descA);
-const descB = {type: 'float32', dimensions: [4, 3]};
-const bufferB = new Float32Array(sizeOfShape(descB.dimensions)).fill(0.5);
-const b = builder.constant(descB, bufferB);
-const c = builder.matmul(a, b);
-const graph = await builder.build({c});
-
-const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
-const inputs = {'a': {data: bufferA}};
-// Pre-allocate output buffer for c.
-const outputs = {'c': {data: new Float32Array(sizeOfShape([3, 3]))}};
-await graph.compute(inputs, outputs);
-console.log(&#96;values: ${outputs.c.data}&#96;);
+allocateAndCompute([3, 4], [4, 3], [3, 3]);
+allocateAndCompute([4, 4], [4, 4], [4, 4]);
+allocateAndCompute([5, 4], [4, 5], [5, 5]);
 </pre>
 </div>
 
@@ -1950,24 +1813,20 @@ const bufferC = new Float32Array(sizeOfShape(descC.dimensions)).fill(1);
 const c = builder.constant(descC, bufferC);
 const d = builder.matmul(a, b);
 const e = builder.add(d, c);
-const graph = await builder.build({d, e});
+const graph = builder.build({'d': d, 'e': e});
 
 const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
-const inputs = {'a': {data: bufferA}};
-
-// Compute both d and e.
-let outputs = await graph.compute(inputs);
-console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
+const inputs = {'a': bufferA};
 
 // Compute d.
-outputs = await graph.compute(inputs, {d});
-console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
-console.log(&#96;shape: [${outputs.d.dimensions}], values: ${outputs.d.data}&#96;);
+const bufferD = new Float32Array(sizeOfShape([3, 3]));
+graph.compute(inputs, {'d': bufferD});
+console.log(&#96;values: ${bufferD}&#96;);
 
 // Compute e.
-outputs = await graph.compute(inputs, {e});
-console.log(&#96;outputs include ${Object.keys(outputs)}&#96;);
-console.log(&#96;shape: [${outputs.e.dimensions}], values: ${outputs.e.data}&#96;);
+const bufferE = new Float32Array(sizeOfShape([3, 3]));
+graph.compute(inputs, {'e': bufferE});
+console.log(&#96;values: ${bufferE}&#96;);
 </pre>
 </div>
 
@@ -2031,7 +1890,7 @@ const output = builder.mul(intermediateOutput1, intermediateOutput2);
 Compile the graph up to the output operand.
 <pre highlight="js">
 // Compile the constructed graph.
-const graph = await builder.build({'output': output});
+const graph = builder.build({'output': output});
 </pre>
 </div>
 
@@ -2041,18 +1900,17 @@ The following code executes the compiled graph.
 // Setup the input buffers with value 1.
 const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1);
 const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
+const outputBuffer = new Float32Array(TENSOR_SIZE);
 
-// Asynchronously execute the compiled graph with the specified inputs.
+// Execute the compiled graph with the specified inputs.
 const inputs = {
-  'input1': {data: inputBuffer1},
-  'input2': {data: inputBuffer2},
+  'input1': inputBuffer1,
+  'input2': inputBuffer2,
 };
-const outputs = await graph.compute(inputs);
+const outputs = {'output': outputBuffer};
+graph.compute(inputs, outputs);
 
-// Log the shape and computed result of the output operand.
-console.log('Output shape: ' + outputs.output.dimensions);
-// Output shape: 1,2,2,2
-console.log('Output value: ' + outputs.output.data);
+console.log('Output value: ' + outputBuffer);
 // Output value: 2.25,2.25,2.25,2.25,2.25,2.25,2.25,2.25
 </pre>
 </div>
