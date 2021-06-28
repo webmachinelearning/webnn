@@ -529,6 +529,12 @@ dictionary MLOperandDescriptor {
 interface MLOperand {};
 </script>
 
+## MLOperator ## {#api-mloperator}
+<script type=idl>
+[SecureContext, Exposed=(Window, DedicatedWorker)]
+interface MLOperator {};
+</script>
+
 ## MLGraphBuilder ## {#api-mlgraphbuilder}
 
 The {{MLGraphBuilder}} interface defines a set of operations as identified by the [[#usecases]] that can be composed into a computational graph. It also represents the intermediate state of a graph building session.
@@ -571,6 +577,7 @@ dictionary MLBatchNormalizationOptions {
   MLOperand bias;
   long axis = 1;
   float epsilon = 1e-5;
+  MLOperator activation;
 };
 
 partial interface MLGraphBuilder {
@@ -588,6 +595,7 @@ partial interface MLGraphBuilder {
               - *bias*: an {{MLOperand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
               - *axis*: a {{long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. When it's not specified, the default value is 1.
               - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
+              - *activation*: an {{MLOperator}}. The optional activation function that immediately follows the normalization operation.
         
     **Returns:** an {{MLOperand}}. The batch-normalized N-D tensor of the same shape as the input tensor.
 
@@ -599,7 +607,9 @@ partial interface MLGraphBuilder {
     therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     const shape = [1,-1,1,1];
-    return builder.add(
+    return builder.setOperand(
+      activation,
+      [builder.add(
         builder.mul(
           builder.reshape(options.scale, shape),
           builder.div(
@@ -607,10 +617,8 @@ partial interface MLGraphBuilder {
             builder.pow(
               builder.add(builder.reshape(variance, shape), builder.constant(options.epsilon)),
               builder.constant(0.5))
-            )
-          ),
-        builder.reshape(options.bias, shape)
-      );
+            )),
+        builder.reshape(options.bias, shape))]);
     </pre>
     </div>
 </div>
@@ -625,6 +633,7 @@ dictionary MLClampOptions {
 
 partial interface MLGraphBuilder {
   MLOperand clamp(MLOperand x, optional MLClampOptions options = {});
+  MLOperator clamp(optional MLClampOptions options = {});
 };
 </script>
 <div algorithm=clamp>
@@ -634,7 +643,9 @@ partial interface MLGraphBuilder {
             - *minValue*: an {{MLOperand}}. Specifies the minimum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the lower limit of the range.
             - *maxValue*: an {{MLOperand}}. Specifies the maximum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the upper limit of the range.
 
-    **Returns:** an {{MLOperand}}. The output tensor of the same shape as *x*.
+    **Returns:** 
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the clamp operation.
 
     Clamp the input tensor element-wise within a range specified by *minValue* and *maxValue*. The calculation follows the expression min(max(x, minValue), maxValue). When *minValue* is not specified, the clamping is not performed on the lower limit. When *maxValue* is not specified, the clamping is not performed on the upper limit.
 
@@ -709,6 +720,8 @@ dictionary MLConv2dOptions {
   long groups = 1;
   MLInputOperandLayout inputLayout = "nchw";
   MLFilterOperandLayout filterLayout = "oihw";
+  MLOperand bias;
+  MLOperator activation;
 };
 
 partial interface MLGraphBuilder {
@@ -718,9 +731,9 @@ partial interface MLGraphBuilder {
 <div algorithm=conv2d>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
-            is interpreted according to the value of *options.layout*.
+            is interpreted according to the value of *options.inputLayout*.
         - *filter*: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
-            interpreted according to the value of *options.layout* and *options.groups*.
+            interpreted according to the value of *options.filterLayout* and *options.groups*.
         - *options*: an optional {{MLConv2dOptions}}. The optional parameters of the operation.
             - *padding*: a sequence of {{long}} of length 4. The additional rows and columns added to the beginning and ending of each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
             - *strides*: a sequence of {{long}} of length 2. The stride of the sliding window for each spatial dimension of *input*, [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
@@ -754,7 +767,10 @@ partial interface MLGraphBuilder {
                 "ihwo":
                     - [input_channels/groups, height, width, output_channels]
 
-    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.layout* value. More specifically the sizes of the last two dimensions of the output tensor, the spatial dimensions, for the convolution operation can be calculated as follow:
+            - *bias*: an {{MLOperand}}. The additional 1-D tensor with the shape of [output_channels] whose values are to be added to the convolution result.
+            - *activation*: an {{MLOperator}}. The optional activation function that immediately follows the convolution operation. 
+
+    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.inputLayout* value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follow:
 
     *output size = 1 + (input size - filter size + beginning padding + ending padding) / stride*
 
@@ -816,11 +832,8 @@ partial interface MLGraphBuilder {
   MLOperand floor(MLOperand x);
   MLOperand log(MLOperand x);
   MLOperand neg(MLOperand x);
-  MLOperand relu(MLOperand x);
-  MLOperand sigmoid(MLOperand x);
   MLOperand sin(MLOperand x);
   MLOperand tan(MLOperand x);
-  MLOperand tanh(MLOperand x);
 };
 </script>
 <div algorithm=unary>
@@ -839,20 +852,47 @@ partial interface MLGraphBuilder {
         - *floor*: Compute the floor of the input tensor, element-wise.
         - *log*: Compute the natural logarithm of the input tensor, element-wise.
         - *neg*: Compute the numerical negative value of the input tensor, element-wise.
-        - *relu*: Compute the [rectified linear function](https://en.wikipedia.org/wiki/Rectifier_(neural_networks) of the input tensor, element-wise.
-            <div class="note">
-            The behavior of this operation can be generically emulated from the usage of
-            other operations as follow. However, user agents typically have a more
-            efficient implementation for it, therefore its usage is encouraged from the
-            performance standpoint.
-            <pre highlight="js">
-            return builder.max(builder.constant(0), x);
-            </pre>
-            </div>
-        - *sigmoid*: Compute the sigmoid function of the input tensor, element-wise.
         - *sin*: Compute the sine of the input tensor, element-wise.
         - *tan*: Compute the tangent of the input tensor, element-wise.
-        - *tanh*: Compute the hyperbolic tangent of the input tensor, element-wise.
+</div>
+
+### elu ### {#api-mlgraphbuilder-elu}
+Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#ELU"> exponential linear unit function</a> on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha * (exp(min(0, x)) - 1)`.
+<script type=idl>
+dictionary MLEluOptions {
+  float alpha = 1;
+};
+
+partial interface MLGraphBuilder {
+  MLOperand elu(MLOperand x, optional MLEluOptions options = {});
+  MLOperator elu(optional MLEluOptions options = {});
+};
+</script>
+<div algorithm=elu>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
+            - *alpha*: a {{float}} scalar multiplier, default to 1.
+
+    **Returns:** 
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the elu operation.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.add(
+              builder.max(0, x),
+              builder.mul(
+                builder.constant(options.alpha), 
+                builder.sub(
+                  builder.exp(builder.min(builder.constant(0), x)), 
+                  builder.constant(1))));
+    </pre>
+    </div>
 </div>
 
 ### gemm ### {#api-mlgraphbuilder-gemm}
@@ -906,12 +946,6 @@ enum MLRecurrentNetworkWeightLayout {
   "rzn"   // reset-update-new gate ordering
 };
 
-enum MLRecurrentNetworkActivation {
-  "relu",
-  "sigmoid",
-  "tanh"
-};
-
 enum MLRecurrentNetworkDirection {
   "forward",
   "backward",
@@ -926,7 +960,7 @@ dictionary MLGruOptions {
   boolean returnSequence = false;
   MLRecurrentNetworkDirection direction = "forward";
   MLRecurrentNetworkWeightLayout layout = "zrn";
-  sequence<MLRecurrentNetworkActivation> activations;
+  sequence<MLOperator> activations;
 };
 
 partial interface MLGraphBuilder {
@@ -949,7 +983,7 @@ partial interface MLGraphBuilder {
             - *returnSequence*: a {{boolean}} indicating whether to also return the entire sequence with every cell output from each time step in it in addition to the cell output of the last time step. Default to false.
             - *direction*: a {{MLRecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
             - *layout*: a {{MLRecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is *"zrn"*.
-            - *activations*: a sequence of {{MLRecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's assumed to be the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
+            - *activations*: a sequence of {{MLOperator}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's assumed to be the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
 
     **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if *returnSequence* is set to true, the second element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
 
@@ -1023,7 +1057,7 @@ dictionary MLGruCellOptions {
   MLOperand recurrentBias;
   boolean resetAfter = true;
   MLRecurrentNetworkWeightLayout layout = "zrn";
-  sequence<MLRecurrentNetworkActivation> activations;
+  sequence<MLOperator> activations;
 };
 
 partial interface MLGraphBuilder {
@@ -1043,7 +1077,7 @@ partial interface MLGraphBuilder {
             - *recurrentBias*: an {{MLOperand}}. The 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
             - *resetAfter*: a {{boolean}} indicating whether to apply the reset gate after or before matrix multiplication. Default to true.
             - *layout*: a {{MLRecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"zrn"*.
-            - *activations*: a sequence of {{MLRecurrentNetworkActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's default to the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
+            - *activations*: a sequence of {{MLOperator}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's default to the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
 
     **Returns:** an {{MLOperand}}. The 2-D tensor of shape [batch_size, hidden_size], the cell output hidden state of a single time step of the recurrent network.
 
@@ -1054,8 +1088,9 @@ partial interface MLGraphBuilder {
     const zero = builder.constant(0);
 
     // update gate
-    let z = builder.sigmoid(
-      builder.add(
+    let z = builder.setOperand(
+      options.activations[0]
+      [builder.add(
         builder.add(
           (options.bias ? builder.slice(options.bias, [0], [hiddenSize]) : zero), 
           (options.recurrentBias ? builder.slice(options.recurrentBias, [0], [hiddenSize]) : zero)
@@ -1070,12 +1105,13 @@ partial interface MLGraphBuilder {
             builder.transpose(builder.slice(recurrentWeight, [0, 0], [hiddenSize, -1]))
             )
           )
-        )
+        )]
       );
 
     // reset gate
-    let r = builder.sigmoid(
-      builder.add(
+    let r = builder.setOperand(
+      options.activations[0],
+      [builder.add(
         builder.add(
           (options.bias ? builder.slice(options.bias, [hiddenSize], [hiddenSize]) : zero),
           (options.recurrentBias ? builder.slice(options.recurrentBias, [hiddenSize], [hiddenSize]) : zero)
@@ -1090,14 +1126,15 @@ partial interface MLGraphBuilder {
             builder.transpose(builder.slice(recurrentWeight, [hiddenSize, 0], [hiddenSize, -1]))
             )
           )
-        )
+        )]
       );
 
     // new gate
     let n;
     if (resetAfter) {
-      n = builder.tanh(
-        builder.add(
+      n = builder.setOperand(
+        options.activations[1],
+        [builder.add(
           (options.bias ? builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) : zero),
           builder.add(
             builder.matmul(
@@ -1115,12 +1152,13 @@ partial interface MLGraphBuilder {
                 )
               )
             )
-          )
+          )]
         );
     }
     else {
-      n = builder.tanh(
-        builder.add(
+      n = builder.setOperand(
+        options.activations[1],
+        [builder.add(
           builder.add(
             (options.bias ? builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) : zero),
             (options.recurrentBias ? builder.slice(options.recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero)
@@ -1135,12 +1173,53 @@ partial interface MLGraphBuilder {
               builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, -1]))
               )
             )
-          )
+          )]
         );
     }
 
     // compute the new hidden state
     return builder.add(builder.mul(z, hiddenState), builder.mul(n, builder.sub(one, z)));
+    </pre>
+    </div>
+</div>
+
+### hardSigmoid ### {#api-mlgraphbuilder-hard-sigmoid}
+Calculate the <a href="https://en.wikipedia.org/wiki/Hard_sigmoid"> non-smooth function</a> used in place of a sigmoid function on the input tensor.
+<script type=idl>
+dictionary MLHardSigmoidOptions {
+  float alpha = 0.2;
+  float beta = 0.5;
+};
+
+partial interface MLGraphBuilder {
+  MLOperand hardSigmoid(MLOperand x, optional MLHardSigmoidOptions options = {});
+  MLOperator hardSigmoid(optional MLHardSigmoidOptions options = {});
+};
+</script>
+<div algorithm=hard-sigmoid>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLHardSigmoidOptions}}. The optional parameters of the operation.
+            - *alpha*: a {{float}} scalar multiplier, default to 0.2.
+            - *beta*: a {{float}} scalar addition, default to 0.5.
+
+    **Returns:** 
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the hard sigmoid operation.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.max(
+               builder.min(
+                   builder.add(
+                       builder.mul(builder.constant(options.alpha), x),
+                       builder.constant(options.beta)), 
+                   builder.constant(1)),
+               builder.constant(0));
     </pre>
     </div>
 </div>
@@ -1207,6 +1286,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### leakyRelu ### {#api-mlgraphbuilder-leakyrelu}
+Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Leaky_ReLU"> leaky version of rectified linear function</a> on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha ∗ min(0, x)`.
 <script type=idl>
 dictionary MLLeakyReluOptions {
   float alpha = 0.01;
@@ -1214,6 +1294,7 @@ dictionary MLLeakyReluOptions {
 
 partial interface MLGraphBuilder {
   MLOperand leakyRelu(MLOperand x, optional MLLeakyReluOptions options = {});
+  MLOperator leakyRelu(optional MLLeakyReluOptions options = {});
 };
 </script>
 <div algorithm=leakyrelu>
@@ -1222,13 +1303,9 @@ partial interface MLGraphBuilder {
         - *options*: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
             - *alpha*: a {{float}} scalar multiplier, default to 0.01.
 
-    **Returns:** an {{MLOperand}}. The output tensor of the same shape as *x*.
-
-    Calculate the <a
-    href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Leaky_ReLU">
-    leaky version of rectified linear function</a> on the input tensor
-    element-wise. The calculation follows the expression `max(0, x) + alpha ∗
-    min(0, x)`.
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the leaky relu operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -1273,6 +1350,43 @@ partial interface MLGraphBuilder {
             its dimensions.
         - If both *a* and *b* are 1-D, the operation is a vector dot-product,
             which produces a scalar output.
+</div>
+
+### linear ### {#api-mlgraphbuilder-linear}
+Calculate a linear function `y = alpha * x + beta` on the input tensor.
+<script type=idl>
+dictionary MLLinearOptions {
+  float alpha = 1;
+  float beta = 0;
+};
+
+partial interface MLGraphBuilder {
+  MLOperand linear(MLOperand x, optional MLLinearOptions options = {});
+  MLOperator linear(optional MLLinearOptions options = {});
+};
+</script>
+<div algorithm=linear>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
+            - *alpha*: a {{float}} scalar multiplier, default to 1.
+            - *beta*: a {{float}} scalar addition, default to 0.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the linear operation.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.add(
+              builder.mul(x, builder.constant(options.alpha)), 
+              builder.constant(options.beta));
+    </pre>
+    </div>
 </div>
 
 ### pad ### {#api-mlgraphbuilder-pad}
@@ -1447,6 +1561,33 @@ partial interface MLGraphBuilder {
         - *SumSquare*: Compute the sum of the square of all the input values along the axes.
 </div>
 
+### relu ### {#api-mlgraphbuilder-relu}
+Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">rectified linear function</a> of the input tensor.
+<script type=idl>
+partial interface MLGraphBuilder {
+  MLOperand relu(MLOperand x);
+  MLOperator relu();
+};
+</script>
+<div algorithm=relu>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the relu operation.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.max(builder.constant(0), x);
+    </pre>
+    </div>
+</div>
+
 ### resample ### {#api-mlgraphbuilder-resample}
 Resample the tensor values from the source to the destination dimensions according to the scaling factors.
 <script type=idl>
@@ -1497,6 +1638,54 @@ partial interface MLGraphBuilder {
     **Returns:** an {{MLOperand}}. The output tensor. The values of the output
     tensor are the same as values of the input tensor. The shape of the output
     tensor is specified by the *newShape* argument.
+</div>
+
+### setOperand ### {#api-mlgraphbuilder-set-operand}
+Connect the operands to the specified operator. This method allows an operator to be created before it is connected to the graph, which is necessary for the activation functions when it is provided as part of another operation such as convolution or a recurrent network operation. Not every operation supports the creation of its operator, only a limited number do.
+<script type=idl>
+partial interface MLGraphBuilder {
+  MLOperand setOperand(MLOperator operator, sequence<MLOperand> operands);
+};
+</script>
+<div algorithm=set-operand>
+    **Arguments:**
+        - *operator*: an {{MLOperator}}. The operator to which the operands connect.
+        - *operands*: a sequence of {{MLOperand}}. The list of operands to connect in the order of the input operands of the operator's designated operation. Note that only the required, non-optional operands of the operation are allowed.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the operation represented by the operator.
+    </div>
+</div>
+
+### sigmoid ### {#api-mlgraphbuilder-sigmoid}
+Compute the <a href="https://en.wikipedia.org/wiki/Sigmoid_function">sigmoid function</a> of the input tensor. The calculation follows the expression `1 / (exp(-x) + 1)`.
+<script type=idl>
+partial interface MLGraphBuilder {
+  MLOperand sigmoid(MLOperand x);
+  MLOperator sigmoid();
+};
+</script>
+<div algorithm=sigmoid>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the sigmoid operation.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.div(
+              builder.constant(1),
+              builder.add(
+                builder.exp(builder.neg(x)), 
+                builder.constant(1)));
+    </pre>
+    </div>
 </div>
 
 ### slice ### {#api-mlgraphbuilder-slice}
@@ -1552,6 +1741,69 @@ partial interface MLGraphBuilder {
     const max_x = builder.reduceMax(x, { axes: [1], keepDimensions: true });
     const exp_x = builder.exp(builder.sub(x, max));
     return builder.div(exp_x, builder.reduceSum(exp_x, { axes: [1], keepDimensions: true }));
+    </pre>
+    </div>
+</div>
+
+### softplus ### {#api-mlgraphbuilder-softplus}
+Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Softplus">softplus function</a> of the input tensor. The calculation follows the expression `ln(1 + exp(steepness * x)) / steepness`.
+<script type=idl>
+dictionary MLSoftplusOptions {
+  float steepness = 1;
+};
+
+partial interface MLGraphBuilder {
+  MLOperand softplus(MLOperand x, optional MLSoftplusOptions options = {});
+  MLOperator softplus(optional MLSoftplusOptions options = {});
+};
+</script>
+<div algorithm=softplus>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the softplus operation.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.div(
+              builder.log(
+                builder.add(
+                  builder.exp(builder.mul(x, builder.constant(options.steepness))),
+                  builder.constant(1))),
+              builder.constant(options.steepness));
+    </pre>
+    </div>
+</div>
+
+### softsign ### {#api-mlgraphbuilder-softsign}
+Compute the <a href="https://pytorch.org/docs/stable/generated/torch.nn.Softsign.html">softsign function</a> of the input tensor. The calculation follows the expression `x / (1 + |x|)`.
+<script type=idl>
+partial interface MLGraphBuilder {
+  MLOperand softsign(MLOperand x);
+  MLOperator softsign();
+};
+</script>
+<div algorithm=softsign>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the softsign operation.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.div(x, builder.add(builder.constant(1), build.abs(x)));
     </pre>
     </div>
 </div>
@@ -1614,6 +1866,35 @@ partial interface MLGraphBuilder {
             - *axes*: a sequence of {{long}}. Indices to the shape dimensions of size 1 to eliminate. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
+</div>
+
+### tanh ### {#api-mlgraphbuilder-tanh}
+Compute the <a href="https://en.wikipedia.org/wiki/Hyperbolic_functions">hyperbolic tangent function</a> of the input tensor. The calculation follows the expression `(exp(2 * x) - 1) / (exp(2 * x) + 1)`.
+<script type=idl>
+partial interface MLGraphBuilder {
+  MLOperand tanh(MLOperand x);
+  MLOperator tanh();
+};
+</script>
+<div algorithm=tanh>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the tanh operation.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.div(
+              builder.sub(builder.exp(builder.mul(builder.constant(2), x)), builder.constant(1)),
+              builder.add(builder.exp(builder.mul(builder.constant(2), x)), builder.constant(1)));
+    </pre>
+    </div>
 </div>
 
 ### transpose ### {#api-mlgraphbuilder-transpose}
