@@ -530,10 +530,17 @@ interface MLOperand {};
 </script>
 
 ## MLOperator ## {#api-mloperator}
+
+The {{MLOperator}} interface defines a type of operation. An {{MLOperator}} is necessary for the activation functions when it is provided as part of another operation such as convolution or a recurrent network operation. Not every operation supports the creation of its operator, only a limited number do.
+
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLOperator {};
 </script>
+
+<div class="note">
+An {{MLOperator}} is created before it is connected to the graph. The graph builder will then connect it with the rest of the graph once the input operands are ready.
+</div>
 
 ## MLGraphBuilder ## {#api-mlgraphbuilder}
 
@@ -602,14 +609,11 @@ partial interface MLGraphBuilder {
     When *input* is a 4-D tensor of the *"nchw"* or *"nhwc"* layout, *options.axis* should be set to 1 or 3 respectively. The axis value designates the feature or channel count dimension of the input tensor.
 
     <div class="note">
-    The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout can be generically emulated from 
-    the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, 
-    therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout and the activation is type of *"relu"* operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     const shape = [1,-1,1,1];
-    return builder.setOperand(
-      activation,
-      [builder.add(
+    return builder.relu(
+      builder.add(
         builder.mul(
           builder.reshape(options.scale, shape),
           builder.div(
@@ -618,7 +622,7 @@ partial interface MLGraphBuilder {
               builder.add(builder.reshape(variance, shape), builder.constant(options.epsilon)),
               builder.constant(0.5))
             )),
-        builder.reshape(options.bias, shape))]);
+        builder.reshape(options.bias, shape)));
     </pre>
     </div>
 </div>
@@ -1088,9 +1092,8 @@ partial interface MLGraphBuilder {
     const zero = builder.constant(0);
 
     // update gate
-    let z = builder.setOperand(
-      options.activations[0]
-      [builder.add(
+    let z = builder.sigmoid(
+      builder.add(
         builder.add(
           (options.bias ? builder.slice(options.bias, [0], [hiddenSize]) : zero), 
           (options.recurrentBias ? builder.slice(options.recurrentBias, [0], [hiddenSize]) : zero)
@@ -1105,13 +1108,12 @@ partial interface MLGraphBuilder {
             builder.transpose(builder.slice(recurrentWeight, [0, 0], [hiddenSize, -1]))
             )
           )
-        )]
+        )
       );
 
     // reset gate
-    let r = builder.setOperand(
-      options.activations[0],
-      [builder.add(
+    let r = builder.sigmoid(
+      builder.add(
         builder.add(
           (options.bias ? builder.slice(options.bias, [hiddenSize], [hiddenSize]) : zero),
           (options.recurrentBias ? builder.slice(options.recurrentBias, [hiddenSize], [hiddenSize]) : zero)
@@ -1126,15 +1128,14 @@ partial interface MLGraphBuilder {
             builder.transpose(builder.slice(recurrentWeight, [hiddenSize, 0], [hiddenSize, -1]))
             )
           )
-        )]
+        )
       );
 
     // new gate
     let n;
     if (resetAfter) {
-      n = builder.setOperand(
-        options.activations[1],
-        [builder.add(
+      n = builder.tanh(
+        builder.add(
           (options.bias ? builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) : zero),
           builder.add(
             builder.matmul(
@@ -1152,13 +1153,12 @@ partial interface MLGraphBuilder {
                 )
               )
             )
-          )]
+          )
         );
     }
     else {
-      n = builder.setOperand(
-        options.activations[1],
-        [builder.add(
+      n = builder.tanh(
+        builder.add(
           builder.add(
             (options.bias ? builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) : zero),
             (options.recurrentBias ? builder.slice(options.recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero)
@@ -1173,7 +1173,7 @@ partial interface MLGraphBuilder {
               builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, -1]))
               )
             )
-          )]
+          )
         );
     }
 
@@ -1638,23 +1638,6 @@ partial interface MLGraphBuilder {
     **Returns:** an {{MLOperand}}. The output tensor. The values of the output
     tensor are the same as values of the input tensor. The shape of the output
     tensor is specified by the *newShape* argument.
-</div>
-
-### setOperand ### {#api-mlgraphbuilder-set-operand}
-Connect the operands to the specified operator. This method allows an operator to be created before it is connected to the graph, which is necessary for the activation functions when it is provided as part of another operation such as convolution or a recurrent network operation. Not every operation supports the creation of its operator, only a limited number do.
-<script type=idl>
-partial interface MLGraphBuilder {
-  MLOperand setOperand(MLOperator operator, sequence<MLOperand> operands);
-};
-</script>
-<div algorithm=set-operand>
-    **Arguments:**
-        - *operator*: an {{MLOperator}}. The operator to which the operands connect.
-        - *operands*: a sequence of {{MLOperand}}. The list of operands to connect in the order of the input operands of the operator's designated operation. Note that only the required, non-optional operands of the operation are allowed.
-
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the operation represented by the operator.
-    </div>
 </div>
 
 ### sigmoid ### {#api-mlgraphbuilder-sigmoid}
