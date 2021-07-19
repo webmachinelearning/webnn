@@ -1233,6 +1233,41 @@ partial interface MLGraphBuilder {
     </div>
 </div>
 
+### hardSwish ### {#api-mlgraphbuilder-hard-swish}
+Computes the hard-swish activation that is introduced by [[MobileNetV3]] on the input tensor element-wise.
+<script type=idl>
+partial interface MLGraphBuilder {
+  MLOperand hardSwish(MLOperand x);
+  MLOperator hardSwish();
+};
+</script>
+<div algorithm=hard-swish>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the hard-swish operation.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.div(
+               builder.mul(
+                   x,
+                   builder.max(
+                       builder.constant(0),
+                       builder.min(
+                           builder.constant(6),
+                           builder.add(x, builder.constant(3))))),
+               builder.constant(6));
+    </pre>
+    </div>
+</div>
+
 ### instanceNormalization ### {#api-mlgraphbuilder-instancenorm}
 Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-mlgraphbuilder-batchnorm]] where the mean and variance values used in the calculation are previously computed across the batch dimension during the model training phrase, the mean and variance values used in the calculation of an instance normalization are computed internally on the fly per input feature.
 <script type=idl>
@@ -2486,6 +2521,25 @@ Benjamin Poulain for their contributions to the API specification.
       "Matthias Nießner"
     ],
     "date": "January 2019"
+  },
+  "MobileNetV3": {
+    "href": "https://arxiv.org/pdf/1905.02244",
+    "title": "Searching for MobileNetV3",
+    "authors": [
+      "Andrew Howard",
+      "Mark Sandler",
+      "Grace Chu",
+      "Liang-Chieh Chen",
+      "Bo Chen",
+      "Mingxing Tan",
+      "Weijun Wang",
+      "Yukun Zhu",
+      "Ruoming Pang",
+      "Vijay Vasudevan",
+      "Quoc V. Le",
+      "Hartwig Adam"
+    ],
+    "date": "November 2019"
   }
 }
 </pre>
