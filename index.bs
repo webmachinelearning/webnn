@@ -471,7 +471,6 @@ interface ML {
 };
 </script>
 
-=======
 The {{ML/createContext()}} method steps are:
 1. If the [=responsible document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then throw a "{{SecurityError!!exception}}" {{DOMException}} and abort these steps.
 1. Let |context| be a new {{MLContext}} object.
@@ -586,7 +585,7 @@ interface MLGraphBuilder {
 </script>
 
 ### batchNormalization ### {#api-mlgraphbuilder-batchnorm}
-Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phrase of this operation.
+Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phase of this operation.
 <script type=idl>
 dictionary MLBatchNormalizationOptions {
   MLOperand scale;
@@ -1233,8 +1232,43 @@ partial interface MLGraphBuilder {
     </div>
 </div>
 
+### hardSwish ### {#api-mlgraphbuilder-hard-swish}
+Computes the nonlinear function `y = x * max(0, min(6, (x + 3))) / 6` that is introduced by [[MobileNetV3]] on the input tensor element-wise.
+<script type=idl>
+partial interface MLGraphBuilder {
+  MLOperand hardSwish(MLOperand x);
+  MLOperator hardSwish();
+};
+</script>
+<div algorithm=hard-swish>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperator}}. The operator representing the hard-swish operation.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.div(
+               builder.mul(
+                   x,
+                   builder.max(
+                       builder.constant(0),
+                       builder.min(
+                           builder.constant(6),
+                           builder.add(x, builder.constant(3))))),
+               builder.constant(6));
+    </pre>
+    </div>
+</div>
+
 ### instanceNormalization ### {#api-mlgraphbuilder-instancenorm}
-Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-mlgraphbuilder-batchnorm]] where the mean and variance values used in the calculation are previously computed across the batch dimension during the model training phrase, the mean and variance values used in the calculation of an instance normalization are computed internally on the fly per input feature.
+Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-mlgraphbuilder-batchnorm]] where the mean and variance values used in the calculation are previously computed across the batch dimension during the model training phase, the mean and variance values used in the calculation of an instance normalization are computed internally on the fly per input feature.
 <script type=idl>
 dictionary MLInstanceNormalizationOptions {
   MLOperand scale;
@@ -2486,6 +2520,25 @@ Benjamin Poulain for their contributions to the API specification.
       "Matthias Nießner"
     ],
     "date": "January 2019"
+  },
+  "MobileNetV3": {
+    "href": "https://arxiv.org/pdf/1905.02244",
+    "title": "Searching for MobileNetV3",
+    "authors": [
+      "Andrew Howard",
+      "Mark Sandler",
+      "Grace Chu",
+      "Liang-Chieh Chen",
+      "Bo Chen",
+      "Mingxing Tan",
+      "Weijun Wang",
+      "Yukun Zhu",
+      "Ruoming Pang",
+      "Vijay Vasudevan",
+      "Quoc V. Le",
+      "Hartwig Adam"
+    ],
+    "date": "November 2019"
   }
 }
 </pre>
