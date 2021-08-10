@@ -391,6 +391,53 @@ Implementers of this API are expected to be familiar with the <a href="https://g
 
 
 # Programming Model # {#programming-model}
+## Overview ## {#programming-model-overview}
+
+At the heart of neural networks is a computational graph of mathematical operations.
+These operations are the building blocks of modern machine learning technologies in
+computer vision, natural language processing, and robotics.
+The WebNN API is a specification for constructing, compiling, and executing computational
+graphs of neural networks.
+
+The {{MLGraph}} interface represents a compiled computational graph (that is, a model) and exposes
+a compute method to perform inference.
+
+The {{MLGraphBuilder}} interface serves as a builder (factory) to create a {{MLGraph}}.
+An {{MLOperand}} is a representation of data that flows within the computational graph,
+which include input-values for inference, constants (including trained weights)
+used for inference, intermediate values (often referred to as activations) computed
+during inference, as well as the output values of inference.
+At inference time, every {{MLOperand}} will be bound to a tensor (the actual data).
+
+The {{MLGraphBuilder}} interface enables the creation of {{MLOperand}}s.
+A key part of the {{MLGraphBuilder}} interface are the operations (such as 
+{{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/softmax()}}). The operations have a functional
+semantics, with no side effects.
+Each operation invocation conceptually returns a distinct new value, without
+changing the value of any other {{MLOperand}}.
+
+The {{MLGraphBuilder/build()}} method of the {{MLGraphBuilder}} interface is used to compile and optimize
+the computation graph used to compute one or more specified outputs. The key
+purpose of the compilation step is to enable optimizations that span two or
+more operations, such as operation or loop fusion.
+
+The {{MLGraph/compute()}} method of the {{MLGraph}} interface is used to execute the
+compiled computation graph (to perform inference). The caller supplies the input
+values using {{MLNamedInputs}}, binding the input {{MLOperand}}s to their values.
+The caller supplies pre-allocated buffers for output {{MLOperand}}s using {{MLNamedOutputs}}.
+
+The runtime values (of {{MLOperand}}s) are tensors, which are essentially multidimensional
+arrays. The representation of the tensors is implementation dependent, but it typically
+includes the array data stored in some buffer (memory) and some metadata describing the
+array data (such as its shape). 
+
+As mentioned above, the operations have a functional semantics. This allows the implementation
+to potentially share the array data between multiple tensors. For example, the implementation
+of operations such as reshape, or slice, or squeeze may return a view of its input tensor
+that shares the same buffer as the input tensor. (In the case of reshape or squeeze,
+the entire data is shared, while in the case of slice, a part of the input data is shared.)
+The implementation may use views, as above, for intermediate values.
+
 ## Device Selection ## {#programming-model-device-selection}
 
 An {{MLContext}} interface represents a global state of neural network execution. One of the important context states is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. An {{MLContext}} could be created from a specific GPU device such as {{GPUDevice}} or {{WebGLRenderingContext}} that is already in use by the application, in which case the corresponding {{GPUBuffer}} or {{WebGLBuffer}} resources used as graph constants, as well as the {{GPUTexture}} and {{WebGLTexture}} as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for {{MLContext}} must be created from the same adapter as the device used to allocate the resources referenced in the graph.
