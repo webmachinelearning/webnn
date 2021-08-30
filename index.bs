@@ -1680,32 +1680,34 @@ partial interface MLGraphBuilder {
     </div>
 </div>
 
-### resample ### {#api-mlgraphbuilder-resample}
-Resample the tensor values from the source to the destination dimensions according to the scaling factors.
+### resample2d ### {#api-mlgraphbuilder-resample2d}
+Resample the tensor values from the source to the destination spatial dimensions according to the scaling factors.
 <script type=idl>
 enum MLInterpolationMode {
   "nearest-neighbor",
   "linear"
 };
 
-dictionary MLResampleOptions {
+dictionary MLResample2dOptions {
   MLInterpolationMode mode = "nearest-neighbor";
   sequence<float> scales;
   sequence<long> sizes;
+  MLInputOperandLayout layout = "nchw";
 };
 
 partial interface MLGraphBuilder {
-  MLOperand resample(MLOperand input, optional MLResampleOptions options = {});
+  MLOperand resample2d(MLOperand input, optional MLResample2dOptions options = {});
 };
 </script>
-<div algorithm=resample>
+<div algorithm=resample2d>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 4-D tensor.
-        - *options*: an optional {{MLResampleOptions}}. The optional parameters of the operation.
+        - *options*: an optional {{MLResample2dOptions}}. The optional parameters of the operation.
             - *mode*: an {{MLInterpolationMode}}. The interpolation algorithm used to fill the output tensor values.
                 If not set, it is assumed to be the *Nearest Neighbor* interpolation.
-            - *scales*: a sequence of {{float}} of length 4. Each value represents the scaling factor used to scale in each input dimensions. If not set, the values are assumed to be [1.0, 1.0, 1.0, 1.0].
-            - *sizes*: a sequence of {{long}} of length 4. The target sizes for each input dimensions. When the target sizes are specified, the *options.scales* argument is ignored as the scaling factor values are derived from the target sizes of each input dimension.
+            - *scales*: a sequence of {{float}} of length 2. Each value represents the scaling factor used to scale in each spatial dimensions of input, [scale_height, scale_width]. If not set, the values are assumed to be [1.0, 1.0].
+            - *sizes*: a sequence of {{long}} of length 2. The target sizes for each spatial dimensions of input, [size_height, size_width]. When the target sizes are specified, the *options.scales* argument is ignored as the scaling factor values are derived from the target sizes of each spatial dimension of input.
+            - *layout*: an {{MLInputOperandLayout}}. This option specifies the layout format of the input. The default value is *"nchw"*.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor.
 </div>
