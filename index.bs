@@ -688,8 +688,8 @@ partial interface MLGraphBuilder {
 Clamp the input tensor element-wise within a range specified by the minimum and maximum values.
 <script type=idl>
 dictionary MLClampOptions {
-  MLOperand minValue;
-  MLOperand maxValue;
+  float minValue;
+  float maxValue;
 };
 
 partial interface MLGraphBuilder {
@@ -701,14 +701,12 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *x*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
-            - *minValue*: an {{MLOperand}}. Specifies the minimum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the lower limit of the range.
-            - *maxValue*: an {{MLOperand}}. Specifies the maximum values of the range. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape of *x* according to [[!numpy-broadcasting-rule]]. When it is not specified, the clamping is not performed on the upper limit of the range.
+            - *minValue*: a {{float}} scalar. Specifies the minimum value of the range. When it is not specified, the clamping is not performed on the lower limit of the range.
+            - *maxValue*: a {{float}} scalar. Specifies the maximum value of the range. When it is not specified, the clamping is not performed on the upper limit of the range.
 
     **Returns:** 
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
         - an {{MLOperator}}. The operator representing the clamp operation.
-
-    Clamp the input tensor element-wise within a range specified by *minValue* and *maxValue*. The calculation follows the expression min(max(x, minValue), maxValue). When *minValue* is not specified, the clamping is not performed on the lower limit. When *maxValue* is not specified, the clamping is not performed on the upper limit.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -720,13 +718,15 @@ partial interface MLGraphBuilder {
       if (options.maxValue === undefined) {
         return x;
       } else {
-        return builder.min(x, options.maxValue);
+        return builder.min(x, builder.constant(options.maxValue));
       }
     } else {
       if (options.maxValue === undefined) {
-        return builder.max(x, options.minValue);
+        return builder.max(x, builder.constant(options.minValue));
       } else {
-        return builder.min(builder.max(x, options.minValue), options.maxValue);
+        return builder.min(
+            builder.max(x, builder.constant(options.minValue)),
+            builder.constant(options.maxValue));
       }
     }
     </pre>
