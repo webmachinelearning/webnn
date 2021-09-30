@@ -1553,6 +1553,11 @@ partial interface MLGraphBuilder {
 ### pooling operations ### {#api-mlgraphbuilder-pool2d}
 Compute a *mean*, *L2 norm*, or *max* reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-mlgraphbuilder-reduce]].
 <script type=idl>
+enum MLRoundingType {
+  "floor",
+  "ceil"
+};
+
 dictionary MLPool2dOptions {
   sequence<long> windowDimensions;
   sequence<long> padding;
@@ -1560,6 +1565,8 @@ dictionary MLPool2dOptions {
   sequence<long> dilations;
   MLAutoPad autoPad = "explicit";
   MLInputOperandLayout layout = "nchw";
+  MLRoundingType roundingType = "floor";
+  sequence<long> outputSizes;
 };
 
 partial interface MLGraphBuilder {
@@ -1594,10 +1601,18 @@ partial interface MLGraphBuilder {
                 "nhwc":
                     - input tensor: [batches, height, width, channels]
                     - output tensor: [batches, height, width, channels]
+            - *roundingType*: an {{MLRoundingType}}. The option specifies the rounding function used to compute the output shape.
+            - *outputSizes*: a sequence of long of length 2. The sizes of the two spacial dimensions of the output tensor. When the output sizes are explicitly specified, the options.roundingType is ignored. If not specified, the output sizes are automatically computed.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
-    value of *layout*.
+    value of *layout*. More specifically, if the *options.roundingType* is *"floor"*, the spatial dimensions of the output tensor can be calculated as follow:
+
+    *output size = floor(1 + (input size - filter size + beginning padding + ending padding) / stride)*
+
+    or if *options.roundingType* is *"ceil"*:
+
+    *output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)*
 
     <div class="note">
     A *global* pooling operation such as one for the max pooling operation is a variant of pooling where the window dimensions is the spatial dimensions (last two dimensions) of the input shape, as follow.
