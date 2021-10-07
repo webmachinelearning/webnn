@@ -1,7 +1,8 @@
-# W3C Machine Learning for the Web Community Group
-
-This repository is being used for work in the W3C Machine Learning for the Web Community Group, governed by the [W3C Community License Agreement (CLA)](https://www.w3.org/community/about/agreements/cla/). To make substantive contributions, you must join the CG. 
-
+Contributions to this repository are intended to become part of Recommendation-track documents governed by the
+[W3C Patent Policy](https://www.w3.org/Consortium/Patent-Policy/) and
+[Software and Document License](https://www.w3.org/Consortium/Legal/copyright-software).
+To make substantive contributions to specifications, you must either participate
+in the relevant W3C Working Group or make a non-member patent licensing commitment.
 If you are not the sole contributor to a contribution (pull request), please identify all 
 contributors in the pull request comment.
 
