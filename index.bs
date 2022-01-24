@@ -451,10 +451,7 @@ An {{MLContext}} interface represents a global state of neural network execution
 
 In a situation when a GPU context executes a graph with a constant or an input in the system memory as an {{ArrayBufferView}}, the input content is automatically uploaded from the system memory to the GPU memory, and downloaded back to the system memory of an {{ArrayBufferView}} output buffer at the end of the graph execution. This data upload and download cycles will only occur whenever the execution device requires the data to be copied out of and back into the system memory, such as in the case of the GPU. It doesn't occur when the device is a CPU device. Additionally, the result of the graph execution is in a known layout format. While the execution may be optimized for a native memory access pattern in an intermediate result within the graph, the output of the last operation of the graph must convert the content back to a known layout format at the end of the graph in order to maintain the expected behavior from the caller's perspective.
 
-When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's preference specified in the {{MLPowerPreference}} and the {{MLDevicePreference}} options:
-- The *"gpu"* device provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations. 
-- The *"cpu"* device provides the broadest reach of software compute availability, but with limited scalability of execution performance on the more complex neural networks. 
-- When the device preference is not specified (*"default"*), the user agent selects the most suitable device to use. 
+When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's [=power preference=] and [=device preference=] specified in the {{MLPowerPreference}} and {{MLDevicePreference}} options.
 
 The following table summarizes the types of resource supported by the device selected.
 
@@ -494,33 +491,20 @@ enum MLDevicePreference {
 };
 
 enum MLPowerPreference {
-  // Let the user agent select the most suitable behavior.
   "default",
-
-  // Prioritizes execution speed over power consumption.
   "high-performance",
-  
-  // Prioritizes power consumption over other considerations such as execution speed.
   "low-power"
 };
 
 dictionary MLContextOptions {
-  // Preferred kind of device used
   MLDevicePreference devicePreference = "default";
-
-  // Preference as related to power consumption
   MLPowerPreference powerPreference = "default";
 };
 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface ML {
-  // Create a context with options
   MLContext createContext(optional MLContextOptions options = {});
-
-  // Create a context from WebGL rendering context
   MLContext createContext(WebGLRenderingContext glContext);
-
-  // Create a context from WebGPU device
   MLContext createContext(GPUDevice gpuDevice);
 };
 </script>
@@ -531,18 +515,28 @@ The {{ML/createContext()}} method steps are:
 1. Switch on the method's first argument:
     <dl class=switch>
     <dt>{{MLContextOptions}}
-    <dd>Set |context|'s [=context type=] to [=default-context|default=].
+    <dd>Set |context|.{{[[contextType]]}} to [=default-context|default=].
+    <dd>Set |context|.{{[[devicePreference]]}} to the value of {{MLContextOptions}}'s {{devicePreference}} member.
+    <dd>Set |context|.{{[[powerPreference]]}} to the value of {{MLContextOptions}}'s {{powerPreference}} member.
 
     <dt>{{WebGLRenderingContext}}
-    <dd>Set |context|'s [=context type=] to [=webgl-context|webgl=].
+    <dd>Set |context|.{{[[contextType]]}} to [=webgl-context|webgl=].
+    <dd>Set |context|.{{[[devicePreference]]}} to "[=device-preference-gpu|gpu=]".
+    <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
 
     <dt>{{GPUDevice}}
-    <dd>Set |context|'s [=context type=] to [=webgpu-context|webgpu=].
+    <dd>Set |context|.{{[[contextType]]}} to [=webgpu-context|webgpu=].
+    <dd>Set |context|.{{[[devicePreference]]}} to "[=device-preference-gpu|gpu=]".
+    <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
 
     <dt>Otherwise
-    <dd>Set |context|'s [=context type=] to [=default-context|default=].
+    <dd>Set |context|.{{[[contextType]]}} to [=default-context|default=].
+    <dd>Set |context|.{{[[devicePreference]]}} to "[=device-preference-default|default=]".
+    <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
     </dl>
 1. Return |context|.
+
+Note: When {{[[contextType]]}} is set to "[=webgl-context|webgl=]" or "[=webgpu-context|webgpu=]", [=device preference=] "[=device-preference-gpu|gpu=]" is implied and {{[[devicePreference]]}} is set to "[=device-preference-gpu|gpu=]" and {{[[powerPreference]]}} is set to "[=power-preference-default|default=]".
 
 ### Permissions Policy Integration ### {#permissions-policy-integration}
 
@@ -551,13 +545,56 @@ string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
 Its <a>default allowlist</a> is <code>'self'</code>.
 
 ## MLContext ## {#api-mlcontext}
-The {{MLContext}} interface represents a global state of neural network compute workload and execution processes.
+The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device preference=] and [=power preference=].
+
+The <dfn>context type</dfn> is the type of the execution context that manages the resources and facilitates the compilation and execution of the neural network graph:
+<dl>
+<dt>"<code><dfn data-lt="default-context">default</dfn></code>"</dt>
+<dd>Context created per the user agent's preference.</dd>
+<dt>"<code><dfn data-lt="webgl-context">webgl</dfn></code>"</dt>
+<dd>Context created from WebGL rendering context.</dd>
+<dt>"<code><dfn data-lt="webgpu-context">webgpu</dfn></code>"</dt>
+<dd>Context created from WebGPU device.</dd>
+</dl>
+
+The <dfn>device preference</dfn> indicates the preferred kind of device to be used. It is one of the following:
+<dl>
+<dt>"<code><dfn data-lt="device-preference-default">default</dfn></code>"</dt>
+<dd>The user agent selects the most suitable device to use.</dd>
+<dt>"<code><dfn data-lt="device-preference-gpu">gpu</dfn></code>"</dt>
+<dd>Provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations.</dd>
+<dt>"<code><dfn data-lt="device-preference-cpu">cpu</dfn></code>"</dt>
+<dd>Provides the broadest reach of software compute availability, but with limited scalability of execution performance on the more complex neural networks.</dd>
+</dl>
+
+The <dfn>power preference</dfn> indicates preference as related to power consumption. It is one of the following:
+<dl>
+<dt>"<code><dfn data-lt="power-preference-default">default</dfn></code>"</dt>
+<dd>Let the user agent select the most suitable behavior.</dd>
+<dt>"<code><dfn data-lt="power-preference-high-performance">high-performance</dfn></code>"</dt>
+<dd>Prioritizes execution speed over power consumption.</dd>
+<dt>"<code><dfn data-lt="power-preference-low-power">low-power</dfn></code>"</dt>
+<dd>Prioritizes power consumption over other considerations such as execution speed.</dd>
+</dl>
+
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLContext {};
 </script>
 
-The <dfn>context type</dfn> for an {{MLContext}} is either "<code><dfn data-lt="default-context">default</dfn></code>", "<code><dfn data-lt="webgl-context">webgl</dfn></code>" or "<code><dfn data-lt="webgpu-context">webgpu</dfn></code>".
+{{MLContext}} has the following internal slots:
+
+<dl dfn-type=attribute dfn-for="MLContext">
+    : <dfn>\[[contextType]]</dfn> of type [=context type=]
+    ::
+        The {{MLContext}}'s [=context type=].
+    : <dfn>\[[devicePreference]]</dfn> of type [=device preference=]
+    ::
+        The {{MLContext}}'s [=device preference=].
+    : <dfn>\[[powerPreference]]</dfn> of type [=power preference=]
+    ::
+        The {{MLContext}}'s [=power preference=].
+</dl>
 
 ## MLOperandDescriptor ## {#api-mloperanddescriptor}
 <script type=idl>
