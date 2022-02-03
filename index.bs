@@ -383,6 +383,18 @@ This API is disabled by default in all cross-origin frames using the [[#permissi
 
 This API allows creation of an {{MLContext}} from a {{GPUDevice}} or {{WebGLRenderingContext}} defined by WebGPU and WebGL specifications respectively. See <a href="https://gpuweb.github.io/gpuweb/#security">WebGPU Security Considerations</a> and <a href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#4">WebGL Security Consideration</a> for more information regarding security characteristics of these contexts.
 
+Some operations such as {{split()}}, {{slice()}} and {{squeeze()}} that change the shape of tensors mid-calculation may lead to incorrect assumptions in later operations and possibly lead to out-of-bounds access attempts. Implementers are adviced to anticipate such out-of-bounds access issues and add appropriate mitigations.
+
+Issue: Document operations susceptible to out-of-bounds access as a guidance to implementers.
+
+As a future-proofing, the API design allows certain operation (annotated with "can be generically emulated") defined in this specification to be deprecated for security, performance, or other reasons without breaking compability. This is made possible by high-level functions that are defined in terms of smaller primitive operations defined in this specifications. This enables a native implementation of a high-level function to be replaced with a polyfill implementation.
+
+Issue: Investigate side channel attack feasibility considering the current state where CPU is shared between processes running renderers.
+
+In order to not allow an attacker to target a specific implementation that may contain a flaw, the [[#programming-model-device-selection]] mechanism is a hint only, and the concrete device selection is left to the implementation. As a further mitigation, no device enumeration mechanism is defined.
+
+Issue: Hinting partially mitigates the concern. Investigate additional mitigations.
+
 Privacy Considerations {#privacy}
 ===================================
 
@@ -2412,6 +2424,10 @@ Benjamin Poulain for their contributions to the API specification.
 Thanks to Sangwhan Moon and the W3C Technical Architecture Group for review of this specification for web architecture fit, design consistency and developer ergonomics.
 
 Thanks to W3C Privacy Interest Group for privacy and security review and feedback.
+
+Thanks to Alex Gough and the Chrome Security team for security review and questions.
+
+
 <pre class="biblio">
 {
   "Models": {
