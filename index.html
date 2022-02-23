@@ -8,7 +8,7 @@
   <link href="https://www.w3.org/2008/site/images/favicon.ico" rel="icon">
   <meta content="Bikeshed version 2e3c4c68b, updated Fri Jan 14 14:49:00 2022 -0800" name="generator">
   <link href="https://www.w3.org/TR/webnn/" rel="canonical">
-  <meta content="19a09abff5b81b8174a71be2d394ce40a31b1004" name="document-revision">
+  <meta content="2ea57d1892f1f7a2a75eafbc26eeddc619bc1672" name="document-revision">
 <style>
 /* Make <dl> blocks more distinct from their surroundings. */
 main dl:not(.switch) {
@@ -732,7 +732,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"><a class="logo" href="https://www.w3.org/"> <img alt="W3C" height="48" src="https://www.w3.org/StyleSheets/TR/2021/logos/W3C" width="72"> </a> </p>
    <h1 class="p-name no-ref" id="title">Web Neural Network API</h1>
-   <p id="w3c-state"><a href="https://www.w3.org/standards/types#ED">Editor’s Draft</a>, <time class="dt-updated" datetime="2022-02-15">15 February 2022</time></p>
+   <p id="w3c-state"><a href="https://www.w3.org/standards/types#ED">Editor’s Draft</a>, <time class="dt-updated" datetime="2022-02-23">23 February 2022</time></p>
    <details open>
     <summary>More details about this document</summary>
     <div data-fill-with="spec-metadata">
@@ -1089,15 +1089,7 @@ The implementation may use views, as above, for intermediate values.</p>
    <h3 class="heading settled" data-level="6.2" id="programming-model-device-selection"><span class="secno">6.2. </span><span class="content">Device Selection</span><a class="self-link" href="#programming-model-device-selection"></a></h3>
    <p>An <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①">MLContext</a></code> interface represents a global state of neural network execution. One of the important context states is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. An <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext②">MLContext</a></code> could be created from a specific GPU device such as <code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#gpu-device" id="ref-for-gpu-device①">GPUDevice</a></code> or <code class="idl"><a data-link-type="idl" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" id="ref-for-5.14①">WebGLRenderingContext</a></code> that is already in use by the application, in which case the corresponding <code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#buffer-interface" id="ref-for-buffer-interface">GPUBuffer</a></code> or <code class="idl"><a data-link-type="idl" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.4" id="ref-for-5.4">WebGLBuffer</a></code> resources used as graph constants, as well as the <code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#texture-interface" id="ref-for-texture-interface">GPUTexture</a></code> and <code class="idl"><a data-link-type="idl" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.9" id="ref-for-5.9">WebGLTexture</a></code> as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext③">MLContext</a></code> must be created from the same adapter as the device used to allocate the resources referenced in the graph.</p>
    <p>In a situation when a GPU context executes a graph with a constant or an input in the system memory as an <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#ArrayBufferView" id="ref-for-ArrayBufferView">ArrayBufferView</a></code>, the input content is automatically uploaded from the system memory to the GPU memory, and downloaded back to the system memory of an <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#ArrayBufferView" id="ref-for-ArrayBufferView①">ArrayBufferView</a></code> output buffer at the end of the graph execution. This data upload and download cycles will only occur whenever the execution device requires the data to be copied out of and back into the system memory, such as in the case of the GPU. It doesn’t occur when the device is a CPU device. Additionally, the result of the graph execution is in a known layout format. While the execution may be optimized for a native memory access pattern in an intermediate result within the graph, the output of the last operation of the graph must convert the content back to a known layout format at the end of the graph in order to maintain the expected behavior from the caller’s perspective.</p>
-   <p>When an <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext④">MLContext</a></code> is created with <code class="idl"><a data-link-type="idl" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions">MLContextOptions</a></code>, the user agent selects and creates the underlying execution device by taking into account the application’s preference specified in the <code class="idl"><a data-link-type="idl" href="#enumdef-mlpowerpreference" id="ref-for-enumdef-mlpowerpreference">MLPowerPreference</a></code> and the <code class="idl"><a data-link-type="idl" href="#enumdef-mldevicepreference" id="ref-for-enumdef-mldevicepreference">MLDevicePreference</a></code> options:</p>
-   <ul>
-    <li data-md>
-     <p>The <em>"gpu"</em> device provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations.</p>
-    <li data-md>
-     <p>The <em>"cpu"</em> device provides the broadest reach of software compute availability, but with limited scalability of execution performance on the more complex neural networks.</p>
-    <li data-md>
-     <p>When the device preference is not specified (<em>"default"</em>), the user agent selects the most suitable device to use.</p>
-   </ul>
+   <p>When an <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext④">MLContext</a></code> is created with <code class="idl"><a data-link-type="idl" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions">MLContextOptions</a></code>, the user agent selects and creates the underlying execution device by taking into account the application’s <a data-link-type="dfn" href="#power-preference" id="ref-for-power-preference">power preference</a> and <a data-link-type="dfn" href="#device-preference" id="ref-for-device-preference">device preference</a> specified in the <code class="idl"><a data-link-type="idl" href="#enumdef-mlpowerpreference" id="ref-for-enumdef-mlpowerpreference">MLPowerPreference</a></code> and <code class="idl"><a data-link-type="idl" href="#enumdef-mldevicepreference" id="ref-for-enumdef-mldevicepreference">MLDevicePreference</a></code> options.</p>
    <p>The following table summarizes the types of resource supported by the device selected.</p>
    <div class="note" role="note">
     <table>
@@ -1163,33 +1155,20 @@ The implementation may use views, as above, for intermediate values.</p>
 };
 
 <c- b>enum</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="enum" data-export id="enumdef-mlpowerpreference"><code><c- g>MLPowerPreference</c-></code></dfn> {
-  // Let the user agent select the most suitable behavior.
   <dfn class="idl-code" data-dfn-for="MLPowerPreference" data-dfn-type="enum-value" data-export id="dom-mlpowerpreference-default"><code><c- s>"default"</c-></code><a class="self-link" href="#dom-mlpowerpreference-default"></a></dfn>,
-
-  // Prioritizes execution speed over power consumption.
   <dfn class="idl-code" data-dfn-for="MLPowerPreference" data-dfn-type="enum-value" data-export id="dom-mlpowerpreference-high-performance"><code><c- s>"high-performance"</c-></code><a class="self-link" href="#dom-mlpowerpreference-high-performance"></a></dfn>,
-  
-  // Prioritizes power consumption over other considerations such as execution speed.
   <dfn class="idl-code" data-dfn-for="MLPowerPreference" data-dfn-type="enum-value" data-export id="dom-mlpowerpreference-low-power"><code><c- s>"low-power"</c-></code><a class="self-link" href="#dom-mlpowerpreference-low-power"></a></dfn>
 };
 
 <c- b>dictionary</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="dictionary" data-export id="dictdef-mlcontextoptions"><code><c- g>MLContextOptions</c-></code></dfn> {
-  // Preferred kind of device used
-  <a data-link-type="idl-name" href="#enumdef-mldevicepreference" id="ref-for-enumdef-mldevicepreference①"><c- n>MLDevicePreference</c-></a> <dfn class="idl-code" data-default="&quot;default&quot;" data-dfn-for="MLContextOptions" data-dfn-type="dict-member" data-export data-type="MLDevicePreference " id="dom-mlcontextoptions-devicepreference"><code><c- g>devicePreference</c-></code><a class="self-link" href="#dom-mlcontextoptions-devicepreference"></a></dfn> = "default";
-
-  // Preference as related to power consumption
-  <a data-link-type="idl-name" href="#enumdef-mlpowerpreference" id="ref-for-enumdef-mlpowerpreference①"><c- n>MLPowerPreference</c-></a> <dfn class="idl-code" data-default="&quot;default&quot;" data-dfn-for="MLContextOptions" data-dfn-type="dict-member" data-export data-type="MLPowerPreference " id="dom-mlcontextoptions-powerpreference"><code><c- g>powerPreference</c-></code><a class="self-link" href="#dom-mlcontextoptions-powerpreference"></a></dfn> = "default";
+  <a data-link-type="idl-name" href="#enumdef-mldevicepreference" id="ref-for-enumdef-mldevicepreference①"><c- n>MLDevicePreference</c-></a> <dfn class="dfn-paneled idl-code" data-default="&quot;default&quot;" data-dfn-for="MLContextOptions" data-dfn-type="dict-member" data-export data-type="MLDevicePreference " id="dom-mlcontextoptions-devicepreference"><code><c- g>devicePreference</c-></code></dfn> = "default";
+  <a data-link-type="idl-name" href="#enumdef-mlpowerpreference" id="ref-for-enumdef-mlpowerpreference①"><c- n>MLPowerPreference</c-></a> <dfn class="dfn-paneled idl-code" data-default="&quot;default&quot;" data-dfn-for="MLContextOptions" data-dfn-type="dict-member" data-export data-type="MLPowerPreference " id="dom-mlcontextoptions-powerpreference"><code><c- g>powerPreference</c-></code></dfn> = "default";
 };
 
 [<a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#SecureContext" id="ref-for-SecureContext①"><c- g>SecureContext</c-></a>, <a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#Exposed" id="ref-for-Exposed"><c- g>Exposed</c-></a>=(<c- n>Window</c->, <c- n>DedicatedWorker</c->)]
 <c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="ml"><code><c- g>ML</c-></code></dfn> {
-  // Create a context with options
   <a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext⑤"><c- n>MLContext</c-></a> <dfn class="dfn-paneled idl-code" data-dfn-for="ML" data-dfn-type="method" data-export data-lt="createContext(options)|createContext()" id="dom-ml-createcontext"><code><c- g>createContext</c-></code></dfn>(<c- b>optional</c-> <a data-link-type="idl-name" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions①"><c- n>MLContextOptions</c-></a> <dfn class="idl-code" data-dfn-for="ML/createContext(options), ML/createContext()" data-dfn-type="argument" data-export id="dom-ml-createcontext-options-options"><code><c- g>options</c-></code><a class="self-link" href="#dom-ml-createcontext-options-options"></a></dfn> = {});
-
-  // Create a context from WebGL rendering context
   <a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext⑥"><c- n>MLContext</c-></a> <dfn class="idl-code" data-dfn-for="ML" data-dfn-type="method" data-export data-lt="createContext(glContext)" id="dom-ml-createcontext-glcontext"><code><c- g>createContext</c-></code><a class="self-link" href="#dom-ml-createcontext-glcontext"></a></dfn>(<a data-link-type="idl-name" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" id="ref-for-5.14②"><c- n>WebGLRenderingContext</c-></a> <dfn class="idl-code" data-dfn-for="ML/createContext(glContext)" data-dfn-type="argument" data-export id="dom-ml-createcontext-glcontext-glcontext"><code><c- g>glContext</c-></code><a class="self-link" href="#dom-ml-createcontext-glcontext-glcontext"></a></dfn>);
-
-  // Create a context from WebGPU device
   <a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext⑦"><c- n>MLContext</c-></a> <dfn class="idl-code" data-dfn-for="ML" data-dfn-type="method" data-export data-lt="createContext(gpuDevice)" id="dom-ml-createcontext-gpudevice"><code><c- g>createContext</c-></code><a class="self-link" href="#dom-ml-createcontext-gpudevice"></a></dfn>(<a data-link-type="idl-name" href="https://gpuweb.github.io/gpuweb/#gpu-device" id="ref-for-gpu-device②"><c- n>GPUDevice</c-></a> <dfn class="idl-code" data-dfn-for="ML/createContext(gpuDevice)" data-dfn-type="argument" data-export id="dom-ml-createcontext-gpudevice-gpudevice"><code><c- g>gpuDevice</c-></code><a class="self-link" href="#dom-ml-createcontext-gpudevice-gpudevice"></a></dfn>);
 };
 </pre>
@@ -1203,27 +1182,74 @@ The implementation may use views, as above, for intermediate values.</p>
      <p>Switch on the method’s first argument:</p>
      <dl class="switch">
       <dt><code class="idl"><a data-link-type="idl" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions②">MLContextOptions</a></code> 
-      <dd>Set <var>context</var>’s <a data-link-type="dfn" href="#context-type" id="ref-for-context-type">context type</a> to <a data-link-type="dfn" href="#default-context" id="ref-for-default-context">default</a>. 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-contexttype-slot" id="ref-for-dom-mlcontext-contexttype-slot">[[contextType]]</a></code> to <a data-link-type="dfn" href="#default-context" id="ref-for-default-context">default</a>. 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-devicepreference-slot" id="ref-for-dom-mlcontext-devicepreference-slot">[[devicePreference]]</a></code> to the value of <code class="idl"><a data-link-type="idl" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions③">MLContextOptions</a></code>'s <code class="idl"><a data-link-type="idl" href="#dom-mlcontextoptions-devicepreference" id="ref-for-dom-mlcontextoptions-devicepreference">devicePreference</a></code> member. 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-powerpreference-slot" id="ref-for-dom-mlcontext-powerpreference-slot">[[powerPreference]]</a></code> to the value of <code class="idl"><a data-link-type="idl" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions④">MLContextOptions</a></code>'s <code class="idl"><a data-link-type="idl" href="#dom-mlcontextoptions-powerpreference" id="ref-for-dom-mlcontextoptions-powerpreference">powerPreference</a></code> member. 
       <dt><code class="idl"><a data-link-type="idl" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14" id="ref-for-5.14③">WebGLRenderingContext</a></code> 
-      <dd>Set <var>context</var>’s <a data-link-type="dfn" href="#context-type" id="ref-for-context-type①">context type</a> to <a data-link-type="dfn" href="#webgl-context" id="ref-for-webgl-context">webgl</a>. 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-contexttype-slot" id="ref-for-dom-mlcontext-contexttype-slot①">[[contextType]]</a></code> to <a data-link-type="dfn" href="#webgl-context" id="ref-for-webgl-context">webgl</a>. 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-devicepreference-slot" id="ref-for-dom-mlcontext-devicepreference-slot①">[[devicePreference]]</a></code> to "<a data-link-type="dfn" href="#device-preference-gpu" id="ref-for-device-preference-gpu">gpu</a>". 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-powerpreference-slot" id="ref-for-dom-mlcontext-powerpreference-slot①">[[powerPreference]]</a></code> to "<a data-link-type="dfn" href="#power-preference-default" id="ref-for-power-preference-default">default</a>". 
       <dt><code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#gpu-device" id="ref-for-gpu-device③">GPUDevice</a></code> 
-      <dd>Set <var>context</var>’s <a data-link-type="dfn" href="#context-type" id="ref-for-context-type②">context type</a> to <a data-link-type="dfn" href="#webgpu-context" id="ref-for-webgpu-context">webgpu</a>. 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-contexttype-slot" id="ref-for-dom-mlcontext-contexttype-slot②">[[contextType]]</a></code> to <a data-link-type="dfn" href="#webgpu-context" id="ref-for-webgpu-context">webgpu</a>. 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-devicepreference-slot" id="ref-for-dom-mlcontext-devicepreference-slot②">[[devicePreference]]</a></code> to "<a data-link-type="dfn" href="#device-preference-gpu" id="ref-for-device-preference-gpu①">gpu</a>". 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-powerpreference-slot" id="ref-for-dom-mlcontext-powerpreference-slot②">[[powerPreference]]</a></code> to "<a data-link-type="dfn" href="#power-preference-default" id="ref-for-power-preference-default①">default</a>". 
       <dt>Otherwise 
-      <dd>Set <var>context</var>’s <a data-link-type="dfn" href="#context-type" id="ref-for-context-type③">context type</a> to <a data-link-type="dfn" href="#default-context" id="ref-for-default-context①">default</a>. 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-contexttype-slot" id="ref-for-dom-mlcontext-contexttype-slot③">[[contextType]]</a></code> to <a data-link-type="dfn" href="#default-context" id="ref-for-default-context①">default</a>. 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-devicepreference-slot" id="ref-for-dom-mlcontext-devicepreference-slot③">[[devicePreference]]</a></code> to "<a data-link-type="dfn" href="#device-preference-default" id="ref-for-device-preference-default">default</a>". 
+      <dd>Set <var>context</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-powerpreference-slot" id="ref-for-dom-mlcontext-powerpreference-slot③">[[powerPreference]]</a></code> to "<a data-link-type="dfn" href="#power-preference-default" id="ref-for-power-preference-default②">default</a>". 
      </dl>
     <li data-md>
      <p>Return <var>context</var>.</p>
    </ol>
+   <p class="note" role="note"><span>Note:</span> When <code class="idl"><a data-link-type="idl" href="#dom-mlcontext-contexttype-slot" id="ref-for-dom-mlcontext-contexttype-slot④">[[contextType]]</a></code> is set to "<a data-link-type="dfn" href="#webgl-context" id="ref-for-webgl-context①">webgl</a>" or "<a data-link-type="dfn" href="#webgpu-context" id="ref-for-webgpu-context①">webgpu</a>", <a data-link-type="dfn" href="#device-preference" id="ref-for-device-preference①">device preference</a> "<a data-link-type="dfn" href="#device-preference-gpu" id="ref-for-device-preference-gpu②">gpu</a>" is implied and <code class="idl"><a data-link-type="idl" href="#dom-mlcontext-devicepreference-slot" id="ref-for-dom-mlcontext-devicepreference-slot④">[[devicePreference]]</a></code> is set to "<a data-link-type="dfn" href="#device-preference-gpu" id="ref-for-device-preference-gpu③">gpu</a>" and <code class="idl"><a data-link-type="idl" href="#dom-mlcontext-powerpreference-slot" id="ref-for-dom-mlcontext-powerpreference-slot④">[[powerPreference]]</a></code> is set to "<a data-link-type="dfn" href="#power-preference-default" id="ref-for-power-preference-default③">default</a>".</p>
    <h4 class="heading settled" data-level="7.2.1" id="permissions-policy-integration"><span class="secno">7.2.1. </span><span class="content">Permissions Policy Integration</span><a class="self-link" href="#permissions-policy-integration"></a></h4>
    <p>This specification defines a <a data-link-type="dfn" href="https://w3c.github.io/webappsec-permissions-policy/#policy-controlled-feature" id="ref-for-policy-controlled-feature">policy-controlled feature</a> identified by the
 string "<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="webnn-feature" data-noexport id="webnn-feature">webnn</dfn></code>".
 Its <a data-link-type="dfn" href="https://w3c.github.io/webappsec-permissions-policy/#default-allowlist" id="ref-for-default-allowlist">default allowlist</a> is <code>'self'</code>.</p>
    <h3 class="heading settled" data-level="7.3" id="api-mlcontext"><span class="secno">7.3. </span><span class="content">MLContext</span><a class="self-link" href="#api-mlcontext"></a></h3>
-    The <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext⑨">MLContext</a></code> interface represents a global state of neural network compute workload and execution processes. 
+    The <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext⑨">MLContext</a></code> interface represents a global state of neural network compute workload and execution processes. Each <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①⓪">MLContext</a></code> object has associated <a data-link-type="dfn" href="#context-type" id="ref-for-context-type">context type</a>, <a data-link-type="dfn" href="#device-preference" id="ref-for-device-preference②">device preference</a> and <a data-link-type="dfn" href="#power-preference" id="ref-for-power-preference①">power preference</a>. 
+   <p>The <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="context-type">context type</dfn> is the type of the execution context that manages the resources and facilitates the compilation and execution of the neural network graph:</p>
+   <dl>
+    <dt>"<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="default-context" data-noexport id="default-context">default</dfn></code>"
+    <dd>Context created per the user agent’s preference.
+    <dt>"<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="webgl-context" data-noexport id="webgl-context">webgl</dfn></code>"
+    <dd>Context created from WebGL rendering context.
+    <dt>"<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="webgpu-context" data-noexport id="webgpu-context">webgpu</dfn></code>"
+    <dd>Context created from WebGPU device.
+   </dl>
+   <p>The <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="device-preference">device preference</dfn> indicates the preferred kind of device to be used. It is one of the following:</p>
+   <dl>
+    <dt>"<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="device-preference-default" data-noexport id="device-preference-default">default</dfn></code>"
+    <dd>The user agent selects the most suitable device to use.
+    <dt>"<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="device-preference-gpu" data-noexport id="device-preference-gpu">gpu</dfn></code>"
+    <dd>Provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations.
+    <dt>"<code><dfn data-dfn-type="dfn" data-lt="device-preference-cpu" data-noexport id="device-preference-cpu">cpu<a class="self-link" href="#device-preference-cpu"></a></dfn></code>"
+    <dd>Provides the broadest reach of software compute availability, but with limited scalability of execution performance on the more complex neural networks.
+   </dl>
+   <p>The <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="power-preference">power preference</dfn> indicates preference as related to power consumption. It is one of the following:</p>
+   <dl>
+    <dt>"<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="power-preference-default" data-noexport id="power-preference-default">default</dfn></code>"
+    <dd>Let the user agent select the most suitable behavior.
+    <dt>"<code><dfn data-dfn-type="dfn" data-lt="power-preference-high-performance" data-noexport id="power-preference-high-performance">high-performance<a class="self-link" href="#power-preference-high-performance"></a></dfn></code>"
+    <dd>Prioritizes execution speed over power consumption.
+    <dt>"<code><dfn data-dfn-type="dfn" data-lt="power-preference-low-power" data-noexport id="power-preference-low-power">low-power<a class="self-link" href="#power-preference-low-power"></a></dfn></code>"
+    <dd>Prioritizes power consumption over other considerations such as execution speed.
+   </dl>
 <pre class="idl highlight def">[<a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#SecureContext" id="ref-for-SecureContext②"><c- g>SecureContext</c-></a>, <a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#Exposed" id="ref-for-Exposed①"><c- g>Exposed</c-></a>=(<c- n>Window</c->, <c- n>DedicatedWorker</c->)]
 <c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="mlcontext"><code><c- g>MLContext</c-></code></dfn> {};
 </pre>
-   <p>The <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="context-type">context type</dfn> for an <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①⓪">MLContext</a></code> is either "<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="default-context" data-noexport id="default-context">default</dfn></code>", "<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="webgl-context" data-noexport id="webgl-context">webgl</dfn></code>" or "<code><dfn class="dfn-paneled" data-dfn-type="dfn" data-lt="webgpu-context" data-noexport id="webgpu-context">webgpu</dfn></code>".</p>
+   <p><code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①①">MLContext</a></code> has the following internal slots:</p>
+   <dl>
+    <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLContext" data-dfn-type="attribute" data-export id="dom-mlcontext-contexttype-slot"><code>[[contextType]]</code></dfn> of type <a data-link-type="dfn" href="#context-type" id="ref-for-context-type①">context type</a>
+    <dd data-md>
+     <p>The <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①②">MLContext</a></code>'s <a data-link-type="dfn" href="#context-type" id="ref-for-context-type②">context type</a>.</p>
+    <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLContext" data-dfn-type="attribute" data-export id="dom-mlcontext-devicepreference-slot"><code>[[devicePreference]]</code></dfn> of type <a data-link-type="dfn" href="#device-preference" id="ref-for-device-preference③">device preference</a>
+    <dd data-md>
+     <p>The <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①③">MLContext</a></code>'s <a data-link-type="dfn" href="#device-preference" id="ref-for-device-preference④">device preference</a>.</p>
+    <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLContext" data-dfn-type="attribute" data-export id="dom-mlcontext-powerpreference-slot"><code>[[powerPreference]]</code></dfn> of type <a data-link-type="dfn" href="#power-preference" id="ref-for-power-preference②">power preference</a>
+    <dd data-md>
+     <p>The <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①④">MLContext</a></code>'s <a data-link-type="dfn" href="#power-preference" id="ref-for-power-preference③">power preference</a>.</p>
+   </dl>
    <h3 class="heading settled" data-level="7.4" id="api-mloperanddescriptor"><span class="secno">7.4. </span><span class="content">MLOperandDescriptor</span><a class="self-link" href="#api-mloperanddescriptor"></a></h3>
 <pre class="idl highlight def"><c- b>enum</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="enum" data-export id="enumdef-mlinputoperandlayout"><code><c- g>MLInputOperandLayout</c-></code></dfn> {
   <dfn class="idl-code" data-dfn-for="MLInputOperandLayout" data-dfn-type="enum-value" data-export id="dom-mlinputoperandlayout-nchw"><code><c- s>"nchw"</c-></code><a class="self-link" href="#dom-mlinputoperandlayout-nchw"></a></dfn>,
@@ -1276,7 +1302,7 @@ Its <a data-link-type="dfn" href="https://w3c.github.io/webappsec-permissions-po
 [<a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#SecureContext" id="ref-for-SecureContext⑤"><c- g>SecureContext</c-></a>, <a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#Exposed" id="ref-for-Exposed④"><c- g>Exposed</c-></a>=(<c- n>Window</c->, <c- n>DedicatedWorker</c->)]
 <c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="mlgraphbuilder"><code><c- g>MLGraphBuilder</c-></code></dfn> {
   // Construct the graph builder from the context.
-  <dfn class="idl-code" data-dfn-for="MLGraphBuilder" data-dfn-type="constructor" data-export data-lt="MLGraphBuilder(context)|constructor(context)" id="dom-mlgraphbuilder-mlgraphbuilder"><code><c- g>constructor</c-></code><a class="self-link" href="#dom-mlgraphbuilder-mlgraphbuilder"></a></dfn>(<a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext①①"><c- n>MLContext</c-></a> <dfn class="idl-code" data-dfn-for="MLGraphBuilder/MLGraphBuilder(context), MLGraphBuilder/constructor(context)" data-dfn-type="argument" data-export id="dom-mlgraphbuilder-mlgraphbuilder-context-context"><code><c- g>context</c-></code><a class="self-link" href="#dom-mlgraphbuilder-mlgraphbuilder-context-context"></a></dfn>);
+  <dfn class="idl-code" data-dfn-for="MLGraphBuilder" data-dfn-type="constructor" data-export data-lt="MLGraphBuilder(context)|constructor(context)" id="dom-mlgraphbuilder-mlgraphbuilder"><code><c- g>constructor</c-></code><a class="self-link" href="#dom-mlgraphbuilder-mlgraphbuilder"></a></dfn>(<a data-link-type="idl-name" href="#mlcontext" id="ref-for-mlcontext①⑤"><c- n>MLContext</c-></a> <dfn class="idl-code" data-dfn-for="MLGraphBuilder/MLGraphBuilder(context), MLGraphBuilder/constructor(context)" data-dfn-type="argument" data-export id="dom-mlgraphbuilder-mlgraphbuilder-context-context"><code><c- g>context</c-></code><a class="self-link" href="#dom-mlgraphbuilder-mlgraphbuilder-context-context"></a></dfn>);
 
   // Create an operand for a graph input.
   <a data-link-type="idl-name" href="#mloperand" id="ref-for-mloperand①⓪"><c- n>MLOperand</c-></a> <dfn class="idl-code" data-dfn-for="MLGraphBuilder" data-dfn-type="method" data-export data-lt="input(name, desc)" id="dom-mlgraphbuilder-input"><code><c- g>input</c-></code><a class="self-link" href="#dom-mlgraphbuilder-input"></a></dfn>(<a class="idl-code" data-link-type="interface" href="https://webidl.spec.whatwg.org/#idl-DOMString" id="ref-for-idl-DOMString①"><c- b>DOMString</c-></a> <dfn class="idl-code" data-dfn-for="MLGraphBuilder/input(name, desc)" data-dfn-type="argument" data-export id="dom-mlgraphbuilder-input-name-desc-name"><code><c- g>name</c-></code><a class="self-link" href="#dom-mlgraphbuilder-input-name-desc-name"></a></dfn>, <a data-link-type="idl-name" href="#dictdef-mloperanddescriptor" id="ref-for-dictdef-mloperanddescriptor"><c- n>MLOperandDescriptor</c-></a> <dfn class="idl-code" data-dfn-for="MLGraphBuilder/input(name, desc)" data-dfn-type="argument" data-export id="dom-mlgraphbuilder-input-name-desc-desc"><code><c- g>desc</c-></code><a class="self-link" href="#dom-mlgraphbuilder-input-name-desc-desc"></a></dfn>);
@@ -2959,9 +2985,9 @@ the 2-D input tensor along axis 1.
 </pre>
    <p><code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph⑤">MLGraph</a></code> has the following internal slots:</p>
    <dl>
-    <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLGraph" data-dfn-type="attribute" data-export id="dom-mlgraph-context-slot"><code>[[context]]</code></dfn> of type <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①②">MLContext</a></code>
+    <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLGraph" data-dfn-type="attribute" data-export id="dom-mlgraph-context-slot"><code>[[context]]</code></dfn> of type <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①⑥">MLContext</a></code>
     <dd data-md>
-     <p>The context of type <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①③">MLContext</a></code> associated with this <code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph⑥">MLGraph</a></code>.</p>
+     <p>The context of type <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①⑦">MLContext</a></code> associated with this <code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph⑥">MLGraph</a></code>.</p>
     <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLGraph" data-dfn-type="attribute" data-export id="dom-mlgraph-inputdescriptors-slot"><code>[[inputDescriptors]]</code></dfn> of type <a data-link-type="dfn" href="https://webidl.spec.whatwg.org/#idl-record" id="ref-for-idl-record③">record</a>&lt;<code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#idl-DOMString" id="ref-for-idl-DOMString④">DOMString</a></code>, <code class="idl"><a data-link-type="idl" href="#dictdef-mloperanddescriptor" id="ref-for-dictdef-mloperanddescriptor②">MLOperandDescriptor</a></code>>
     <dd data-md>
      <p>Maps the name of an input <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand②④⑦">MLOperand</a></code> to its <code class="idl"><a data-link-type="idl" href="#dictdef-mloperanddescriptor" id="ref-for-dictdef-mloperanddescriptor③">MLOperandDescriptor</a></code> for all input <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand②④⑧">MLOperand</a></code>s of this <code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph⑦">MLGraph</a></code>.</p>
@@ -3467,6 +3493,7 @@ Benjamin Poulain for their contributions to the API specification.</p>
    <li><a href="#dom-mlgraphbuilder-constant-value-type">constant(value, type)</a><span>, in § 7.7</span>
    <li><a href="#dom-mlgraphbuilder-mlgraphbuilder">constructor(context)</a><span>, in § 7.7</span>
    <li><a href="#dom-mlgraph-context-slot">[[context]]</a><span>, in § 7.8</span>
+   <li><a href="#dom-mlcontext-contexttype-slot">[[contextType]]</a><span>, in § 7.3</span>
    <li><a href="#context-type">context type</a><span>, in § 7.3</span>
    <li><a href="#dom-mlgraphbuilder-conv2d">conv2d(input, filter)</a><span>, in § 7.7.4</span>
    <li><a href="#dom-mlgraphbuilder-conv2d">conv2d(input, filter, options)</a><span>, in § 7.7.4</span>
@@ -3485,7 +3512,12 @@ Benjamin Poulain for their contributions to the API specification.</p>
      <li><a href="#dom-mlpowerpreference-default">enum-value for MLPowerPreference</a><span>, in § 7.2</span>
     </ul>
    <li><a href="#default-context">default-context</a><span>, in § 7.3</span>
+   <li><a href="#dom-mlcontext-devicepreference-slot">[[devicePreference]]</a><span>, in § 7.3</span>
+   <li><a href="#device-preference">device preference</a><span>, in § 7.3</span>
    <li><a href="#dom-mlcontextoptions-devicepreference">devicePreference</a><span>, in § 7.2</span>
+   <li><a href="#device-preference-cpu">device-preference-cpu</a><span>, in § 7.3</span>
+   <li><a href="#device-preference-default">device-preference-default</a><span>, in § 7.3</span>
+   <li><a href="#device-preference-gpu">device-preference-gpu</a><span>, in § 7.3</span>
    <li>
     dilations
     <ul>
@@ -3681,7 +3713,12 @@ Benjamin Poulain for their contributions to the API specification.</p>
    <li><a href="#dom-mlgraphbuilder-pad">pad(input, padding, options)</a><span>, in § 7.7.18</span>
    <li><a href="#dom-mltransposeoptions-permutation">permutation</a><span>, in § 7.7.32</span>
    <li><a href="#dom-mlgraphbuilder-pow">pow(a, b)</a><span>, in § 7.7.6</span>
+   <li><a href="#dom-mlcontext-powerpreference-slot">[[powerPreference]]</a><span>, in § 7.3</span>
+   <li><a href="#power-preference">power preference</a><span>, in § 7.3</span>
    <li><a href="#dom-mlcontextoptions-powerpreference">powerPreference</a><span>, in § 7.2</span>
+   <li><a href="#power-preference-default">power-preference-default</a><span>, in § 7.3</span>
+   <li><a href="#power-preference-high-performance">power-preference-high-performance</a><span>, in § 7.3</span>
+   <li><a href="#power-preference-low-power">power-preference-low-power</a><span>, in § 7.3</span>
    <li>
     recurrentBias
     <ul>
@@ -4215,33 +4252,20 @@ Benjamin Poulain for their contributions to the API specification.</p>
 };
 
 <c- b>enum</c-> <a href="#enumdef-mlpowerpreference"><code><c- g>MLPowerPreference</c-></code></a> {
-  // Let the user agent select the most suitable behavior.
   <a href="#dom-mlpowerpreference-default"><code><c- s>"default"</c-></code></a>,
-
-  // Prioritizes execution speed over power consumption.
   <a href="#dom-mlpowerpreference-high-performance"><code><c- s>"high-performance"</c-></code></a>,
-  
-  // Prioritizes power consumption over other considerations such as execution speed.
   <a href="#dom-mlpowerpreference-low-power"><code><c- s>"low-power"</c-></code></a>
 };
 
 <c- b>dictionary</c-> <a href="#dictdef-mlcontextoptions"><code><c- g>MLContextOptions</c-></code></a> {
-  // Preferred kind of device used
   <a data-link-type="idl-name" href="#enumdef-mldevicepreference"><c- n>MLDevicePreference</c-></a> <a data-default="&quot;default&quot;" data-type="MLDevicePreference " href="#dom-mlcontextoptions-devicepreference"><code><c- g>devicePreference</c-></code></a> = "default";
-
-  // Preference as related to power consumption
   <a data-link-type="idl-name" href="#enumdef-mlpowerpreference"><c- n>MLPowerPreference</c-></a> <a data-default="&quot;default&quot;" data-type="MLPowerPreference " href="#dom-mlcontextoptions-powerpreference"><code><c- g>powerPreference</c-></code></a> = "default";
 };
 
 [<a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#SecureContext"><c- g>SecureContext</c-></a>, <a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#Exposed"><c- g>Exposed</c-></a>=(<c- n>Window</c->, <c- n>DedicatedWorker</c->)]
 <c- b>interface</c-> <a href="#ml"><code><c- g>ML</c-></code></a> {
-  // Create a context with options
   <a data-link-type="idl-name" href="#mlcontext"><c- n>MLContext</c-></a> <a href="#dom-ml-createcontext"><code><c- g>createContext</c-></code></a>(<c- b>optional</c-> <a data-link-type="idl-name" href="#dictdef-mlcontextoptions"><c- n>MLContextOptions</c-></a> <a href="#dom-ml-createcontext-options-options"><code><c- g>options</c-></code></a> = {});
-
-  // Create a context from WebGL rendering context
   <a data-link-type="idl-name" href="#mlcontext"><c- n>MLContext</c-></a> <a href="#dom-ml-createcontext-glcontext"><code><c- g>createContext</c-></code></a>(<a data-link-type="idl-name" href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#5.14"><c- n>WebGLRenderingContext</c-></a> <a href="#dom-ml-createcontext-glcontext-glcontext"><code><c- g>glContext</c-></code></a>);
-
-  // Create a context from WebGPU device
   <a data-link-type="idl-name" href="#mlcontext"><c- n>MLContext</c-></a> <a href="#dom-ml-createcontext-gpudevice"><code><c- g>createContext</c-></code></a>(<a data-link-type="idl-name" href="https://gpuweb.github.io/gpuweb/#gpu-device"><c- n>GPUDevice</c-></a> <a href="#dom-ml-createcontext-gpudevice-gpudevice"><code><c- g>gpuDevice</c-></code></a>);
 };
 
@@ -4708,7 +4732,19 @@ Benjamin Poulain for their contributions to the API specification.</p>
    <b><a href="#dictdef-mlcontextoptions">#dictdef-mlcontextoptions</a></b><b>Referenced in:</b>
    <ul>
     <li><a href="#ref-for-dictdef-mlcontextoptions">6.2. Device Selection</a>
-    <li><a href="#ref-for-dictdef-mlcontextoptions①">7.2. ML</a> <a href="#ref-for-dictdef-mlcontextoptions②">(2)</a>
+    <li><a href="#ref-for-dictdef-mlcontextoptions①">7.2. ML</a> <a href="#ref-for-dictdef-mlcontextoptions②">(2)</a> <a href="#ref-for-dictdef-mlcontextoptions③">(3)</a> <a href="#ref-for-dictdef-mlcontextoptions④">(4)</a>
+   </ul>
+  </aside>
+  <aside class="dfn-panel" data-for="dom-mlcontextoptions-devicepreference">
+   <b><a href="#dom-mlcontextoptions-devicepreference">#dom-mlcontextoptions-devicepreference</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-dom-mlcontextoptions-devicepreference">7.2. ML</a>
+   </ul>
+  </aside>
+  <aside class="dfn-panel" data-for="dom-mlcontextoptions-powerpreference">
+   <b><a href="#dom-mlcontextoptions-powerpreference">#dom-mlcontextoptions-powerpreference</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-dom-mlcontextoptions-powerpreference">7.2. ML</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="ml">
@@ -4729,21 +4765,10 @@ Benjamin Poulain for their contributions to the API specification.</p>
     <li><a href="#ref-for-webnn-feature">7.2. ML</a>
    </ul>
   </aside>
-  <aside class="dfn-panel" data-for="mlcontext">
-   <b><a href="#mlcontext">#mlcontext</a></b><b>Referenced in:</b>
-   <ul>
-    <li><a href="#ref-for-mlcontext">3. Security Considerations</a>
-    <li><a href="#ref-for-mlcontext①">6.2. Device Selection</a> <a href="#ref-for-mlcontext②">(2)</a> <a href="#ref-for-mlcontext③">(3)</a> <a href="#ref-for-mlcontext④">(4)</a>
-    <li><a href="#ref-for-mlcontext⑤">7.2. ML</a> <a href="#ref-for-mlcontext⑥">(2)</a> <a href="#ref-for-mlcontext⑦">(3)</a> <a href="#ref-for-mlcontext⑧">(4)</a>
-    <li><a href="#ref-for-mlcontext⑨">7.3. MLContext</a> <a href="#ref-for-mlcontext①⓪">(2)</a>
-    <li><a href="#ref-for-mlcontext①①">7.7. MLGraphBuilder</a>
-    <li><a href="#ref-for-mlcontext①②">7.8. MLGraph</a> <a href="#ref-for-mlcontext①③">(2)</a>
-   </ul>
-  </aside>
   <aside class="dfn-panel" data-for="context-type">
    <b><a href="#context-type">#context-type</a></b><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-context-type">7.2. ML</a> <a href="#ref-for-context-type①">(2)</a> <a href="#ref-for-context-type②">(3)</a> <a href="#ref-for-context-type③">(4)</a>
+    <li><a href="#ref-for-context-type">7.3. MLContext</a> <a href="#ref-for-context-type①">(2)</a> <a href="#ref-for-context-type②">(3)</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="default-context">
@@ -4755,13 +4780,75 @@ Benjamin Poulain for their contributions to the API specification.</p>
   <aside class="dfn-panel" data-for="webgl-context">
    <b><a href="#webgl-context">#webgl-context</a></b><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-webgl-context">7.2. ML</a>
+    <li><a href="#ref-for-webgl-context">7.2. ML</a> <a href="#ref-for-webgl-context①">(2)</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="webgpu-context">
    <b><a href="#webgpu-context">#webgpu-context</a></b><b>Referenced in:</b>
    <ul>
-    <li><a href="#ref-for-webgpu-context">7.2. ML</a>
+    <li><a href="#ref-for-webgpu-context">7.2. ML</a> <a href="#ref-for-webgpu-context①">(2)</a>
+   </ul>
+  </aside>
+  <aside class="dfn-panel" data-for="device-preference">
+   <b><a href="#device-preference">#device-preference</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-device-preference">6.2. Device Selection</a>
+    <li><a href="#ref-for-device-preference①">7.2. ML</a>
+    <li><a href="#ref-for-device-preference②">7.3. MLContext</a> <a href="#ref-for-device-preference③">(2)</a> <a href="#ref-for-device-preference④">(3)</a>
+   </ul>
+  </aside>
+  <aside class="dfn-panel" data-for="device-preference-default">
+   <b><a href="#device-preference-default">#device-preference-default</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-device-preference-default">7.2. ML</a>
+   </ul>
+  </aside>
+  <aside class="dfn-panel" data-for="device-preference-gpu">
+   <b><a href="#device-preference-gpu">#device-preference-gpu</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-device-preference-gpu">7.2. ML</a> <a href="#ref-for-device-preference-gpu①">(2)</a> <a href="#ref-for-device-preference-gpu②">(3)</a> <a href="#ref-for-device-preference-gpu③">(4)</a>
+   </ul>
+  </aside>
+  <aside class="dfn-panel" data-for="power-preference">
+   <b><a href="#power-preference">#power-preference</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-power-preference">6.2. Device Selection</a>
+    <li><a href="#ref-for-power-preference①">7.3. MLContext</a> <a href="#ref-for-power-preference②">(2)</a> <a href="#ref-for-power-preference③">(3)</a>
+   </ul>
+  </aside>
+  <aside class="dfn-panel" data-for="power-preference-default">
+   <b><a href="#power-preference-default">#power-preference-default</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-power-preference-default">7.2. ML</a> <a href="#ref-for-power-preference-default①">(2)</a> <a href="#ref-for-power-preference-default②">(3)</a> <a href="#ref-for-power-preference-default③">(4)</a>
+   </ul>
+  </aside>
+  <aside class="dfn-panel" data-for="mlcontext">
+   <b><a href="#mlcontext">#mlcontext</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-mlcontext">3. Security Considerations</a>
+    <li><a href="#ref-for-mlcontext①">6.2. Device Selection</a> <a href="#ref-for-mlcontext②">(2)</a> <a href="#ref-for-mlcontext③">(3)</a> <a href="#ref-for-mlcontext④">(4)</a>
+    <li><a href="#ref-for-mlcontext⑤">7.2. ML</a> <a href="#ref-for-mlcontext⑥">(2)</a> <a href="#ref-for-mlcontext⑦">(3)</a> <a href="#ref-for-mlcontext⑧">(4)</a>
+    <li><a href="#ref-for-mlcontext⑨">7.3. MLContext</a> <a href="#ref-for-mlcontext①⓪">(2)</a> <a href="#ref-for-mlcontext①①">(3)</a> <a href="#ref-for-mlcontext①②">(4)</a> <a href="#ref-for-mlcontext①③">(5)</a> <a href="#ref-for-mlcontext①④">(6)</a>
+    <li><a href="#ref-for-mlcontext①⑤">7.7. MLGraphBuilder</a>
+    <li><a href="#ref-for-mlcontext①⑥">7.8. MLGraph</a> <a href="#ref-for-mlcontext①⑦">(2)</a>
+   </ul>
+  </aside>
+  <aside class="dfn-panel" data-for="dom-mlcontext-contexttype-slot">
+   <b><a href="#dom-mlcontext-contexttype-slot">#dom-mlcontext-contexttype-slot</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-dom-mlcontext-contexttype-slot">7.2. ML</a> <a href="#ref-for-dom-mlcontext-contexttype-slot①">(2)</a> <a href="#ref-for-dom-mlcontext-contexttype-slot②">(3)</a> <a href="#ref-for-dom-mlcontext-contexttype-slot③">(4)</a> <a href="#ref-for-dom-mlcontext-contexttype-slot④">(5)</a>
+   </ul>
+  </aside>
+  <aside class="dfn-panel" data-for="dom-mlcontext-devicepreference-slot">
+   <b><a href="#dom-mlcontext-devicepreference-slot">#dom-mlcontext-devicepreference-slot</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-dom-mlcontext-devicepreference-slot">7.2. ML</a> <a href="#ref-for-dom-mlcontext-devicepreference-slot①">(2)</a> <a href="#ref-for-dom-mlcontext-devicepreference-slot②">(3)</a> <a href="#ref-for-dom-mlcontext-devicepreference-slot③">(4)</a> <a href="#ref-for-dom-mlcontext-devicepreference-slot④">(5)</a>
+   </ul>
+  </aside>
+  <aside class="dfn-panel" data-for="dom-mlcontext-powerpreference-slot">
+   <b><a href="#dom-mlcontext-powerpreference-slot">#dom-mlcontext-powerpreference-slot</a></b><b>Referenced in:</b>
+   <ul>
+    <li><a href="#ref-for-dom-mlcontext-powerpreference-slot">7.2. ML</a> <a href="#ref-for-dom-mlcontext-powerpreference-slot①">(2)</a> <a href="#ref-for-dom-mlcontext-powerpreference-slot②">(3)</a> <a href="#ref-for-dom-mlcontext-powerpreference-slot③">(4)</a> <a href="#ref-for-dom-mlcontext-powerpreference-slot④">(5)</a>
    </ul>
   </aside>
   <aside class="dfn-panel" data-for="enumdef-mlinputoperandlayout">
