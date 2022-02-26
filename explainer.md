@@ -41,13 +41,15 @@ const B = builder.input('B', operandType);
 const C = builder.add(builder.mul(A, constant), B);
 // 2. Compile it into an executable.
 const graph = builder.build({'C': C});
+// 3. Create an execution method
+const execution = new MLExecution(context);
 // 3. Bind inputs to the graph and execute for the result.
 const bufferA = new Float32Array(4).fill(1.0);
 const bufferB = new Float32Array(4).fill(0.8);
 const bufferC = new Float32Array(4);
 const inputs = {'A': bufferA, 'B': bufferB};
 const outputs = {'C': bufferC};
-graph.compute(inputs, outputs);
+execution.compute(graph, inputs, outputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
 console.log('Output value: ' + bufferC);
@@ -99,6 +101,7 @@ There are many important [application use cases](https://webmachinelearning.gith
 export class NSNet2 {
   constructor() {
     this.graph = null;
+    this.execution = null;
     this.frameSize = 161;
     this.hiddenSize = 400;
   }
@@ -140,6 +143,8 @@ export class NSNet2 {
     const relu167 = builder.relu(builder.add(builder.matmul(relu163, weight216), biasFcOut2));
     const output = builder.sigmoid(builder.add(builder.matmul(relu167, weight217), biasFcOut4));
     this.graph = builder.build({'output': output, 'gru94': gru94, 'gru157': gru157});
+    // Create graph execution method
+    this.execution = new MLExecution(context);
   }
 
   compute(inputBuffer, initialState92Buffer, initialState155Buffer, outputBuffer, gru94Buffer, gru157Buffer) {
@@ -153,7 +158,7 @@ export class NSNet2 {
       'gru94': gru94Buffer,
       'gru157': gru157Buffer
     };
-    return this.graph.compute(inputs, outputs);
+    return this.execution.compute(graph, inputs, outputs);
   }
 }
 ```
