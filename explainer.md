@@ -47,7 +47,7 @@ const bufferB = new Float32Array(4).fill(0.8);
 const bufferC = new Float32Array(4);
 const inputs = {'A': bufferA, 'B': bufferB};
 const outputs = {'C': bufferC};
-graph.compute(inputs, outputs);
+context.compute(inputs, outputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
 console.log('Output value: ' + bufferC);
@@ -99,12 +99,13 @@ There are many important [application use cases](https://webmachinelearning.gith
 export class NSNet2 {
   constructor() {
     this.graph = null;
+    this.context = null;
     this.frameSize = 161;
     this.hiddenSize = 400;
   }
 
   async build(baseUrl, batchSize, frames) {
-    const context = navigator.ml.createContext();
+    this.context = navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
     // Create constants by loading pre-trained data from .npy files.
     const weight172 = await buildConstantByNpy(builder, baseUrl + '172.npy');
@@ -153,7 +154,7 @@ export class NSNet2 {
       'gru94': gru94Buffer,
       'gru157': gru157Buffer
     };
-    return this.graph.compute(inputs, outputs);
+    return this.context.compute(inputs, outputs);
   }
 }
 ```
