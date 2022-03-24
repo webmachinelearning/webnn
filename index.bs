@@ -383,6 +383,40 @@ This API is disabled by default in all cross-origin frames using the [[#permissi
 
 This API allows creation of an {{MLContext}} from a {{GPUDevice}} or {{WebGLRenderingContext}} defined by WebGPU and WebGL specifications respectively. See <a href="https://gpuweb.github.io/gpuweb/#security">WebGPU Security Considerations</a> and <a href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#4">WebGL Security Consideration</a> for more information regarding security characteristics of these contexts.
 
+Once the graph is fully constructed and compiled, the input shapes into each of the operations in the graph are inferred and finalized. The bounds checking occurs when the compute method is invoked that executes the graph against the actual data. No actual data is bound to the compiled graph before this stage. It is the implementation's responsibility to make sure proper bounds checking occurs against the shapes of the data already inferred by that time.
+
+Issue: Document operations susceptible to out-of-bounds access as a guidance to implementers.
+
+As a future-proofing measure, the API design allows certain operations that can be generically emulated to be deprecated for security, performance, or other reasons without breaking compatibility. This is made possible by high-level functions that are defined in terms of smaller primitive operations defined in this specifications. This enables a native implementation of a high-level function to be replaced with a polyfill implementation.
+
+Issue: Investigate side channel attack feasibility considering the current state where CPU is shared between processes running renderers.
+
+In order to not allow an attacker to target a specific implementation that may contain a flaw, the [[#programming-model-device-selection]] mechanism is a hint only, and the concrete device selection is left to the implementation - a user agent could for instance choose never to run a model on a device with known vulnerabilities. As a further mitigation, no device enumeration mechanism is defined.
+
+Issue: Hinting partially mitigates the concern. Investigate additional mitigations.
+
+The API design minimizes the attack surface for the compiled computational graph. The {{MLGraphBuilder}} interface that hosts the various operations is a data definition API and as such doesn't execute anything, only constructs data. What follows, is that the potential for an attack is limited to when binding the data to the graph before executing it by invoking the {{MLGraph/compute()}} method. This enables implementers to focus on hardening the {{MLGraph/compute()}} method. For example, by making sure it honors the boundary of data and fails appropriately when the bounds are not respected.
+
+Purpose-built Web APIs for measuring high-resolution time mitigate against timing attacks using techniques such as resolution reduction, adding jitter, detection of abuse and API call throttling [[hr-time-3]]. The practical deployment of WebNN implementations are likely to bring enough jitter to make timing attacks impractical (e.g. because they would use IPC) but implementers are advised to consider and test their implementations against timing attacks.
+
+## Guidelines for new operations ## {#security-new-ops}
+
+To ensure operations defined in this specification are shaped in a way they can be implemented securely, this section includes guidelines on how operations are expected to be defined to reduce potential for implementation problems. These guidelines are expected to evolve over time to align with industry best practices:
+
+- Prefer simplicity of arguments
+- Don't use parsers for complex data formats
+- If an operation can be decomposed to low level primitives:
+    - Add an informative emulation path
+    - Prefer primitives over new high level operations but consider performance consequences
+- Operations should follow a consistent style for inputs and attributes
+- Operation families such as pooling and reduction should share API shape and options
+- Formalize failure cases into test cases whenever possible
+- When in doubt, leave it out: API surface should be as small as possible required to satisfy the use cases, but no smaller
+- Try to keep the API free of implementation details that might inhibit future evolution, do not overspecify
+- Fail fast: the sooner the web developer is informed of an issue, the better
+
+In general, always consider the security and privacy implications as documented in [[security-privacy-questionnaire]] by the Technical Architecture Group and the Privacy Interest Group when adding new features.
+
 Privacy Considerations {#privacy}
 ===================================
 
@@ -636,6 +670,8 @@ For instance, an {{MLOperand}} may represent a constant feeding to an operation 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLOperand {};
 </script>
+
+See also [[#security-new-ops]]
 
 ## MLOperator ## {#api-mloperator}
 
@@ -2449,6 +2485,11 @@ Benjamin Poulain for their contributions to the API specification.
 Thanks to Sangwhan Moon and the W3C Technical Architecture Group for review of this specification for web architecture fit, design consistency and developer ergonomics.
 
 Thanks to W3C Privacy Interest Group for privacy and security review and feedback.
+
+Thanks to Alex Gough and the Chrome Security team for security review and questions.
+
+Thanks to Michal Karzynski for sharing practical guidelines and learnings from ONNX.
+
 <pre class="biblio">
 {
   "Models": {
