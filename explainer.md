@@ -47,7 +47,7 @@ const bufferB = new Float32Array(4).fill(0.8);
 const bufferC = new Float32Array(4);
 const inputs = {'A': bufferA, 'B': bufferB};
 const outputs = {'C': bufferC};
-context.compute(inputs, outputs);
+context.compute(graph, inputs, outputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
 console.log('Output value: ' + bufferC);
@@ -154,7 +154,7 @@ export class NSNet2 {
       'gru94': gru94Buffer,
       'gru157': gru157Buffer
     };
-    return this.context.compute(inputs, outputs);
+    return this.context.compute(this.graph, inputs, outputs);
   }
 }
 ```
