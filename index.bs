@@ -401,7 +401,7 @@ In order to not allow an attacker to target a specific implementation that may c
 
 Issue: Hinting partially mitigates the concern. Investigate additional mitigations.
 
-The API design minimizes the attack surface for the compiled computational graph. The {{MLGraphBuilder}} interface that hosts the various operations is a data definition API and as such doesn't execute anything, only constructs data. What follows, is that the potential for an attack is limited to when binding the data to the graph before executing it by invoking the {{MLContext/compute()}} method. This enables implementers to focus on hardening the {{MLContext/compute()}} method. For example, by making sure it honors the boundary of data and fails appropriately when the bounds are not respected.
+The API design minimizes the attack surface for the compiled computational graph. The {{MLGraphBuilder}} interface that hosts the various operations is a data definition API and as such doesn't execute anything, only constructs data. What follows, is that the potential for an attack is limited to when binding the data to the graph before executing it by invoking the {{MLContext}}.{{MLContext/compute()}} method. This enables implementers to focus on hardening the {{MLContext}}.{{MLContext/compute()}} method. For example, by making sure it honors the boundary of data and fails appropriately when the bounds are not respected.
 
 Purpose-built Web APIs for measuring high-resolution time mitigate against timing attacks using techniques such as resolution reduction, adding jitter, detection of abuse and API call throttling [[hr-time-3]]. The practical deployment of WebNN implementations are likely to bring enough jitter to make timing attacks impractical (e.g. because they would use IPC) but implementers are advised to consider and test their implementations against timing attacks.
 
@@ -461,7 +461,7 @@ At inference time, every {{MLOperand}} will be bound to a tensor (the actual dat
 
 The {{MLGraphBuilder}} interface enables the creation of {{MLOperand}}s.
 A key part of the {{MLGraphBuilder}} interface are the operations (such as 
-{{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/softmax()}}). The operations have a functional
+{{MLGraphBuilder}}.{{MLGraphBuilder/gemm()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/softmax()}}). The operations have a functional
 semantics, with no side effects.
 Each operation invocation conceptually returns a distinct new value, without
 changing the value of any other {{MLOperand}}.
@@ -478,17 +478,17 @@ that shares the same buffer as the input tensor. (In the case of reshape or sque
 the entire data is shared, while in the case of slice, a part of the input data is shared.)
 The implementation may use views, as above, for intermediate values.
 
-The {{MLGraphBuilder/build()}} method of the {{MLGraphBuilder}} interface is used to compile and optimize
+The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method of the {{MLGraphBuilder}} interface is used to compile and optimize
 the computation graph used to compute one or more specified outputs. The key
 purpose of the compilation step is to enable optimizations that span two or
 more operations, such as operation or loop fusion.
 
 Once the {{MLGraph}} is constructed, there are multiple ways by which the graph may be executed. The
-{{MLContext/compute()}} method represents a way the execution of the graph is carried out immediately 
+{{MLContext}}.{{MLContext/compute()}} method represents a way the execution of the graph is carried out immediately 
 on the calling thread, which must also be a worker thread, either on a CPU or GPU device. The execution 
 produces the results of the computation from all the inputs bound to the graph.
 
-The {{MLContext/computeAsync()}} method represents a way the execution of the graph is performed asynchronously
+The {{MLContext}}.{{MLContext/computeAsync()}} method represents a way the execution of the graph is performed asynchronously
 either on a parallel timeline in a separate worker thread for the CPU execution or on a GPU timeline in a GPU 
 command queue. This method returns immediately without blocking the calling thread while the actual execution is 
 offloaded to a different timeline. This type of execution is appropriate when the responsiveness of the calling 
@@ -497,11 +497,11 @@ time the operation is successfully completed on the offloaded timeline at which 
 signaled. This type of execution supports both the CPU and GPU device, including when the context is created 
 from the {{WebGLRenderingContext}}.
 
-In both the {{MLContext/compute()}} and {{MLContext/computeAsync()}} execution methods, the caller supplies 
+In both the {{MLContext}}.{{MLContext/compute()}} and {{MLContext}}.{{MLContext/computeAsync()}} execution methods, the caller supplies 
 the input values using {{MLNamedArrayInputs}}, binding the input {{MLOperand}}s to their values. The caller
 then supplies pre-allocated buffers for output {{MLOperand}}s using {{MLNamedArrayOutputs}}.
 
-The {{MLCommandEncoder}} interface created by the {{MLContext/createCommandEncoder()}} method supports 
+The {{MLCommandEncoder}} interface created by the {{MLContext}}.{{MLContext/createCommandEncoder()}} method supports 
 a graph execution method that provides the maximum flexibility to callers that also utilize WebGPU in their 
 application. It does this by placing the workload required to initialize and compute the results of the 
 operations in the graph onto a {{GPUCommandBuffer}}. The callers are responsible for the eventual submission 
@@ -884,12 +884,6 @@ partial interface MLContext {
             1. Else:
                 1. Set the values of |value| to the values of |outputTensor|.
     1. Return Promise<{{undefined}}>.
-</div>
-
-<div class="note">
-When the {{[[contextType]]}} of {{MLContext}} is set to [=webgpu-context|webgpu=] with the {{MLContextOptions}}.{{gpuDevice}} also specified, the user agent queues the ML workload needed to compute the result of the operations in the graph in an internal command buffer before submitting it to the {{gpuDevice}}'s default {{GPUQueue}}. The user agent then returns the call with a {{Promise}} that resolves once the queue finishes processing all the work submitted to it.
-
-It is strongly recommended that the internal command buffer used to submit the workload is reused across {{MLContext/computeAsync()}} calls when it is not in use for efficiency.
 </div>
 
 ### WebGPU Interoperability ### {#api-mlcontext-webgpu-interop}
@@ -2491,21 +2485,24 @@ interface MLCommandEncoder {};
         The underlying implementation provided by the User Agent.
 </dl>
 
-### Weight Preprocessing ### {#api-mlcommandencoder-graph-preprocessing}
-Record the initialization of the {{MLGraph}} with constant inputs {{MLNamedGPUInputs}} such as weight tensors. This is a necessary step for optimal performance as it gives the platform an opportunity to prepare and optimize constant input data for the subsequent execution of the graph. This method should only be called once per graph.
+### Graph Initialization ### {#api-mlcommandencoder-graph-initialization}
+Record the initialization of the {{MLGraph}}. This is a necessary step for optimal performance during graph execution as it gives the platform an opportunity to prepare and optimize constant input data for the subsequent execution of the graph. This method should only be called once per graph.
 
 <script type=idl>
 partial interface MLCommandEncoder {
-  undefined initializeGraph(MLGraph graph, MLNamedGPUInputs constants);
+  undefined initializeGraph(MLGraph graph);
 };
 </script>
 
 <div algorithm=mlcommandencoder.initializegraph>
     **Arguments:**
-        - *graph*: an {{MLGraph}}. The compiled graph to be initialized with constants.
-        - *constants*: an {{MLNamedGPUInputs}}. The resources and optional dimensions of constant inputs.
+        - *graph*: an {{MLGraph}}. The compiled graph to be initialized with graph constant inputs.
 
     **Returns:** {{undefined}}.
+</div>
+
+<div class="note">
+Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder}}.{{MLGraphBuilder/constant(desc, bufferView)}} method as constant operands during graph construction time.
 </div>
 
 ### Dispatch Execution Commands ### {#api-mlcommandencoder-dispatch-commands}
