@@ -985,12 +985,13 @@ interface MLGraphBuilder {
   MLOperand constant(double value, optional MLOperandType type = "float32");
 
   // Compile the graph up to the specified output operands
+  [Exposed=(DedicatedWorker)]
   MLGraph build(MLNamedOperands outputs);
 };
 </script>
 
 <div class="note">
-The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} backing it. When the {{[[contextType]]}} of the {{MLContext}} is set to [=default-context|default=] with the {{MLContextOptions}}.{{deviceType}} set to [=device-type-gpu|gpu=], the compiled graph is initialized right before the {{MLGraphBuilder/build()}} method call returns. This initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
+The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to [=default-context|default=], the compiled graph is initialized right before the {{MLGraphBuilder/build()}} method call returns. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
 </div>
 
 ### batchNormalization ### {#api-mlgraphbuilder-batchnorm}
