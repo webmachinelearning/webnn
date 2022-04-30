@@ -30,6 +30,12 @@ urlPrefix: https://gpuweb.github.io/gpuweb/; spec: WEBGPU
         text: GPUDevice; url: gpu-device
         text: GPUBuffer; url: buffer-interface
         text: GPUTexture; url: texture-interface
+        text: GPUQueue; url: queues
+        text: GPUCommandBuffer; url: command-buffers
+        text: GPUCommandBufferDescriptor; url: dictdef-gpucommandbufferdescriptor
+urlPrefix: https://webidl.spec.whatwg.org/; spec: WEBIDL
+    type: interface
+        text: Promise; url: idl-promise
 </pre>
 <pre class="biblio">
 {
@@ -395,7 +401,7 @@ In order to not allow an attacker to target a specific implementation that may c
 
 Issue: Hinting partially mitigates the concern. Investigate additional mitigations.
 
-The API design minimizes the attack surface for the compiled computational graph. The {{MLGraphBuilder}} interface that hosts the various operations is a data definition API and as such doesn't execute anything, only constructs data. What follows, is that the potential for an attack is limited to when binding the data to the graph before executing it by invoking the {{MLGraph/compute()}} method. This enables implementers to focus on hardening the {{MLGraph/compute()}} method. For example, by making sure it honors the boundary of data and fails appropriately when the bounds are not respected.
+The API design minimizes the attack surface for the compiled computational graph. The {{MLGraphBuilder}} interface that hosts the various operations is a data definition API and as such doesn't execute anything, only constructs data. What follows, is that the potential for an attack is limited to when binding the data to the graph before executing it by invoking the {{MLContext}}.{{MLContext/compute()}} method. This enables implementers to focus on hardening the {{MLContext}}.{{MLContext/compute()}} method. For example, by making sure it honors the boundary of data and fails appropriately when the bounds are not respected.
 
 Purpose-built Web APIs for measuring high-resolution time mitigate against timing attacks using techniques such as resolution reduction, adding jitter, detection of abuse and API call throttling [[hr-time-3]]. The practical deployment of WebNN implementations are likely to bring enough jitter to make timing attacks impractical (e.g. because they would use IPC) but implementers are advised to consider and test their implementations against timing attacks.
 
@@ -446,8 +452,7 @@ computer vision, natural language processing, and robotics.
 The WebNN API is a specification for constructing, compiling, and executing computational
 graphs of neural networks.
 
-The {{MLGraph}} interface represents a compiled computational graph (that is, a model) and exposes
-a compute method to perform inference.
+The {{MLGraph}} interface represents a compiled computational graph that is immutable (that is, a model).
 
 The {{MLGraphBuilder}} interface serves as a builder (factory) to create a {{MLGraph}}.
 An {{MLOperand}} is a representation of data that flows within the computational graph,
@@ -458,20 +463,10 @@ At inference time, every {{MLOperand}} will be bound to a tensor (the actual dat
 
 The {{MLGraphBuilder}} interface enables the creation of {{MLOperand}}s.
 A key part of the {{MLGraphBuilder}} interface are the operations (such as 
-{{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/softmax()}}). The operations have a functional
+{{MLGraphBuilder}}.{{MLGraphBuilder/gemm()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/softmax()}}). The operations have a functional
 semantics, with no side effects.
 Each operation invocation conceptually returns a distinct new value, without
 changing the value of any other {{MLOperand}}.
-
-The {{MLGraphBuilder/build()}} method of the {{MLGraphBuilder}} interface is used to compile and optimize
-the computation graph used to compute one or more specified outputs. The key
-purpose of the compilation step is to enable optimizations that span two or
-more operations, such as operation or loop fusion.
-
-The {{MLGraph/compute()}} method of the {{MLGraph}} interface is used to execute the
-compiled computation graph (to perform inference). The caller supplies the input
-values using {{MLNamedInputs}}, binding the input {{MLOperand}}s to their values.
-The caller supplies pre-allocated buffers for output {{MLOperand}}s using {{MLNamedOutputs}}.
 
 The runtime values (of {{MLOperand}}s) are tensors, which are essentially multidimensional
 arrays. The representation of the tensors is implementation dependent, but it typically
@@ -485,24 +480,52 @@ that shares the same buffer as the input tensor. (In the case of reshape or sque
 the entire data is shared, while in the case of slice, a part of the input data is shared.)
 The implementation may use views, as above, for intermediate values.
 
+The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method of the {{MLGraphBuilder}} interface is used to compile and optimize
+the computation graph used to compute one or more specified outputs. The key
+purpose of the compilation step is to enable optimizations that span two or
+more operations, such as operation or loop fusion.
+
+Once the {{MLGraph}} is constructed, there are multiple ways by which the graph may be executed. The
+{{MLContext}}.{{MLContext/compute()}} method represents a way the execution of the graph is carried out immediately 
+on the calling thread, which must also be a worker thread, either on a CPU or GPU device. The execution 
+produces the results of the computation from all the inputs bound to the graph.
+
+The {{MLContext}}.{{MLContext/computeAsync()}} method represents a way the execution of the graph is performed asynchronously
+either on a parallel timeline in a separate worker thread for the CPU execution or on a GPU timeline in a GPU 
+command queue. This method returns immediately without blocking the calling thread while the actual execution is 
+offloaded to a different timeline. This type of execution is appropriate when the responsiveness of the calling 
+thread is critical to good user experience. The computation results will be placed at the bound outputs at the 
+time the operation is successfully completed on the offloaded timeline at which time the calling thread is 
+signaled. This type of execution supports both the CPU and GPU device, including when the context is created 
+from the {{WebGLRenderingContext}}.
+
+In both the {{MLContext}}.{{MLContext/compute()}} and {{MLContext}}.{{MLContext/computeAsync()}} execution methods, the caller supplies 
+the input values using {{MLNamedArrayInputs}}, binding the input {{MLOperand}}s to their values. The caller
+then supplies pre-allocated buffers for output {{MLOperand}}s using {{MLNamedArrayOutputs}}.
+
+The {{MLCommandEncoder}} interface created by the {{MLContext}}.{{MLContext/createCommandEncoder()}} method supports 
+a graph execution method that provides the maximum flexibility to callers that also utilize WebGPU in their 
+application. It does this by placing the workload required to initialize and compute the results of the 
+operations in the graph onto a {{GPUCommandBuffer}}. The callers are responsible for the eventual submission 
+of this workload on the {{GPUQueue}} through the WebGPU queue submission mechanism. Once the submitted workload 
+is completely executed, the result is avaialble in the bound output buffers.
+
 ## Device Selection ## {#programming-model-device-selection}
 
-An {{MLContext}} interface represents a global state of neural network execution. One of the important context states is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. An {{MLContext}} could be created from a specific GPU device such as {{GPUDevice}} or {{WebGLRenderingContext}} that is already in use by the application, in which case the corresponding {{GPUBuffer}} or {{WebGLBuffer}} resources used as graph constants, as well as the {{GPUTexture}} and {{WebGLTexture}} as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for {{MLContext}} must be created from the same adapter as the device used to allocate the resources referenced in the graph.
+An {{MLContext}} interface represents a global state of neural network execution. One of the important context states is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. In addition to the default method of creation with {{MLContextOptions}}, an {{MLContext}} could also be created from a specific GPU device such as {{GPUDevice}} or {{WebGLRenderingContext}} that is already in use by the application, in which case the corresponding {{GPUBuffer}} or {{WebGLBuffer}} resources used as graph constants, as well as the {{GPUTexture}} and {{WebGLTexture}} as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for {{MLContext}} must be created from the same adapter as the device used to allocate the resources referenced in the graph.
 
 In a situation when a GPU context executes a graph with a constant or an input in the system memory as an {{ArrayBufferView}}, the input content is automatically uploaded from the system memory to the GPU memory, and downloaded back to the system memory of an {{ArrayBufferView}} output buffer at the end of the graph execution. This data upload and download cycles will only occur whenever the execution device requires the data to be copied out of and back into the system memory, such as in the case of the GPU. It doesn't occur when the device is a CPU device. Additionally, the result of the graph execution is in a known layout format. While the execution may be optimized for a native memory access pattern in an intermediate result within the graph, the output of the last operation of the graph must convert the content back to a known layout format at the end of the graph in order to maintain the expected behavior from the caller's perspective.
 
-When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's [=power preference=] and [=device preference=] specified in the {{MLPowerPreference}} and {{MLDevicePreference}} options.
+When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's [=power preference=] and [=device type=] specified in the {{MLPowerPreference}} and {{MLDeviceType}} options.
 
-The following table summarizes the types of resource supported by the device selected.
+The following table summarizes the types of resource supported by the context created through different method of creation:
 
 <div class="note">
 <table>
-  <tr><th>Device Type<th>ArrayBufferView<th>GPUBuffer<th>GPUTexture<th>WebGLBuffer<th>WebGLTexture
+  <tr><th>Creation method<th>ArrayBufferView<th>GPUBuffer<th>GPUTexture<th>WebGLBuffer<th>WebGLTexture
+  <tr><td>MLContextOptions<td>Yes<td>No<td>No<td>No<td>No
   <tr><td>GPUDevice<td>Yes<td>Yes<td>Yes<td>No<td>No
   <tr><td>WebGLRenderingContext<td>Yes<td>No<td>No<td>Yes<td>Yes
-  <tr><td>default<td>Yes<td>No<td>No<td>No<td>No
-  <tr><td>gpu<td>Yes<td>No<td>No<td>No<td>No
-  <tr><td>cpu<td>Yes<td>No<td>No<td>No<td>No
 </table>
 </div>
 
@@ -524,10 +547,9 @@ WorkerNavigator includes NavigatorML;
 
 ## ML ## {#api-ml}
 <script type=idl>
-enum MLDevicePreference {
-  "default",
-  "gpu",
-  "cpu"
+enum MLDeviceType {
+  "cpu",
+  "gpu"
 };
 
 enum MLPowerPreference {
@@ -537,15 +559,15 @@ enum MLPowerPreference {
 };
 
 dictionary MLContextOptions {
-  MLDevicePreference devicePreference = "default";
+  MLDeviceType deviceType = "cpu";
   MLPowerPreference powerPreference = "default";
 };
 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface ML {
   MLContext createContext(optional MLContextOptions options = {});
-  MLContext createContext(WebGLRenderingContext glContext);
   MLContext createContext(GPUDevice gpuDevice);
+  MLContext createContext(WebGLRenderingContext glContext);
 };
 </script>
 
@@ -556,27 +578,20 @@ The {{ML/createContext()}} method steps are:
     <dl class=switch>
     <dt>{{MLContextOptions}}
     <dd>Set |context|.{{[[contextType]]}} to [=default-context|default=].
-    <dd>Set |context|.{{[[devicePreference]]}} to the value of {{MLContextOptions}}'s {{devicePreference}} member.
-    <dd>Set |context|.{{[[powerPreference]]}} to the value of {{MLContextOptions}}'s {{powerPreference}} member.
-
-    <dt>{{WebGLRenderingContext}}
-    <dd>Set |context|.{{[[contextType]]}} to [=webgl-context|webgl=].
-    <dd>Set |context|.{{[[devicePreference]]}} to "[=device-preference-gpu|gpu=]".
-    <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
+    <dd>Set |context|.{{[[deviceType]]}} to the value of {{MLContextOptions}}'s {{deviceType}}.
+    <dd>Set |context|.{{[[powerPreference]]}} to the value of {{MLContextOptions}}'s {{powerPreference}}.
 
     <dt>{{GPUDevice}}
     <dd>Set |context|.{{[[contextType]]}} to [=webgpu-context|webgpu=].
-    <dd>Set |context|.{{[[devicePreference]]}} to "[=device-preference-gpu|gpu=]".
+    <dd>Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
     <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
 
-    <dt>Otherwise
-    <dd>Set |context|.{{[[contextType]]}} to [=default-context|default=].
-    <dd>Set |context|.{{[[devicePreference]]}} to "[=device-preference-default|default=]".
+    <dt>{{WebGLRenderingContext}}
+    <dd>Set |context|.{{[[contextType]]}} to [=webgl-context|webgl=].
+    <dd>Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
     <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
     </dl>
 1. Return |context|.
-
-Note: When {{[[contextType]]}} is set to "[=webgl-context|webgl=]" or "[=webgpu-context|webgpu=]", [=device preference=] "[=device-preference-gpu|gpu=]" is implied and {{[[devicePreference]]}} is set to "[=device-preference-gpu|gpu=]" and {{[[powerPreference]]}} is set to "[=power-preference-default|default=]".
 
 ### Permissions Policy Integration ### {#permissions-policy-integration}
 
@@ -585,26 +600,24 @@ string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
 Its <a>default allowlist</a> is <code>'self'</code>.
 
 ## MLContext ## {#api-mlcontext}
-The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device preference=] and [=power preference=].
+The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device type=] and [=power preference=].
 
 The <dfn>context type</dfn> is the type of the execution context that manages the resources and facilitates the compilation and execution of the neural network graph:
 <dl>
 <dt>"<code><dfn data-lt="default-context">default</dfn></code>"</dt>
-<dd>Context created per the user agent's preference.</dd>
+<dd>Context created per user preference options.</dd>
 <dt>"<code><dfn data-lt="webgl-context">webgl</dfn></code>"</dt>
 <dd>Context created from WebGL rendering context.</dd>
 <dt>"<code><dfn data-lt="webgpu-context">webgpu</dfn></code>"</dt>
 <dd>Context created from WebGPU device.</dd>
 </dl>
 
-The <dfn>device preference</dfn> indicates the preferred kind of device to be used. It is one of the following:
+The <dfn>device type</dfn> indicates the kind of device used for the context. It is one of the following:
 <dl>
-<dt>"<code><dfn data-lt="device-preference-default">default</dfn></code>"</dt>
-<dd>The user agent selects the most suitable device to use.</dd>
-<dt>"<code><dfn data-lt="device-preference-gpu">gpu</dfn></code>"</dt>
+<dt>"<code><dfn data-lt="device-type-cpu">cpu</dfn></code>"</dt>
+<dd>Provides the broadest compatibility and usability across all client devices with varying degrees of performance.</dd>
+<dt>"<code><dfn data-lt="device-type-gpu">gpu</dfn></code>"</dt>
 <dd>Provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations.</dd>
-<dt>"<code><dfn data-lt="device-preference-cpu">cpu</dfn></code>"</dt>
-<dd>Provides the broadest reach of software compute availability, but with limited scalability of execution performance on the more complex neural networks.</dd>
 </dl>
 
 The <dfn>power preference</dfn> indicates preference as related to power consumption. It is one of the following:
@@ -618,6 +631,14 @@ The <dfn>power preference</dfn> indicates preference as related to power consump
 </dl>
 
 <script type=idl>
+dictionary MLArrayInput {
+  required ArrayBufferView resource;
+  required sequence<long> dimensions;
+};
+
+typedef record<DOMString, (ArrayBufferView or MLArrayInput)> MLNamedArrayInputs;
+typedef record<DOMString, ArrayBufferView> MLNamedArrayOutputs;
+
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLContext {};
 </script>
@@ -628,13 +649,257 @@ interface MLContext {};
     : <dfn>\[[contextType]]</dfn> of type [=context type=]
     ::
         The {{MLContext}}'s [=context type=].
-    : <dfn>\[[devicePreference]]</dfn> of type [=device preference=]
+    : <dfn>\[[deviceType]]</dfn> of type [=device type=]
     ::
-        The {{MLContext}}'s [=device preference=].
+        The {{MLContext}}'s [=device type=].
     : <dfn>\[[powerPreference]]</dfn> of type [=power preference=]
     ::
         The {{MLContext}}'s [=power preference=].
 </dl>
+
+<div class="note">
+When the {{[[contextType]]}} is set to [=default-context|default=] with the {{MLContextOptions}}.{{deviceType}} set to [=device-type-gpu|gpu=], the user agent is responsible for creating an internal GPU device that operates within the context and is capable of ML workload submission on behalf of the calling application. In this setting however, only {{ArrayBufferView}} inputs and outputs are allowed in and out of the graph execution since the application has no way to know what type of internal GPU device is being created on their behalf. In this case, the user agent is responsible for automatic uploads and downloads of the inputs and outputs to and from the GPU memory using this said internal device.
+</div>
+
+### Synchronous Execution ### {#api-mlcontext-sync-execution}
+Synchronously carries out the computational workload of a compiled graph {{MLGraph}} on the calling thread, which must be a worker thread, to produce results as defined by the operations in the graph. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an {{OperationError}} exception.
+
+<script type=idl>
+partial interface MLContext {
+  [Exposed=(DedicatedWorker)]
+  undefined compute(MLGraph graph, MLNamedArrayInputs inputs, MLNamedArrayOutputs outputs);
+};
+</script>
+
+<div algorithm=mlcontext.compute>
+
+    **Arguments:**
+      - *graph*: an {{MLGraph}}. The compiled graph to be executed.
+      - *inputs*: an {{MLNamedArrayInputs}}. The resources and optional dimensions of inputs.
+      - *outputs*: an {{MLNamedArrayOutputs}}. The pre-allocated resources of required outputs.
+
+    **Returns:** {{undefined}}.
+
+    1. If any of the following requirements are unmet, then throw a {{DataError}} {{DOMException}} and stop.
+        <div class=validusage>
+            1. For each |key| -> |value| of |inputs|:
+                1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must exist.
+                1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+                1. Let |inputSize| be 1.
+                1. If |value| is an {{MLArrayInput}}, then:
+                    1. The length of |value|.{{MLArrayInput/dimensions}} must be the same as the length of |inputDesc|.{{MLOperandDescriptor/dimensions}}.
+                    1. Let |i| be 0.
+                    1. While true:
+                        1. Let |dimension| be |value|.{{MLArrayInput/dimensions}}[|i|].
+                        1. |dimension| must be greater than 0.
+                        1. If |inputDesc|.{{MLOperandDescriptor/dimensions}}[|i|] is greater than 0, then |dimension| must be equal to |inputDesc|.{{MLOperandDescriptor/dimensions}}[|i|].
+                        1. Set |inputSize| to the product of |inputSize| and |dimension|.
+                        1. Increment |i| by 1.
+                        1. If |i| if equal to the length of |value|.{{MLArrayInput/dimensions}}, then break.
+                1. Else:
+                    1. For each |dimension| of |inputDesc|.{{MLOperandDescriptor/dimensions}}:
+                        1. The value of |dimension| must be greater than 0.
+                        1. Set |inputSize| to the product of |inputSize| and |dimension|.
+                1. If |value| is an {{MLArrayInput}}, then let |resource| be |value|.{{MLArrayInput/resource}}.
+                1. If |value| is an {{ArrayBufferView}}, then let |resource| be |value|.
+                1. If |resource| is an {{ArrayBufferView}}, then:
+                    1. The kind of |resource| must be compatible with |inputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                    1. The length of |resource| must be the same as |inputSize|.
+            1. For each |key| -> |value| of |outputs|:
+                1. |graph|.{{MLGraph/[[outputNames]]}}[|key|] must exist.
+        </div>
+    1. For each |key| -> |value| of |inputs|:
+        1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+        1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} of data type that is compatible with |inputDesc|.{{MLOperandDescriptor/type}}.
+        1. If |value| is an {{MLArrayInput}}, then:
+            1. Set the dimensions of |inputTensor| to |value|.{{MLArrayInput/dimensions}}.
+        1. Else:
+            1. Set the dimensions of |inputTensor| to |inputDesc|.{{MLOperandDescriptor/dimensions}}.
+        1. If |value| is an {{MLArrayInput}}, then:
+            1. Set the values of |inputTensor| to the values of |value|.{{MLArrayInput/resource}}.
+        1. If |value| is an {{ArrayBufferView}}, then:
+            1. Set the values of |inputTensor| to the values of |value|.
+        1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |inputTensor|.
+    1. For each |key| -> |value| of |outputs|:
+        1. Issue a compute request for output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key|.
+        1. Wait for the compute request to be completed.
+        1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
+            1. Throw an {{OperationError}} {{DOMException}} and stop.
+        1. Else:
+            1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
+            1. If the kind of |value| is not compatible with the value type of |outputTensor|, then throw a {{DataError}} {{DOMException}} and stop.
+            1. Let |outputSize| be 1.
+            1. For each |dimension| of dimensions of |outputTensor|:
+                1. Set |outputSize| to the product of |outputSize| and |dimension|.
+            1. If |outputSize| is greater than the length of |value|, then:
+                1. Throw a {{DataError}} {{DOMException}} and stop.
+            1. Else:
+                1. Set the values of |value| to the values of |outputTensor|.
+    1. Return {{undefined}}.
+</div>
+
+#### Examples #### {#compilation-examples}
+
+<div class="example">
+The following code showcases the computation with dynamic input dimensions.
+<pre highlight="js">
+function sizeOfShape(array) {
+  return array.reduce(
+      (accumulator, currentValue) => accumulator * currentValue);
+}
+
+const context = navigator.ml.createContext();
+
+// Create a graph with dynamic shaped inputs.
+const builder = new MLGraphBuilder(context);
+const descA = {type: 'float32', dimensions: [-1, 4]};
+const a = builder.input('a', descA);
+const descB = {type: 'float32', dimensions: [4, -1]};
+const b = builder.input('b', descB);
+const c = builder.matmul(a, b);
+const graph = builder.build({'c': c});
+
+function allocateAndCompute(shapeA, shapeB, shapeC) {
+  const bufferA = new Float32Array(sizeOfShape(shapeA)).fill(0.5);
+  const bufferB = new Float32Array(sizeOfShape(shapeB)).fill(0.5);
+  const bufferC = new Float32Array(sizeOfShape(shapeC));
+
+  // Specify the shape of inputs when computing.
+  const inputs = {
+    'a': {resource: bufferA, dimensions: shapeA},
+    'b': {resource: bufferB, dimensions: shapeB},
+  };
+  const outputs = {'c': bufferC};
+  context.compute(graph, inputs, outputs);
+  console.log(&#96;values: ${bufferC}&#96;);
+}
+
+allocateAndCompute([3, 4], [4, 3], [3, 3]);
+allocateAndCompute([4, 4], [4, 4], [4, 4]);
+allocateAndCompute([5, 4], [4, 5], [5, 5]);
+</pre>
+</div>
+
+<div class="example">
+The following code showcases the computation with optional outputs.
+<pre highlight="js">
+const context = navigator.ml.createContext();
+
+// Build a graph with two outputs.
+const builder = new MLGraphBuilder(context);
+const descA = {type: 'float32', dimensions: [3, 4]};
+const a = builder.input('a', descA);
+const descB = {type: 'float32', dimensions: [4, 3]};
+const bufferB = new Float32Array(sizeOfShape(descB.dimensions)).fill(0.5);
+const b = builder.constant(descB, bufferB);
+const descC = {type: 'float32', dimensions: [3, 3]};
+const bufferC = new Float32Array(sizeOfShape(descC.dimensions)).fill(1);
+const c = builder.constant(descC, bufferC);
+const d = builder.matmul(a, b);
+const e = builder.add(d, c);
+const graph = builder.build({'d': d, 'e': e});
+
+const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
+const inputs = {'a': bufferA};
+
+// Compute d.
+const bufferD = new Float32Array(sizeOfShape([3, 3]));
+context.compute(graph, inputs, {'d': bufferD});
+console.log(&#96;values: ${bufferD}&#96;);
+
+// Compute e.
+const bufferE = new Float32Array(sizeOfShape([3, 3]));
+context.compute(graph, inputs, {'e': bufferE});
+console.log(&#96;values: ${bufferE}&#96;);
+</pre>
+</div>
+
+### Asynchronous Execution ### {#api-mlcontext-async-execution}
+Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU timeline for the submission of GPU workload on the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an {{OperationError}} exception.
+
+<script type=idl>
+partial interface MLContext {
+  Promise<undefined> computeAsync(MLGraph graph, MLNamedArrayInputs inputs, 
+                    MLNamedArrayOutputs outputs);
+};
+</script>
+
+<div algorithm=mlcontext.computeasync>
+
+    **Arguments:**
+      - *graph*: an {{MLGraph}}. The compiled graph to be executed.
+      - *inputs*: an {{MLNamedArrayInputs}}. The resources and optional dimensions of inputs.
+      - *outputs*: an {{MLNamedArrayOutputs}}. The pre-allocated resources of required outputs.
+
+    **Returns:** Promise<{{undefined}}>.
+    
+    1. If any of the following requirements are unmet, then throw a {{DataError}} {{DOMException}} and stop.
+        <div class=validusage>
+            1. For each |key| -> |value| of |inputs|:
+                1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must exist.
+                1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+                1. Let |inputSize| be 1.
+                1. If |value| is an {{MLArrayInput}}, then:
+                    1. The length of |value|.{{MLArrayInput/dimensions}} must be the same as the length of |inputDesc|.{{MLOperandDescriptor/dimensions}}.
+                    1. Let |i| be 0.
+                    1. While true:
+                        1. Let |dimension| be |value|.{{MLArrayInput/dimensions}}[|i|].
+                        1. |dimension| must be greater than 0.
+                        1. If |inputDesc|.{{MLOperandDescriptor/dimensions}}[|i|] is greater than 0, then |dimension| must be equal to |inputDesc|.{{MLOperandDescriptor/dimensions}}[|i|].
+                        1. Set |inputSize| to the product of |inputSize| and |dimension|.
+                        1. Increment |i| by 1.
+                        1. If |i| if equal to the length of |value|.{{MLArrayInput/dimensions}}, then break.
+                1. Else:
+                    1. For each |dimension| of |inputDesc|.{{MLOperandDescriptor/dimensions}}:
+                        1. The value of |dimension| must be greater than 0.
+                        1. Set |inputSize| to the product of |inputSize| and |dimension|.
+                1. If |value| is an {{MLArrayInput}}, then let |resource| be |value|.{{MLArrayInput/resource}}.
+                1. If |resource| is an {{ArrayBufferView}}, then:
+                    1. The kind of |resource| must be compatible with |inputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                    1. The length of |resource| must be the same as |inputSize|.
+            1. For each |key| -> |value| of |outputs|:
+                1. |graph|.{{MLGraph/[[outputNames]]}}[|key|] must exist.
+        </div>
+    1. For each |key| -> |value| of |inputs|:
+        1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+        1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} of data type that is compatible with |inputDesc|.{{MLOperandDescriptor/type}}.
+        1. If |value| is an {{MLArrayInput}}, then:
+            1. Set the dimensions of |inputTensor| to |value|.{{MLArrayInput/dimensions}}.
+        1. Else:
+            1. Set the dimensions of |inputTensor| to |inputDesc|.{{MLOperandDescriptor/dimensions}}.
+        1. If |value| is an {{MLArrayInput}}, then:
+            1. Set the values of |inputTensor| to the values of |value|.{{MLArrayInput/resource}}.
+        1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |inputTensor|.
+    1. For each |key| -> |value| of |outputs|:
+        1. Issue a compute request for output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key|.
+        1. Wait for the compute request to be completed.
+        1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
+            1. Throw an {{OperationError}} {{DOMException}} and stop.
+        1. Else:
+            1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
+            1. If the kind of |value| is not compatible with the value type of |outputTensor|, then throw a {{DataError}} {{DOMException}} and stop.
+            1. Let |outputSize| be 1.
+            1. For each |dimension| of dimensions of |outputTensor|:
+                1. Set |outputSize| to the product of |outputSize| and |dimension|.
+            1. If |outputSize| is greater than the length of |value|, then:
+                1. Throw a {{DataError}} {{DOMException}} and stop.
+            1. Else:
+                1. Set the values of |value| to the values of |outputTensor|.
+    1. Return Promise<{{undefined}}>.
+</div>
+
+### WebGPU Interoperability ### {#api-mlcontext-webgpu-interop}
+Create {{MLCommandEncoder}} interface used to record the ML workload onto a WebGPU-compatible {{GPUCommandBuffer}} to allow mixing of ML workload with other GPU workload in an application that leverages WebGPU. This method only succeeds on an {{MLContext}} created with {{GPUDevice}}. Otherwise, it throws an {{OperationError}} exception.
+
+<script type=idl>
+partial interface MLContext {
+  MLCommandEncoder createCommandEncoder();
+};
+</script>
+
+<div algorithm=mlcontext.createcommandencoder>
+    **Returns:** {{MLCommandEncoder}}. The command encoder used to record ML workload on the GPU.
+</div>
 
 ## MLOperandDescriptor ## {#api-mloperanddescriptor}
 <script type=idl>
@@ -722,9 +987,14 @@ interface MLGraphBuilder {
   MLOperand constant(double value, optional MLOperandType type = "float32");
 
   // Compile the graph up to the specified output operands
+  [Exposed=(DedicatedWorker)]
   MLGraph build(MLNamedOperands outputs);
 };
 </script>
+
+<div class="note">
+The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to [=default-context|default=], the compiled graph is initialized right before the {{MLGraphBuilder/build()}} method call returns. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
+</div>
 
 ### batchNormalization ### {#api-mlgraphbuilder-batchnorm}
 Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phase of this operation.
@@ -2168,20 +2438,8 @@ partial interface MLGraphBuilder {
 The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
 
 <script type=idl>
-typedef (MLBufferView or WebGLTexture or GPUTexture) MLResource;
-
-dictionary MLInput {
-  required MLResource resource;
-  required sequence<long> dimensions;
-};
-
-typedef record<DOMString, (MLResource or MLInput)> MLNamedInputs;
-typedef record<DOMString, MLResource> MLNamedOutputs;
-
 [SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLGraph {
-  undefined compute(MLNamedInputs inputs, MLNamedOutputs outputs);
-};
+interface MLGraph {};
 </script>
 
 {{MLGraph}} has the following internal slots:
@@ -2204,159 +2462,143 @@ interface MLGraph {
         The underlying implementation provided by the User Agent.
 </dl>
 
-<dl dfn-type=method dfn-for=MLGraph>
-    : <dfn>compute(inputs, outputs)</dfn>
+## MLCommandEncoder ## {#api-mlcommandencoder}
+The {{MLCommandEncoder}} interface represents a method of execution that synchronously records the computational workload of a compiled {{MLGraph}} to a {{GPUCommandBuffer}} on the calling thread. Since the workload is not immediately executed, just recorded, this method allows more flexibility for the caller to determine how and when the recorded commands will be submitted for execution on the GPU relative to other GPU workload on the same or different queue.
+
+<script type=idl>
+typedef (GPUBuffer or GPUTexture) MLGPUResource;
+
+dictionary MLGPUInput {
+  required MLGPUResource resource;
+  required sequence<long> dimensions;
+};
+
+typedef record<DOMString, (MLGPUResource or MLGPUInput)> MLNamedGPUInputs;
+typedef record<DOMString, MLGPUResource> MLNamedGPUOutputs;
+
+[SecureContext, Exposed=(Window, DedicatedWorker)]
+interface MLCommandEncoder {};
+</script>
+
+{{MLCommandEncoder}} has the following internal slots:
+
+<dl dfn-type=attribute dfn-for="MLCommandEncoder">
+    : <dfn>\[[context]]</dfn> of type {{MLContext}}
     ::
-        Compute the {{MLGraph}} given {{MLNamedInputs}} and {{MLNamedOutputs}}. Return once the compute has completed and the results in {{MLNamedOutputs}} are ready to be consumed.
+        The context of type {{MLContext}} associated with this {{MLCommandEncoder}}.
 
-        <div algorithm=MLGraph.compute>
-            **Called on:** {{MLGraph}} |this|.
-
-            **Arguments:**
-            <pre class=argumentdef for="MLGraph/compute(inputs, outputs)">
-                |inputs|: an {{MLNamedInputs}}. The resources and optional dimensions of inputs for the compute.
-                |outputs|: an {{MLNamedOutputs}}. The pre-allocated resources of required outputs for the compute.
-            </pre>
-
-            **Returns:** {{undefined}}.
-
-            1. If any of the following requirements are unmet, then throw a {{DataError}} {{DOMException}} and stop.
-                <div class=validusage>
-                    1. For each |key| -> |value| of |inputs|:
-                        1. |this|.{{MLGraph/[[inputDescriptors]]}}[|key|] must exist.
-                        1. Let |inputDesc| be |this|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-                        1. Let |inputSize| be 1.
-                        1. If |value| is an {{MLInput}}, then:
-                            1. The length of |value|.{{MLInput/dimensions}} must be the same as the length of |inputDesc|.{{MLOperandDescriptor/dimensions}}.
-                            1. Let |i| be 0.
-                            1. While true:
-                                1. Let |dimension| be |value|.{{MLInput/dimensions}}[|i|].
-                                1. |dimension| must be greater than 0.
-                                1. If |inputDesc|.{{MLOperandDescriptor/dimensions}}[|i|] is greater than 0, then |dimension| must be equal to |inputDesc|.{{MLOperandDescriptor/dimensions}}[|i|].
-                                1. Set |inputSize| to the product of |inputSize| and |dimension|.
-                                1. Increment |i| by 1.
-                                1. If |i| if equal to the length of |value|.{{MLInput/dimensions}}, then break.
-                        1. Else:
-                            1. For each |dimension| of |inputDesc|.{{MLOperandDescriptor/dimensions}}:
-                                1. The value of |dimension| must be greater than 0.
-                                1. Set |inputSize| to the product of |inputSize| and |dimension|.
-                        1. If |value| is an {{MLInput}}, then let |resource| be |value|.{{MLInput/resource}}.
-                        1. If |value| is an {{MLResource}}, then let |resource| be |value|.
-                        1. If |resource| is an {{ArrayBufferView}}, then:
-                            1. The kind of |resource| must be compatible with |inputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                            1. The length of |resource| must be the same as |inputSize|.
-
-                    1. For each |key| -> |value| of |outputs|:
-                        1. |this|.{{MLGraph/[[outputNames]]}}[|key|] must exist.
-                </div>
-            <!-- Compute -->
-            1. For each |key| -> |value| of |inputs|:
-                1. Let |inputDesc| be |this|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-                1. Let |inputTensor| be a new tensor for |this|.{{MLGraph/[[implementation]]}} of data type that is compatible with |inputDesc|.{{MLOperandDescriptor/type}}.
-                1. If |value| is an {{MLInput}}, then:
-                    1. Set the dimensions of |inputTensor| to |value|.{{MLInput/dimensions}}.
-                1. Else:
-                    1. Set the dimensions of |inputTensor| to |inputDesc|.{{MLOperandDescriptor/dimensions}}.
-                1. If |value| is an {{MLInput}}, then:
-                    1. Set the values of |inputTensor| to the values of |value|.{{MLInput/resource}}.
-                1. If |value| is an {{MLResource}}, then:
-                    1. Set the values of |inputTensor| to the values of |value|.
-                1. Set the input of |this|.{{MLGraph/[[implementation]]}} that is associated with |key| to |inputTensor|.
-            1. For each |key| -> |value| of |outputs|:
-                1. Issue a compute request for output of |this|.{{MLGraph/[[implementation]]}} that is associated with |key|.
-                1. Wait for the compute request to be completed.
-                1. If there is an error returned by |this|.{{MLGraph/[[implementation]]}}, then:
-                    1. Throw an {{OperationError}} {{DOMException}} and stop.
-                1. Else:
-                    1. Let |outputTensor| be the output tensor returned by |this|.{{MLGraph/[[implementation]]}}.
-                    1. If the kind of |value| is not compatible with the value type of |outputTensor|, then throw a {{DataError}} {{DOMException}} and stop.
-                    1. Let |outputSize| be 1.
-                    1. For each |dimension| of dimensions of |outputTensor|:
-                        1. Set |outputSize| to the product of |outputSize| and |dimension|.
-                    1. If |outputSize| is greater than the length of |value|, then:
-                        1. Throw a {{DataError}} {{DOMException}} and stop.
-                    1. Else:
-                        1. Set the values of |value| to the values of |outputTensor|.
-            1. Return {{undefined}}.
-
-            Issue: Describe the algorithm steps for |this|.{{MLGraph/[[context]]}} created from {{WebGLRenderingContext}} and {{GPUDevice}}.
-        </div>
+    : <dfn>\[[implementation]]</dfn>
+    ::
+        The underlying implementation provided by the User Agent.
 </dl>
 
-### Examples ### {#compilation-examples}
+### Graph Initialization ### {#api-mlcommandencoder-graph-initialization}
+Record the initialization of the {{MLGraph}}. This is a necessary step for optimal performance during graph execution as it gives the platform an opportunity to prepare and optimize constant input data for the subsequent execution of the graph. This method should only be called once per graph.
 
-<div class="example">
-The following code showcases the computation with dynamic input dimensions.
-<pre highlight="js">
-function sizeOfShape(array) {
-  return array.reduce(
-      (accumulator, currentValue) => accumulator * currentValue);
-}
+<script type=idl>
+partial interface MLCommandEncoder {
+  undefined initializeGraph(MLGraph graph);
+};
+</script>
 
-const context = navigator.ml.createContext();
+<div algorithm=mlcommandencoder.initializegraph>
+    **Arguments:**
+        - *graph*: an {{MLGraph}}. The compiled graph to be initialized with graph constant inputs.
 
-// Create a graph with dynamic shaped inputs.
-const builder = new MLGraphBuilder(context);
-const descA = {type: 'float32', dimensions: [-1, 4]};
-const a = builder.input('a', descA);
-const descB = {type: 'float32', dimensions: [4, -1]};
-const b = builder.input('b', descB);
-const c = builder.matmul(a, b);
-const graph = builder.build({'c': c});
-
-function allocateAndCompute(shapeA, shapeB, shapeC) {
-  const bufferA = new Float32Array(sizeOfShape(shapeA)).fill(0.5);
-  const bufferB = new Float32Array(sizeOfShape(shapeB)).fill(0.5);
-  const bufferC = new Float32Array(sizeOfShape(shapeC));
-
-  // Specify the shape of inputs when computing.
-  const inputs = {
-    'a': {resource: bufferA, dimensions: shapeA},
-    'b': {resource: bufferB, dimensions: shapeB},
-  };
-  const outputs = {'c': bufferC};
-  graph.compute(inputs, outputs);
-  console.log(&#96;values: ${bufferC}&#96;);
-}
-
-allocateAndCompute([3, 4], [4, 3], [3, 3]);
-allocateAndCompute([4, 4], [4, 4], [4, 4]);
-allocateAndCompute([5, 4], [4, 5], [5, 5]);
-</pre>
+    **Returns:** {{undefined}}.
 </div>
 
-<div class="example">
-The following code showcases the computation with optional outputs.
-<pre highlight="js">
-const context = navigator.ml.createContext();
+<div class="note">
+Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder}}.{{MLGraphBuilder/constant(desc, bufferView)}} method as constant operands during graph construction time.
+</div>
 
-// Build a graph with two outputs.
-const builder = new MLGraphBuilder(context);
-const descA = {type: 'float32', dimensions: [3, 4]};
-const a = builder.input('a', descA);
-const descB = {type: 'float32', dimensions: [4, 3]};
-const bufferB = new Float32Array(sizeOfShape(descB.dimensions)).fill(0.5);
-const b = builder.constant(descB, bufferB);
-const descC = {type: 'float32', dimensions: [3, 3]};
-const bufferC = new Float32Array(sizeOfShape(descC.dimensions)).fill(1);
-const c = builder.constant(descC, bufferC);
-const d = builder.matmul(a, b);
-const e = builder.add(d, c);
-const graph = builder.build({'d': d, 'e': e});
+### Dispatch Execution Commands ### {#api-mlcommandencoder-dispatch-commands}
+Record the {{MLGraph}} execution with the inputs {{MLNamedGPUInputs}} and outputs {{MLNamedGPUOutputs}}.
 
-const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
-const inputs = {'a': bufferA};
+<script type=idl>
+partial interface MLCommandEncoder {
+  undefined dispatch(MLGraph graph, MLNamedGPUInputs inputs, MLNamedGPUOutputs outputs);
+};
+</script>
 
-// Compute d.
-const bufferD = new Float32Array(sizeOfShape([3, 3]));
-graph.compute(inputs, {'d': bufferD});
-console.log(&#96;values: ${bufferD}&#96;);
+<div algorithm=mlcommandencoder.dispatch>
+    **Arguments:**
+        - *graph*: an {{MLGraph}}. The compiled graph to be executed.
+        - *inputs*: an {{MLNamedGPUInputs}}. The resources and optional dimensions of inputs.
+        - *outputs*: an {{MLNamedGPUOutputs}}. The pre-allocated resources of required outputs.
 
-// Compute e.
-const bufferE = new Float32Array(sizeOfShape([3, 3]));
-graph.compute(inputs, {'e': bufferE});
-console.log(&#96;values: ${bufferE}&#96;);
-</pre>
+    **Returns:** {{undefined}}.
+    
+      1. If any of the following requirements are unmet, then throw a {{DataError}} {{DOMException}} and stop.
+          <div class=validusage>
+              1. For each |key| -> |value| of |inputs|:
+                  1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must exist.
+                  1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+                  1. Let |inputSize| be 1.
+                  1. If |value| is an {{MLGPUInput}}, then:
+                      1. The length of |value|.{{MLGPUInput/dimensions}} must be the same as the length of |inputDesc|.{{MLOperandDescriptor/dimensions}}.
+                      1. Let |i| be 0.
+                      1. While true:
+                          1. Let |dimension| be |value|.{{MLGPUInput/dimensions}}[|i|].
+                          1. |dimension| must be greater than 0.
+                          1. If |inputDesc|.{{MLOperandDescriptor/dimensions}}[|i|] is greater than 0, then |dimension| must be equal to |inputDesc|.{{MLOperandDescriptor/dimensions}}[|i|].
+                          1. Set |inputSize| to the product of |inputSize| and |dimension|.
+                          1. Increment |i| by 1.
+                          1. If |i| if equal to the length of |value|.{{MLGPUInput/dimensions}}, then break.
+                  1. Else:
+                      1. For each |dimension| of |inputDesc|.{{MLOperandDescriptor/dimensions}}:
+                          1. The value of |dimension| must be greater than 0.
+                          1. Set |inputSize| to the product of |inputSize| and |dimension|.
+                  1. If |value| is an {{MLGPUInput}}, then let |resource| be |value|.{{MLGPUInput/resource}}.
+                  1. If |value| is an {{MLGPUResource}}, then let |resource| be |value|.
+              1. For each |key| -> |value| of |outputs|:
+                  1. |graph|.{{MLGraph/[[outputNames]]}}[|key|] must exist.
+          </div>
+
+      1. For each |key| -> |value| of |inputs|:
+          1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+          1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} of data type that is compatible with |inputDesc|.{{MLOperandDescriptor/type}}.
+          1. If |value| is an {{MLGPUInput}}, then:
+              1. Set the dimensions of |inputTensor| to |value|.{{MLGPUInput/dimensions}}.
+          1. Else:
+              1. Set the dimensions of |inputTensor| to |inputDesc|.{{MLOperandDescriptor/dimensions}}.
+          1. If |value| is an {{MLGPUInput}}, then:
+              1. Set the values of |inputTensor| to the values of |value|.{{MLGPUInput/resource}}.
+          1. If |value| is an {{MLGPUResource}}, then:
+              1. Set the values of |inputTensor| to the values of |value|.
+          1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |inputTensor|.
+      1. For each |key| -> |value| of |outputs|:
+          1. Issue a compute request for output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key|.
+          1. Wait for the compute request to be completed.
+          1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
+              1. Throw an {{OperationError}} {{DOMException}} and stop.
+          1. Else:
+              1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
+              1. If the kind of |value| is not compatible with the value type of |outputTensor|, then throw a {{DataError}} {{DOMException}} and stop.
+              1. Let |outputSize| be 1.
+              1. For each |dimension| of dimensions of |outputTensor|:
+                  1. Set |outputSize| to the product of |outputSize| and |dimension|.
+              1. If |outputSize| is greater than the length of |value|, then:
+                  1. Throw a {{DataError}} {{DOMException}} and stop.
+              1. Else:
+                  1. Set the values of |value| to the values of |outputTensor|.
+      1. Return {{undefined}}.
+</div>
+
+### Generate GPU Command Buffer ### {#api-mlcommandencoder-generate-gpu-command-buffer}
+Complete the recording of ML workload and return a WebGPU-compatible {{GPUCommandBuffer}} containing the recorded workload.
+
+<script type=idl>
+partial interface MLCommandEncoder {
+  GPUCommandBuffer finish(optional GPUCommandBufferDescriptor descriptor = {});
+};
+</script>
+
+<div algorithm=mlcommandencoder.finish>
+    **Arguments:**
+        - *descriptor*: an optional {{GPUCommandBufferDescriptor}}. Descriptor of the command buffer.
+
+    **Returns:** {{GPUCommandBuffer}}.
 </div>
 
 Examples {#examples}
@@ -2437,7 +2679,7 @@ const inputs = {
   'input2': inputBuffer2,
 };
 const outputs = {'output': outputBuffer};
-graph.compute(inputs, outputs);
+context.compute(graph, inputs, outputs);
 
 console.log('Output value: ' + outputBuffer);
 // Output value: 2.25,2.25,2.25,2.25,2.25,2.25,2.25,2.25
