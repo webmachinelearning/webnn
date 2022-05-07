@@ -480,10 +480,11 @@ that shares the same buffer as the input tensor. (In the case of reshape or sque
 the entire data is shared, while in the case of slice, a part of the input data is shared.)
 The implementation may use views, as above, for intermediate values.
 
-The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method of the {{MLGraphBuilder}} interface is used to compile and optimize
-the computation graph used to compute one or more specified outputs. The key
-purpose of the compilation step is to enable optimizations that span two or
-more operations, such as operation or loop fusion.
+Before the execution, the computation graph that is used to compute one or more specified outputs needs to be compiled and optimized. The key purpose of the compilation step is to enable optimizations that span two or more operations, such as operation or loop fusion.
+
+There are multiple ways by which the graph may be compiled. The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method represents a way the compilation of the graph is carried out immediately on the calling thread, which must also be a worker thread, either on a CPU or GPU device. The compilation produces the {{MLGraph}} that represents a compiled graph for optimal execution.
+
+The {{MLGraphBuilder}}.{{MLGraphBuilder/buildAsync()}} method represents a way the compilation of the graph is performed asynchronously either on a parallel timeline in a separate worker thread for the CPU execution or on a GPU timeline in a GPU command queue. This method returns immediately without blocking the calling thread while the actual compilation is offloaded to a different timeline. This type of compilation is appropriate when the responsiveness of the calling thread is critical to good user experience. The {{MLGraph}} will be returned at the time the compilation is successfully completed on the offloaded timeline at which time the calling thread is signaled.
 
 Once the {{MLGraph}} is constructed, there are multiple ways by which the graph may be executed. The
 {{MLContext}}.{{MLContext/compute()}} method represents a way the execution of the graph is carried out immediately 
@@ -986,14 +987,17 @@ interface MLGraphBuilder {
   // Create a single-value operand from the specified number of the specified type.
   MLOperand constant(double value, optional MLOperandType type = "float32");
 
-  // Compile the graph up to the specified output operands
+  // Compile the graph up to the specified output operands synchronously.
   [Exposed=(DedicatedWorker)]
   MLGraph build(MLNamedOperands outputs);
+
+  // Compile the graph up to the specified output operands asynchronously.
+  Promise<MLGraph> buildAsync(MLNamedOperands outputs);
 };
 </script>
 
 <div class="note">
-The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to [=default-context|default=], the compiled graph is initialized right before the {{MLGraphBuilder/build()}} method call returns. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
+Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildAsync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to [=default-context|default=], the compiled graph is initialized right before the {{MLGraph}} returns. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
 </div>
 
 ### batchNormalization ### {#api-mlgraphbuilder-batchnorm}
