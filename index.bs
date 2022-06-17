@@ -20,11 +20,6 @@ Markup Shorthands: css no
 Logo: https://webmachinelearning.github.io/webmachinelearning-logo.png
 </pre>
 <pre class="anchors">
-urlPrefix: https://www.khronos.org/registry/webgl/specs/latest/1.0/; spec: WEBGL-1
-    type: interface
-        text: WebGLRenderingContext; url: 5.14
-        text: WebGLBuffer; url: 5.4
-        text: WebGLTexture; url: 5.9
 urlPrefix: https://gpuweb.github.io/gpuweb/; spec: WEBGPU
     type: interface
         text: GPUDevice; url: gpu-device
@@ -387,7 +382,7 @@ Security Considerations {#security}
 
 This API is disabled by default in all cross-origin frames using the [[#permissions-policy-integration]]. This prevents third-party content from using this API unless the embedding page explicitly sets a policy that grants permission.
 
-This API allows creation of an {{MLContext}} from a {{GPUDevice}} or {{WebGLRenderingContext}} defined by WebGPU and WebGL specifications respectively. See <a href="https://gpuweb.github.io/gpuweb/#security">WebGPU Security Considerations</a> and <a href="https://www.khronos.org/registry/webgl/specs/latest/1.0/#4">WebGL Security Consideration</a> for more information regarding security characteristics of these contexts.
+This API allows creation of an {{MLContext}} from a {{GPUDevice}} defined by WebGPU specification. See <a href="https://gpuweb.github.io/gpuweb/#security">WebGPU Security Considerations</a> for more information regarding security characteristics of this context.
 
 Once the graph is fully constructed and compiled, the input shapes into each of the operations in the graph are inferred and finalized. The bounds checking occurs when the compute method is invoked that executes the graph against the actual data. No actual data is bound to the compiled graph before this stage. It is the implementation's responsibility to make sure proper bounds checking occurs against the shapes of the data already inferred by that time.
 
@@ -434,7 +429,7 @@ No information from the underlying platform is exposed directly. An execution ti
 
 Note: The group is <a href="https://github.com/webmachinelearning/webnn/issues/85">soliciting further input</a> on the proposed execution time analysis fingerprinting vector and will augment this section with more information and mitigations to inform the implementers of this API.
 
-Unlike APIs like WebGL, and WebGPU; this API does not intrinsically support custom shader authoring; and as a result is not prone to timing attacks that rely on shader caches, or other persistent data. The API builds upon pre-existing shaders and lower level primitives of the browser or the underlying OS. Web developers who interface with {{GPUDevice}} are expected to be aware of <a href="https://gpuweb.github.io/gpuweb/#privacy-user-agent-state">WebGPU compilation cache considerations</a>.
+Unlike WebGPU, this API does not intrinsically support custom shader authoring; and as a result is not prone to timing attacks that rely on shader caches, or other persistent data. The API builds upon pre-existing shaders and lower level primitives of the browser or the underlying OS. Web developers who interface with {{GPUDevice}} are expected to be aware of <a href="https://gpuweb.github.io/gpuweb/#privacy-user-agent-state">WebGPU compilation cache considerations</a>.
 
 In general, implementers of this API are expected to be familiar with the <a href="https://gpuweb.github.io/gpuweb/#privacy-considerations">WebGPU Privacy Considerations</a>.
 
@@ -495,8 +490,7 @@ command queue. This method returns immediately without blocking the calling thre
 offloaded to a different timeline. This type of execution is appropriate when the responsiveness of the calling 
 thread is critical to good user experience. The computation results will be placed at the bound outputs at the 
 time the operation is successfully completed on the offloaded timeline at which time the calling thread is 
-signaled. This type of execution supports both the CPU and GPU device, including when the context is created 
-from the {{WebGLRenderingContext}}.
+signaled. This type of execution supports both the CPU and GPU device.
 
 In both the {{MLContext}}.{{MLContext/compute()}} and {{MLContext}}.{{MLContext/computeAsync()}} execution methods, the caller supplies 
 the input values using {{MLNamedArrayInputs}}, binding the input {{MLOperand}}s to their values. The caller
@@ -511,7 +505,7 @@ is completely executed, the result is avaialble in the bound output buffers.
 
 ## Device Selection ## {#programming-model-device-selection}
 
-An {{MLContext}} interface represents a global state of neural network execution. One of the important context states is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. In addition to the default method of creation with {{MLContextOptions}}, an {{MLContext}} could also be created from a specific GPU device such as {{GPUDevice}} or {{WebGLRenderingContext}} that is already in use by the application, in which case the corresponding {{GPUBuffer}} or {{WebGLBuffer}} resources used as graph constants, as well as the {{GPUTexture}} and {{WebGLTexture}} as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for {{MLContext}} must be created from the same adapter as the device used to allocate the resources referenced in the graph.
+An {{MLContext}} interface represents a global state of neural network execution. One of the important context states is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. In addition to the default method of creation with {{MLContextOptions}}, an {{MLContext}} could also be created from a specific {{GPUDevice}} that is already in use by the application, in which case the corresponding {{GPUBuffer}} resources used as graph constants, as well as the {{GPUTexture}} as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for {{MLContext}} must be created from the same adapter as the device used to allocate the resources referenced in the graph.
 
 In a situation when a GPU context executes a graph with a constant or an input in the system memory as an {{ArrayBufferView}}, the input content is automatically uploaded from the system memory to the GPU memory, and downloaded back to the system memory of an {{ArrayBufferView}} output buffer at the end of the graph execution. This data upload and download cycles will only occur whenever the execution device requires the data to be copied out of and back into the system memory, such as in the case of the GPU. It doesn't occur when the device is a CPU device. Additionally, the result of the graph execution is in a known layout format. While the execution may be optimized for a native memory access pattern in an intermediate result within the graph, the output of the last operation of the graph must convert the content back to a known layout format at the end of the graph in order to maintain the expected behavior from the caller's perspective.
 
@@ -521,10 +515,9 @@ The following table summarizes the types of resource supported by the context cr
 
 <div class="note">
 <table>
-  <tr><th>Creation method<th>ArrayBufferView<th>GPUBuffer<th>GPUTexture<th>WebGLBuffer<th>WebGLTexture
-  <tr><td>MLContextOptions<td>Yes<td>No<td>No<td>No<td>No
-  <tr><td>GPUDevice<td>Yes<td>Yes<td>Yes<td>No<td>No
-  <tr><td>WebGLRenderingContext<td>Yes<td>No<td>No<td>Yes<td>Yes
+  <tr><th>Creation method<th>ArrayBufferView<th>GPUBuffer<th>GPUTexture
+  <tr><td>MLContextOptions<td>Yes<td>No<td>No
+  <tr><td>GPUDevice<td>Yes<td>Yes<td>Yes
 </table>
 </div>
 
@@ -566,7 +559,6 @@ dictionary MLContextOptions {
 interface ML {
   MLContext createContext(optional MLContextOptions options = {});
   MLContext createContext(GPUDevice gpuDevice);
-  MLContext createContext(WebGLRenderingContext glContext);
 };
 </script>
 
@@ -582,11 +574,6 @@ The {{ML/createContext()}} method steps are:
 
     <dt>{{GPUDevice}}
     <dd>Set |context|.{{[[contextType]]}} to [=webgpu-context|webgpu=].
-    <dd>Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
-    <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
-
-    <dt>{{WebGLRenderingContext}}
-    <dd>Set |context|.{{[[contextType]]}} to [=webgl-context|webgl=].
     <dd>Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
     <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
     </dl>
@@ -605,8 +592,6 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
 <dl>
 <dt>"<code><dfn data-lt="default-context">default</dfn></code>"</dt>
 <dd>Context created per user preference options.</dd>
-<dt>"<code><dfn data-lt="webgl-context">webgl</dfn></code>"</dt>
-<dd>Context created from WebGL rendering context.</dd>
 <dt>"<code><dfn data-lt="webgpu-context">webgpu</dfn></code>"</dt>
 <dd>Context created from WebGPU device.</dd>
 </dl>
@@ -964,7 +949,7 @@ The {{MLGraphBuilder}} interface defines a set of operations as identified by th
 typedef record<DOMString, MLOperand> MLNamedOperands;
 
 dictionary MLBufferResourceView {
-  required (WebGLBuffer or GPUBuffer) resource;
+  required GPUBuffer resource;
   unsigned long long offset = 0;
   unsigned long long size;
 };
