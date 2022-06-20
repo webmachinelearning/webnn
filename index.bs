@@ -488,14 +488,14 @@ The implementation may use views, as above, for intermediate values.
 
 Before the execution, the computation graph that is used to compute one or more specified outputs needs to be compiled and optimized. The key purpose of the compilation step is to enable optimizations that span two or more operations, such as operation or loop fusion.
 
-There are multiple ways by which the graph may be compiled. The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph immediately on the calling thread, which must be a worker thread running on CPU or GPU device, and returns an {{MLGraph}}. The {{MLGraphBuilder}}.{{MLGraphBuilder/buildAsync()}} method compiles the graph in background without blocking the calling thread, and returns a {{Promise}} that resolves to an {{MLGraph}}. Both compilation methods produce an {{MLGraph}} that represents a compiled graph for optimal execution.
+There are multiple ways by which the graph may be compiled. The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph in the background without blocking the calling thread, and returns a {{Promise}} that resolves to an {{MLGraph}}. The {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method compiles the graph immediately on the calling thread, which must be a worker thread running on CPU or GPU device, and returns an {{MLGraph}}. Both compilation methods produce an {{MLGraph}} that represents a compiled graph for optimal execution.
 
 Once the {{MLGraph}} is constructed, there are multiple ways by which the graph may be executed. The
-{{MLContext}}.{{MLContext/compute()}} method represents a way the execution of the graph is carried out immediately 
+{{MLContext}}.{{MLContext/computeSync()}} method represents a way the execution of the graph is carried out immediately 
 on the calling thread, which must also be a worker thread, either on a CPU or GPU device. The execution 
 produces the results of the computation from all the inputs bound to the graph.
 
-The {{MLContext}}.{{MLContext/computeAsync()}} method represents a way the execution of the graph is performed asynchronously
+The {{MLContext}}.{{MLContext/compute()}} method represents a way the execution of the graph is performed asynchronously
 either on a parallel timeline in a separate worker thread for the CPU execution or on a GPU timeline in a GPU 
 command queue. This method returns immediately without blocking the calling thread while the actual execution is 
 offloaded to a different timeline. This type of execution is appropriate when the responsiveness of the calling 
@@ -503,7 +503,7 @@ thread is critical to good user experience. The computation results will be plac
 time the operation is successfully completed on the offloaded timeline at which time the calling thread is 
 signaled. This type of execution supports both the CPU and GPU device.
 
-In both the {{MLContext}}.{{MLContext/compute()}} and {{MLContext}}.{{MLContext/computeAsync()}} execution methods, the caller supplies 
+In both the {{MLContext}}.{{MLContext/compute()}} and {{MLContext}}.{{MLContext/computeSync()}} execution methods, the caller supplies 
 the input values using {{MLNamedArrayBufferViews}}, binding the input {{MLOperand}}s to their values. The caller
 then supplies pre-allocated buffers for output {{MLOperand}}s using {{MLNamedArrayBufferViews}}.
 
@@ -568,13 +568,19 @@ dictionary MLContextOptions {
 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface ML {
-  MLContext createContext(optional MLContextOptions options = {});
-  MLContext createContext(GPUDevice gpuDevice);
+  Promise<MLContext> createContext(optional MLContextOptions options = {});
+  Promise<MLContext> createContext(GPUDevice gpuDevice);
+
+  [Exposed=(DedicatedWorker)]
+  MLContext createContextSync(optional MLContextOptions options = {});
+  [Exposed=(DedicatedWorker)]
+  MLContext createContextSync(GPUDevice gpuDevice);
 };
 </script>
 
 The {{ML/createContext()}} method steps are:
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then throw a "{{SecurityError!!exception}}" {{DOMException}} and abort these steps.
+1. Let |promise| be [=a new promise=].
 1. Let |context| be a new {{MLContext}} object.
 1. Switch on the method's first argument:
     <dl class=switch>
@@ -588,7 +594,13 @@ The {{ML/createContext()}} method steps are:
     <dd>Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
     <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
     </dl>
-1. Return |context|.
+1. Issue the following steps to a separate timeline:
+    1. If the User Agent can support the |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, then:
+        1. Set |context|.{{MLContext/[[implementation]]}} to an implementation supporting |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}.
+        1. [=Resolve=] |promise| with |context|.
+    1. Else:
+        1. [=Resolve=] |promise| with a new {{NotSupportedError}}.
+1. Return |promise|.
 
 ### Permissions Policy Integration ### {#permissions-policy-integration}
 
@@ -644,6 +656,9 @@ interface MLContext {};
     : <dfn>\[[powerPreference]]</dfn> of type [=power preference=]
     ::
         The {{MLContext}}'s [=power preference=].
+    : <dfn>\[[implementation]]</dfn>
+    ::
+        The underlying implementation provided by the User Agent.
 </dl>
 
 <div class="note">
@@ -656,12 +671,12 @@ Synchronously carries out the computational workload of a compiled graph {{MLGra
 <script type=idl>
 partial interface MLContext {
   [Exposed=(DedicatedWorker)]
-  undefined compute(
+  undefined computeSync(
       MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
 };
 </script>
 
-<div algorithm=mlcontext.compute>
+<div algorithm=mlcontext.computesync>
 
     **Arguments:**
       - *graph*: an {{MLGraph}}. The compiled graph to be executed.
@@ -710,7 +725,7 @@ partial interface MLContext {
 <div class="example">
 The following code showcases the synchronous computation with optional outputs in a worker.
 <pre highlight="js">
-const context = navigator.ml.createContext();
+const context = navigator.ml.createContextSync();
 
 // Build a graph with two outputs.
 const builder = new MLGraphBuilder(context);
@@ -724,19 +739,19 @@ const bufferC = new Float32Array(sizeOfShape(descC.dimensions)).fill(1);
 const c = builder.constant(descC, bufferC);
 const d = builder.matmul(a, b);
 const e = builder.add(d, c);
-const graph = builder.build({'d': d, 'e': e});
+const graph = builder.buildSync({'d': d, 'e': e});
 
 const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
 const inputs = {'a': bufferA};
 
 // Compute d.
 const bufferD = new Float32Array(sizeOfShape([3, 3]));
-context.compute(graph, inputs, {'d': bufferD});
+context.computeSync(graph, inputs, {'d': bufferD});
 console.log(&#96;values: ${bufferD}&#96;);
 
 // Compute e.
 const bufferE = new Float32Array(sizeOfShape([3, 3]));
-context.compute(graph, inputs, {'e': bufferE});
+context.computeSync(graph, inputs, {'e': bufferE});
 console.log(&#96;values: ${bufferE}&#96;);
 </pre>
 </div>
@@ -746,12 +761,12 @@ Asynchronously carries out the computational workload of a compiled graph {{MLGr
 
 <script type=idl>
 partial interface MLContext {
-  Promise<undefined> computeAsync(
+  Promise<undefined> compute(
       MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
 };
 </script>
 
-<div algorithm=mlcontext.computeasync>
+<div algorithm=mlcontext.compute>
 
     **Arguments:**
       - *graph*: an {{MLGraph}}. The compiled graph to be executed.
@@ -905,17 +920,17 @@ interface MLGraphBuilder {
   // Create a single-value operand from the specified number of the specified type.
   MLOperand constant(double value, optional MLOperandType type = "float32");
 
+  // Compile the graph up to the specified output operands asynchronously.
+  Promise<MLGraph> build(MLNamedOperands outputs);
+
   // Compile the graph up to the specified output operands synchronously.
   [Exposed=(DedicatedWorker)]
-  MLGraph build(MLNamedOperands outputs);
-
-  // Compile the graph up to the specified output operands asynchronously.
-  Promise<MLGraph> buildAsync(MLNamedOperands outputs);
+  MLGraph buildSync(MLNamedOperands outputs);
 };
 </script>
 
 <div class="note">
-Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildAsync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to [=default-context|default=], the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
+Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to [=default-context|default=], the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
 </div>
 
 ### batchNormalization ### {#api-mlgraphbuilder-batchnorm}
@@ -2242,7 +2257,7 @@ partial interface MLGraphBuilder {
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
     <pre highlight="js">
-    return builder.div(x, builder.add(builder.constant(1), build.abs(x)));
+    return builder.div(x, builder.add(builder.constant(1), builder.abs(x)));
     </pre>
     </div>
 </div>
@@ -2491,7 +2506,7 @@ Examples {#examples}
 <div class="example">
 The following code gets the MLContext object.
 <pre highlight="js">
-const context = navigator.ml.createContext({powerPreference: 'low-power'});
+const context = await navigator.ml.createContext({powerPreference: 'low-power'});
 </pre>
 </div>
 
@@ -2545,7 +2560,7 @@ const output = builder.mul(intermediateOutput1, intermediateOutput2);
 Compile the graph up to the output operand.
 <pre highlight="js">
 // Compile the constructed graph.
-const graph = builder.build({'output': output});
+const graph = await builder.build({'output': output});
 </pre>
 </div>
 
@@ -2563,7 +2578,7 @@ const inputs = {
   'input2': inputBuffer2,
 };
 const outputs = {'output': outputBuffer};
-context.compute(graph, inputs, outputs);
+await context.compute(graph, inputs, outputs);
 
 console.log('Output value: ' + outputBuffer);
 // Output value: 2.25,2.25,2.25,2.25,2.25,2.25,2.25,2.25
