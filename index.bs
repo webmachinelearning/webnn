@@ -24,10 +24,14 @@ urlPrefix: https://gpuweb.github.io/gpuweb/; spec: WEBGPU
     type: interface
         text: GPUDevice; url: gpu-device
         text: GPUBuffer; url: buffer-interface
+        for: GPUBuffer; text: size; url: dom-gpubuffer-size
         text: GPUTexture; url: texture-interface
         text: GPUQueue; url: queues
         text: GPUCommandBuffer; url: command-buffers
         text: GPUCommandBufferDescriptor; url: dictdef-gpucommandbufferdescriptor
+urlPrefix: https://tc39.es/ecma262/; spec: ECMA-262
+    type: dfn
+        text: element size; url: table-the-typedarray-constructors
 urlPrefix: https://webidl.spec.whatwg.org/; spec: WEBIDL
     type: interface
         text: Promise; url: idl-promise
@@ -670,14 +674,13 @@ partial interface MLContext {
             1. For each |key| -> |value| of |inputs|:
                 1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must exist.
                 1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-                1. Let |inputSize| be 1.
-                1. For each |dimension| of |inputDesc|.{{MLOperandDescriptor/dimensions}}:
-                    1. The value of |dimension| must be greater than 0.
-                    1. Set |inputSize| to the product of |inputSize| and |dimension|.
-                1. The kind of |value| must be compatible with |inputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                1. The length of |value| must be the same as |inputSize|.
+                1. The type of {{ArrayBufferView}} |value| must match |inputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                1. |value|.\[[ByteLength]] must equal to [=byte length=] of |inputDesc|.
             1. For each |key| -> |value| of |outputs|:
-                1. |graph|.{{MLGraph/[[outputNames]]}}[|key|] must exist.
+                1. |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|] must exist.
+                1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
+                1. The type of {{ArrayBufferView}} |value| must match |outputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                1. |value|.\[[ByteLength]] must equal to [=byte length=] of |outputDesc|.
         </div>
     1. For each |key| -> |value| of |inputs|:
         1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
@@ -692,11 +695,9 @@ partial interface MLContext {
             1. Throw an {{OperationError}} {{DOMException}} and stop.
         1. Else:
             1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
-            1. If the kind of |value| is not compatible with the value type of |outputTensor|, then throw a {{DataError}} {{DOMException}} and stop.
-            1. Let |outputSize| be 1.
-            1. For each |dimension| of dimensions of |outputTensor|:
-                1. Set |outputSize| to the product of |outputSize| and |dimension|.
-            1. If |outputSize| is greater than the length of |value|, then:
+            1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
+            1. If the data type of |outputTensor| is not compatible with |outputDesc|.{{MLOperandDescriptor/type}}, then throw a {{DataError}} {{DOMException}} and stop.
+            1. If the byte length of |outputTensor| is not equal to [=byte length=] of |outputDesc|, then:
                 1. Throw a {{DataError}} {{DOMException}} and stop.
             1. Else:
                 1. Set the values of |value| to the values of |outputTensor|.
@@ -763,14 +764,13 @@ partial interface MLContext {
             1. For each |key| -> |value| of |inputs|:
                 1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must exist.
                 1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-                1. Let |inputSize| be 1.
-                1. For each |dimension| of |inputDesc|.{{MLOperandDescriptor/dimensions}}:
-                    1. The value of |dimension| must be greater than 0.
-                    1. Set |inputSize| to the product of |inputSize| and |dimension|.
-                1. The kind of |value| must be compatible with |inputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                1. The length of |value| must be the same as |inputSize|.
+                1. The type of {{ArrayBufferView}} |value| must match |inputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                1. |value|.\[[ByteLength]] must equal to [=byte length=] of |inputDesc|.
             1. For each |key| -> |value| of |outputs|:
-                1. |graph|.{{MLGraph/[[outputNames]]}}[|key|] must exist.
+                1. |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|] must exist.
+                1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
+                1. The type of {{ArrayBufferView}} |value| must match |outputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+                1. |value|.\[[ByteLength]] must equal to [=byte length=] of |outputDesc|.
         </div>
     1. Let |promise| be [=a new promise=].
     1. For each |key| -> |value| of |inputs|:
@@ -786,11 +786,9 @@ partial interface MLContext {
             1. [=reject=] |promise| with an {{OperationError}} and stop.
         1. Else:
             1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
-            1. If the kind of |value| is not compatible with the value type of |outputTensor|, then [=reject=] |promise| with an {{OperationError}} and stop.
-            1. Let |outputSize| be 1.
-            1. For each |dimension| of dimensions of |outputTensor|:
-                1. Set |outputSize| to the product of |outputSize| and |dimension|.
-            1. If |outputSize| is greater than the length of |value|, then:
+            1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
+            1. If the data type of |outputTensor| is not compatible with |outputDesc|.{{MLOperandDescriptor/type}}, then throw a {{DataError}} {{DOMException}} and stop.
+            1. If the byte length of |outputTensor| is not equal to [=byte length=] of |outputDesc|, then:
                 1. [=reject=] |promise| with an {{OperationError}} and stop.
             1. Else:
                 1. Set the values of |value| to the values of |outputTensor|.
@@ -835,6 +833,16 @@ dictionary MLOperandDescriptor {
   sequence<unsigned long> dimensions;
 };
 </script>
+
+<div algorithm>
+    The <dfn for="MLOperandDescriptor">byte length</dfn> of an {{MLOperandDescriptor}} |desc| is the value returned by the following steps:
+
+    1. Let |elementLength| be 1.
+        1. For each |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
+            1. Set |elementLength| to |elementLength| × |dimension|.
+    1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+    1. Return |elementLength| × |elementSize|.
+</div>
 
 ## MLOperand ## {#api-mloperand}
 
@@ -2365,9 +2373,9 @@ interface MLGraph {};
     ::
         Maps the name of an input {{MLOperand}} to its {{MLOperandDescriptor}} for all input {{MLOperand}}s of this {{MLGraph}}.
 
-    : <dfn>\[[outputNames]]</dfn> of type [=sequence=]&lt;{{DOMString}}&gt;
+    : <dfn>\[[outputDescriptors]]</dfn> of type [=record=]&lt;{{DOMString}}, {{MLOperandDescriptor}}&gt;
     ::
-        Contains the names of all output {{MLOperand}}s of this {{MLGraph}}.
+        Maps the name of an output {{MLOperand}} to its {{MLOperandDescriptor}} for all output {{MLOperand}}s of this {{MLGraph}}.
 
     : <dfn>\[[implementation]]</dfn>
     ::
@@ -2437,17 +2445,17 @@ partial interface MLCommandEncoder {
     
       1. If any of the following requirements are unmet, then throw a {{DataError}} {{DOMException}} and stop.
           <div class=validusage>
-              1. For each |key| -> |value| of |inputs|:
-                  1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must exist.
-                  1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-                  1. Let |inputSize| be 1.
-                  1. For each |dimension| of |inputDesc|.{{MLOperandDescriptor/dimensions}}:
-                      1. The value of |dimension| must be greater than 0.
-                      1. Set |inputSize| to the product of |inputSize| and |dimension|.
-                  1. The length of |value| must be the same as |inputSize|.
-              1. For each |key| -> |value| of |outputs|:
-                  1. |graph|.{{MLGraph/[[outputNames]]}}[|key|] must exist.
-          </div>
+            1. For each |key| -> |value| of |inputs|:
+                1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must exist.
+                1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+                1. If |value| is a {{GPUBuffer}}, then:
+                    1. |value|.{{GPUBuffer/size}} must equal to [=byte length=] of |inputDesc|.
+            1. For each |key| -> |value| of |outputs|:
+                1. |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|] must exist.
+                1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
+                1. If |value| is a {{GPUBuffer}}, then:
+                    1. |value|.{{GPUBuffer/size}} must equal to [=byte length=] of |outputDesc|.
+        </div>
 
       1. For each |key| -> |value| of |inputs|:
           1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |value|.
