@@ -32,6 +32,7 @@ urlPrefix: https://gpuweb.github.io/gpuweb/; spec: WEBGPU
 urlPrefix: https://tc39.es/ecma262/; spec: ECMA-262
     type: dfn
         text: element size; url: table-the-typedarray-constructors
+        text: element type; url: table-the-typedarray-constructors
 urlPrefix: https://webidl.spec.whatwg.org/; spec: WEBIDL
     type: interface
         text: Promise; url: idl-promise
@@ -684,7 +685,8 @@ partial interface MLContext {
         </div>
     1. For each |key| -> |value| of |inputs|:
         1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-        1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} of data type that is compatible with |inputDesc|.{{MLOperandDescriptor/type}}.
+        1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}}.
+        1. Set the data type of |inputTensor| to the one that matches the [=element type=] of {{ArrayBufferView}} |value|.
         1. Set the dimensions of |inputTensor| to |inputDesc|.{{MLOperandDescriptor/dimensions}}.
         1. Set the values of |inputTensor| to the values of |value|.
         1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |inputTensor|.
@@ -695,9 +697,8 @@ partial interface MLContext {
             1. Throw an {{OperationError}} {{DOMException}} and stop.
         1. Else:
             1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
-            1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
-            1. If the data type of |outputTensor| is not compatible with |outputDesc|.{{MLOperandDescriptor/type}}, then throw a {{DataError}} {{DOMException}} and stop.
-            1. If the byte length of |outputTensor| is not equal to [=byte length=] of |outputDesc|, then:
+            1. If the data type of |outputTensor| doesn't match the [=element type=] of {{ArrayBufferView}} |value|, then throw a {{DataError}} {{DOMException}} and stop.
+            1. If the byte length of |outputTensor| is not equal to |value|.\[[ByteLength]], then:
                 1. Throw a {{DataError}} {{DOMException}} and stop.
             1. Else:
                 1. Set the values of |value| to the values of |outputTensor|.
@@ -775,7 +776,8 @@ partial interface MLContext {
     1. Let |promise| be [=a new promise=].
     1. For each |key| -> |value| of |inputs|:
         1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-        1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} of data type that is compatible with |inputDesc|.{{MLOperandDescriptor/type}}.
+        1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}}.
+        1. Set the data type of |inputTensor| to the one that matches the [=element type=] of {{ArrayBufferView}} |value|.
         1. Set the dimensions of |inputTensor| to |inputDesc|.{{MLOperandDescriptor/dimensions}}.
         1. Set the values of |inputTensor| to the values of |value|.
         1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |inputTensor|.
@@ -787,7 +789,7 @@ partial interface MLContext {
         1. Else:
             1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
             1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
-            1. If the data type of |outputTensor| is not compatible with |outputDesc|.{{MLOperandDescriptor/type}}, then throw a {{DataError}} {{DOMException}} and stop.
+            1. If the data type of |outputTensor| doesn't match the [=element type=] of {{ArrayBufferView}} |value|, then throw a {{DataError}} {{DOMException}} and stop.
             1. If the byte length of |outputTensor| is not equal to [=byte length=] of |outputDesc|, then:
                 1. [=reject=] |promise| with an {{OperationError}} and stop.
             1. Else:
