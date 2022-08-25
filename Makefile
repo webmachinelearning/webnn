@@ -8,5 +8,6 @@ ifdef online
 	fi; \
 	curl https://api.csswg.org/bikeshed/ -F file=@index.bs -F force=1 > index.html
 else
-	bikeshed --die-on=everything spec index.bs
+#	bikeshed -f spec index.bs
+	bikeshed --die-on=fatal spec index.bs
 endif
