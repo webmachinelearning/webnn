@@ -563,8 +563,13 @@ dictionary MLContextOptions {
 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface ML {
+  [Exposed=(DedicatedWorker)]
   MLContext createContext(optional MLContextOptions options = {});
+  [Exposed=(DedicatedWorker)]
   MLContext createContext(GPUDevice gpuDevice);
+
+  Promise<MLContext> createContextAsync(optional MLContextOptions options = {});
+  Promise<MLContext> createContextAsync(GPUDevice gpuDevice);
 };
 </script>
 
@@ -583,7 +588,35 @@ The {{ML/createContext()}} method steps are:
     <dd>Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
     <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
     </dl>
+1. If the User Agent can support the |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, then:
+        1. Set |context|.{{MLContext/[[implementation]]}} to an implementation supporting |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}.
+    1. Else:
+        1. Throw an {{NotSupportedError}} {{DOMException}} and stop.
 1. Return |context|.
+
+The {{ML/createContextAsync()}} method steps are:
+1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then throw a "{{SecurityError!!exception}}" {{DOMException}} and abort these steps.
+1. Let |promise| be [=a new promise=].
+1. Let |context| be a new {{MLContext}} object.
+1. Switch on the method's first argument:
+    <dl class=switch>
+    <dt>{{MLContextOptions}}
+    <dd>Set |context|.{{[[contextType]]}} to [=default-context|default=].
+    <dd>Set |context|.{{[[deviceType]]}} to the value of {{MLContextOptions}}'s {{deviceType}}.
+    <dd>Set |context|.{{[[powerPreference]]}} to the value of {{MLContextOptions}}'s {{powerPreference}}.
+
+    <dt>{{GPUDevice}}
+    <dd>Set |context|.{{[[contextType]]}} to [=webgpu-context|webgpu=].
+    <dd>Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
+    <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
+    </dl>
+1. Issue the following steps to a separate timeline:
+    1. If the User Agent can support the |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, then:
+        1. Set |context|.{{MLContext/[[implementation]]}} to an implementation supporting |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}.
+        1. [=Resolve=] |promise| with |context|.
+    1. Else:
+        1. [=Resolve=] |promise| with a new {{NotSupportedError}}.
+1. Return |promise|.
 
 ### Permissions Policy Integration ### {#permissions-policy-integration}
 
@@ -645,6 +678,9 @@ interface MLContext {};
     : <dfn>\[[powerPreference]]</dfn> of type [=power preference=]
     ::
         The {{MLContext}}'s [=power preference=].
+    : <dfn>\[[implementation]]</dfn>
+    ::
+        The underlying implementation provided by the User Agent.
 </dl>
 
 <div class="note">
@@ -2313,7 +2349,7 @@ partial interface MLGraphBuilder {
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
     <pre highlight="js">
-    return builder.div(x, builder.add(builder.constant(1), build.abs(x)));
+    return builder.div(x, builder.add(builder.constant(1), builder.abs(x)));
     </pre>
     </div>
 </div>
