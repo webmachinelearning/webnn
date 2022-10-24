@@ -6,9 +6,9 @@
   <meta content="w3c/ED" name="w3c-status">
   <link href="https://www.w3.org/StyleSheets/TR/2021/W3C-ED" rel="stylesheet">
   <link href="https://www.w3.org/2008/site/images/favicon.ico" rel="icon">
-  <meta content="Bikeshed version 44af0bf3e, updated Fri Jul 29 17:05:16 2022 -0700" name="generator">
+  <meta content="Bikeshed version afdea9b3f, updated Fri Oct 21 14:30:36 2022 -0700" name="generator">
   <link href="https://www.w3.org/TR/webnn/" rel="canonical">
-  <meta content="c2b9fc7406a783239d19d9962d418fb903215e39" name="document-revision">
+  <meta content="1e45b3b00761db8012b7ac4231b575554c06b168" name="document-revision">
 <style>
 /* Make <dl> blocks more distinct from their surroundings. */
 main dl:not(.switch) {
@@ -439,6 +439,14 @@ a.self-link:hover {
 .heading > a.self-link {
     font-size: 83%;
 }
+.example > a.self-link,
+.note > a.self-link,
+.issue > a.self-link {
+    /* These blocks are overflow:auto, so positioning outside
+       doesn't work. */
+    left: auto;
+    right: 0;
+}
 li > a.self-link {
     left: calc(-1 * (3.5rem - 26px) - 2em);
 }
@@ -732,7 +740,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"><a class="logo" href="https://www.w3.org/"> <img alt="W3C" height="48" src="https://www.w3.org/StyleSheets/TR/2021/logos/W3C" width="72"> </a> </p>
    <h1 class="p-name no-ref" id="title">Web Neural Network API</h1>
-   <p id="w3c-state"><a href="https://www.w3.org/standards/types#ED">Editor’s Draft</a>, <time class="dt-updated" datetime="2022-09-29">29 September 2022</time></p>
+   <p id="w3c-state"><a href="https://www.w3.org/standards/types#ED">Editor’s Draft</a>, <time class="dt-updated" datetime="2022-10-24">24 October 2022</time></p>
    <details open>
     <summary>More details about this document</summary>
     <div data-fill-with="spec-metadata">
@@ -1056,6 +1064,7 @@ so that the application loads the tiny model in the case of CPU-only devices.</p
    <h4 class="heading settled" data-level="2.2.5" id="usecase-real-time-video-processing"><span class="secno">2.2.5. </span><span class="content">Integration with real-time video processing</span><a class="self-link" href="#usecase-real-time-video-processing"></a></h4>
    <p>The user experience of WebRTC-based video conferencing is enhanced using real-time video processing. For example, background blur implemented using a <a href="#usecase-segmentation">§ 2.1.2 Semantic Segmentation</a> model blurs the background in the user’s live camera feed. To satisfy the performance requirements of this use case, the WebNN API integrates with primitives from other Web APIs that make up the media pipeline to allow WebNN API-based transformation of real-time video streams.</p>
    <h2 class="heading settled" data-level="3" id="security"><span class="secno">3. </span><span class="content">Security Considerations</span><a class="self-link" href="#security"></a></h2>
+    This specification defines a low-level API for neural network inference hardware acceleration. This API is considered a powerful feature <a data-link-type="biblio" href="#biblio-powerful-features">[POWERFUL-FEATURES]</a> because it grants low-level access to a user’s computer. To meet the authentication and confidentiality expectations of a powerful feature and to prevent man-in-the-middle attacks, all interfaces defined by this specification are only available in a secure context. 
    <p>This API is disabled by default in all cross-origin frames using the <a href="#permissions-policy-integration">§ 7.2.1 Permissions Policy Integration</a>. This prevents third-party content from using this API unless the embedding page explicitly sets a policy that grants permission.</p>
    <p>This API allows creation of an <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext">MLContext</a></code> from a <code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#gpu-device" id="ref-for-gpu-device">GPUDevice</a></code> defined by WebGPU specification. See <a href="https://gpuweb.github.io/gpuweb/#security-considerations">WebGPU Security Considerations</a> for more information regarding security characteristics of this context.</p>
    <p>Once the graph is fully constructed and compiled, the input shapes into each of the operations in the graph are inferred and finalized. The bounds checking occurs when the compute method is invoked that executes the graph against the actual data. No actual data is bound to the compiled graph before this stage. It is the implementation’s responsibility to make sure proper bounds checking occurs against the shapes of the data already inferred by that time.</p>
@@ -1858,7 +1867,7 @@ interpreted according to the value of <em>options.filterLayout</em> and <em>opti
       </ul>
     </ul>
     <p><strong>Returns:</strong> an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand④⓪">MLOperand</a></code>. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the <em>options.inputLayout</em> value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the <em>nchw</em> input layout can be calculated as follow:</p>
-    <p><em>output size = 1 + (input size - filter size - (filter size - 1) </em>* <em>(dilation - 1) + beginning padding + ending padding) / stride</em></p>
+    <p><em>output size = 1 + (input size - filter size - (filter size - 1) *</em> <em>(dilation - 1) + beginning padding + ending padding) / stride</em></p>
     <div class="note" role="note"> A <em>depthwise</em> conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the <em>options.groups</em> = input_channels = output_channels and the shape of filter tensor is [options.groups, 1, height, width]
     for <em>"oihw"</em> layout, [height, width, 1, options.groups] for <em>"hwio"</em> layout, [options.groups, height, width, 1] for <em>"ohwi"</em> layout and [1, height, width, options.groups] for <em>"ihwo"</em> layout. </div>
    </div>
@@ -1955,7 +1964,7 @@ interpreted according to the value of <em>options.filterLayout</em> and <em>opti
       </ul>
     </ul>
     <p><strong>Returns:</strong> an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand④⑧">MLOperand</a></code>. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the <em>options.inputLayout</em> value. More specifically, unless the <em>options.outputSizes</em> values are explicitly specified, the <em>options.outputPadding</em> may be needed to compute the spatial dimension values of the output tensor as follow:</p>
-    <p><em>output size = (input size - 1) </em>* <em>stride + filter size + (filter size - 1) </em>* <em>(dilation - 1) - beginning padding - ending padding + output padding</em></p>
+    <p><em>output size = (input size - 1) *</em> <em>stride + filter size + (filter size - 1) *</em> <em>(dilation - 1) - beginning padding - ending padding + output padding</em></p>
    </div>
    <h4 class="heading settled" data-level="7.7.6" id="api-mlgraphbuilder-binary"><span class="secno">7.7.6. </span><span class="content">element-wise binary operations</span><a class="self-link" href="#api-mlgraphbuilder-binary"></a></h4>
     Compute the element-wise binary addition, subtraction, multiplication, division,
@@ -4485,6 +4494,8 @@ Benjamin Poulain for their contributions to the API specification.</p>
    <dd>Huiwen Chang; et al. <a href="http://openaccess.thecvf.com/content_cvpr_2018/html/Chang_PairedCycleGAN_Asymmetric_Style_CVPR_2018_paper.html"><cite>PairedCycleGAN: Asymmetric Style Transfer for Applying and Removing Makeup</cite></a>. June 2018. URL: <a href="http://openaccess.thecvf.com/content_cvpr_2018/html/Chang_PairedCycleGAN_Asymmetric_Style_CVPR_2018_paper.html">http://openaccess.thecvf.com/content_cvpr_2018/html/Chang_PairedCycleGAN_Asymmetric_Style_CVPR_2018_paper.html</a>
    <dt id="biblio-posenet">[PoseNet]
    <dd>Dan Oved. <a href="https://medium.com/tensorflow/real-time-human-pose-estimation-in-the-browser-with-tensorflow-js-7dd0bc881cd5"><cite>Real-time Human Pose Estimation in the Browser with TensorFlow.js</cite></a>. May 2018. URL: <a href="https://medium.com/tensorflow/real-time-human-pose-estimation-in-the-browser-with-tensorflow-js-7dd0bc881cd5">https://medium.com/tensorflow/real-time-human-pose-estimation-in-the-browser-with-tensorflow-js-7dd0bc881cd5</a>
+   <dt id="biblio-powerful-features">[POWERFUL-FEATURES]
+   <dd>Mike West. <a href="https://w3c.github.io/webappsec-secure-contexts/"><cite>Secure Contexts</cite></a>. URL: <a href="https://w3c.github.io/webappsec-secure-contexts/">https://w3c.github.io/webappsec-secure-contexts/</a>
    <dt id="biblio-rnnoise">[RNNoise]
    <dd>Jean-Marc Valin. <a href="https://github.com/xiph/rnnoise"><cite>Recurrent neural network for audio noise reduction</cite></a>. September 2017. URL: <a href="https://github.com/xiph/rnnoise">https://github.com/xiph/rnnoise</a>
    <dt id="biblio-security-privacy-questionnaire">[SECURITY-PRIVACY-QUESTIONNAIRE]
