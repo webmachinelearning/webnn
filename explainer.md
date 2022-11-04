@@ -32,7 +32,7 @@ The WebNN API is a specification for constructing and executing computational gr
 
 ``` JavaScript
 const operandType = {type: 'float32', dimensions: [2, 2]};
-const context = navigator.ml.createContext();
+const context = await navigator.ml.createContext();
 const builder = new MLGraphBuilder(context);
 // 1. Create a computational graph 'C = 0.2 * A + B'.
 const constant = builder.constant(0.2);
@@ -40,14 +40,14 @@ const A = builder.input('A', operandType);
 const B = builder.input('B', operandType);
 const C = builder.add(builder.mul(A, constant), B);
 // 2. Compile it into an executable.
-const graph = builder.build({'C': C});
+const graph = await builder.build({'C': C});
 // 3. Bind inputs to the graph and execute for the result.
 const bufferA = new Float32Array(4).fill(1.0);
 const bufferB = new Float32Array(4).fill(0.8);
 const bufferC = new Float32Array(4);
 const inputs = {'A': bufferA, 'B': bufferB};
 const outputs = {'C': bufferC};
-context.compute(graph, inputs, outputs);
+await context.compute(graph, inputs, outputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
 console.log('Output value: ' + bufferC);
@@ -105,7 +105,7 @@ export class NSNet2 {
   }
 
   async build(baseUrl, batchSize, frames) {
-    this.context = navigator.ml.createContext();
+    this.context = await navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
     // Create constants by loading pre-trained data from .npy files.
     const weight172 = await buildConstantByNpy(builder, baseUrl + '172.npy');
@@ -140,10 +140,10 @@ export class NSNet2 {
     const relu163 = builder.relu(builder.add(builder.matmul(transpose159, weight215), biasFcOut0));
     const relu167 = builder.relu(builder.add(builder.matmul(relu163, weight216), biasFcOut2));
     const output = builder.sigmoid(builder.add(builder.matmul(relu167, weight217), biasFcOut4));
-    this.graph = builder.build({'output': output, 'gru94': gru94, 'gru157': gru157});
+    this.graph = await builder.build({'output': output, 'gru94': gru94, 'gru157': gru157});
   }
 
-  compute(inputBuffer, initialState92Buffer, initialState155Buffer, outputBuffer, gru94Buffer, gru157Buffer) {
+  async compute(inputBuffer, initialState92Buffer, initialState155Buffer, outputBuffer, gru94Buffer, gru157Buffer) {
     const inputs = {
       'input': inputBuffer,
       'initialState92': initialState92Buffer,
@@ -154,7 +154,7 @@ export class NSNet2 {
       'gru94': gru94Buffer,
       'gru157': gru157Buffer
     };
-    return this.context.compute(this.graph, inputs, outputs);
+    await this.context.compute(this.graph, inputs, outputs);
   }
 }
 ```
