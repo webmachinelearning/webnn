@@ -931,6 +931,23 @@ interface MLGraphBuilder {
 Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to [=default-context|default=], the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
 </div>
 
+{{MLGraphBuilder}} has the following internal slots:
+<dl dfn-type=attribute dfn-for="MLGraphBuilder">
+    : <dfn>\[[context]]</dfn> of type {{MLContext}}
+    ::
+        The context of type {{MLContext}} associated with this {{MLGraphBuilder}}.
+</dl>
+
+### The [=new=] {{MLGraphBuilder}} constructor steps are:
+1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" and abort these steps.
+1. Let |context| be the first argument.
+1. If |context| is not a valid {{MLContext}}, throw a "{{TypeError}}" and abort these steps.
+1. Set {{MLGraphBuilder/[[context]]}} to |context|.
+
+<div class="issue">
+  Add an algorithm to validate {{MLContext}}.
+</div>
+
 ### The batchNormalization() method ### {#api-mlgraphbuilder-batchnorm}
 Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phase of this operation.
 <script type=idl>
