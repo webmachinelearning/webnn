@@ -582,10 +582,16 @@ interface ML {
 };
 </script>
 
+### Permissions Policy Integration ### {#permissions-policy-integration}
+
+This specification defines a <a>policy-controlled feature</a> identified by the
+string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
+Its <a>default allowlist</a> is <code>'self'</code>.
+
+### The {{ML/createContext()}} method ### {#api-ml-createcontext}
 The {{ML/createContext()}} method steps are:
-1. Let |promise| be [=a new promise=].
-1. Return |promise| and run the following steps [=in parallel=].
-1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then reject |promise| with a "{{SecurityError!!exception}}" {{DOMException}} and abort these steps.
+1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" and abort these steps.
+1. Return [=a new promise=] |promise| and run the following steps [=in parallel=].
 1. Let |context| be a new {{MLContext}} object.
 1. Let |options| be the first argument.
 1. Switch on |option|:
@@ -600,14 +606,8 @@ The {{ML/createContext()}} method steps are:
     <dd>Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
     <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
     </dl>
-1. If the UA cannot support |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, [=reject=] |promise| with a new {{NotSupportedError}} and abort these steps.
+1. If the user agent cannot support |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, [=reject=] |promise| with a new {{NotSupportedError}} and abort these steps.
 1. [=Resolve=] |promise| with |context|.
-
-### Permissions Policy Integration ### {#permissions-policy-integration}
-
-This specification defines a <a>policy-controlled feature</a> identified by the
-string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
-Its <a>default allowlist</a> is <code>'self'</code>.
 
 ## The MLContext interface ## {#api-mlcontext}
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device type=] and [=power preference=].
@@ -938,7 +938,8 @@ Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGr
         The context of type {{MLContext}} associated with this {{MLGraphBuilder}}.
 </dl>
 
-### The [=new=] {{MLGraphBuilder}} constructor steps are:
+### The {{MLGraphBuilder}} constructor ### {#api-mlgraphbuilder-constructor}
+The [=new=] {{MLGraphBuilder}} constructor steps are:
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" and abort these steps.
 1. Let |context| be the first argument.
 1. If |context| is not a valid {{MLContext}}, throw a "{{TypeError}}" and abort these steps.
