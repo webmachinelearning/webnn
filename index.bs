@@ -589,29 +589,23 @@ This specification defines a <a>policy-controlled feature</a> identified by the
 string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
 Its <a>default allowlist</a> is <code>'self'</code>.
 
+### The {{ML/createContext()}} method ### {#api-ml-createcontext}
 The {{ML/createContext()}} method steps are:
-1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then throw a "{{SecurityError!!exception}}" {{DOMException}} and abort these steps.
+1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" and abort these steps.
 1. Let |promise| be [=a new promise=].
+1. Return |promise| and run the following steps [=in parallel=].
 1. Let |context| be a new {{MLContext}} object.
-1. Switch on the method's first argument:
-    <dl class=switch>
-    <dt>{{MLContextOptions}}
-    <dd>Set |context|.{{[[contextType]]}} to [=default-context|default=].
-    <dd>Set |context|.{{[[deviceType]]}} to the value of {{MLContextOptions}}'s {{deviceType}}.
-    <dd>Set |context|.{{[[powerPreference]]}} to the value of {{MLContextOptions}}'s {{powerPreference}}.
-
-    <dt>{{GPUDevice}}
-    <dd>Set |context|.{{[[contextType]]}} to [=webgpu-context|webgpu=].
-    <dd>Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
-    <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
-    </dl>
-1. Issue the following steps to a separate timeline:
-    1. If the User Agent can support the |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, then:
-        1. Set |context|.{{MLContext/[[implementation]]}} to an implementation supporting |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}.
-        1. [=Resolve=] |promise| with |context|.
-    1. Else:
-        1. [=Resolve=] |promise| with a new {{NotSupportedError}}.
-1. Return |promise|.
+1. Let |options| be the first argument.
+1. If |options| is a {{GPUDevice}},
+    1. Set |context|.{{[[contextType]]}} to [=webgpu-context|webgpu=].
+    1. Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
+    1. Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
+1. Otherwise,
+    1. Set |context|.{{[[contextType]]}} to [=default-context|default=].
+    1. Set |context|.{{[[deviceType]]}} to the value of |options|'s {{deviceType}} if defined, or to "[=device-type-cpu|cpu=]".
+    1. Set |context|.{{[[powerPreference]]}} to the value of |options|'s {{powerPreference}} if defined, or to "[=power-preference-default|default=]".
+1. If the user agent cannot support |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, [=reject=] |promise| with a new {{NotSupportedError}} and abort these steps.
+1. [=Resolve=] |promise| with |context|.
 
 ## The MLContext interface ## {#api-mlcontext}
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device type=] and [=power preference=].
