@@ -583,35 +583,39 @@ interface ML {
 };
 </script>
 
-The {{ML/createContext()}} method steps are:
-1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then throw a "{{SecurityError!!exception}}" {{DOMException}} and abort these steps.
-1. Let |promise| be [=a new promise=].
-1. Let |context| be a new {{MLContext}} object.
-1. Switch on the method's first argument:
-    <dl class=switch>
-    <dt>{{MLContextOptions}}
-    <dd>Set |context|.{{[[contextType]]}} to [=default-context|default=].
-    <dd>Set |context|.{{[[deviceType]]}} to the value of {{MLContextOptions}}'s {{deviceType}}.
-    <dd>Set |context|.{{[[powerPreference]]}} to the value of {{MLContextOptions}}'s {{powerPreference}}.
-
-    <dt>{{GPUDevice}}
-    <dd>Set |context|.{{[[contextType]]}} to [=webgpu-context|webgpu=].
-    <dd>Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
-    <dd>Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
-    </dl>
-1. Issue the following steps to a separate timeline:
-    1. If the User Agent can support the |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, then:
-        1. Set |context|.{{MLContext/[[implementation]]}} to an implementation supporting |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}.
-        1. [=Resolve=] |promise| with |context|.
-    1. Else:
-        1. [=Resolve=] |promise| with a new {{NotSupportedError}}.
-1. Return |promise|.
-
 ### Permissions Policy Integration ### {#permissions-policy-integration}
 
 This specification defines a <a>policy-controlled feature</a> identified by the
 string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
 Its <a>default allowlist</a> is <code>'self'</code>.
+
+### The {{ML/createContext()}} method ### {#api-ml-createcontext}
+The {{ML/createContext()}} method steps are:
+1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}} and abort these steps.
+
+1. Let |promise| be [=a new promise=].
+1. Return |promise| and run the following steps [=in parallel=].
+1. Let |options| be the first argument.
+1. Run the <dfn>create context</dfn> steps given |options|:
+    1. Let |context| be a new {{MLContext}} object.
+    1. If |options| is a {{GPUDevice}} object,
+        1. Set |context|.{{[[contextType]]}} to "[=webgpu-context|webgpu=]".
+        1. Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
+        1. Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
+    1. Otherwise,
+        1. Set |context|.{{[[contextType]]}} to "[=default-context|default=]".
+        1. If |options|["{{deviceType}}"] [=map/exists=], then set |context|.{{[[deviceType]]}} to |options|["{{deviceType}}"]. Otherwise, set |context|.{{[[deviceType]]}} to "[=device-type-cpu|cpu=]".
+        1. If |options|["{{powerPreference}}"] [=map/exists=], then set |context|.{{[[powerPreference]]}} to |options|["{{powerPreference}}"]. Otherwise, set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
+1. If the <a>validate MLContext</a> steps given |context| return `false`, [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
+1. [=Resolve=] |promise| with |context|.
+
+### The {{ML/createContextSync()}} method ### {#api-ml-createcontextsync}
+The {{ML/createContextSync()}} method steps are:
+1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" and abort these steps.
+1. Let |options| be the first argument.
+1. Let |context| be the result of running the <a>create context</a> steps given |options|.
+1. If the <a>validate MLContext</a> steps given |context| return `false`, throw a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
+1. Return |context|.
 
 ## The MLContext interface ## {#api-mlcontext}
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device type=] and [=power preference=].
@@ -661,14 +665,19 @@ interface MLContext {};
     : <dfn>\[[powerPreference]]</dfn> of type [=power preference=]
     ::
         The {{MLContext}}'s [=power preference=].
-    : <dfn>\[[implementation]]</dfn>
-    ::
-        The underlying implementation provided by the User Agent.
 </dl>
 
 <div class="note">
 When the {{[[contextType]]}} is set to [=default-context|default=] with the {{MLContextOptions}}.{{deviceType}} set to [=device-type-gpu|gpu=], the user agent is responsible for creating an internal GPU device that operates within the context and is capable of ML workload submission on behalf of the calling application. In this setting however, only {{ArrayBufferView}} inputs and outputs are allowed in and out of the graph execution since the application has no way to know what type of internal GPU device is being created on their behalf. In this case, the user agent is responsible for automatic uploads and downloads of the inputs and outputs to and from the GPU memory using this said internal device.
 </div>
+
+### The {{MLContext}} validation algorithm ### {#api-mlcontext-validate}
+To <dfn lt="validate MLContext">validate {{MLContext}}</dfn>, given |context|, run these steps:
+1. If |context|.{{[[contextType]]}} is not "[=webgpu-context|webgpu=]" or "[=default-context|default=], return `false`.
+1. If |context|.{{[[deviceType]]}} is not "[=device-type-cpu|cpu=]" or "[=device-type-gpu|gpu=]", return `false`.
+1. If |context|.{{[[powerPreference]]}} is not "[=power-preference-default|default=]" or "[=power-preference-high-performance|high-performance=]" or "[=power-preference-low-power|low-power=]", return `false`.
+1. If the user agent cannot support |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, return `false`.
+1. Return `true`;
 
 ### Synchronous Execution ### {#api-mlcontext-sync-execution}
 Synchronously carries out the computational workload of a compiled graph {{MLGraph}} on the calling thread, which must be a worker thread, to produce results as defined by the operations in the graph. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an {{OperationError}} exception.
