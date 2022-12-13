@@ -442,7 +442,7 @@ Unlike WebGPU, this API does not intrinsically support custom shader authoring; 
 
 The WebGPU API identifies <a href="https://gpuweb.github.io/gpuweb/#privacy-machine-artifacts">machine-specific artifacts</a> as a privacy consideration. Given the WebNN API defines means to record an ML workload onto a WebGPU-compatible {{GPUCommandBuffer}}, compute unit scheduling may under certain circumstances introduce a fingerprint. However, similarly to WebGPU, such fingerprints are identical across most or all of the devices of each vendor, mitigating the concern. Furthermore, software implementations can be used to further eliminate such artifacts.
 
-The WebNN API defines two developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the most appropriate underlying execution device for the workload. [=Device type=] normatively indicates the kind of device and is either "cpu" or "gpu". If this type cannot be satisfied, an {{OperationError}} exception is thrown, thus this type can in some cases add two bits of entropy to the fingerprint. [=Power preference=] indicates preference as related to the power consumption and is considered a hint only and as such does not increase entropy of the fingerprint.
+The WebNN API defines two developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the most appropriate underlying execution device for the workload. [=Device type=] normatively indicates the kind of device and is either "cpu" or "gpu". If this type cannot be satisfied, an "{{OperationError}}" {{DOMException}} is thrown, thus this type can in some cases add two bits of entropy to the fingerprint. [=Power preference=] indicates preference as related to the power consumption and is considered a hint only and as such does not increase entropy of the fingerprint.
 
 If a future version of this specification introduces support for new a  [=device type=] that can only support a subset of {{MLOperandType}}s, that may introduce a new fingerprint.
 
@@ -592,7 +592,6 @@ Its <a>default allowlist</a> is <code>'self'</code>.
 ### The {{ML/createContext()}} method ### {#api-ml-createcontext}
 The {{ML/createContext()}} method steps are:
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}} and abort these steps.
-
 1. Let |promise| be [=a new promise=].
 1. Return |promise| and run the following steps [=in parallel=].
 1. Let |options| be the first argument.
@@ -611,7 +610,7 @@ The {{ML/createContext()}} method steps are:
 
 ### The {{ML/createContextSync()}} method ### {#api-ml-createcontextsync}
 The {{ML/createContextSync()}} method steps are:
-1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" and abort these steps.
+1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
 1. Let |options| be the first argument.
 1. Let |context| be the result of running the <a>create context</a> steps given |options|.
 1. If the <a>validate MLContext</a> steps given |context| return `false`, throw a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
@@ -680,7 +679,7 @@ To <dfn lt="validate MLContext">validate {{MLContext}}</dfn>, given |context|, r
 1. Return `true`;
 
 ### Synchronous Execution ### {#api-mlcontext-sync-execution}
-Synchronously carries out the computational workload of a compiled graph {{MLGraph}} on the calling thread, which must be a worker thread, to produce results as defined by the operations in the graph. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an {{OperationError}} exception.
+Synchronously carries out the computational workload of a compiled graph {{MLGraph}} on the calling thread, which must be a worker thread, to produce results as defined by the operations in the graph. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an "{{OperationError}}" {{DOMException}}.
 
 <script type=idl>
 partial interface MLContext {
@@ -699,7 +698,7 @@ partial interface MLContext {
 
     **Returns:** {{undefined}}.
 
-    1. If any of the following requirements are unmet, then throw a {{DataError}} {{DOMException}} and stop.
+    1. If any of the following requirements are unmet, then throw a "{{DataError}}" {{DOMException}} and stop.
         <div class=validusage>
             1. For each |key| -> |value| of |inputs|:
                 1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must [=map/exist=].
@@ -723,12 +722,12 @@ partial interface MLContext {
         1. Issue a compute request for output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key|.
         1. Wait for the compute request to be completed.
         1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
-            1. Throw an {{OperationError}} {{DOMException}} and stop.
+            1. Throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Else:
             1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
-            1. If the data type of |outputTensor| doesn't match the [=element type=] of {{ArrayBufferView}} |value|, then throw a {{DataError}} {{DOMException}} and stop.
+            1. If the data type of |outputTensor| doesn't match the [=element type=] of {{ArrayBufferView}} |value|, then throw a "{{DataError}}" {{DOMException}} and stop.
             1. If the byte length of |outputTensor| is not equal to |value|.\[[ByteLength]], then:
-                1. Throw a {{DataError}} {{DOMException}} and stop.
+                1. Throw a "{{DataError}}" {{DOMException}} and stop.
             1. Else:
                 1. Set the values of |value| to the values of |outputTensor|.
     1. Return {{undefined}}.
@@ -771,7 +770,7 @@ console.log(&#96;values: ${bufferE}&#96;);
 </div>
 
 ### Asynchronous Execution ### {#api-mlcontext-async-execution}
-Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU timeline for the submission of GPU workload on the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an {{OperationError}} exception.
+Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU timeline for the submission of GPU workload on the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an "{{OperationError}}" {{DOMException}}.
 
 <script type=idl>
 partial interface MLContext {
@@ -789,7 +788,7 @@ partial interface MLContext {
 
     **Returns:** Promise<{{undefined}}>.
 
-    1. If any of the following requirements are unmet, then throw a {{DataError}} {{DOMException}} and stop.
+    1. If any of the following requirements are unmet, then throw a "{{DataError}}" {{DOMException}} and stop.
         <div class=validusage>
             1. For each |key| -> |value| of |inputs|:
                 1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must [=map/exist=].
@@ -814,13 +813,13 @@ partial interface MLContext {
         1. Issue a compute request for output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key|.
         1. Wait for the compute request to be completed.
         1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
-            1. [=reject=] |promise| with an {{OperationError}} and stop.
+            1. [=reject=] |promise| with an "{{OperationError}}" {{DOMException}} and stop.
         1. Else:
             1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
             1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
-            1. If the data type of |outputTensor| doesn't match the [=element type=] of {{ArrayBufferView}} |value|, then throw a {{DataError}} {{DOMException}} and stop.
+            1. If the data type of |outputTensor| doesn't match the [=element type=] of {{ArrayBufferView}} |value|, then throw a "{{DataError}}" {{DOMException}} and stop.
             1. If the byte length of |outputTensor| is not equal to [=byte length=] of |outputDesc|, then:
-                1. [=reject=] |promise| with an {{OperationError}} and stop.
+                1. [=reject=] |promise| with an "{{OperationError}}" {{DOMException}} and stop.
             1. Else:
                 1. Set the values of |value| to the values of |outputTensor|.
             1. If all compute requests are completed, [=Resolve=] |promise| and stop.
@@ -828,7 +827,7 @@ partial interface MLContext {
 </div>
 
 ### WebGPU Interoperability ### {#api-mlcontext-webgpu-interop}
-Create {{MLCommandEncoder}} interface used to record the ML workload onto a WebGPU-compatible {{GPUCommandBuffer}} to allow mixing of ML workload with other GPU workload in an application that leverages WebGPU. This method only succeeds on an {{MLContext}} created with {{GPUDevice}}. Otherwise, it throws an {{OperationError}} exception.
+Create {{MLCommandEncoder}} interface used to record the ML workload onto a WebGPU-compatible {{GPUCommandBuffer}} to allow mixing of ML workload with other GPU workload in an application that leverages WebGPU. This method only succeeds on an {{MLContext}} created with {{GPUDevice}}. Otherwise, it throws an "{{OperationError}}" {{DOMException}}.
 
 <script type=idl>
 partial interface MLContext {
@@ -956,7 +955,7 @@ Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGr
 
 ### The {{MLGraphBuilder}} constructor ### {#api-mlgraphbuilder-constructor}
 The [=new=] {{MLGraphBuilder}} constructor steps are:
-1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" and abort these steps.
+1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
 1. Let |context| be the first argument.
 1. If |context| is not a valid {{MLContext}}, throw a "{{TypeError}}" and abort these steps.
 1. Set {{MLGraphBuilder/[[context]]}} to |context|.
@@ -2490,7 +2489,7 @@ partial interface MLCommandEncoder {
 
     **Returns:** {{undefined}}.
 
-      1. If any of the following requirements are unmet, then throw a {{DataError}} {{DOMException}} and stop.
+      1. If any of the following requirements are unmet, then throw a "{{DataError}}" {{DOMException}} and stop.
           <div class=validusage>
             1. For each |key| -> |value| of |inputs|:
                 1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must [=map/exist=].
@@ -2510,7 +2509,7 @@ partial interface MLCommandEncoder {
           1. Set the output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |value|.
       1. Issue a compute request of |graph|.{{MLGraph/[[implementation]]}}.
       1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
-          1. Throw an {{OperationError}} {{DOMException}} and stop.
+          1. Throw an "{{OperationError}}" {{DOMException}} and stop.
       1. Return {{undefined}}.
 </div>
 
