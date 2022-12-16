@@ -32,7 +32,7 @@ The WebNN API is a specification for constructing and executing computational gr
 
 ``` JavaScript
 const operandType = {type: 'float32', dimensions: [2, 2]};
-const context = navigator.ml.createContext();
+const context = await navigator.ml.createContext();
 const builder = new MLGraphBuilder(context);
 // 1. Create a computational graph 'C = 0.2 * A + B'.
 const constant = builder.constant(0.2);
@@ -40,14 +40,14 @@ const A = builder.input('A', operandType);
 const B = builder.input('B', operandType);
 const C = builder.add(builder.mul(A, constant), B);
 // 2. Compile it into an executable.
-const graph = builder.build({'C': C});
+const graph = await builder.build({'C': C});
 // 3. Bind inputs to the graph and execute for the result.
 const bufferA = new Float32Array(4).fill(1.0);
 const bufferB = new Float32Array(4).fill(0.8);
 const bufferC = new Float32Array(4);
 const inputs = {'A': bufferA, 'B': bufferB};
 const outputs = {'C': bufferC};
-context.compute(graph, inputs, outputs);
+await context.compute(graph, inputs, outputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
 console.log('Output value: ' + bufferC);
@@ -65,7 +65,7 @@ Web applications and frameworks can take advantage of the native operating syste
 
 2. We do not define the packaging and delivery mechanism of machine learning models, such as the choice of encryption and content protection.
 
-3. The machine learning model's input may be of any media type, such as video streams, images, or audio signals. We do not define new media types but relying on the existing web standards for media types needed for respective scenarios.
+3. The machine learning model's input may be of any media type, such as video streams, images, or audio signals. We do not define new media types but rely on the existing web standards for media types needed for respective scenarios.
 
 ### Target hardware
 
@@ -88,7 +88,7 @@ A core abstraction behind popular neural networks is a computational graph, a di
 
 In the WebNN API, the [`MLOperand`](https://webmachinelearning.github.io/webnn/#api-mloperand) objects represent input, output, and constant multi-dimensional arrays known as [tensors](https://mathworld.wolfram.com/Tensor.html). The [`MLContext`](https://webmachinelearning.github.io/webnn/#api-mlcontext) defines a set of operations that facilitate the construction and execution of this computational graph. Such operations may be accelerated with dedicated hardware such as the GPUs, CPUs with extensions for deep learning, or dedicated ML accelerators. These operations defined by the WebNN API are required by [models](https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md) that address key application use cases. Additionally, the WebNN API provides affordances to build a computational graph, compile the graph, execute the graph, and integrate the graph with other Web APIs that provide input data to the graph e.g. media APIs for image or video frames and sensor APIs for sensory data. Please see the [programming model overview](https://webmachinelearning.github.io/webnn/#programming-model-overview) for details.
 
-This [example](https://webmachinelearning.github.io/webnn/#examples) builds, compiles, and executes a graph comprised of three ops, takes four inputs and returns one output.
+The specification includes an [example](https://webmachinelearning.github.io/webnn/#examples) that builds, compiles, and executes a graph comprised of three ops, takes four inputs and returns one output.
 
 ## Key scenarios
 
@@ -105,7 +105,7 @@ export class NSNet2 {
   }
 
   async build(baseUrl, batchSize, frames) {
-    this.context = navigator.ml.createContext();
+    this.context = await navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
     // Create constants by loading pre-trained data from .npy files.
     const weight172 = await buildConstantByNpy(builder, baseUrl + '172.npy');
@@ -140,10 +140,10 @@ export class NSNet2 {
     const relu163 = builder.relu(builder.add(builder.matmul(transpose159, weight215), biasFcOut0));
     const relu167 = builder.relu(builder.add(builder.matmul(relu163, weight216), biasFcOut2));
     const output = builder.sigmoid(builder.add(builder.matmul(relu167, weight217), biasFcOut4));
-    this.graph = builder.build({'output': output, 'gru94': gru94, 'gru157': gru157});
+    this.graph = await builder.build({'output': output, 'gru94': gru94, 'gru157': gru157});
   }
 
-  compute(inputBuffer, initialState92Buffer, initialState155Buffer, outputBuffer, gru94Buffer, gru157Buffer) {
+  async compute(inputBuffer, initialState92Buffer, initialState155Buffer, outputBuffer, gru94Buffer, gru157Buffer) {
     const inputs = {
       'input': inputBuffer,
       'initialState92': initialState92Buffer,
@@ -154,7 +154,7 @@ export class NSNet2 {
       'gru94': gru94Buffer,
       'gru157': gru157Buffer
     };
-    return this.context.compute(this.graph, inputs, outputs);
+    await this.context.compute(this.graph, inputs, outputs);
   }
 }
 ```
@@ -175,16 +175,16 @@ A Model Loader API can also be built atop a Web Neural Network API without losin
 
 An explainer for the Model Loader API can be found [here](https://github.com/webmachinelearning/model-loader/blob/master/explainer.md).
 
-|                 | Web Neural Network API           | Model Loader API                         |
-| ---             | ---                              | ----                                     |
-| API style       | Graph builder (~low-level)       | Model loader (~high-level)               |
-| Spec status     | Advancing to WG                  | Explainer                                |
-| Impl experience | Chromium POC, webnn-native       | No                                       |
-| Key customer    | JS ML frameworks                 | Web developers                           |
-| Inference       | Yes                              | Yes                                      |
-| Training        | No, but possible in future       | No                                       |
-| Polyfill        | Yes                              | No, possible on top of WebNN API         |
-| Interop         | Supported by major OS APIs       | No, due to lack of standard model format |
+|                 | Web Neural Network API            | Model Loader API                         |
+| ---             | ---                               | ----                                     |
+| API style       | Graph builder (~low-level)        | Model loader (~high-level)               |
+| Spec status     | W3C Working Group deliverable     | W3C Community Group incubation           |
+| Impl experience | Cross-plat Chromium, webnn-native | ChromeOS prototype                       |
+| Key customer    | JS ML frameworks                  | Web developers                           |
+| Inference       | Yes                               | Yes                                      |
+| Training        | No, but possible in future        | No                                       |
+| Polyfill        | Yes                               | No, possible on top of WebNN API         |
+| Interop         | Supported by major OS APIs        | No, due to lack of standard model format |
 
 [1]: https://github.com/webmachinelearning/webnn-polyfill
 [2]: https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md
