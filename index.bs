@@ -1416,8 +1416,9 @@ dictionary MLGruOptions {
 };
 
 partial interface MLGraphBuilder {
-  sequence<MLOperand> gru(MLOperand input, MLOperand weight, MLOperand recurrentWeight,
-                        long steps, long hiddenSize, optional MLGruOptions options = {});
+  sequence<MLOperand> gru(MLOperand input, MLOperand weight, MLOperand recurrentWeight, 
+                          unsigned long steps, unsigned long hiddenSize, 
+                          optional MLGruOptions options = {});
 };
 </script>
 <div algorithm=gru>
@@ -1425,8 +1426,8 @@ partial interface MLGraphBuilder {
         - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batch_size, input_size].
         - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 3 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
         - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *steps*: a {{long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
-        - *hiddenSize*: a {{long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
+        - *steps*: a {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
+        - *hiddenSize*: a {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
             - *bias*: an {{MLOperand}}. The 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
             - *recurrentBias*: an {{MLOperand}}. The 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
@@ -1534,7 +1535,7 @@ partial interface MLGraphBuilder {
     **Returns:** an {{MLOperand}}. The 2-D tensor of shape [batch_size, hidden_size], the cell output hidden state of a single time step of the recurrent network.
 
     <div class="note">
-    The behavior of this operation when the activations of the update/reset gate and new gate are of the operator types *sigmoid* and *tanh* respectively can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation when the weight layout is the default *"zrn"* layout, and the activation functions of the update/reset gate and new gate are of the operator types *sigmoid* and *tanh* respectively can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     const one = builder.constant(1);
     const zero = builder.constant(0);
@@ -1860,8 +1861,9 @@ dictionary MLLstmOptions {
 };
 
 partial interface MLGraphBuilder {
-  sequence<MLOperand> lstm(MLOperand input, MLOperand weight, MLOperand recurrentWeight,
-                        long steps, long hiddenSize, optional MLLstmOptions options = {});
+  sequence<MLOperand> lstm(MLOperand input, MLOperand weight, MLOperand recurrentWeight, 
+                           unsigned long steps, unsigned long hiddenSize, 
+                           optional MLLstmOptions options = {});
 };
 </script>
 <div algorithm=lstm>
@@ -1869,8 +1871,8 @@ partial interface MLGraphBuilder {
         - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batch_size, input_size].
         - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 4 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
         - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 4 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *steps*: a {{long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
-        - *hiddenSize*: a {{long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
+        - *steps*: a {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
+        - *hiddenSize*: a {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
             - *bias*: an {{MLOperand}}. The 2-D input bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
             - *recurrentBias*: an {{MLOperand}}. The 2-D recurrent bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
@@ -1998,7 +2000,7 @@ partial interface MLGraphBuilder {
     **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape [batch_size, hidden_size].
 
     <div class="note">
-    The behavior of this operation when the activations of the input, forget, and output gate is the operator type *sigmoid* and the cell gate is the operator type *tanh*, with the cell state's filter for the output hidden state as the operator type *tanh* can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation when the weight layout is the default layout *"iofg"*, and the activation functions of the input, forget, and output gate is the operator type *sigmoid* and the cell gate is the operator type *tanh*, with the cell state's filter for the output hidden state as the operator type *tanh* can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     const zero = builder.constant(0);
 
