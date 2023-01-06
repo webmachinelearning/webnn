@@ -33,10 +33,14 @@ urlPrefix: https://tc39.es/ecma262/; spec: ECMA-262
     type: dfn
         text: element size; url: table-the-typedarray-constructors
         text: element type; url: table-the-typedarray-constructors
+        text: view constructor; url: table-the-typedarray-constructors
+        text: Construct; url: sec-construct
 urlPrefix: https://webidl.spec.whatwg.org/; spec: WEBIDL
     type: interface
         text: Promise; url: idl-promise
         text: nullable; url: idl-nullable-type
+    type: dfn
+        text: transfer array buffer; url: arraybuffer-transfer
 </pre>
 <pre class="biblio">
 {
@@ -733,7 +737,7 @@ partial interface MLContext {
     1. Return {{undefined}}.
 </div>
 
-#### Examples #### {#compilation-examples}
+#### Examples #### {#api-mlcontext-sync-execution-examples}
 
 <div class="example">
 The following code showcases the synchronous computation with optional outputs in a worker.
@@ -769,12 +773,28 @@ console.log(&#96;values: ${bufferE}&#96;);
 </pre>
 </div>
 
+### The {{MLNamedArrayBufferViews}} transfer algorithm ### {#mlnamedarraybufferviews-transfer}
+To <dfn for="MLNamedArrayBufferViews">transfer</dfn> an {{MLNamedArrayBufferViews}} |views|:
+1. Let |transferredViews| be a new {{MLNamedArrayBufferViews}}.
+1. For each |key| -> |value| of |views|:
+    1. Let |transferredBuffer| be the result of [=transfer array buffer|transferring=] {{ArrayBuffer}} |value|.\[[ViewedArrayBuffer]].
+    1. Let |constructor| be the appropriate [=view constructor=] for the type of {{ArrayBufferView}} |value|.
+    1. Let |elementsNumber| be the result of |value|.\[[ByteLength]] ÷ [=element size=] of |value|.
+    1. Let |transferredView| be [=Construct=](|constructor|, |transferredBuffer|, |value|.\[[ByteOffset]], |elementsNumber|).
+    1. Set |transferredViews|[|key|] to |transferredView|.
+1. Return |transferredViews|.
+
 ### Asynchronous Execution ### {#api-mlcontext-async-execution}
-Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU timeline for the submission of GPU workload on the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an "{{OperationError}}" {{DOMException}}.
+Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU timeline for the submission of GPU workload on the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. To prevent the calling thread from modifying the input and output resources while the computation is ongoing, this method [=MLNamedArrayBufferViews/transfer|transfers=] the input and output {{MLNamedArrayBufferViews}} to new views that share the same backing memory allocations. The transferred views are returned to the caller via the promise fulfillment with the computation result written into the backing memory of the output views. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an "{{OperationError}}" {{DOMException}}.
 
 <script type=idl>
+dictionary ComputeResult {
+  MLNamedArrayBufferViews inputs;
+  MLNamedArrayBufferViews outputs;
+};
+
 partial interface MLContext {
-  Promise<undefined> compute(
+  Promise<ComputeResult> compute(
       MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
 };
 </script>
@@ -783,12 +803,13 @@ partial interface MLContext {
 
     **Arguments:**
       - *graph*: an {{MLGraph}}. The compiled graph to be executed.
-      - *inputs*: an {{MLNamedArrayBufferViews}}. The resources of inputs.
-      - *outputs*: an {{MLNamedArrayBufferViews}}. The pre-allocated resources of required outputs.
+      - *inputs*: an {{MLNamedArrayBufferViews}}. The resources of inputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
+      - *outputs*: an {{MLNamedArrayBufferViews}}. The pre-allocated resources of required outputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
 
-    **Returns:** Promise<{{undefined}}>.
+    **Returns:** Promise<{{ComputeResult}}>.
 
-    1. If any of the following requirements are unmet, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |promise| be [=a new promise=].
+    1. If any of the following requirements are unmet, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}} and stop.
         <div class=validusage>
             1. For each |key| -> |value| of |inputs|:
                 1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must [=map/exist=].
@@ -801,15 +822,16 @@ partial interface MLContext {
                 1. The type of {{ArrayBufferView}} |value| must match |outputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
                 1. |value|.\[[ByteLength]] must equal to [=byte length=] of |outputDesc|.
         </div>
-    1. Let |promise| be [=a new promise=].
-    1. For each |key| -> |value| of |inputs|:
+    1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs|.
+    1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs|.
+    1. For each |key| -> |value| of |transferredInputs|:
         1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
         1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}}.
         1. Set the data type of |inputTensor| to the one that matches the [=element type=] of {{ArrayBufferView}} |value|.
         1. Set the dimensions of |inputTensor| to |inputDesc|.{{MLOperandDescriptor/dimensions}}.
         1. Set the values of |inputTensor| to the values of |value|.
         1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |inputTensor|.
-    1. For each |key| -> |value| of |outputs|:
+    1. For each |key| -> |value| of |transferredOutputs|:
         1. Issue a compute request for output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key|.
         1. Wait for the compute request to be completed.
         1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
@@ -817,13 +839,48 @@ partial interface MLContext {
         1. Else:
             1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
             1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
-            1. If the data type of |outputTensor| doesn't match the [=element type=] of {{ArrayBufferView}} |value|, then throw a "{{DataError}}" {{DOMException}} and stop.
+            1. If the data type of |outputTensor| doesn't match the [=element type=] of {{ArrayBufferView}} |value|, then:
+                1. [=reject=] |promise| with a "{{DataError}}" {{DOMException}} and stop.
             1. If the byte length of |outputTensor| is not equal to [=byte length=] of |outputDesc|, then:
                 1. [=reject=] |promise| with an "{{OperationError}}" {{DOMException}} and stop.
             1. Else:
                 1. Set the values of |value| to the values of |outputTensor|.
-            1. If all compute requests are completed, [=Resolve=] |promise| and stop.
+            1. If all compute requests are completed, then:
+                1. Let |result| be a new {{ComputeResult}}.
+                1. Set |result|.{{ComputeResult/inputs}} to |transferredInputs|.
+                1. Set |result|.{{ComputeResult/outputs}} to |transferredOutputs|.
+                1. [=Resolve=] |promise| with |result| and stop.
     1. Return |promise|.
+</div>
+
+#### Examples #### {#api-mlcontext-async-execution-examples}
+
+<div class="example">
+The following code showcases the asynchronous computation.
+<pre highlight="js">
+const operandType = {type: 'float32', dimensions: [2, 2]};
+const context = await navigator.ml.createContext();
+const builder = new MLGraphBuilder(context);
+// 1. Create a computational graph 'C = 0.2 * A + B'.
+const constant = builder.constant(0.2);
+const A = builder.input('A', operandType);
+const B = builder.input('B', operandType);
+const C = builder.add(builder.mul(A, constant), B);
+// 2. Compile it into an executable.
+const graph = await builder.build({'C': C});
+// 3. Bind inputs to the graph and execute for the result.
+const bufferA = new Float32Array(4).fill(1.0);
+const bufferB = new Float32Array(4).fill(0.8);
+const bufferC = new Float32Array(4);
+const inputs = {'A': bufferA, 'B': bufferB};
+const outputs = {'C': bufferC};
+const result = await context.compute(graph, inputs, outputs);
+// The computed result of [[1, 1], [1, 1]] is in the buffer associated with
+// the output operand.
+console.log('Output value: ' + result.C);
+// Note: the result.C buffer is different from the bufferC, but it shares
+// the same backing memory allocation.
+</pre>
 </div>
 
 ### WebGPU Interoperability ### {#api-mlcontext-webgpu-interop}
@@ -2607,9 +2664,9 @@ const inputs = {
   'input2': inputBuffer2,
 };
 const outputs = {'output': outputBuffer};
-await context.compute(graph, inputs, outputs);
+const result = await context.compute(graph, inputs, outputs);
 
-console.log('Output value: ' + outputBuffer);
+console.log('Output value: ' + result.output);
 // Output value: 2.25,2.25,2.25,2.25,2.25,2.25,2.25,2.25
 </pre>
 </div>
