@@ -465,7 +465,7 @@ graphs of neural networks.
 
 The {{MLGraph}} interface represents a compiled computational graph that is immutable (that is, a model).
 
-The {{MLGraphBuilder}} interface serves as a builder (factory) to create a {{MLGraph}}.
+The {{MLGraphBuilder}} interface serves as a builder (factory) to create an {{MLGraph}}.
 An {{MLOperand}} is a representation of data that flows within the computational graph,
 which include input-values for inference, constants (including trained weights)
 used for inference, intermediate values (often referred to as activations) computed
@@ -542,7 +542,7 @@ API {#api}
 
 ## The navigator.ml interface ## {#api-navigator-ml}
 
-A {{ML}} object is available in the {{Window}} and {{DedicatedWorkerGlobalScope}} contexts through the {{Navigator}}
+An {{ML}} object is available in the {{Window}} and {{DedicatedWorkerGlobalScope}} contexts through the {{Navigator}}
 and {{WorkerNavigator}} interfaces respectively and is exposed via `navigator.ml`.
 
 <script type=idl>
@@ -887,13 +887,13 @@ interface MLOperand {};
 
 See also [[#security-new-ops]]
 
-## The MLOperator interface ## {#api-mloperator}
+## The MLActivation interface ## {#api-mlactivation}
 
-Objects implementing the {{MLOperator}} interface represent activation function types. As a generic construct, this interface may be reused for other types in a future version of this specification.
+Objects implementing the {{MLActivation}} interface represent activation function types.
 
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLOperator {};
+interface MLActivation {};
 </script>
 
 <div class="note">
@@ -901,7 +901,7 @@ These activations function types are used to create other operations. One such u
 </div>
 
 <div class="note">
-The implementation of the {{MLOperator}} interface can simply be a struct that holds a string type of the activation function along with other properties needed. The actual creation of the activation function e.g. a [[#api-mlgraphbuilder-sigmoid]] or [[#api-mlgraphbuilder-relu]] can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of [[#api-mlgraphbuilder-conv2d]] for example.
+The implementation of the {{MLActivation}} interface can simply be a struct that holds a string type of the activation function along with other properties needed. The actual creation of the activation function e.g. a [[#api-mlgraphbuilder-sigmoid]] or [[#api-mlgraphbuilder-relu]] can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of [[#api-mlgraphbuilder-conv2d]] for example.
 </div>
 
 ## The MLGraphBuilder interface ## {#api-mlgraphbuilder}
@@ -970,7 +970,7 @@ dictionary MLBatchNormalizationOptions {
   MLOperand bias;
   long axis = 1;
   float epsilon = 1e-5;
-  MLOperator activation;
+  MLActivation activation;
 };
 
 partial interface MLGraphBuilder {
@@ -988,7 +988,7 @@ partial interface MLGraphBuilder {
               - *bias*: an {{MLOperand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
               - *axis*: a {{long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. When it's not specified, the default value is 1.
               - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
-              - *activation*: an {{MLOperator}}. The optional activation function that immediately follows the normalization operation.
+              - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the normalization operation.
 
     **Returns:** an {{MLOperand}}. The batch-normalized N-D tensor of the same shape as the input tensor.
 
@@ -1023,7 +1023,7 @@ dictionary MLClampOptions {
 
 partial interface MLGraphBuilder {
   MLOperand clamp(MLOperand x, optional MLClampOptions options = {});
-  MLOperator clamp(optional MLClampOptions options = {});
+  MLActivation clamp(optional MLClampOptions options = {});
 };
 </script>
 <div algorithm=clamp>
@@ -1035,7 +1035,7 @@ partial interface MLGraphBuilder {
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLOperator}}. The operator representing the clamp operation.
+        - an {{MLActivation}}. The activation function representing the clamp operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -1108,7 +1108,7 @@ dictionary MLConv2dOptions {
   MLInputOperandLayout inputLayout = "nchw";
   MLConv2dFilterOperandLayout filterLayout = "oihw";
   MLOperand bias;
-  MLOperator activation;
+  MLActivation activation;
 };
 
 partial interface MLGraphBuilder {
@@ -1152,7 +1152,7 @@ partial interface MLGraphBuilder {
                     - [input_channels/groups, height, width, output_channels]
 
             - *bias*: an {{MLOperand}}. The additional 1-D tensor with the shape of [output_channels] whose values are to be added to the convolution result.
-            - *activation*: an {{MLOperator}}. The optional activation function that immediately follows the convolution operation.
+            - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the convolution operation.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.inputLayout* value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follow:
 
@@ -1185,7 +1185,7 @@ dictionary MLConvTranspose2dOptions {
   MLInputOperandLayout inputLayout = "nchw";
   MLConvTranspose2dFilterOperandLayout filterLayout = "iohw";
   MLOperand bias;
-  MLOperator activation;
+  MLActivation activation;
 };
 
 partial interface MLGraphBuilder {
@@ -1229,7 +1229,7 @@ partial interface MLGraphBuilder {
                     - [output_channels/groups, height, width, input_channels]
 
             - *bias*: an {{MLOperand}}. The additional 1-D tensor with the shape of [output_channels] whose values are to be added to the transposed convolution result.
-            - *activation*: an {{MLOperator}}. The optional activation function that immediately follows the transposed convolution operation.
+            - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the transposed convolution operation.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options.inputLayout* value. More specifically, unless the *options.outputSizes* values are explicitly specified, the *options.outputPadding* may be needed to compute the spatial dimension values of the output tensor as follow:
 
@@ -1317,7 +1317,7 @@ dictionary MLEluOptions {
 
 partial interface MLGraphBuilder {
   MLOperand elu(MLOperand x, optional MLEluOptions options = {});
-  MLOperator elu(optional MLEluOptions options = {});
+  MLActivation elu(optional MLEluOptions options = {});
 };
 </script>
 <div algorithm=elu>
@@ -1328,7 +1328,7 @@ partial interface MLGraphBuilder {
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLOperator}}. The operator representing the elu operation.
+        - an {{MLActivation}}. The activation function representing the elu operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -1391,9 +1391,9 @@ partial interface MLGraphBuilder {
 </div>
 
 ### The gru() method ### {#api-mlgraphbuilder-gru}
-Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of the Network
+Gated Recurrent Unit [[GRU]] recurrent network uses an update, reset, and new gate to compute the output state that rolls into the output across the temporal sequence of the network.
 <script type=idl>
-enum MLRecurrentNetworkWeightLayout {
+enum MLGruWeightLayout {
   "zrn",  // update-reset-new gate ordering
   "rzn"   // reset-update-new gate ordering
 };
@@ -1411,36 +1411,37 @@ dictionary MLGruOptions {
   boolean resetAfter = true;
   boolean returnSequence = false;
   MLRecurrentNetworkDirection direction = "forward";
-  MLRecurrentNetworkWeightLayout layout = "zrn";
-  sequence<MLOperator> activations;
+  MLGruWeightLayout layout = "zrn";
+  sequence<MLActivation> activations;
 };
 
 partial interface MLGraphBuilder {
-  sequence<MLOperand> gru(MLOperand input, MLOperand weight, MLOperand recurrentWeight,
-                        long steps, long hiddenSize, optional MLGruOptions options = {});
+  sequence<MLOperand> gru(MLOperand input, MLOperand weight, MLOperand recurrentWeight, 
+                          unsigned long steps, unsigned long hiddenSize, 
+                          optional MLGruOptions options = {});
 };
 </script>
 <div algorithm=gru>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batch_size, input_size].
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 3 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *layout* argument.
-        - *steps*: a {{long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
-        - *hiddenSize*: a {{long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
+        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 3 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
+        - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
             - *bias*: an {{MLOperand}}. The 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
             - *recurrentBias*: an {{MLOperand}}. The 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
             - *initialHiddenState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
             - *resetAfter*: a {{boolean}} indicating whether to apply the reset gate after or before matrix multiplication. Default to true.
-            - *returnSequence*: a {{boolean}} indicating whether to also return the entire sequence with every cell output from each time step in it in addition to the cell output of the last time step. Default to false.
-            - *direction*: a {{MLRecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
-            - *layout*: a {{MLRecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is *"zrn"*.
-            - *activations*: a sequence of {{MLOperator}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's assumed to be the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
+            - *returnSequence*: a {{boolean}} indicating whether to also return the entire sequence with every output from each time step in it in addition to the output of the last time step. Default to false.
+            - *direction*: an {{MLRecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
+            - *layout*: an {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is *"zrn"*.
+            - *activations*: a sequence of {{MLActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's assumed to be the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if *returnSequence* is set to true, the second element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if *options.returnSequence* is set to true, the second element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
 
     <div class="note">
-    The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation can be generically emulated from the usage of other operations as follows. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     const numDirections = (options.direction == "both" ? 2 : 1);
     let hiddenState = options.initialHiddenState;
@@ -1452,47 +1453,47 @@ partial interface MLGraphBuilder {
     }
 
     let sequence = null;
-    let cellWeight = [];
-    let cellRecurrentWeight = [];
-    let cellBias = [];
-    let cellRecurrentBias = [];
+    let currentWeight = [];
+    let currentRecurrentWeight = [];
+    let currentBias = [];
+    let currentRecurrentBias = [];
 
-    for (let slot = 0; slot < numDirections; ++slot) {
-      cellWeight.push(builder.squeeze(builder.slice(weight, [slot, 0, 0], [1, -1, -1]), { axes: [0] }));
-      cellRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [slot, 0, 0], [1, -1, -1]), { axes: [0] }));
-      cellBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [slot, 0], [1, -1]), { axes: [0] })) : null);
-      cellRecurrentBias.push(options.recurrentBias ?
-        (builder.squeeze(builder.slice(options.recurrentBias, [slot, 0], [1, -1]), { axes: [0] })) : null);
+    for (let dir = 0; dir < numDirections; ++dir) {
+      currentWeight.push(builder.squeeze(builder.slice(weight, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
+      currentRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
+      currentBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [dir, 0], [1, -1]), { axes: [0] })) : null);
+      currentRecurrentBias.push(options.recurrentBias ?
+        (builder.squeeze(builder.slice(options.recurrentBias, [dir, 0], [1, -1]), { axes: [0] })) : null);
     }
 
     for (let step = 0; step < steps; ++step) {
-      let cellHidden = [];
-      let cellOutput = null;
+      let currentHidden = [];
+      let currentOutput = null;
 
-      for (let slot = 0; slot < numDirections; ++slot) {
-        cellHidden.push(builder.squeeze(builder.slice(hiddenState, [slot, 0, 0], [1, -1, -1]), { axes: [0] }));
+      for (let dir = 0; dir < numDirections; ++dir) {
+        currentHidden.push(builder.squeeze(builder.slice(hiddenState, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
       }
 
-      for (let slot = 0; slot < numDirections; ++slot) {
-        let slice = (slot == 1 || options.direction == "backward" ? steps - step - 1 : step);
-        let cellInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, -1, -1]), { axes: [0] });
+      for (let dir = 0; dir < numDirections; ++dir) {
+        let slice = (dir == 1 || options.direction == "backward" ? steps - step - 1 : step);
+        let currentInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, -1, -1]), { axes: [0] });
 
         let result = builder.reshape(
           builder.gruCell(
-            cellInput, cellWeight[slot], cellRecurrentWeight[slot],
-            cellHidden[slot], hiddenSize, { bias: cellBias[slot],
-            recurrentBias: cellRecurrentBias[slot], resetAfter: options.resetAfter,
+            currentInput, currentWeight[dir], currentRecurrentWeight[dir],
+            currentHidden[dir], hiddenSize, { bias: currentBias[dir],
+            recurrentBias: currentRecurrentBias[dir], resetAfter: options.resetAfter,
             layout: options.layout, activations: options.activations }),
           [1, -1, hiddenSize]);
 
-        cellOutput = (cellOutput ? builder.concat([cellOutput, result], 0) : result);
+        currentOutput = (currentOutput ? builder.concat([currentOutput, result], 0) : result);
       }
 
-      hiddenState = cellOutput;
+      hiddenState = currentOutput;
 
       if (options.returnSequence) {
-        cellOutput = builder.reshape(cellOutput, [1, numDirections, -1, hiddenSize]);
-        sequence = (sequence ? builder.concat([sequence, cellOutput], 0) : cellOutput);
+        currentOutput = builder.reshape(currentOutput, [1, numDirections, -1, hiddenSize]);
+        sequence = (sequence ? builder.concat([sequence, currentOutput], 0) : currentOutput);
       }
     }
 
@@ -1508,38 +1509,39 @@ dictionary MLGruCellOptions {
   MLOperand bias;
   MLOperand recurrentBias;
   boolean resetAfter = true;
-  MLRecurrentNetworkWeightLayout layout = "zrn";
-  sequence<MLOperator> activations;
+  MLGruWeightLayout layout = "zrn";
+  sequence<MLActivation> activations;
 };
 
 partial interface MLGraphBuilder {
   MLOperand gruCell(MLOperand input, MLOperand weight, MLOperand recurrentWeight,
-                  MLOperand hiddenState, long hiddenSize, optional MLGruCellOptions options = {});
+                    MLOperand hiddenState, unsigned long hiddenSize, 
+                    optional MLGruCellOptions options = {});
 };
 </script>
 <div algorithm=grucell>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batch_size, input_size].
-        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [3 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape [3 * hidden_size, hidden_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *layout* argument.
+        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [3 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape [3 * hidden_size, hidden_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
         - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape [batch_size, hidden_size].
-        - *hiddenSize*: a {{long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
+        - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLGruCellOptions}}. The optional parameters of the operation.
             - *bias*: an {{MLOperand}}. The 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
             - *recurrentBias*: an {{MLOperand}}. The 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
             - *resetAfter*: a {{boolean}} indicating whether to apply the reset gate after or before matrix multiplication. Default to true.
-            - *layout*: a {{MLRecurrentNetworkWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"zrn"*.
-            - *activations*: a sequence of {{MLOperator}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's default to the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
+            - *layout*: an {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"zrn"*.
+            - *activations*: a sequence of {{MLActivation}}. A pair of activation functions with the first function used for the *update (z)* and *reset (r)* gate, and the second used for the *new (n)* gate. When not specified, it's default to the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
 
     **Returns:** an {{MLOperand}}. The 2-D tensor of shape [batch_size, hidden_size], the cell output hidden state of a single time step of the recurrent network.
 
     <div class="note">
-    The behavior of this operation when the activations of the update/reset gate and new gate are of the operator types *sigmoid* and *tanh* respectively can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation can be generically emulated via other operations as shown below, when the weight layout is the default *"zrn"* layout, and the activation functions of the update/reset gate and new gate are of the operator types *sigmoid* and *tanh* respectively.    
     <pre highlight="js">
     const one = builder.constant(1);
     const zero = builder.constant(0);
 
-    // update gate
+    // update gate (z)
     let z = builder.sigmoid(
       builder.add(
         builder.add(
@@ -1559,7 +1561,7 @@ partial interface MLGraphBuilder {
         )
       );
 
-    // reset gate
+    // reset gate (r)
     let r = builder.sigmoid(
       builder.add(
         builder.add(
@@ -1579,7 +1581,7 @@ partial interface MLGraphBuilder {
         )
       );
 
-    // new gate
+    // new gate (n)
     let n;
     if (resetAfter) {
       n = builder.tanh(
@@ -1641,7 +1643,7 @@ dictionary MLHardSigmoidOptions {
 
 partial interface MLGraphBuilder {
   MLOperand hardSigmoid(MLOperand x, optional MLHardSigmoidOptions options = {});
-  MLOperator hardSigmoid(optional MLHardSigmoidOptions options = {});
+  MLActivation hardSigmoid(optional MLHardSigmoidOptions options = {});
 };
 </script>
 <div algorithm=hard-sigmoid>
@@ -1653,7 +1655,7 @@ partial interface MLGraphBuilder {
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLOperator}}. The operator representing the hard sigmoid operation.
+        - an {{MLActivation}}. The activation function representing the hard sigmoid operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -1677,7 +1679,7 @@ Computes the nonlinear function `y = x * max(0, min(6, (x + 3))) / 6` that is in
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand hardSwish(MLOperand x);
-  MLOperator hardSwish();
+  MLActivation hardSwish();
 };
 </script>
 <div algorithm=hard-swish>
@@ -1686,7 +1688,7 @@ partial interface MLGraphBuilder {
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLOperator}}. The operator representing the hard-swish operation.
+        - an {{MLActivation}}. The activation function representing the hard-swish operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -1777,7 +1779,7 @@ dictionary MLLeakyReluOptions {
 
 partial interface MLGraphBuilder {
   MLOperand leakyRelu(MLOperand x, optional MLLeakyReluOptions options = {});
-  MLOperator leakyRelu(optional MLLeakyReluOptions options = {});
+  MLActivation leakyRelu(optional MLLeakyReluOptions options = {});
 };
 </script>
 <div algorithm=leakyrelu>
@@ -1788,7 +1790,7 @@ partial interface MLGraphBuilder {
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLOperator}}. The operator representing the leaky relu operation.
+        - an {{MLActivation}}. The activation function representing the leaky relu operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -1798,6 +1800,316 @@ partial interface MLGraphBuilder {
     <pre highlight="js">
     return builder.add(builder.max(builder.constant(0), x),
               builder.mul(builder.constant(options.alpha), builder.min(builder.constant(0), x)));
+    </pre>
+    </div>
+</div>
+
+### The linear() method ### {#api-mlgraphbuilder-linear}
+Calculate a linear function `y = alpha * x + beta` on the input tensor.
+<script type=idl>
+dictionary MLLinearOptions {
+  float alpha = 1;
+  float beta = 0;
+};
+
+partial interface MLGraphBuilder {
+  MLOperand linear(MLOperand x, optional MLLinearOptions options = {});
+  MLActivation linear(optional MLLinearOptions options = {});
+};
+</script>
+<div algorithm=linear>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
+            - *alpha*: a {{float}} scalar multiplier, default to 1.
+            - *beta*: a {{float}} scalar addition, default to 0.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLActivation}}. The activation function representing the linear operation.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.add(
+              builder.mul(x, builder.constant(options.alpha)),
+              builder.constant(options.beta));
+    </pre>
+    </div>
+</div>
+
+### The lstm() method ### {#api-mlgraphbuilder-lstm}
+Long Short-Term Memory [[LSTM]] recurrent network uses an input, output, forget, and cell gate to compute the output state that rolls into the output across the temporal sequence of the network.
+<script type=idl>
+enum MLLstmWeightLayout {
+  "iofg", // input-output-forget-cell gate ordering
+  "ifgo"  // input-forget-cell-output gate ordering
+};
+
+dictionary MLLstmOptions {
+  MLOperand bias;
+  MLOperand recurrentBias;
+  MLOperand peepholeWeight;
+  MLOperand initialHiddenState;
+  MLOperand initialCellState;
+  boolean returnSequence = false;
+  MLRecurrentNetworkDirection direction = "forward";
+  MLLstmWeightLayout layout = "iofg";
+  sequence<MLActivation> activations;
+};
+
+partial interface MLGraphBuilder {
+  sequence<MLOperand> lstm(MLOperand input, MLOperand weight, MLOperand recurrentWeight, 
+                           unsigned long steps, unsigned long hiddenSize, 
+                           optional MLLstmOptions options = {});
+};
+</script>
+<div algorithm=lstm>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batch_size, input_size].
+        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 4 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 4 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
+        - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
+        - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
+            - *bias*: an {{MLOperand}}. The 2-D input bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+            - *recurrentBias*: an {{MLOperand}}. The 2-D recurrent bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+            - *peepholeWeight*: an {{MLOperand}}. The 2-D weight tensor for peepholes of shape [num_directions, 4 * hidden_size]. The pack ordering of the weight vectors is for the *input (i)*, *output (o)*, and *forget (f)* gate respectively.
+            - *initialHiddenState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
+            - *initialCellState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
+            - *returnSequence*: a {{boolean}} indicating whether to also return the entire sequence with every output from each time step in it in addition to the output of the last time step. Default to false.
+            - *direction*: an {{MLRecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
+            - *layout*: an {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the *input (i)*, *output (o)*, *forget (f)*, and *cell (g)* gate, as indicated in the second dimension of the weight and bias tensor shapes. When not specified, the default layout is *"iofg"*.
+            - *activations*: a sequence of {{MLActivation}}. A sequence of three activation functions, the first one is used for the *input (i)*, *forget (f)*, and *output (o)* gate, the second one is used for the *cell (g)* gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, they are assumed to be of the sigmoid function (*"sigmoid"*) followed by two hyperbolic tangent functions (*"tanh"*) respectively.
+
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output cell state from the last time step of the network. Additionally, if *options.returnSequence* is set to true, the third element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every output from each time step in the temporal sequence.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    <pre highlight="js">
+    const numDirections = (options.direction == "both" ? 2 : 1);
+    let hiddenState = options.initialHiddenState;
+    let cellState = options.initialCellState;
+
+    if (!hiddenState) {
+      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
+      const totalSize = numDirections * hiddenSize;
+      hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
+    }
+
+    if (!cellState) {
+      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
+      const totalSize = numDirections * hiddenSize;
+      cellState = builder.constant(desc, new Float32Array(totalSize).fill(0));
+    }
+
+    let sequence = null;
+    let currentWeight = [];
+    let currentRecurrentWeight = [];
+    let currentBias = [];
+    let currentRecurrentBias = [];
+    let currentPeepholeWeight = [];
+
+    for (let dir = 0; dir < numDirections; ++dir) {
+      currentWeight.push(builder.squeeze(builder.slice(weight, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
+      currentRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
+      currentBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [dir, 0], [1, -1]), { axes: [0] })) : null);
+      currentRecurrentBias.push(options.recurrentBias ?
+        (builder.squeeze(builder.slice(options.recurrentBias, [dir, 0], [1, -1]), { axes: [0] })) : null);
+      currentPeepholeWeight.push(options.peepholeWeight ?
+        (builder.squeeze(builder.slice(options.peepholeWeight, [dir, 0], [1, -1]), { axes: [0] })) : null);
+    }
+
+    for (let step = 0; step < steps; ++step) {
+      let currentHidden = [];
+      let currentCell = [];
+      let nextHidden = null;
+      let nextCell = null;
+
+      for (let dir = 0; dir < numDirections; ++dir) {
+        currentHidden.push(builder.squeeze(builder.slice(hiddenState, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
+        currentCell.push(builder.squeeze(builder.slice(cellState, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
+      }
+
+      for (let dir = 0; dir < numDirections; ++dir) {
+        let slice = (dir == 1 || options.direction == "backward" ? steps - step - 1 : step);
+        let currentInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, -1, -1]), { axes: [0] });
+
+        let results = builder.lstmCell(
+          currentInput, currentWeight[dir], currentRecurrentWeight[dir],
+          currentHidden[dir], currentCell[dir], hiddenSize, { bias: currentBias[dir],
+          recurrentBias: currentRecurrentBias[dir], peepholeWeight: currentPeepholeWeight[dir],
+          layout: options.layout, activations: options.activations });
+
+        let output = builder.reshape(results[0], [1, -1, hiddenSize]);
+        let cell = builder.reshape(results[1], [1, -1, hiddenSize]);
+
+        nextHidden = (nextHidden ? builder.concat([nextHidden, result], 0) : output);
+        nextCell = (nextCell ? builder.concat([nextCell, result], 0) : cell);
+      }
+
+      hiddenState = nextHidden;
+      cellState = nextCell;
+
+      if (options.returnSequence) {
+        nextHidden = builder.reshape(nextHidden, [1, numDirections, -1, hiddenSize]);
+        sequence = (sequence ? builder.concat([sequence, nextHidden], 0) : nextHidden);
+      }
+    }
+
+    return (sequence ? [hiddenState, cellState, sequence] : [hiddenState, cellState]);
+    </pre>
+    </div>
+</div>
+
+### The lstmCell() method ### {#api-mlgraphbuilder-lstmcell}
+A single time step of the Long Short-Term Memory [[LSTM]] recurrent network using a cell state, an input, output, and forget gate to compute the cell state and the hidden state of the next time step that rolls into the output across the temporal sequence of the network.
+
+<script type=idl>
+dictionary MLLstmCellOptions {
+  MLOperand bias;
+  MLOperand recurrentBias;
+  MLOperand peepholeWeight;
+  MLLstmWeightLayout layout = "iofg";
+  sequence<MLActivation> activations;
+};
+
+partial interface MLGraphBuilder {
+  sequence<MLOperand> lstmCell(MLOperand input, MLOperand weight, MLOperand recurrentWeight,
+                               MLOperand hiddenState, MLOperand cellState, unsigned long hiddenSize, 
+                               optional MLLstmCellOptions options = {});
+};
+</script>
+<div algorithm=lstmcell>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batch_size, input_size].
+        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [4 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape [4 * hidden_size, hidden_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape [batch_size, hidden_size].
+        - *cellState*: an {{MLOperand}}. The 2-D input cell state tensor of shape [batch_size, hidden_size].
+        - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
+        - *options*: an optional {{MLLstmCellOptions}}. The optional parameters of the operation.
+            - *bias*: an {{MLOperand}}. The 1-D input bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+            - *recurrentBias*: an {{MLOperand}}. The 1-D recurrent bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+            - *peepholeWeight*: an {{MLOperand}}. The 1-D weight tensor for peepholes of shape [3 * hidden_size]. The pack ordering of the weight vectors is for the *input (i)*, *output (o)*, and *forget (f)* gate respectively.
+            - *layout*: an {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the *input (i)*, *output (o)*, *forget (f)*, and *cell (g)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"iofg"*.
+            - *activations*: a sequence of {{MLActivation}}. A sequence of three activation functions, the first one is used for the *input (i)*, *forget (f)*, and *output (o)* gate, the second one is used for the *cell (g)* gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, they are assumed to be of the sigmoid function (*"sigmoid"*) followed by two hyperbolic tangent functions (*"tanh"*) respectively.
+
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape [batch_size, hidden_size].
+
+    <div class="note">
+    The behavior of this operation can be generically emulated via other operations as shown below, when the weight layout is the default *"iofg"* layout, and the activation functions of the input/forget/output gate and the cell gate/the cell state's filter for the output hidden state are of the operator types *sigmoid* and *tanh* respectively.    
+    <pre highlight="js">
+    const zero = builder.constant(0);
+
+    // input gate (i)
+    let i = builder.sigmoid(
+      builder.add(
+        builder.mul(
+          cellState,
+          (options.peepholeWeight ? builder.slice(options.peepholeWeight, [0], [hiddenSize]) : zero)
+        ),
+        builder.add(
+          builder.add(
+            (options.bias ? builder.slice(options.bias, [0], [hiddenSize]) : zero),
+            (options.recurrentBias ? builder.slice(options.recurrentBias, [0], [hiddenSize]) : zero)
+          ),
+          builder.add(
+            builder.matmul(
+              input,
+              builder.transpose(builder.slice(weight, [0, 0], [hiddenSize, -1]))
+            ),
+            builder.matmul(
+              hiddenState,
+              builder.transpose(builder.slice(recurrentWeight, [0, 0], [hiddenSize, -1]))
+            )
+          )
+        )
+      )
+    );
+
+    // forget gate (f)
+    let f = builder.sigmoid(
+      builder.add(
+        builder.mul(
+          cellState,
+          (options.peepholeWeight ? builder.slice(options.peepholeWeight, [2 * hiddenSize], [hiddenSize]) : zero)
+        ),
+        builder.add(
+          builder.add(
+            (options.bias ? builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) : zero),
+            (options.recurrentBias ? builder.slice(options.recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero)
+          ),
+          builder.add(
+            builder.matmul(
+              input,
+              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+            ),
+            builder.matmul(
+              hiddenState,
+              builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+            )
+          )
+        )
+      )
+    );
+
+    // cell gate (g)
+    let g = builder.tanh(
+      builder.add(
+        builder.add(
+          (options.bias ? builder.slice(options.bias, [3 * hiddenSize], [hiddenSize]) : zero),
+          (options.recurrentBias ? builder.slice(options.recurrentBias, [3 * hiddenSize], [hiddenSize]) : zero)
+        ),
+        builder.add(
+          builder.matmul(
+            input,
+            builder.transpose(builder.slice(weight, [3 * hiddenSize, 0], [hiddenSize, -1]))
+          ),
+          builder.matmul(
+            hiddenState,
+            builder.transpose(builder.slice(recurrentWeight, [3 * hiddenSize, 0], [hiddenSize, -1]))
+          )
+        )
+      )
+    );
+
+    // output gate (o)
+    let o = builder.sigmoid(
+      builder.add(
+        builder.mul(
+          cellState,
+          (options.peepholeWeight ? builder.slice(options.peepholeWeight, [hiddenSize], [hiddenSize]) : zero)
+        ),
+        builder.add(
+          builder.add(
+            (options.bias ? builder.slice(options.bias, [hiddenSize], [hiddenSize]) : zero),
+            (options.recurrentBias ? builder.slice(options.recurrentBias, [hiddenSize], [hiddenSize]) : zero)
+          ),
+          builder.add(
+            builder.matmul(
+              input,
+              builder.transpose(builder.slice(weight, [hiddenSize, 0], [hiddenSize, -1]))
+            ),
+            builder.matmul(
+              hiddenState,
+              builder.transpose(builder.slice(recurrentWeight, [hiddenSize, 0], [hiddenSize, -1]))
+            )
+          )
+        )
+      )
+    );
+
+    // output cell state (ct)
+    let ct = builder.add(builder.mul(f, cellState), builder.mul(i, g));
+
+    // output hidden state (ht)
+    let ht = builder.mul(o, builder.tanh(ct));
+
+    return [ht, ct];
     </pre>
     </div>
 </div>
@@ -1835,43 +2147,6 @@ partial interface MLGraphBuilder {
             which produces a scalar output.
 </div>
 
-### The linear() method ### {#api-mlgraphbuilder-linear}
-Calculate a linear function `y = alpha * x + beta` on the input tensor.
-<script type=idl>
-dictionary MLLinearOptions {
-  float alpha = 1;
-  float beta = 0;
-};
-
-partial interface MLGraphBuilder {
-  MLOperand linear(MLOperand x, optional MLLinearOptions options = {});
-  MLOperator linear(optional MLLinearOptions options = {});
-};
-</script>
-<div algorithm=linear>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
-            - *alpha*: a {{float}} scalar multiplier, default to 1.
-            - *beta*: a {{float}} scalar addition, default to 0.
-
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLOperator}}. The operator representing the linear operation.
-
-    <div class="note">
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
-    <pre highlight="js">
-    return builder.add(
-              builder.mul(x, builder.constant(options.alpha)),
-              builder.constant(options.beta));
-    </pre>
-    </div>
-</div>
-
 ### The pad() method ### {#api-mlgraphbuilder-pad}
 Inflate the tensor with constant or mirrored values on the edges.
 <script type=idl>
@@ -1896,7 +2171,7 @@ partial interface MLGraphBuilder {
         - *input*: an {{MLOperand}}. The input tensor.
         - *padding*: an {{MLOperand}}. The 2-D Tensor of integer values indicating the number of padding values to add at the beginning and end of each input dimensions. The tensor has shape [*n*, 2] where *n* is the rank of the input tensor. For each dimension *D* of *input*, *padding[D, 0]* indicates how many values to add before the content in that dimension, and *padding[D, 1]* indicates how many values to add after the content in that dimension.
         - *options*: an optional {{MLPadOptions}}. The optional parameters of the operation.
-            - *mode*: a {{MLPaddingMode}}. The different ways to pad the tensor. When not set, it's assumed to be "constant".
+            - *mode*: an {{MLPaddingMode}}. The different ways to pad the tensor. When not set, it's assumed to be "constant".
             - *value*: a {{float}}. The pad value when the *options.mode* is set to *"constant"*. When not set, it's assumed to be 0.
 
     **Returns:** an {{MLOperand}}. The padded output tensor.
@@ -2064,7 +2339,7 @@ Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand relu(MLOperand x);
-  MLOperator relu();
+  MLActivation relu();
 };
 </script>
 <div algorithm=relu>
@@ -2073,7 +2348,7 @@ partial interface MLGraphBuilder {
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLOperator}}. The operator representing the relu operation.
+        - an {{MLActivation}}. The activation function representing the relu operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -2145,7 +2420,7 @@ Compute the <a href="https://en.wikipedia.org/wiki/Sigmoid_function">sigmoid fun
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand sigmoid(MLOperand x);
-  MLOperator sigmoid();
+  MLActivation sigmoid();
 };
 </script>
 <div algorithm=sigmoid>
@@ -2154,7 +2429,7 @@ partial interface MLGraphBuilder {
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLOperator}}. The operator representing the sigmoid operation.
+        - an {{MLActivation}}. The activation function representing the sigmoid operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -2201,14 +2476,16 @@ the 2-D input tensor along axis 1.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand softmax(MLOperand x);
+  MLActivation softmax();
 };
 </script>
 <div algorithm=softmax>
     **Arguments:**
         - *x*: an {{MLOperand}}. The input 2-D tensor.
 
-    **Returns:** an {{MLOperand}}. The output 2-D tensor that contains the softmax
-    results, of the same shape as the input tensor.
+    **Returns:** 
+        - an {{MLOperand}}. The output 2-D tensor that contains the softmax results, of the same shape as the input tensor.
+        - an {{MLActivation}}. The activation function representing the softmax operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -2237,7 +2514,7 @@ dictionary MLSoftplusOptions {
 
 partial interface MLGraphBuilder {
   MLOperand softplus(MLOperand x, optional MLSoftplusOptions options = {});
-  MLOperator softplus(optional MLSoftplusOptions options = {});
+  MLActivation softplus(optional MLSoftplusOptions options = {});
 };
 </script>
 <div algorithm=softplus>
@@ -2246,7 +2523,7 @@ partial interface MLGraphBuilder {
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLOperator}}. The operator representing the softplus operation.
+        - an {{MLActivation}}. The activation function representing the softplus operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -2269,7 +2546,7 @@ Compute the <a href="https://pytorch.org/docs/stable/generated/torch.nn.Softsign
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand softsign(MLOperand x);
-  MLOperator softsign();
+  MLActivation softsign();
 };
 </script>
 <div algorithm=softsign>
@@ -2278,7 +2555,7 @@ partial interface MLGraphBuilder {
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLOperator}}. The operator representing the softsign operation.
+        - an {{MLActivation}}. The activation function representing the softsign operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -2356,7 +2633,7 @@ Compute the <a href="https://en.wikipedia.org/wiki/Hyperbolic_functions">hyperbo
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand tanh(MLOperand x);
-  MLOperator tanh();
+  MLActivation tanh();
 };
 </script>
 <div algorithm=tanh>
@@ -2365,7 +2642,7 @@ partial interface MLGraphBuilder {
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLOperator}}. The operator representing the tanh operation.
+        - an {{MLActivation}}. The activation function representing the tanh operation.
 
     <div class="note">
     The behavior of this operation can be generically emulated from the usage of
@@ -2888,6 +3165,15 @@ Thanks to Kaustubha Govind and Chrome privacy reviewers for feedback and privacy
       "Yoshua Bengio"
     ],
     "date": "September 2014"
+  },
+  "LSTM": {
+    "href": "https://doi.org/10.1162/neco.1997.9.8.1735",
+    "title": "Long Short-Term Memory",
+    "authors": [
+      "Sepp Hochreiter",
+      "Jürgen Schmidhuber"
+    ],
+    "date": "November 1997"
   },
   "Batch-Normalization": {
     "href": "https://arxiv.org/abs/1502.03167",
