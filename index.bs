@@ -788,13 +788,13 @@ To <dfn for="MLNamedArrayBufferViews">transfer</dfn> an {{MLNamedArrayBufferView
 Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU timeline for the submission of GPU workload on the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. To prevent the calling thread from modifying the input and output resources while the computation is ongoing, this method [=MLNamedArrayBufferViews/transfer|transfers=] the input and output {{MLNamedArrayBufferViews}} to new views that share the same backing memory allocations. The transferred views are returned to the caller via the promise fulfillment with the computation result written into the backing memory of the output views. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an "{{OperationError}}" {{DOMException}}.
 
 <script type=idl>
-dictionary ComputeResult {
+dictionary MLComputeResult {
   MLNamedArrayBufferViews inputs;
   MLNamedArrayBufferViews outputs;
 };
 
 partial interface MLContext {
-  Promise<ComputeResult> compute(
+  Promise<MLComputeResult> compute(
       MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
 };
 </script>
@@ -806,7 +806,7 @@ partial interface MLContext {
       - *inputs*: an {{MLNamedArrayBufferViews}}. The resources of inputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
       - *outputs*: an {{MLNamedArrayBufferViews}}. The pre-allocated resources of required outputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
 
-    **Returns:** Promise<{{ComputeResult}}>.
+    **Returns:** Promise<{{MLComputeResult}}>.
 
     1. Let |promise| be [=a new promise=].
     1. If any of the following requirements are unmet, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}} and stop.
@@ -846,9 +846,9 @@ partial interface MLContext {
             1. Else:
                 1. Set the values of |value| to the values of |outputTensor|.
             1. If all compute requests are completed, then:
-                1. Let |result| be a new {{ComputeResult}}.
-                1. Set |result|.{{ComputeResult/inputs}} to |transferredInputs|.
-                1. Set |result|.{{ComputeResult/outputs}} to |transferredOutputs|.
+                1. Let |result| be a new {{MLComputeResult}}.
+                1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
+                1. Set |result|.{{MLComputeResult/outputs}} to |transferredOutputs|.
                 1. [=Resolve=] |promise| with |result| and stop.
     1. Return |promise|.
 </div>
@@ -877,9 +877,9 @@ const outputs = {'C': bufferC};
 const result = await context.compute(graph, inputs, outputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
-console.log('Output value: ' + result.C);
-// Note: the result.C buffer is different from the bufferC, but it shares
-// the same backing memory allocation.
+console.log('Output value: ' + result.outputs.C);
+// Note: the result.outputs.C buffer is different from the bufferC, but it
+// shares the same backing memory allocation.
 </pre>
 </div>
 

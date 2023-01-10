@@ -50,9 +50,9 @@ const outputs = {'C': bufferC};
 const result = await context.compute(graph, inputs, outputs);
 // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
 // the output operand.
-console.log('Output value: ' + result.C);
-// Note: the result.C buffer is different from the bufferC, but it shares
-// the same backing memory allocation.
+console.log('Output value: ' + result.outputs.C);
+// Note: the result.outputs.C buffer is different from the bufferC, but it
+// shares the same backing memory allocation.
 ```
 
 Check it out in [WebNN Code Editor](https://webmachinelearning.github.io/webnn-samples/code/?example=mul_add.js).
