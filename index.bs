@@ -131,6 +131,36 @@ div.validusage {
     content: "Valid Usage";
 }
 
+/* Box for Informal steps. */
+div.informalsteps {
+    padding: .5em;
+    border: thin solid #88e !important;
+    border-radius: .5em;
+}
+
+/*
+ * Stylistic labels, for clarity of presentation of these blocks.
+ *
+ * NOTE: This text is non-accessible and non-selectable; surrounding
+ * text must also explain the context.
+ */
+.informalsteps {
+    position: relative;
+}
+.informalsteps::after {
+    font-weight: bold;
+    font-style: italic;
+    font-size: 130%;
+    color: rgba(0, 0, 0, 0.15);
+    color: var(--watermark-text);
+    position: absolute;
+    right: .3em;
+    bottom: .1em;
+}
+.informalsteps::after {
+    content: "Non-normative";
+}
+
 /*
  * Ensure that argumentdef blocks don't overflow algorithm section borders. This is made far harder
  * than it needs to be because the top-level W3C stylesheet has several @media + min-width variants
@@ -1313,6 +1343,7 @@ The {{MLGraphBuilder/constant(value, type)}} steps are:
 
 ### The batchNormalization() method ### {#api-mlgraphbuilder-batchnorm}
 Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phase of this operation.
+
 <script type=idl>
 dictionary MLBatchNormalizationOptions {
   MLOperand scale;
@@ -1327,12 +1358,36 @@ partial interface MLGraphBuilder {
                              optional MLBatchNormalizationOptions options = {});
 };
 </script>
-<div algorithm=batchnorm>
+
+{{MLBatchNormalizationOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLBatchNormalizationOptions>
+    : <dfn>scale</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by {{MLBatchNormalizationOptions/axis}}.
+
+    : <dfn>bias</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by {{MLBatchNormalizationOptions/axis}}.
+
+    : <dfn>axis</dfn>
+    ::
+        A {{long}} scalar. Specifies the index to the feature count dimension of the input shape for which the mean and variance values are. Its value must be in the range [0, N-1] where N is the rank of input tensor. The default value is 1, corresponding to the channel (*"c"*) dimension in the *"nchw"* data layout.
+
+    : <dfn>epsilon</dfn>
+    ::
+        A {{float}} scalar. Specifies A small value to prevent computational error due to divide-by-zero.
+
+    : <dfn>activation</dfn>
+    ::
+        An {{MLActivation}} object. Specifies the optional activation function that immediately follows the normalization operation.
+</dl>
+
+<div class="note">
     **Arguments:**
         - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *mean*: an {{MLOperand}}. The 1-D tensor of the mean values of the input features across the batch whose length is equal to the size of the input dimension denoted by *options.axis*.
-        - *variance*: an {{MLOperand}}. The 1-D tensor of the variance values of the input features across the batch whose length is equal to the size of the input dimension denoted by *options.axis*.
-        - *options*: an optional {{MLBatchNormalizationOptions}}. The optional parameters of the operation.
+        - *mean*: an {{MLOperand}}. Specifies the 1-D tensor of the mean values of the input features across the batch whose length is equal to the size of the input dimension denoted by  {{MLBatchNormalizationOptions/axis}}.
+        - *variance*: an {{MLOperand}}. The 1-D tensor of the variance values of the input features across the batch whose length is equal to the size of the input dimension denoted by {{MLBatchNormalizationOptions/axis}}.
+        - *options*: an optional {{MLBatchNormalizationOptions}}. Specifies the optional parameters of the operation.
               - *scale*: an {{MLOperand}}. The 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by *options.axis*.
               - *bias*: an {{MLOperand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
               - *axis*: an {{unsigned long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. Its value must be in the range [0, N-1] where N is the rank of input tensor. When it's not specified, the default value is 1.
@@ -1340,10 +1395,30 @@ partial interface MLGraphBuilder {
               - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the normalization operation.
 
     **Returns:** an {{MLOperand}}. The batch-normalized N-D tensor of the same shape as the input tensor.
+</div>
 
-    When *input* is a 4-D tensor of the *"nchw"* or *"nhwc"* layout, *options.axis* should be set to 1 or 3 respectively. The axis value designates the feature or channel count dimension of the input tensor.
+<div algorithm=batchnorm>
+    The {{MLGraphBuilder/batchNormalization()}} method steps are:
+    1. Let |input| be the first argument. To validate |input|, run these substeps:
+        1. If |input| is not an [=object=] that [=implements=] {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |mean| be the second argument, representing a vector with the moving mean values for |input|. To validate |mean|, run the following substeps:
+        1. If |mean| is not an [=object=] that [=implements=] {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+        1. If |mean|.{{MLOperand/[[descriptor]]}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not equal with |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} from which the dimension represented by |options|.axis is removed, then  throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |variance| be the third argument, representing the moving variance values of |input|.
+    1. Let |options| be the fourth argument. To validate |options|, run these substeps:
+        1. If |options|.axis does not [=map/exist=], let |options|."axis" be 1.
+        1. If |options|.axis is not a number between 0 and the rank of |input|, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+        1. If |input| is a 4-D tensor of the *"nchw"* layout, set |options|.axis to 1.
+        1. If |input| is a 4-D tensor of the *"nhwc"* layout, set |options|.axis to 3.
+    1. Let |result| be an {{MLOperand}} representing the results. It may use the same underlying data as |input|.
+    1. Issue a request to the underlying platform to initialize the batch normalization, given |input|, |mean|, |variance|, |options| and |result| to store the results and |options|. Wait for completion.
+        <div class="informalsteps">
+            1. If |options|.activation [=map/exists=], implementations MAY use it to optimize the operation flow.
+        </div>
+    1. Return |result|.
+</div>
 
-    <div class="note">
+<div class="note">
     The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout and the activation is of operator type *relu* can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
     const shape = [1,null,1,1];
