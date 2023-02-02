@@ -621,6 +621,154 @@ The {{ML/createContextSync()}} method steps are:
 1. If the <a>validate MLContext</a> steps given |context| return `false`, throw a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
 1. Return |context|.
 
+## The MLGraph interface ## {#api-mlgraph}
+The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
+
+<script type=idl>
+[SecureContext, Exposed=(Window, DedicatedWorker)]
+interface MLGraph {};
+</script>
+
+{{MLGraph}} has the following internal slots:
+
+<dl dfn-type=attribute dfn-for="MLGraph">
+    : <dfn>\[[context]]</dfn> of type {{MLContext}}
+    ::
+        The context of type {{MLContext}} associated with this {{MLGraph}}.
+
+    : <dfn>\[[inputDescriptors]]</dfn> of type [=record=]&lt;{{DOMString}}, {{MLOperandDescriptor}}&gt;
+    ::
+        Maps the name of an input {{MLOperand}} to its {{MLOperandDescriptor}} for all input {{MLOperand}}s of this {{MLGraph}}.
+
+    : <dfn>\[[outputDescriptors]]</dfn> of type [=record=]&lt;{{DOMString}}, {{MLOperandDescriptor}}&gt;
+    ::
+        Maps the name of an output {{MLOperand}} to its {{MLOperandDescriptor}} for all output {{MLOperand}}s of this {{MLGraph}}.
+
+    : <dfn>\[[implementation]]</dfn>
+    ::
+        The underlying implementation provided by the User Agent.
+</dl>
+
+### The MLOperandDescriptor dictionary ### {#api-mloperanddescriptor}
+<script type=idl>
+enum MLInputOperandLayout {
+  "nchw",
+  "nhwc"
+};
+
+enum MLOperandType {
+  "float32",
+  "float16",
+  "int32",
+  "uint32",
+  "int8",
+  "uint8"
+};
+
+dictionary MLOperandDescriptor {
+  // The operand type.
+  required MLOperandType type;
+
+  // The dimensions field is only required for tensor operands.
+  sequence<unsigned long> dimensions;
+};
+</script>
+
+<div algorithm>
+    The <dfn for="MLOperandDescriptor">byte length</dfn> of an {{MLOperandDescriptor}} |desc| is the value returned by the following steps:
+
+    1. Let |elementLength| be 1.
+    1. For each |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
+        1. Set |elementLength| to |elementLength| × |dimension|.
+    1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+    1. Return |elementLength| × |elementSize|.
+</div>
+
+### The MLOperand interface ### {#api-mloperand}
+
+An {{MLOperand}} represents an intermediary graph being constructed as a result of compositing parts of an operation into a fully composed operation.
+
+For instance, an {{MLOperand}} may represent a constant feeding to an operation or the result from combining multiple constants together into an operation. See also [[#programming-model]].
+
+<script type=idl>
+[SecureContext, Exposed=(Window, DedicatedWorker)]
+interface MLOperand {};
+</script>
+
+{{MLOperand}} has the following internal slots:
+<dl dfn-type=attribute dfn-for="MLOperand">
+    : <dfn>\[[kind]]</dfn> of type `enum { "input", "constant", "output"}`
+    ::
+        The {{MLOperand}}'s kind
+    : <dfn>\[[type]]</dfn> of type {{MLOperandType}}
+    ::
+        The {{MLOperand}}'s type
+    : <dfn>\[[dimensions]]</dfn> of type `sequence<unsigned long>`
+    ::
+        The {{MLOperand}}'s dimensions
+    : <dfn>\[[rank]]</dfn> of type `unsigned long`
+    ::
+        The {{MLOperand}}'s rank
+    : <dfn>\[[name]]</dfn> of type [=string=]
+    ::
+        The {{MLOperand}}'s name (only for input operands)
+    : <dfn>\[[data]]</dfn> of type {{ArrayBufferView}}
+    ::
+        The {{MLOperand}}'s data buffer (only for constant operands)
+    : <dfn>\[[activation]]</dfn> of type {{MLActivation}}
+    ::
+        The {{MLOperand}}'s associated activation function object
+    : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
+    ::
+        The {{MLOperand}}'s associated builder object
+</dl>
+
+<div algorithm>
+    The <dfn for="MLOperand">rank</dfn> of an {{MLOperand}} |operand| is the value returned by the following steps:
+    1. If |operand|.{{MLOperand/[[rank]]}} [=map/exists=], return its value.
+    1. Let |rank| be 0.
+    1. For each |dimension| of |operand|.{{MLOperand/[[dimensions]]}}:
+        1. Add 1 to |rank|.
+    1. Set |operand|.{{MLOperand/[[rank]]}} to |rank|.
+    1. Return rank.
+</div>
+
+Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
+
+The guidelines in [[#security-new-ops]] also apply for operands.
+
+### The MLActivation interface ### {#api-mlactivation}
+
+Objects implementing the {{MLActivation}} interface represent activation function types.
+
+<script type=idl>
+[SecureContext, Exposed=(Window, DedicatedWorker)]
+interface MLActivation {};
+</script>
+
+{{MLActivation}} has the following internal slots:
+<dl dfn-type=attribute dfn-for="MLActivation">
+    : <dfn>\[[name]]</dfn> of type [=string=]
+    ::
+        The {{MLActivation}}'s name
+<!--
+    : <dfn>\[[inputs]]</dfn> of type {{MLNamedArrayBufferViews}}
+    ::
+        The {{MLActivation}}'s inputs
+    : <dfn>\[[outputs]]</dfn> of type {{MLNamedArrayBufferViews}}
+    ::
+        The {{MLActivation}}'s outputs
+-->
+</dl>
+
+<div class="note">
+These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as [[#api-mlgraphbuilder-conv2d]] or [[#api-mlgraphbuilder-batchnorm]] during a graph construction session. Such fused activation functions can provide a significant performance improvement when supported natively by the underlying implementation. This is intended as an optimization opportunity for implementers.
+</div>
+
+<div class="note">
+The implementation of the {{MLActivation}} interface can simply be a struct that holds a string type of the activation function along with other properties needed. The actual creation of the activation function e.g. a [[#api-mlgraphbuilder-sigmoid]] or [[#api-mlgraphbuilder-relu]] can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of [[#api-mlgraphbuilder-conv2d]] for example.
+</div>
+
 ## The MLContext interface ## {#api-mlcontext}
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device type=] and [=power preference=].
 
@@ -901,125 +1049,105 @@ partial interface MLContext {
     **Returns:** {{MLCommandEncoder}}. The command encoder used to record ML workload on the GPU.
 </div>
 
-## The MLOperandDescriptor dictionary ## {#api-mloperanddescriptor}
-<script type=idl>
-enum MLInputOperandLayout {
-  "nchw",
-  "nhwc"
-};
-
-enum MLOperandType {
-  "float32",
-  "float16",
-  "int32",
-  "uint32",
-  "int8",
-  "uint8"
-};
-
-dictionary MLOperandDescriptor {
-  // The operand type.
-  required MLOperandType type;
-
-  // The dimensions field is only required for tensor operands.
-  sequence<unsigned long> dimensions;
-};
-</script>
-
-<div algorithm>
-    The <dfn for="MLOperandDescriptor">byte length</dfn> of an {{MLOperandDescriptor}} |desc| is the value returned by the following steps:
-
-    1. Let |elementLength| be 1.
-    1. For each |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
-        1. Set |elementLength| to |elementLength| × |dimension|.
-    1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-    1. Return |elementLength| × |elementSize|.
-</div>
-
-## The MLOperand interface ## {#api-mloperand}
-
-An {{MLOperand}} represents an intermediary graph being constructed as a result of compositing parts of an operation into a fully composed operation.
-
-For instance, an {{MLOperand}} may represent a constant feeding to an operation or the result from combining multiple constants together into an operation. See also [[#programming-model]].
+## The MLCommandEncoder interface ## {#api-mlcommandencoder}
+The {{MLCommandEncoder}} interface represents a method of execution that synchronously records the computational workload of a compiled {{MLGraph}} to a {{GPUCommandBuffer}} on the calling thread. Since the workload is not immediately executed, just recorded, this method allows more flexibility for the caller to determine how and when the recorded commands will be submitted for execution on the GPU relative to other GPU workload on the same or different queue.
 
 <script type=idl>
+typedef (GPUBuffer or GPUTexture) MLGPUResource;
+
+typedef record<DOMString, MLGPUResource> MLNamedGPUResources;
+
 [SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLOperand {};
+interface MLCommandEncoder {};
 </script>
 
-{{MLOperand}} has the following internal slots:
-<dl dfn-type=attribute dfn-for="MLOperand">
-    : <dfn>\[[kind]]</dfn> of type `enum { "input", "constant", "output"}`
+{{MLCommandEncoder}} has the following internal slots:
+
+<dl dfn-type=attribute dfn-for="MLCommandEncoder">
+    : <dfn>\[[context]]</dfn> of type {{MLContext}}
     ::
-        The {{MLOperand}}'s kind
-    : <dfn>\[[type]]</dfn> of type {{MLOperandType}}
+        The context of type {{MLContext}} associated with this {{MLCommandEncoder}}.
+
+    : <dfn>\[[implementation]]</dfn>
     ::
-        The {{MLOperand}}'s type
-    : <dfn>\[[dimensions]]</dfn> of type `sequence<unsigned long>`
-    ::
-        The {{MLOperand}}'s dimensions
-    : <dfn>\[[rank]]</dfn> of type `unsigned long`
-    ::
-        The {{MLOperand}}'s rank
-    : <dfn>\[[name]]</dfn> of type [=string=]
-    ::
-        The {{MLOperand}}'s name (only for input operands)
-    : <dfn>\[[data]]</dfn> of type {{ArrayBufferView}}
-    ::
-        The {{MLOperand}}'s data buffer (only for constant operands)
-    : <dfn>\[[activation]]</dfn> of type {{MLActivation}}
-    ::
-        The {{MLOperand}}'s associated activation function object
-    : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
-    ::
-        The {{MLOperand}}'s associated builder object
+        The underlying implementation provided by the User Agent.
 </dl>
 
-<div algorithm>
-    The <dfn for="MLOperand">rank</dfn> of an {{MLOperand}} |operand| is the value returned by the following steps:
-    1. If |operand|.{{MLOperand/[[rank]]}} [=map/exists=], return its value.
-    1. Let |rank| be 0.
-    1. For each |dimension| of |operand|.{{MLOperand/[[dimensions]]}}:
-        1. Add 1 to |rank|.
-    1. Set |operand|.{{MLOperand/[[rank]]}} to |rank|.
-    1. Return rank.
-</div>
-
-Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
-
-The guidelines in [[#security-new-ops]] also apply for operands.
-
-
-## The MLActivation interface ## {#api-mlactivation}
-
-Objects implementing the {{MLActivation}} interface represent activation function types.
+### Graph Initialization ### {#api-mlcommandencoder-graph-initialization}
+Record the initialization of the {{MLGraph}}. This is a necessary step for optimal performance during graph execution as it gives the platform an opportunity to prepare and optimize constant input data for the subsequent execution of the graph. This method should only be called once per graph.
 
 <script type=idl>
-[SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLActivation {};
+partial interface MLCommandEncoder {
+  undefined initializeGraph(MLGraph graph);
+};
 </script>
 
-{{MLActivation}} has the following internal slots:
-<dl dfn-type=attribute dfn-for="MLActivation">
-    : <dfn>\[[name]]</dfn> of type [=string=]
-    ::
-        The {{MLActivation}}'s name
-<!--
-    : <dfn>\[[inputs]]</dfn> of type {{MLNamedArrayBufferViews}}
-    ::
-        The {{MLActivation}}'s inputs
-    : <dfn>\[[outputs]]</dfn> of type {{MLNamedArrayBufferViews}}
-    ::
-        The {{MLActivation}}'s outputs
--->
-</dl>
+<div algorithm=mlcommandencoder.initializegraph>
+    **Arguments:**
+        - *graph*: an {{MLGraph}}. The compiled graph to be initialized with graph constant inputs.
 
-<div class="note">
-These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as [[#api-mlgraphbuilder-conv2d]] or [[#api-mlgraphbuilder-batchnorm]] during a graph construction session.
+    **Returns:** {{undefined}}.
 </div>
 
 <div class="note">
-The implementation of the {{MLActivation}} interface can simply be a struct that holds a string type of the activation function along with other properties needed. The actual creation of the activation function e.g. a [[#api-mlgraphbuilder-sigmoid]] or [[#api-mlgraphbuilder-relu]] can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of [[#api-mlgraphbuilder-conv2d]] for example.
+Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder}}.{{MLGraphBuilder/constant(desc, bufferView)}} method as constant operands during graph construction time.
+</div>
+
+### Dispatch Execution Commands ### {#api-mlcommandencoder-dispatch-commands}
+Record the {{MLGraph}} execution with the inputs {{MLNamedGPUResources}} and outputs {{MLNamedGPUResources}}.
+
+<script type=idl>
+partial interface MLCommandEncoder {
+  undefined dispatch(MLGraph graph, MLNamedGPUResources inputs, MLNamedGPUResources outputs);
+};
+</script>
+
+<div algorithm=mlcommandencoder.dispatch>
+    **Arguments:**
+        - *graph*: an {{MLGraph}}. The compiled graph to be executed.
+        - *inputs*: an {{MLNamedGPUResources}}. The resources of inputs.
+        - *outputs*: an {{MLNamedGPUResources}}. The pre-allocated resources of required outputs.
+
+    **Returns:** {{undefined}}.
+
+      1. If any of the following requirements are unmet, then throw a "{{DataError}}" {{DOMException}} and stop.
+          <div class=validusage>
+            1. For each |key| -> |value| of |inputs|:
+                1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must [=map/exist=].
+                1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+                1. If |value| is a {{GPUBuffer}}, then:
+                    1. |value|.{{GPUBuffer/size}} must equal to [=byte length=] of |inputDesc|.
+            1. For each |key| -> |value| of |outputs|:
+                1. |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|] must [=map/exist=].
+                1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
+                1. If |value| is a {{GPUBuffer}}, then:
+                    1. |value|.{{GPUBuffer/size}} must equal to [=byte length=] of |outputDesc|.
+        </div>
+
+      1. For each |key| -> |value| of |inputs|:
+          1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |value|.
+      1. For each |key| -> |value| of |outputs|:
+          1. Set the output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |value|.
+      1. Issue a compute request of |graph|.{{MLGraph/[[implementation]]}}.
+      1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
+          1. Throw an "{{OperationError}}" {{DOMException}} and stop.
+      1. Return {{undefined}}.
+</div>
+
+### Generate GPU Command Buffer ### {#api-mlcommandencoder-generate-gpu-command-buffer}
+Complete the recording of ML workload and return a WebGPU-compatible {{GPUCommandBuffer}} containing the recorded workload.
+
+<script type=idl>
+partial interface MLCommandEncoder {
+  GPUCommandBuffer finish(optional GPUCommandBufferDescriptor descriptor = {});
+};
+</script>
+
+<div algorithm=mlcommandencoder.finish>
+    **Arguments:**
+        - *descriptor*: an optional {{GPUCommandBufferDescriptor}}. Descriptor of the command buffer.
+
+    **Returns:** {{GPUCommandBuffer}}.
 </div>
 
 ## The MLGraphBuilder interface ## {#api-mlgraphbuilder}
@@ -1075,10 +1203,9 @@ Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGr
 The [=new=] {{MLGraphBuilder}} constructor steps are:
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
 1. Let |context| be the first argument.
-1. If |context| is not a valid {{MLContext}}, throw a "{{TypeError}}" and abort these steps.
-1. Set {{MLGraphBuilder/[[context]]}} to |context|.
+1. If the <a>validate MLContext</a> steps given |context| return `false`, throw a "{{TypeError}}" and abort these steps.
 
-Issue(webmachinelearning/webnn#308): Add an algorithm to validate {{MLContext}}.
+1. Set {{MLGraphBuilder/[[context]]}} to |context|.
 
 ### The batchNormalization() method ### {#api-mlgraphbuilder-batchnorm}
 Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phase of this operation.
@@ -1274,7 +1401,7 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.inputLayout* value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follow:
 
-    *output size = 1 + (input size - filter size - (filter size - 1) ** *(dilation - 1) + beginning padding + ending padding) / stride*
+    *output size = 1 + (input size - (filter size - 1) ** *dilation - 1 + beginning padding + ending padding) / stride*
 
     <div class="note">
     A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options.groups* = input_channels = output_channels and the shape of filter tensor is [options.groups, 1, height, width]
@@ -1351,7 +1478,7 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options.inputLayout* value. More specifically, unless the *options.outputSizes* values are explicitly specified, the *options.outputPadding* may be needed to compute the spatial dimension values of the output tensor as follow:
 
-    *output size = (input size - 1) ** *stride + filter size + (filter size - 1) ** *(dilation - 1) - beginning padding - ending padding + output padding*
+    *output size = (input size - 1) ** *stride + (filter size - 1) ** *dilation + 1 - beginning padding - ending padding + output padding*
 </div>
 
 ### Element-wise binary operations ### {#api-mlgraphbuilder-binary}
@@ -2793,135 +2920,6 @@ partial interface MLGraphBuilder {
             - *permutation*: a sequence of {{long}} values. The values used to permute the output shape. When it's not specified, it's set to `[N-1...0]`, where `N` is the rank of the input tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor.
-</div>
-
-## The MLGraph interface ## {#api-mlgraph}
-The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
-
-<script type=idl>
-[SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLGraph {};
-</script>
-
-{{MLGraph}} has the following internal slots:
-
-<dl dfn-type=attribute dfn-for="MLGraph">
-    : <dfn>\[[context]]</dfn> of type {{MLContext}}
-    ::
-        The context of type {{MLContext}} associated with this {{MLGraph}}.
-
-    : <dfn>\[[inputDescriptors]]</dfn> of type [=record=]&lt;{{DOMString}}, {{MLOperandDescriptor}}&gt;
-    ::
-        Maps the name of an input {{MLOperand}} to its {{MLOperandDescriptor}} for all input {{MLOperand}}s of this {{MLGraph}}.
-
-    : <dfn>\[[outputDescriptors]]</dfn> of type [=record=]&lt;{{DOMString}}, {{MLOperandDescriptor}}&gt;
-    ::
-        Maps the name of an output {{MLOperand}} to its {{MLOperandDescriptor}} for all output {{MLOperand}}s of this {{MLGraph}}.
-
-    : <dfn>\[[implementation]]</dfn>
-    ::
-        The underlying implementation provided by the User Agent.
-</dl>
-
-## The MLCommandEncoder interface ## {#api-mlcommandencoder}
-The {{MLCommandEncoder}} interface represents a method of execution that synchronously records the computational workload of a compiled {{MLGraph}} to a {{GPUCommandBuffer}} on the calling thread. Since the workload is not immediately executed, just recorded, this method allows more flexibility for the caller to determine how and when the recorded commands will be submitted for execution on the GPU relative to other GPU workload on the same or different queue.
-
-<script type=idl>
-typedef (GPUBuffer or GPUTexture) MLGPUResource;
-
-typedef record<DOMString, MLGPUResource> MLNamedGPUResources;
-
-[SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLCommandEncoder {};
-</script>
-
-{{MLCommandEncoder}} has the following internal slots:
-
-<dl dfn-type=attribute dfn-for="MLCommandEncoder">
-    : <dfn>\[[context]]</dfn> of type {{MLContext}}
-    ::
-        The context of type {{MLContext}} associated with this {{MLCommandEncoder}}.
-
-    : <dfn>\[[implementation]]</dfn>
-    ::
-        The underlying implementation provided by the User Agent.
-</dl>
-
-### Graph Initialization ### {#api-mlcommandencoder-graph-initialization}
-Record the initialization of the {{MLGraph}}. This is a necessary step for optimal performance during graph execution as it gives the platform an opportunity to prepare and optimize constant input data for the subsequent execution of the graph. This method should only be called once per graph.
-
-<script type=idl>
-partial interface MLCommandEncoder {
-  undefined initializeGraph(MLGraph graph);
-};
-</script>
-
-<div algorithm=mlcommandencoder.initializegraph>
-    **Arguments:**
-        - *graph*: an {{MLGraph}}. The compiled graph to be initialized with graph constant inputs.
-
-    **Returns:** {{undefined}}.
-</div>
-
-<div class="note">
-Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder}}.{{MLGraphBuilder/constant(desc, bufferView)}} method as constant operands during graph construction time.
-</div>
-
-### Dispatch Execution Commands ### {#api-mlcommandencoder-dispatch-commands}
-Record the {{MLGraph}} execution with the inputs {{MLNamedGPUResources}} and outputs {{MLNamedGPUResources}}.
-
-<script type=idl>
-partial interface MLCommandEncoder {
-  undefined dispatch(MLGraph graph, MLNamedGPUResources inputs, MLNamedGPUResources outputs);
-};
-</script>
-
-<div algorithm=mlcommandencoder.dispatch>
-    **Arguments:**
-        - *graph*: an {{MLGraph}}. The compiled graph to be executed.
-        - *inputs*: an {{MLNamedGPUResources}}. The resources of inputs.
-        - *outputs*: an {{MLNamedGPUResources}}. The pre-allocated resources of required outputs.
-
-    **Returns:** {{undefined}}.
-
-      1. If any of the following requirements are unmet, then throw a "{{DataError}}" {{DOMException}} and stop.
-          <div class=validusage>
-            1. For each |key| -> |value| of |inputs|:
-                1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must [=map/exist=].
-                1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-                1. If |value| is a {{GPUBuffer}}, then:
-                    1. |value|.{{GPUBuffer/size}} must equal to [=byte length=] of |inputDesc|.
-            1. For each |key| -> |value| of |outputs|:
-                1. |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|] must [=map/exist=].
-                1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
-                1. If |value| is a {{GPUBuffer}}, then:
-                    1. |value|.{{GPUBuffer/size}} must equal to [=byte length=] of |outputDesc|.
-        </div>
-
-      1. For each |key| -> |value| of |inputs|:
-          1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |value|.
-      1. For each |key| -> |value| of |outputs|:
-          1. Set the output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |value|.
-      1. Issue a compute request of |graph|.{{MLGraph/[[implementation]]}}.
-      1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
-          1. Throw an "{{OperationError}}" {{DOMException}} and stop.
-      1. Return {{undefined}}.
-</div>
-
-### Generate GPU Command Buffer ### {#api-mlcommandencoder-generate-gpu-command-buffer}
-Complete the recording of ML workload and return a WebGPU-compatible {{GPUCommandBuffer}} containing the recorded workload.
-
-<script type=idl>
-partial interface MLCommandEncoder {
-  GPUCommandBuffer finish(optional GPUCommandBufferDescriptor descriptor = {});
-};
-</script>
-
-<div algorithm=mlcommandencoder.finish>
-    **Arguments:**
-        - *descriptor*: an optional {{GPUCommandBufferDescriptor}}. Descriptor of the command buffer.
-
-    **Returns:** {{GPUCommandBuffer}}.
 </div>
 
 Examples {#examples}
