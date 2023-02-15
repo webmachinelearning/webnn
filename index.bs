@@ -1464,22 +1464,12 @@ dictionary MLClampOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand clamp(MLOperand x, optional MLClampOptions options = {});
+  MLOperand clamp(MLOperand operand, optional MLClampOptions options = {});
   MLActivation clamp(optional MLClampOptions options = {});
 };
 </script>
-<div algorithm=clamp>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
-            - *minValue*: a {{float}} scalar. Specifies the minimum value of the range. When it is not specified, the clamping is not performed on the lower limit of the range.
-            - *maxValue*: a {{float}} scalar. Specifies the maximum value of the range. When it is not specified, the clamping is not performed on the upper limit of the range.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the clamp operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -1501,7 +1491,54 @@ partial interface MLGraphBuilder {
       }
     }
     </pre>
-    </div>
+</div>
+
+To <dfn>check clamp options</dfn> given |options|, run the following steps:
+    1. If |options| is not an object that [=implements=] {{MLClampOptions}}, then return `false`.
+    1. If |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}} are not a [=numeric type=], then then return `false`.
+    1. If |options|.{{MLClampOptions/minValue}} is greater than |options|.{{MLClampOptions/maxValue}}, then return `false`.
+    1. Return `true`.
+
+#### The {{MLGraphBuilder/clamp(operand, options)}} method #### {#api-mlgraphbuilder-clamp-operand-options}
+<div class="note">
+    **Arguments:**
+        - *operand*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
+            - *minValue*: a {{float}} scalar. Specifies the minimum value of the range. When it is not specified, the clamping is not performed on the lower limit of the range.
+            - *maxValue*: a {{float}} scalar. Specifies the maximum value of the range. When it is not specified, the clamping is not performed on the upper limit of the range.
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *operand*.
+</div>
+<div algorithm=clamp>
+    The {{MLGraphBuilder/clamp(operand, options)}} method steps are:
+    1. Let |operand| be the first argument.
+    1. Let |options| be the second argument.
+        1. If running the <a>check clamp options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |result| be the result of invoking the <a>copy MLOperand</a> steps given |operand|.
+            1. If that throws an error, re-throw the error and abort these steps.
+    1. Make a request to the underlying platform to connect |result| with the [=implementation-defined=] platform operator for clamp, and store a reference to the resulting [=implementation-defined=] platform operand object in |result|.{{MLOperand/[[operand]]}}.
+        1. If that fails, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. Return |result|.
+</div>
+
+#### The {{MLGraphBuilder/clamp(options)}} method #### {#api-mlgraphbuilder-clamp-options}
+<div class="note">
+    **Arguments:**
+        - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
+            - *minValue*: a {{float}} scalar. Specifies the minimum value of the range. When it is not specified, the clamping is not performed on the lower limit of the range.
+            - *maxValue*: a {{float}} scalar. Specifies the maximum value of the range. When it is not specified, the clamping is not performed on the upper limit of the range.
+    **Returns:**
+        - an {{MLActivation}}. The operator representing the clamp operation.
+</div>
+<div algorithm=clamp-options>
+    The {{MLGraphBuilder/clamp(options)}} method steps are:
+    1. Let |options| be the first argument.
+        1. If running the <a>check clamp options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"clamp"` and |options|.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Make a request to the underlying platform to connect |op| with the [=implementation-defined=] platform operator for clamp, and store a reference to the resulting [=implementation-defined=] platform operator object in |op|.{{MLActivation/[[operator]]}}.
+        1. If that fails, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. Return |op|.
 </div>
 
 ### The concat() method ### {#api-mlgraphbuilder-concat}
