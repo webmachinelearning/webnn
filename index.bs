@@ -1264,8 +1264,9 @@ partial interface MLGraphBuilder {
         - *inputs*: a sequence of {{MLOperand}}. All input tensors must have the
             same shape, except for the size of the dimension to concatenate on.
         - *axis*: a {{long}} scalar. The axis that the inputs concatenate along, with
-            the value in the interval [0, N) where N is the rank of all the
-            inputs.
+            the value in the interval [-N, N) where N is the rank of all the
+            inputs. A negative value is interpreted as counting back from the end.
+
 
     **Returns:** an {{MLOperand}}. The concatenated tensor of all the inputs along
     the *axis*. The output tensor has the same shape except on the dimension
@@ -2776,7 +2777,7 @@ partial interface MLGraphBuilder {
         - *input*: an {{MLOperand}}. The input tensor.
         - *splits*: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
         - *options*: an optional {{MLSplitOptions}}. The optional parameters of the operation.
-            - *axis*: a {{long}}. The dimension along which to split. Default to 0. A negative value is interpreted as counting back from the end.
+            - *axis*: a {{long}} scalar. The dimension along which to split, with the value in the interval [-N, N) where N is the rank of the input tensor. Default to 0. A negative value is interpreted as counting back from the end.
 
     **Returns:** a sequence of {{MLOperand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the length of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the length of the output sequence equals to the length of *splits*. The shape of the i-th output tensor is the same as as *input* except along *axis* where the dimension size is *splits[i]*.
 
