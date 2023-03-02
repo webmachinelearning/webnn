@@ -691,13 +691,14 @@ An {{MLOperand}} represents an intermediary graph being constructed as a result 
 For instance, an {{MLOperand}} may represent a constant feeding to an operation or the result from combining multiple constants together into an operation. See also [[#programming-model]].
 
 <script type=idl>
+enum MLOperandKind {"constant", "input", "output"};
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLOperand {};
 </script>
 
 {{MLOperand}} has the following internal slots:
 <dl dfn-type=attribute dfn-for="MLOperand">
-    : <dfn>\[[kind]]</dfn> of type `enum { "input", "constant", "output"}`
+    : <dfn>\[[kind]]</dfn> of type {{MLOperandKind}}
     ::
         The {{MLOperand}}'s kind
     : <dfn>\[[type]]</dfn> of type {{MLOperandType}}
@@ -720,6 +721,7 @@ interface MLOperand {};
         The {{MLOperand}}'s associated builder object
 </dl>
 
+
 <div algorithm>
     The <dfn for="MLOperand">rank</dfn> of an {{MLOperand}} |operand| is the value returned by the following steps:
     1. Return the size of |operand|.{{MLOperand/[[dimensions]]}}.
@@ -729,13 +731,69 @@ Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/cons
 
 The guidelines in [[#security-new-ops]] also apply for operands.
 
+#### The {{MLOperand}} constructor #### {#api-mloperand-constructor}
+The [=new=] {{MLOperand}} constructor steps are:
+1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
+1. Let |builder| be the first argument.
+1. If |builder| is not an instance of {{MLGraphBuilder}}, throw a "{{TypeError}}" and abort these steps.
+1. Set [=this=]'s {{MLOperand/[[builder]]}} to |builder|.
+1. Let |kind| be the second argument.
+1. If |kind| is not an {{MLOperandKind}}, throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+1. Set [=this=]'s {{MLOperand/[[kind]]}} to |kind|.
+1. Let |type| be the third argument.
+1. If |type| is not an {{MLOperandType}}, throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+1. Set [=this=]'s {{MLOperand/[[type]]}} to |type|.
+1. If |kind| is `"constant"`:
+    1. Let |name| be the fourth argument.
+    1. If |name| is not a [=string=], throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Set [=this=]'s {{MLOperand/[[name]]}} to |name|.
+    1. Let |desc| be the fifth argument.
+    1. If |desc| is not an {{MLOperandDescriptor}}, throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. If |type| is not equal to |desc|'s {{MLOperandDescriptor/type}}, throw a "{{DataError}}" {{DOMException}} and abort these steps.
+    1. Set [=this=]'s {{MLOperand/[[dimensions]]}} to |desc|.{{MLOperandDescriptor/dimensions}}.
+    1. Let |bufferView| be the sixth argument.
+    1. If |bufferView| is not an {{MLBufferView}}, throw a "{{DataError}}" {{DOMException}} and abort these steps.
+    1. If |type| is not equal to |bufferView|'s [=element type=], throw a "{{DataError}}" {{DOMException}} and abort these steps.
+    1. If the [=byte length=] of |desc| is not supported by the implementation, throw a "{{DataError}}" {{DOMException}} and abort these steps.
+    1. If the [=byte length=] of |desc| is not equal with |bufferView|.\[[ByteLength]], throw a "{{DataError}}" {{DOMException}} and abort these steps.
+    1. Set [=this=]'s {{MLOperand/[[tensorData]]}} to |bufferView|.
+1. Otherwise, of |kind| is `"input"`:
+    1. Let |name| be the fourth argument.
+    1. If |name| is not a [=string=], throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Set [=this=]'s {{MLOperand/[[name]]}} to |name|.
+    1. Let |desc| be the fifth argument.
+    1. If |desc| is not an {{MLOperandDescriptor}}, throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. If |type| is not equal to |desc|'s {{MLOperandDescriptor/type}}, throw a "{{DataError}}" {{DOMException}} and abort these steps.
+    1. If the [=byte length=] of |desc| is not supported by the implementation, throw a "{{DataError}}" {{DOMException}} and abort these steps.
+    1. Set [=this=]'s {{MLOperand/[[dimensions]]}} to |desc|.{{MLOperandDescriptor/dimensions}}.
+1. Otherwise, of |kind| is `"output"`:
+    1. Let |dimensions| be the fourth argument.
+    1. If the [=check dimensions=] steps given |type| and |dimensions| return `false`, throw a "{{DataError}}" {{DOMException}} and abort these steps.
+    1. Let |activation| be the fifth argument.
+    1. If |activation| is not `undefined` and is not a [=string=] or a [=function=], throw a "{{DataError}}" {{DOMException}} and abort these steps.
+    1. If |activation| is a [=string=] and is not supported by the implementation as an activation function, throw a "{{DataError}}" {{DOMException}} and abort these steps.
+    1. Make a request to the underlying platform to register |activation| as an activation function for [=this=].
+1. Return [=this=].
+
+To <dfn>check dimensions</dfn> given |dimensions| and |type|, run the following steps:
+1. If |dimensions| is not an array of positive numbers, return `false`;
+1. If |dimensions|.length is 0, return `false`.
+1. If |dimensions|.length is too large to be supported by the implementation, return `false`.
+1. If any element of |dimensions| is too large to be supported by the implementation, return `false`.
+1. Return `true`.
+
 ### The MLActivation interface ### {#api-mlactivation}
 
 Objects implementing the {{MLActivation}} interface represent activation function types.
 
 <script type=idl>
+typedef object MLActivationOptions;
+
 [SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLActivation {};
+interface MLActivation {
+    constructor(MLGraphBuilder builder, DOMString name,
+                optional MLActivationOptions options);
+};
 </script>
 
 {{MLActivation}} has the following internal slots:
@@ -743,6 +801,12 @@ interface MLActivation {};
     : <dfn>\[[name]]</dfn> of type [=string=]
     ::
         The {{MLActivation}}'s name
+    : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
+    ::
+        The graph builder object this {{MLActivation}} belongs to.
+    : <dfn>\[[options]]</dfn> of type [=object=]
+    ::
+        An {{MLActivationOptions}} dictionary containing {{MLActivation}}'s options.
 </dl>
 
 <div class="note">
@@ -752,6 +816,19 @@ These activations function types are used to create other operations. One such u
 <div class="note">
 The implementation of the {{MLActivation}} interface can simply be a struct that holds a string type of the activation function along with other properties needed. The actual creation of the activation function e.g. a [[#api-mlgraphbuilder-sigmoid]] or [[#api-mlgraphbuilder-relu]] can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of [[#api-mlgraphbuilder-conv2d]] for example.
 </div>
+
+#### The {{MLActivation}} constructor #### {#api-mlactivation-constructor}
+The [=new=] {{MLActivation}} constructor steps are:
+1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
+1. Let |builder| be the first argument.
+1. If |builder| is not an instance of {{MLGraphBuilder}}, throw a "{{TypeError}}" and abort these steps.
+1. Set [=this=]'s {{MLActivation/[[builder]]}} to |builder|.
+1. Let |name| be the second argument.
+1. If |name| is `undefined` or `null`,  throw a "{{TypeError}}" and abort these steps.
+1. Set [=this=]'s {{MLActivation/[[name]]}} to |name|.
+1. Let |options| be the third argument.
+1. If |options| is an instance of {{MLActivationOptions}}, set [=this=]'s {{MLActivation/[[options]]}} to |options|.
+1. Return [=this=].
 
 ## The MLContext interface ## {#api-mlcontext}
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device type=] and [=power preference=].
@@ -1188,7 +1265,6 @@ The [=new=] {{MLGraphBuilder}} constructor steps are:
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
 1. Let |context| be the first argument.
 1. If the <a>validate MLContext</a> steps given |context| return `false`, throw a "{{TypeError}}" and abort these steps.
-
 1. Set {{MLGraphBuilder/[[context]]}} to |context|.
 
 ### The batchNormalization() method ### {#api-mlgraphbuilder-batchnorm}
