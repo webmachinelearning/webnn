@@ -1158,7 +1158,7 @@ Normalize the tensor values of input features across the batch dimension using [
 dictionary MLBatchNormalizationOptions {
   MLOperand scale;
   MLOperand bias;
-  unsigned long axis = 1;
+  unsigned long axis = 0;
   float epsilon = 1e-5;
   MLActivation activation;
 };
@@ -1176,7 +1176,7 @@ partial interface MLGraphBuilder {
         - *options*: an optional {{MLBatchNormalizationOptions}}. The optional parameters of the operation.
               - *scale*: an {{MLOperand}}. The 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by *options.axis*.
               - *bias*: an {{MLOperand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
-              - *axis*: an {{unsigned long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. Its value must be in the range [0, N) where N is the rank of input tensor. When it's not specified, the default value is 1.
+              - *axis*: an {{unsigned long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. Its value must be in the range [0, N-1] where N is the rank of input tensor. When it's not specified, the default value is 0.
               - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
               - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the normalization operation.
 
@@ -1263,7 +1263,7 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *inputs*: a sequence of {{MLOperand}}. All input tensors must have the
             same shape, except for the size of the dimension to concatenate on.
-        - *axis*: an {{unsigned long}} scalar. The axis that the inputs concatenate along. Its value must be in the range [0, N) where N is the rank of input tensors.
+        - *axis*: an {{unsigned long}} scalar. The axis that the inputs concatenate along. Its value must be in the range [0, N-1] where N is the rank of input tensors.
 
     **Returns:** an {{MLOperand}}. The concatenated tensor of all the inputs along
     the *axis*. The output tensor has the same shape except on the dimension
@@ -2502,7 +2502,7 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLReduceOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{unsigned long}}. The dimensions to reduce. The values in the sequence must be in the range [0, N) where N is the rank of input tensor.
+            - *axes*: a sequence of {{unsigned long}}. The dimensions to reduce. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor.
                 If not present, all dimensions are reduced.
             - *keepDimensions*: a {{boolean}}. If true, retains reduced dimensions with size of 1.
                 The default value is false.
@@ -2653,7 +2653,7 @@ partial interface MLGraphBuilder {
         - *sizes*: a sequence of {{long}}. The lengths to slice of the corresponding axes of the input shape.
             The length value of -1 selects all the remaining elements from the starting index of the given axis.
         - *options*: an optional {{MLSliceOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{unsigned long}}. The dimensions of the input shape to which *starts* and *sizes* apply. The values in the sequence must be in the range [0, N) where N is the rank of input tensor. When not specified, the sequence is assumed to be [0,1,..*N-1*].
+            - *axes*: a sequence of {{unsigned long}}. The dimensions of the input shape to which *starts* and *sizes* apply. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor. When not specified, the sequence is assumed to be [0,1,..*N-1*].
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
@@ -2774,7 +2774,7 @@ partial interface MLGraphBuilder {
         - *input*: an {{MLOperand}}. The input tensor.
         - *splits*: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
         - *options*: an optional {{MLSplitOptions}}. The optional parameters of the operation.
-            - *axis*: an {{unsigned long}} scalar. The dimension along which to split. Its value must be in the range [0, N) where N is the rank of input tensor. Default to 0.
+            - *axis*: an {{unsigned long}} scalar. The dimension along which to split. Its value must be in the range [0, N-1] where N is the rank of input tensor. Default to 0.
 
     **Returns:** a sequence of {{MLOperand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the length of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the length of the output sequence equals to the length of *splits*. The shape of the i-th output tensor is the same as as *input* except along *axis* where the dimension size is *splits[i]*.
 
@@ -2811,7 +2811,7 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLSqueezeOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{unsigned long}}. Indices to the shape dimensions of size 1 to eliminate. The values in the sequence must be in the range [0, N) where N is the rank of input tensor. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
+            - *axes*: a sequence of {{unsigned long}}. Indices to the shape dimensions of size 1 to eliminate. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
 </div>
