@@ -1158,7 +1158,7 @@ Normalize the tensor values of input features across the batch dimension using [
 dictionary MLBatchNormalizationOptions {
   MLOperand scale;
   MLOperand bias;
-  long axis = 1;
+  unsigned long axis = 1;
   float epsilon = 1e-5;
   MLActivation activation;
 };
@@ -1176,7 +1176,7 @@ partial interface MLGraphBuilder {
         - *options*: an optional {{MLBatchNormalizationOptions}}. The optional parameters of the operation.
               - *scale*: an {{MLOperand}}. The 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by *options.axis*.
               - *bias*: an {{MLOperand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
-              - *axis*: a {{long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. When it's not specified, the default value is 1.
+              - *axis*: an {{unsigned long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. Its value must be in the range [0, N-1] where N is the rank of input tensor. When it's not specified, the default value is 1.
               - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
               - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the normalization operation.
 
@@ -1256,16 +1256,14 @@ partial interface MLGraphBuilder {
 Concatenates the input tensors along a given axis.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand concat(sequence<MLOperand> inputs, long axis);
+  MLOperand concat(sequence<MLOperand> inputs, unsigned long axis);
 };
 </script>
 <div algorithm=concat>
     **Arguments:**
         - *inputs*: a sequence of {{MLOperand}}. All input tensors must have the
             same shape, except for the size of the dimension to concatenate on.
-        - *axis*: a {{long}} scalar. The axis that the inputs concatenate along, with
-            the value in the interval [0, N) where N is the rank of all the
-            inputs.
+        - *axis*: an {{unsigned long}} scalar. The axis that the inputs concatenate along. Its value must be in the range [0, N-1] where N is the rank of input tensors.
 
     **Returns:** an {{MLOperand}}. The concatenated tensor of all the inputs along
     the *axis*. The output tensor has the same shape except on the dimension
@@ -2483,7 +2481,7 @@ partial interface MLGraphBuilder {
 Reduce the input along the dimensions given in *axes*.
 <script type=idl>
 dictionary MLReduceOptions {
-  sequence<long> axes = null;
+  sequence<unsigned long> axes = null;
   boolean keepDimensions = false;
 };
 
@@ -2504,7 +2502,7 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLReduceOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{long}}. The dimensions to reduce where -1 means the last dimension.
+            - *axes*: a sequence of {{unsigned long}}. The dimensions to reduce. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor.
                 If not present, all dimensions are reduced.
             - *keepDimensions*: a {{boolean}}. If true, retains reduced dimensions with size of 1.
                 The default value is false.
@@ -2563,7 +2561,7 @@ dictionary MLResample2dOptions {
   MLInterpolationMode mode = "nearest-neighbor";
   sequence<float> scales;
   sequence<unsigned long> sizes;
-  sequence<long> axes;
+  sequence<unsigned long> axes;
 };
 
 partial interface MLGraphBuilder {
@@ -2578,7 +2576,7 @@ partial interface MLGraphBuilder {
                 If not set, it is assumed to be the *Nearest Neighbor* interpolation.
             - *scales*: a sequence of {{float}} of length 2. Each value represents the scaling factor used to scale in each spatial dimensions of input, [scale_height, scale_width]. If not set, the values are assumed to be [1.0, 1.0].
             - *sizes*: a sequence of {{unsigned long}} of length 2. The target sizes for each spatial dimensions of input, [size_height, size_width]. When the target sizes are specified, the *options.scales* argument is ignored as the scaling factor values are derived from the target sizes of each spatial dimension of input.
-            - *axes*: a sequence of {{long}} of length 2. The two consecutive dimensions of the input tensor to which the interpolation algorithm applies. The valid values in the sequence are [0, 1], [1, 2] or [2, 3]. When not specified, the sequence is assumed to be [2, 3].
+            - *axes*: a sequence of {{unsigned long}} of length 2. The two consecutive dimensions of the input tensor to which the interpolation algorithm applies. The valid values in the sequence are [0, 1], [1, 2] or [2, 3]. When not specified, the sequence is assumed to be [2, 3].
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor.
 </div>
@@ -2640,7 +2638,7 @@ partial interface MLGraphBuilder {
 Produce a slice of the input tensor.
 <script type=idl>
 dictionary MLSliceOptions {
-  sequence<long> axes;
+  sequence<unsigned long> axes;
 };
 
 partial interface MLGraphBuilder {
@@ -2655,7 +2653,7 @@ partial interface MLGraphBuilder {
         - *sizes*: a sequence of {{long}}. The lengths to slice of the corresponding axes of the input shape.
             The length value of -1 selects all the remaining elements from the starting index of the given axis.
         - *options*: an optional {{MLSliceOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{long}}. The dimensions of the input shape to which *starts* and *sizes* apply. The values in the sequence are either within the [0, *r*-1] range where *r* is the input tensor rank, or the [*-r*, -1] range where negative values mean counting back from the end of the input shape. When not specified, the sequence is assumed to be [0,1,..*r-1*].
+            - *axes*: a sequence of {{unsigned long}}. The dimensions of the input shape to which *starts* and *sizes* apply. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor. When not specified, the sequence is assumed to be [0, ..., N-1], e.g. [0,1,2] for a 3-D tensor.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
@@ -2762,7 +2760,7 @@ partial interface MLGraphBuilder {
 Split the input tensor into a number of sub tensors along the given axis.
 <script type=idl>
 dictionary MLSplitOptions {
-  long axis = 0;
+  unsigned long axis = 0;
 };
 
 partial interface MLGraphBuilder {
@@ -2776,7 +2774,7 @@ partial interface MLGraphBuilder {
         - *input*: an {{MLOperand}}. The input tensor.
         - *splits*: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
         - *options*: an optional {{MLSplitOptions}}. The optional parameters of the operation.
-            - *axis*: a {{long}}. The dimension along which to split. Default to 0. A negative value is interpreted as counting back from the end.
+            - *axis*: an {{unsigned long}} scalar. The dimension along which to split. Its value must be in the range [0, N-1] where N is the rank of input tensor. Default to 0.
 
     **Returns:** a sequence of {{MLOperand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the length of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the length of the output sequence equals to the length of *splits*. The shape of the i-th output tensor is the same as as *input* except along *axis* where the dimension size is *splits[i]*.
 
@@ -2802,7 +2800,7 @@ partial interface MLGraphBuilder {
 Reduce the rank of a tensor by eliminating dimensions with size 1 of the tensor shape. Squeeze only affects the tensor's logical dimensions. It does not copy or change the content in the tensor.
 <script type=idl>
 dictionary MLSqueezeOptions {
-  sequence<long> axes;
+  sequence<unsigned long> axes;
 };
 
 partial interface MLGraphBuilder {
@@ -2813,7 +2811,7 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLSqueezeOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{long}}. Indices to the shape dimensions of size 1 to eliminate. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
+            - *axes*: a sequence of {{unsigned long}}. Indices to the shape dimensions of size 1 to eliminate. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
 </div>
@@ -2851,7 +2849,7 @@ partial interface MLGraphBuilder {
 Permute the dimensions of the input tensor according to the *permutation* argument.
 <script type=idl>
 dictionary MLTransposeOptions {
-  sequence<long> permutation;
+  sequence<unsigned long> permutation;
 };
 
 partial interface MLGraphBuilder {
@@ -2862,7 +2860,7 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input N-D tensor.
         - *options*: an optional {{MLTransposeOptions}}. The optional parameters of the operation.
-            - *permutation*: a sequence of {{long}} values. The values used to permute the output shape. When it's not specified, it's set to `[N-1...0]`, where `N` is the rank of the input tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
+            - *permutation*: a sequence of {{unsigned long}} values. The values used to permute the output shape. When it's not specified, it's set to [N-1, ..., 0], where N is the rank of the input tensor, e.g. [2,1,0] for a 3-D tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor.
 </div>
