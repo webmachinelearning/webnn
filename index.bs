@@ -2351,55 +2351,61 @@ dictionary MLPadOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand pad(MLOperand input, MLOperand padding, optional MLPadOptions options = {});
+  MLOperand pad(MLOperand input,
+                sequence<unsigned long> beginningPadding,
+                sequence<unsigned long> endingPadding,
+                optional MLPadOptions options = {});
 };
 </script>
 <div algorithm=pad>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
-        - *padding*: an {{MLOperand}}. The 2-D Tensor of integer values indicating the number of padding values to add at the beginning and end of each input dimensions. The tensor has shape [*n*, 2] where *n* is the rank of the input tensor. For each dimension *D* of *input*, *padding[D, 0]* indicates how many values to add before the content in that dimension, and *padding[D, 1]* indicates how many values to add after the content in that dimension.
+        - *beginningPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the beginning of each input dimension, of length *N* where *N* is the rank of the input tensor. For each dimension *d* of *input*, *beginningPadding[d]* indicates how many values to add before the content in that dimension.
+        - *endingPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the ending of each input dimension, of length *N* where *N* is the rank of the input tensor. For each dimension *d* of *input*, *endingPadding[d]* indicates how many values to add after the content in that dimension.
         - *options*: an optional {{MLPadOptions}}. The optional parameters of the operation.
             - *mode*: an {{MLPaddingMode}}. The different ways to pad the tensor. When not set, it's assumed to be "constant".
             - *value*: a {{float}}. The pad value when the *options.mode* is set to *"constant"*. When not set, it's assumed to be 0.
 
-    **Returns:** an {{MLOperand}}. The padded output tensor.
+    **Returns:** an {{MLOperand}}. The padded output tensor. Each dimension of the output tensor can be calculated as follow:
+
+    *output size = beginning padding + input size + ending padding*
+
     <div class="example">
     <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
     const input = builder.constant(
       { type: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
 
-    // padding: [[1,1], [2,2]]
-    const padding = builder.constant(
-      { type: 'float32', dimensions: [2,2] }, new Float32Array([1,1,2,2]));
+    const beginningPadding = [1,1];
+    const endingPadding = [2,2];
 
     // "constant" padded:
     //    [[0,0,0,0,0,0,0],
     //     [0,0,1,2,3,0,0],
     //     [0,0,4,5,6,0,0],
     //     [0,0,0,0,0,0,0]]
-    builder.pad(input, padding);
+    builder.pad(input, beginningPadding, endingPadding);
 
     // "edge" padded:
     //    [[1,1,1,2,3,3,3],
     //     [1,1,1,2,3,3,3],
     //     [4,4,4,5,6,6,6],
     //     [4,4,4,5,6,6,6]]
-    builder.pad(input, padding, { mode: "edge" });
+    builder.pad(input, beginningPadding, endingPadding, { mode: "edge" });
 
     // "reflection" padded:
     //    [[6,5,4,5,6,5,4],
     //     [3,2,1,2,3,2,1],
     //     [6,5,4,5,6,5,4],
     //     [3,2,1,2,3,2,1]]
-    builder.pad(input, padding, { mode: "reflection" });
+    builder.pad(input, beginningPadding, endingPadding, { mode: "reflection" });
 
     // "symmetric" padded:
     //    [[2,1,1,2,3,3,2],
     //     [2,1,1,2,3,3,2],
     //     [5,4,4,5,6,6,5],
     //     [5,4,4,5,6,6,5]]
-    builder.pad(input, padding, { mode: "symmetric" });
+    builder.pad(input, beginningPadding, endingPadding, { mode: "symmetric" });
     </pre>
     </div>
 </div>
