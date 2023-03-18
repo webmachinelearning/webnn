@@ -730,6 +730,9 @@ interface MLOperand {};
 Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
 
 #### Creating {{MLOperand}} #### {#api-mloperand-create}
+<div class="note">
+    The {{MLOperand}} objects are created internally by the methods of {{MLGraphBuilder}}. Based on these steps, exposing a constructor would be possible as well, but needs an explicit use case.
+</div>
 To <dfn>create MLOperand</dfn>, run the following steps:
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
 1. Let |builder| be the first argument.
@@ -775,6 +778,10 @@ To <dfn>check dimensions</dfn> given |dimensions| and |type|, run the following 
 
 Objects implementing the {{MLActivation}} interface represent activation function types.
 
+<div class="note">
+These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as [[#api-mlgraphbuilder-conv2d]] or [[#api-mlgraphbuilder-batchnorm]] during a graph construction session. Such fused activation functions can provide a significant performance improvement when supported natively by the underlying implementation. This is intended as an optimization opportunity for implementers.
+</div>
+
 <script type=idl>
 typedef object MLActivationOptions;
 
@@ -800,14 +807,14 @@ interface MLActivation {
 </dl>
 
 <div class="note">
-These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as [[#api-mlgraphbuilder-conv2d]] or [[#api-mlgraphbuilder-batchnorm]] during a graph construction session. Such fused activation functions can provide a significant performance improvement when supported natively by the underlying implementation. This is intended as an optimization opportunity for implementers.
-</div>
-
-<div class="note">
 The implementation of the {{MLActivation}} interface can simply be a struct that holds a string type of the activation function along with other properties needed. The actual creation of the activation function e.g. a [[#api-mlgraphbuilder-sigmoid]] or [[#api-mlgraphbuilder-relu]] can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of [[#api-mlgraphbuilder-conv2d]] for example.
 </div>
 
 #### Creating {{MLActivation}} #### {#api-mlactivation-create}
+<div class="note">
+The {{MLActivation}} objects (including the ones passed as input to methods) are created by the methods of {{MLGraphBuilder}} and are identified by their name. The {{MLActivationOptions}} dictionary is defined by those methods.
+</div>
+
 To <dfn>create MLActivation</dfn>, run the following steps:
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
 1. Let |builder| be the first argument.
