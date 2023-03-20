@@ -686,7 +686,7 @@ dictionary MLOperandDescriptor {
 
 ### The MLOperand interface ### {#api-mloperand}
 
-An {{MLOperand}} represents an intermediary graph being constructed as a result of compositing parts of an operation into a fully composed operation.
+An {{MLOperand}} represents an intermediary graph edge being constructed as a result of compositing parts of an operation into a fully composed operation.
 
 For instance, an {{MLOperand}} may represent a constant feeding to an operation or the result from combining multiple constants together into an operation. See also [[#programming-model]].
 
@@ -710,17 +710,10 @@ interface MLOperand {};
     : <dfn>\[[name]]</dfn> of type [=string=]
     ::
         The {{MLOperand}}'s name (only for input operands).
-    : <dfn>\[[tensorData]]</dfn> of type {{ArrayBufferView}}
-    ::
-        The {{MLOperand}}'s data buffer (only for constant operands).
     : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
     ::
         The {{MLOperand}}'s associated builder object.
-    : <dfn>\[[operator]]</dfn> of type [=function=]
-    ::
-        The {{MLOperand}}'s associated operator function.
 </dl>
-
 
 <div algorithm>
     The <dfn for="MLOperand">rank</dfn> of an {{MLOperand}} |operand| is the value returned by the following steps:
@@ -753,8 +746,7 @@ To <dfn>create MLOperand</dfn>, run the following steps:
     1. If [=this=]'s {{MLOperand/[[type]]}} is not equal to |bufferView|'s [=element type=], throw a "{{DataError}}" {{DOMException}} and abort these steps.
     1. If the [=byte length=] of |desc| is not supported by the implementation, throw a "{{DataError}}" {{DOMException}} and abort these steps.
     1. If the [=byte length=] of |desc| is not equal with |bufferView|.\[[ByteLength]], throw a "{{DataError}}" {{DOMException}} and abort these steps.
-    1. Set [=this=]'s {{MLOperand/[[tensorData]]}} to |bufferView|.
-    1. Make a request to the underlying platform to register [=this=] as a constant.
+    1. Make a request to the underlying platform to register [=this=] as a constant, given |bufferView| as a value.
         1. If that fails, throw a "{{TypeError}}" {{DOMException}} and abort these steps.
 1. Otherwise, if |kind| is `"input"`:
     1. Let |name| be the next argument.
@@ -771,7 +763,7 @@ To <dfn>check dimensions</dfn> given |dimensions| and |type|, run the following 
 1. If |dimensions| is not an array of positive numbers, return `false`;
 1. If |dimensions|.length is 0, return `false`.
 1. If |dimensions|.length is too large to be supported by the implementation, return `false`.
-1. If any element of |dimensions| is too large to be supported by the implementation, return `false`.
+1. If any element of |dimensions| is not a positive number, or it is too large to be supported by the implementation given |type|, return `false`.
 1. Return `true`.
 
 ### The MLActivation interface ### {#api-mlactivation}
