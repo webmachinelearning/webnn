@@ -1489,14 +1489,14 @@ partial interface MLGraphBuilder {
     </div>
 </div>
 
-### The concat() method ### {#api-mlgraphbuilder-concat}
+### The {{MLGraphBuilder/concat()}} method ### {#api-mlgraphbuilder-concat}
 Concatenates the input tensors along a given axis.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand concat(sequence<MLOperand> inputs, unsigned long axis);
 };
 </script>
-<div algorithm=concat>
+<div class="note">
     **Arguments:**
         - *inputs*: a sequence of {{MLOperand}}. All input tensors must have the
             same shape, except for the size of the dimension to concatenate on.
@@ -1506,6 +1506,38 @@ partial interface MLGraphBuilder {
     the *axis*. The output tensor has the same shape except on the dimension
     that all the inputs concatenated along. The size of that dimension is
     computed as the sum of all the input sizes of the same dimension.
+</div>
+<div algorithm=concat>
+    The {{MLGraphBuilder/concat(inputs, axis)}} steps are:
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. Let |inputs| be the first argument.
+        1. [=Assert=]: the type of |inputs| is sequence of {{MLOperand}} objects.
+        1. [=Assert=]: the type of |axis| is `unsigned long`.
+        1. [=Assert=]: the shape, i.e. {{MLOperandDescriptor/dimensions}}) of each operand in |inputs| is the same, except on the dimension given by |axis| on which they are concatenated.
+        1. [=Assert=]: the {{MLOperandDescriptor/type}} of each operand in |inputs| is the same.
+        1. If any of the following steps fail, then throw a "{{DataError}}" {{DOMException}} and stop.
+            1. If |inputs| is not an array of [=objects=], fail.
+            1. If |axis| is not a positive integer [=number=], fail.
+            1. If |axis| is greater than or equal to the <a>rank</a> of |inputs|, fail.
+            1. Let |desc| be |inputs|[0].{{MLOperand/[[descriptor]]}}.
+            1. Let |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] be `0`.
+            1. For each |index| between 0 and the <a>rank</a> of |inputs|:
+                1. If running <a>validate MLOperand</a> given |inputs|[|index|] and [=this=]  returns `false`, then fail.
+                1. For each |dim| between 0 and the <a>rank</a> of |inputs|[|index|]:
+                    <div class="note">
+                        If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
+                    </div>
+                    1. If |dim| is not equal to |axis| and if |inputs|[|index|].{{MLOperandDescriptor/dimensions}}[|dim|] is not equal to |inputs|[0].{{MLOperandDescriptor/dimensions}}[|dim|], fail.
+                    1. If |inputs|[|dim|].{{MLOperandDescriptor/type}} is not equal to |inputs|[0].{{MLOperandDescriptor/type}}.
+                    1. If |dim| is equal to |axis|, add to |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] the value of |inputs|[|index|].{{MLOperandDescriptor/dimensions}}[|dim|].
+        1. Let |kind| be |inputs|[0].{{MLOperand/[[kind]]}}.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=], |kind| and |desc|.
+            1. If that throws an error, re-throw the error and stop.
+        1. Make a request to the underlying platform to create an operator for this method with |inputs| connected as input and |output| connected as output and store a reference to the [=implementation-defined=] platform object to |operand|.{{MLOperand/[[operand]]}}.
+            1. If that fails, throw a "{{DataError}}" {{DOMException}} and stop.
+        1. Return |output|.
 </div>
 
 ### The conv2d() method ### {#api-mlgraphbuilder-conv2d}
