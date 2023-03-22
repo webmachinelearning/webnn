@@ -1116,7 +1116,7 @@ interface MLGraphBuilder {
   constructor(MLContext context);
 
   // Create an operand for a graph input.
-  MLOperand input(DOMString name, MLOperandDescriptor desc);
+  MLOperand input(DOMString name, MLOperandDescriptor descriptor);
 
   // Create an operand for a graph constant.
   MLOperand constant(MLOperandDescriptor desc, MLBufferView bufferView);
@@ -1149,8 +1149,36 @@ The [=new=] {{MLGraphBuilder}} constructor steps are:
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
 1. Let |context| be the first argument.
 1. If the <a>validate MLContext</a> steps given |context| return `false`, throw a "{{TypeError}}" and abort these steps.
-
 1. Set {{MLGraphBuilder/[[context]]}} to |context|.
+
+### The {{MLGraphBuilder/input()}} method  ### {#api-mlgraphbuilder-input}
+Create a named {{MLOperand}} based on a descriptor, that can be used as an input.
+<div class="note">
+    **Arguments:**
+        - *name*: a [=string=] name of the input.
+        - *descriptor*: an {{MLOperandDescriptor}} object.
+    **Returns:**: an {{MLOperand}} object.
+</div>
+<div algorithm=input>
+    The {{MLGraphBuilder/input(name, descriptor)}} steps are:
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. Let |name| be the first argument.
+        1. If |name| is `undefined` or an empty [=string=], then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |descriptor| be the second argument.
+        1. If |descriptor| is not an an object that [=implements=] {{MLOperandDescriptor}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. [=Assert=]: If |descriptor|.{{MLOperandDescriptor/dimensions}} does not [=map/exist=], then |descriptor| defines a scalar input.
+        1. If |descriptor|.{{MLOperandDescriptor/dimensions}} [=map/exists=]:
+            1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return `false`, throw a "{{DataError}}" {{DOMException}} and stop.
+            1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |operand| be the result of invoking the <a>create MLOperand</a> steps with [=this=], `"input"` and |descriptor|.
+        1. If that throws, re-throw the exception and stop.
+    1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
+    1. Make a request to the underlying platform to register |operand| as an input and store a reference to the corresponding [=implementation-defined=] platform object in |operand|.{{MLOperand/[[operand]]}}.
+        1. If that fails, throw an "{{OperationError}}" {{DOMException}} and abort these steps.
+    1. Return |operand|.
+</div>
 
 ### The batchNormalization() method ### {#api-mlgraphbuilder-batchnorm}
 Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phase of this operation.
