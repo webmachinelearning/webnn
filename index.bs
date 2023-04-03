@@ -712,7 +712,11 @@ interface MLOperand {};
         The {{MLOperand}}'s name (only for input operands).
     : <dfn>\[[operand]]</dfn> of type [=object=]
     ::
-        Reference to {{MLOperand}}'s corresponding [=implementation-defined=] platform  object.
+        Reference to {{MLOperand}}'s corresponding [=implementation-defined=] platform operand object.
+
+    : <dfn>\[[operator]]</dfn> of type [=object=]
+    ::
+        Reference to {{MLOperand}}'s corresponding [=implementation-defined=] platform operator object.
 </dl>
 
 <div algorithm>
@@ -726,40 +730,47 @@ Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/cons
 <div class="note">
     The {{MLOperand}} objects are created internally by the methods of {{MLGraphBuilder}}. Based on these steps, exposing a constructor would be possible as well, but needs an explicit use case.
 </div>
+
 To <dfn>create MLOperand</dfn> given |builder|, |kind| and |desc|, run the following steps:
-1. If |builder| is not an instance of {{MLGraphBuilder}}, throw a "{{TypeError}}" and stop.
-1. If |kind| is not an {{MLOperandKind}}, throw a "{{TypeError}}" {{DOMException}} and stop.
-1. If |desc| is not an [=object=] that [=implements=] {{MLOperandDescriptor}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
-1. Let |operand| be a new [=object=].
-1. Set |operand|.{{MLOperand/[[builder]]}} to |builder|.
-1. Set |operand|.{{MLOperand/[[kind]]}} to |kind|.
-1. Set |operand|.{{MLOperand/[[descriptor]]}} to |desc|.
-1. Return |operand|.
+<div class=algorithm-steps>
+    1. If |builder| is not an instance of {{MLGraphBuilder}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |kind| is not an {{MLOperandKind}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |desc| is not an [=object=] that [=implements=] {{MLOperandDescriptor}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |operand| be a new [=object=].
+    1. Set |operand|.{{MLOperand/[[builder]]}} to |builder|.
+    1. Set |operand|.{{MLOperand/[[kind]]}} to |kind|.
+    1. Set |operand|.{{MLOperand/[[descriptor]]}} to |desc|.
+    1. Return |operand|.
+</div>
 
 To <dfn>copy MLOperand</dfn> given |operand|, run the following steps:
-1. If |operand| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" and stop.
-1. Let |result| be a new [=object=].
-1. Set |result|.{{MLOperand/[[builder]]}} to |operand|.{{MLOperand/[[builder]]}}.
-1. Set |result|.{{MLOperand/[[kind]]}} to |operand|.{{MLOperand/[[kind]]}}.
-1. Set |result|.{{MLOperand/[[descriptor]]}} to |operand|.{{MLOperand/[[descriptor]]}}.
-1. Set |result|.{{MLOperand/[[name]]}} to |operand|.{{MLOperand/[[name]]}}.
-1. Return |result|.
+<div class=algorithm-steps>
+    1. If |operand| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" and stop.
+    1. Let |result| be a new [=object=].
+    1. Set |result|.{{MLOperand/[[builder]]}} to |operand|.{{MLOperand/[[builder]]}}.
+    1. Set |result|.{{MLOperand/[[kind]]}} to |operand|.{{MLOperand/[[kind]]}}.
+    1. Set |result|.{{MLOperand/[[descriptor]]}} to |operand|.{{MLOperand/[[descriptor]]}}.
+    1. Set |result|.{{MLOperand/[[name]]}} to |operand|.{{MLOperand/[[name]]}}.
+    1. Return |result|.
+</div>
 
 To <dfn>check dimensions</dfn> given |dimensions| and |type|, run the following steps:
-1. If |dimensions| is not an array of positive numbers, return `false`;
-1. If |dimensions|.length is 0, return `false`.
-1. If |dimensions|.length is too large to be supported by the implementation, return `false`.
-1. If any element of |dimensions| is not a positive number, or it is too large to be supported by the implementation given |type|, return `false`.
-1. Return `true`.
+<div class=algorithm-steps>
+    1. If |dimensions| is not an array of positive numbers, return `false`;
+    1. If |dimensions|.length is 0, return `false`.
+    1. If |dimensions|.length is too large to be supported by the implementation, return `false`.
+    1. If any element of |dimensions| is not a positive number, or it is too large to be supported by the implementation given |type|, return `false`.
+    1. Return `true`.
+</div>
 
-<div algorithm>
-    To <dfn for="MLOperand">validate MLOperand</dfn> given |operand| and |builder|, run the following steps:
+To <dfn for="MLOperand">validate MLOperand</dfn> given |operand| and |builder|, run the following steps:
+<div class=algorithm-steps>
     1. If |operand|.{{MLOperand/[[builder]]}} is not an instance of {{MLGraphBuilder}}, return `false`.
     1. If |builder| is not `undefined` and is not equal to |operand|.{{MLOperand/[[builder]]}}, return `false`.
     1. If |operand|.{{MLOperand/[[kind]]}} is not an {{MLOperandKind}}, return `false`.
     1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
     1. If |desc| is not an [=object=] that [=implements=] {{MLOperandDescriptor}}, return `false`.
-    1. If invoking <a>check dimensions</a> given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/type}}, return `false`.
+    1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and invoking <a>check dimensions</a> given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/type}} returns `false`, then return `false`.
     1. Return `true`.
 </div>
 
@@ -805,15 +816,17 @@ The {{MLActivation}} objects (including the ones passed as input to methods) are
 </div>
 
 To <dfn>create MLActivation</dfn> given |builder|, |name| and |options|, run the following steps:
-1. If |builder| is not an instance of {{MLGraphBuilder}}, throw a "{{TypeError}}" and abort these steps.
-1. If |name| is `undefined` or `null`,  throw a "{{TypeError}}" and abort these steps.
-1. Let |activation| be a new [=object=].
-1. Set |activation|.{{MLActivation/[[builder]]}} to |builder|.
-1. Set |activation|.{{MLActivation/[[name]]}} to |name|.
-1. If |options| is an [=object=], set |activation|.{{MLActivation/[[options]]}} to |options|.
-1. Make a request to the underlying platform to bind the [=implementation-defined=] platform operator for |name| to |activation|.{{MLActivation/[[operator]]}}.
-    1. If that fails, throw a "{{TypeError}}" and abort these steps.
-1. Return |activation|.
+<div class=algorithm-steps>
+    1. If |builder| is not an instance of {{MLGraphBuilder}}, throw a "{{TypeError}}" and abort these steps.
+    1. If |name| is `undefined` or `null`,  throw a "{{TypeError}}" and abort these steps.
+    1. Let |activation| be a new [=object=].
+    1. Set |activation|.{{MLActivation/[[builder]]}} to |builder|.
+    1. Set |activation|.{{MLActivation/[[name]]}} to |name|.
+    1. If |options| is an [=object=], set |activation|.{{MLActivation/[[options]]}} to |options|.
+    1. Make a request to the underlying platform to bind the [=implementation-defined=] platform operator for |name| to |activation|.{{MLActivation/[[operator]]}}.
+        1. If that fails, throw a "{{TypeError}}" and abort these steps.
+    1. Return |activation|.
+</div>
 
 ## The MLContext interface ## {#api-mlcontext}
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device type=] and [=power preference=].
