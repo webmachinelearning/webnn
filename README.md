@@ -1,10 +1,9 @@
 [![build](https://github.com/webmachinelearning/webnn/workflows/build/badge.svg)](https://github.com/webmachinelearning/webnn/actions)
 
-Web Neural Network API
-=======
+# Web Neural Network API
 
-This repository hosts the [Web Neural Network API](https://webmachinelearning.github.io/webnn/)
-being worked on in the 
+This repository hosts the [Web Neural Network API](https://www.w3.org/TR/webnn/)
+being worked on in the
 [Web Machine Learning Working Group](https://www.w3.org/groups/wg/webmachinelearning).
 
 ## Pull requests
