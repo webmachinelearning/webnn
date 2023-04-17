@@ -14,10 +14,12 @@ Before proposing a change, consider if it falls into one of these categories:
 
 It is strongly recommended that a pull request represents a change of just one of these stated categories. For instance, it is not advisable for a pull request that contains a bug fix or new content to also accompany a stylistic change to an unrelated section; or a stylistic change that also accompanies some wording changes. Reasonable specific exceptions, such as opportunistically fixing some misspelled words in a limited amount, are acceptable.
 
+It is also highly desirable that a change to address a certain issue is wholly represented within a single pull request. In other words, a change represented by a pull request is atomic and not distributed across multiple pull requests submitted at different times. This guideline is here to reduce the chance that a specification remains in a transient state for an unspecified period of time.
+
 Change to the document structure, as in rearranging sections within the document without changing the content itself, is considered a stylistic change.
 
 ## Process details
-A wording change does not require opening a GitHub Issue, as the change in the pull request is self-sufficient. However, wording changes should improve the readability and interpretation of the content in an obvious way. Keep in mind that these are subjective qualities, and not everyone may agree to the change. Ultimately, it is up to the consideration of the editors whether to accept it.
+Wording change does not require opening a GitHub Issue, as the change in the pull request is self-sufficient. However, wording changes should improve the overall readability and interpretation of the content in an obvious way. Keep in mind that these are subjective qualities, and not everyone may agree to the change. Ultimately, it is up to the consideration of editors whether to accept it.
 
 Similarly, a stylistic change does not necessarily require opening a GitHub Issue. It does, however, require buy-ins from the Working Group in order to proceed. The best way to propose this type of change is to attend one of the bi-weekly Web Machine-Learning Working Group teleconference calls and get a vote. A practical way to reach out to the Working Group to get invited to the teleconference call is to post a GitHub Issue giving a rough explanation of the proposed change and ask to be invited.
 
