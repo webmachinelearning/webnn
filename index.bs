@@ -2224,7 +2224,7 @@ partial interface MLGraphBuilder {
         - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
             - *bias*: an {{MLOperand}}. The 2-D input bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
             - *recurrentBias*: an {{MLOperand}}. The 2-D recurrent bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *peepholeWeight*: an {{MLOperand}}. The 2-D weight tensor for peepholes of shape [num_directions, 4 * hidden_size]. The pack ordering of the weight vectors is for the *input (i)*, *output (o)*, and *forget (f)* gate respectively.
+            - *peepholeWeight*: an {{MLOperand}}. The 2-D weight tensor for peepholes of shape [num_directions, 3 * hidden_size]. The pack ordering of the weight vectors is for the *input (i)*, *output (o)*, and *forget (f)* gate respectively.
             - *initialHiddenState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
             - *initialCellState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
             - *returnSequence*: a {{boolean}} indicating whether to also return the entire sequence with every output from each time step in it in addition to the output of the last time step. Default to false.
@@ -2267,7 +2267,7 @@ partial interface MLGraphBuilder {
       currentRecurrentBias.push(options.recurrentBias ?
         (builder.squeeze(builder.slice(options.recurrentBias, [dir, 0], [1, 4 * hidden_size]), { axes: [0] })) : null);
       currentPeepholeWeight.push(options.peepholeWeight ?
-        (builder.squeeze(builder.slice(options.peepholeWeight, [dir, 0], [1, 4 * hidden_size]), { axes: [0] })) : null);
+        (builder.squeeze(builder.slice(options.peepholeWeight, [dir, 0], [1, 3 * hidden_size]), { axes: [0] })) : null);
     }
 
     for (let step = 0; step < steps; ++step) {
@@ -2294,8 +2294,8 @@ partial interface MLGraphBuilder {
         let output = builder.reshape(results[0], [1, null, hiddenSize]);
         let cell = builder.reshape(results[1], [1, null, hiddenSize]);
 
-        nextHidden = (nextHidden ? builder.concat([nextHidden, result], 0) : output);
-        nextCell = (nextCell ? builder.concat([nextCell, result], 0) : cell);
+        nextHidden = (nextHidden ? builder.concat([nextHidden, output], 0) : output);
+        nextCell = (nextCell ? builder.concat([nextCell, cell], 0) : cell);
       }
 
       hiddenState = nextHidden;
