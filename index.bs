@@ -714,7 +714,54 @@ For instance, an {{MLOperand}} may represent a constant feeding to an operation 
 interface MLOperand {};
 </script>
 
-See also [[#security-new-ops]]
+{{MLOperand}} has the following internal slots:
+<div class=internal-slots>
+<dl dfn-type=attribute dfn-for="MLOperand">
+    : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
+    ::
+        The {{MLOperand}}'s associated builder object.
+
+    : <dfn>\[[descriptor]]</dfn> of type {{MLOperandDescriptor}}
+    ::
+        The {{MLOperand}}'s descriptor.
+
+    : <dfn>\[[name]]</dfn> of type [=string=]
+    ::
+        The {{MLOperand}}'s name (only for input operands).
+
+    : <dfn>\[[operand]]</dfn> of type [=object=]
+    ::
+        Reference to {{MLOperand}}'s corresponding [=implementation-defined=] platform operand object.
+
+    : <dfn>\[[operator]]</dfn> of type [=object=]
+    ::
+        Reference to {{MLOperand}}'s corresponding [=implementation-defined=] platform operator object.
+</dl>
+</div>
+
+Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
+
+#### Creating {{MLOperand}} #### {#api-mloperand-create}
+The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, internally using the following algorithms.
+
+To <dfn>create MLOperand</dfn> given |builder| and |desc|, run the following steps:
+<div class=algorithm-steps>
+    1. If |builder| is not an instance of {{MLGraphBuilder}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |desc| is not an [=object=] that [=implements=] {{MLOperandDescriptor}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |operand| be a new [=object=].
+    1. Set |operand|.{{MLOperand/[[builder]]}} to |builder|.
+    1. Set |operand|.{{MLOperand/[[descriptor]]}} to |desc|.
+    1. Return |operand|.
+</div>
+
+To <dfn>check dimensions</dfn> given |dimensions| and |type|, run the following steps:
+<div class=algorithm-steps>
+    1. If |dimensions| is not an array of positive numbers, return `false`;
+    1. If |dimensions|.length is 0, return `false`.
+    1. If |dimensions|.length is too large to be supported by the implementation, return `false`.
+    1. If any element of |dimensions| is not a positive number, or it is too large to be supported by the implementation given |type|, return `false`.
+    1. Return `true`.
+</div>
 
 ### The MLActivation interface ### {#api-mlactivation}
 
@@ -848,6 +895,13 @@ partial interface MLContext {
             1. Else:
                 1. Set the values of |value| to the values of |outputTensor|.
     1. Return {{undefined}}.
+</div>
+
+<div class=algorithm-steps>
+To <dfn>validate buffer with descriptor</dfn> given |bufferView| and |descriptor|, run the following steps:
+    1. If |bufferView| is not an {{MLBufferView}}, return `false`.
+    1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/type}}  according to [this table](#appendices-mloperandtype-arraybufferview-compatibility), return `false`.
+    1. If |bufferView|.\[[ByteLength]] is not equal to the [=byte length=] of |descriptor|, return `false`.
 </div>
 
 #### Examples #### {#api-mlcontext-sync-execution-examples}
@@ -1054,7 +1108,7 @@ partial interface MLCommandEncoder {
 </div>
 
 <div class="note">
-Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder}}.{{MLGraphBuilder/constant(desc, bufferView)}} method as constant operands during graph construction time.
+Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant()}} method as constant operands during graph construction time.
 </div>
 
 ### Dispatch Execution Commands ### {#api-mlcommandencoder-dispatch-commands}
@@ -1138,7 +1192,7 @@ interface MLGraphBuilder {
   MLOperand input(DOMString name, MLOperandDescriptor desc);
 
   // Create an operand for a graph constant.
-  MLOperand constant(MLOperandDescriptor desc, MLBufferView bufferView);
+  MLOperand constant(MLOperandDescriptor descriptor, MLBufferView bufferView);
 
   // Create a single-value operand from the specified number of the specified type.
   MLOperand constant(double value, optional MLOperandType type = "float32");
@@ -1168,8 +1222,67 @@ The [=new=] {{MLGraphBuilder}} constructor steps are:
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
 1. Let |context| be the first argument.
 1. If the <a>validate MLContext</a> steps given |context| return `false`, throw a "{{TypeError}}" and abort these steps.
-
 1. Set {{MLGraphBuilder/[[context]]}} to |context|.
+
+### The constant() method  ### {#api-mlgraphbuilder-constant-method}
+Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
+
+#### The {{MLGraphBuilder/constant(descriptor, bufferView)}} method  #### {#api-mlgraphbuilder-constant}
+<div class="note">
+    **Arguments:**
+        - *descriptor*: an {{MLOperandDescriptor}} object
+        - *bufferView*: an {{MLBufferView}}
+    **Returns:**: an {{MLOperand}} object.
+</div>
+
+<div algorithm=constant class=algorithm-steps>
+The {{MLGraphBuilder/constant(descriptor, bufferView)}} steps are:
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. Let |descriptor| be the first argument.
+    1. If |descriptor| is not an an object that [=implements=] {{MLOperandDescriptor}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return `false`, throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |bufferView| be the second argument.
+        1. If invoking <a>validate buffer with descriptor</a> given |bufferView| and |descriptor| return `false`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |operand| be the result of invoking the <a>create MLOperand</a> steps with [=this=] and |descriptor|.
+        1. If that throws, re-throw the exception and stop.
+    1. Let |bytes| be the result of invoking [[=get a copy of the bytes held by the buffer source=]] given |bufferView|.
+    1. Make a request to the underlying platform to register |operand| as a tensor constant with |bytes| as value and store a reference to the corresponding [=implementation-defined=] object to |operand|.{{MLOperand/[[operand]]}}.
+        1. If that fails, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. Return |operand|.
+</div>
+
+#### The {{MLGraphBuilder/constant(value, type)}} method  #### {#api-mlgraphbuilder-constant-value-type}
+
+<div class="note">
+    **Arguments:**
+        - *value*: a number
+        - *type*: an optional {{MLOperandType}}, by default *"float32"*.
+    **Returns:**: an {{MLOperand}} object.
+</div>
+
+<div algorithm=constant-value-type class=algorithm-steps>
+The {{MLGraphBuilder/constant(value, type)}} steps are:
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. If |value| is not a [=number=], then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |type| is `undefined`, let |type| be `"float32"`.
+    1. Otherwise, if |type| is not one of {{MLOperandType}}, then  throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+        1. Set |descriptor|.{{MLOperandDescriptor/type}} to |type|.
+        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to `undefined`.
+            <div class="note">
+                In the case of a scalar constant, |descriptor|.{{MLOperandDescriptor/dimensions}} is ignored.
+            </div>
+    1. Let |operand| be the result of invoking the <a>create MLOperand</a> steps with [=this=] and |descriptor|.
+        1. If that throws, re-throw the exception and stop.
+    1. Make a request to the underlying platform to register |operand| as a scalar constant with |value| as value and store a reference of the [=implementation-defined=] platform object for the corresponding (scalar or tensor constant) operand to |operand|.{{MLOperand/[[operand]]}}.
+        1. If that throws, re-throw the error and stop.
+    1. Return |operand|.
+</div>
 
 ### The batchNormalization() method ### {#api-mlgraphbuilder-batchnorm}
 Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phase of this operation.
