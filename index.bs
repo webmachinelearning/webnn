@@ -754,6 +754,16 @@ To <dfn>create MLOperand</dfn> given |builder| and |desc|, run the following ste
     1. Return |operand|.
 </div>
 
+To <dfn>copy MLOperand</dfn> given |operand|, run the following steps:
+<div class=algorithm-steps>
+    1. If |operand| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" and stop.
+    1. Let |result| be a new [=object=].
+    1. Set |result|.{{MLOperand/[[builder]]}} to |operand|.{{MLOperand/[[builder]]}}.
+    1. Set |result|.{{MLOperand/[[descriptor]]}} to |operand|.{{MLOperand/[[descriptor]]}}.
+    1. Set |result|.{{MLOperand/[[name]]}} to |operand|.{{MLOperand/[[name]]}}.
+    1. Return |result|.
+</div>
+
 To <dfn>check dimensions</dfn> given |dimensions| and |type|, run the following steps:
 <div class=algorithm-steps>
     1. If |dimensions| is not an array of positive numbers, return `false`;
@@ -769,16 +779,53 @@ Objects implementing the {{MLActivation}} interface represent activation functio
 
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLActivation {};
+interface MLActivation {
+};
 </script>
+
+<div class="internal-slots">
+{{MLActivation}} has the following internal slots:
+  <dl dfn-type=attribute dfn-for="MLActivation">
+    : <dfn>\[[name]]</dfn> of type [=string=]
+    ::
+        The {{MLActivation}}'s name.
+    : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
+    ::
+        The graph builder object this {{MLActivation}} belongs to.
+    : <dfn>\[[options]]</dfn> of type [=object=]
+    ::
+        A dictionary containing {{MLActivation}} options.
+    : <dfn>\[[operator]]</dfn> of type [=object=]
+    ::
+        Reference to {{MLActivation}}'s corresponding [=implementation-defined=] platform operator object.
+  </dl>
+</div>
 
 <div class="note">
 These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as [[#api-mlgraphbuilder-conv2d]] or [[#api-mlgraphbuilder-batchnorm]] during a graph construction session. Such fused activation functions can provide a significant performance improvement when supported natively by the underlying implementation. This is intended as an optimization opportunity for implementers.
 </div>
 
+#### Creating {{MLActivation}} #### {#api-mlactivation-create}
 <div class="note">
-The implementation of the {{MLActivation}} interface can simply be a struct that holds a string type of the activation function along with other properties needed. The actual creation of the activation function e.g. a [[#api-mlgraphbuilder-sigmoid]] or [[#api-mlgraphbuilder-relu]] can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of [[#api-mlgraphbuilder-conv2d]] for example.
+The {{MLActivation}} objects (including the ones passed as input to methods) are created by the methods of {{MLGraphBuilder}} and are identified by their name. The |options| dictionary is defined by those methods. The actual creation of the activation function e.g. a [[#api-mlgraphbuilder-sigmoid]] or [[#api-mlgraphbuilder-relu]] can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of [[#api-mlgraphbuilder-conv2d]] for example.
 </div>
+
+<details open>
+  <summary>
+    To <dfn>create MLActivation</dfn> given |builder|, |name| and |options|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. If |builder| is not an instance of {{MLGraphBuilder}}, throw a "{{TypeError}}" and abort these steps.
+    1. If |name| is `undefined` or `null`,  throw a "{{TypeError}}" and abort these steps.
+    1. Let |activation| be a new [=object=].
+    1. Set |activation|.{{MLActivation/[[builder]]}} to |builder|.
+    1. Set |activation|.{{MLActivation/[[name]]}} to |name|.
+    1. If |options| is an [=object=], set |activation|.{{MLActivation/[[options]]}} to |options|.
+    1. Make a request to the underlying platform to bind the [=implementation-defined=] platform operator for |name| to |activation|.{{MLActivation/[[operator]]}}.
+        1. If that fails, throw a "{{TypeError}}" and abort these steps.
+    1. Return |activation|.
+  </div>
+</details>
 
 ## The MLContext interface ## {#api-mlcontext}
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device type=] and [=power preference=].
