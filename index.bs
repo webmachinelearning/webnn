@@ -739,6 +739,11 @@ interface MLOperand {};
 </dl>
 </div>
 
+To get the <dfn for="MLOperand">rank</dfn> of an {{MLOperand}} |operand|, run the following steps:
+<div algorithm=rank class=algorithm-steps>
+    1. Return the size of |operand|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+</div>
+
 Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
 
 #### Creating {{MLOperand}} #### {#api-mloperand-create}
@@ -760,6 +765,16 @@ To <dfn>check dimensions</dfn> given |dimensions| and |type|, run the following 
     1. If |dimensions|.length is 0, return `false`.
     1. If |dimensions|.length is too large to be supported by the implementation, return `false`.
     1. If any element of |dimensions| is not a positive number, or it is too large to be supported by the implementation given |type|, return `false`.
+    1. Return `true`.
+</div>
+
+To <dfn for="MLOperand">validate MLOperand</dfn> given |operand| and |builder|, run the following steps:
+<div class=algorithm-steps>
+    1. If |operand|.{{MLOperand/[[builder]]}} is not an instance of {{MLGraphBuilder}}, return `false`.
+    1. If |builder| is not `undefined` and is not equal to |operand|.{{MLOperand/[[builder]]}}, return `false`.
+    1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
+    1. If |desc| is not an [=object=] that [=implements=] {{MLOperandDescriptor}}, return `false`.
+    1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and invoking <a>check dimensions</a> given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/type}} returns `false`, then return `false`.
     1. Return `true`.
 </div>
 
@@ -1454,10 +1469,9 @@ partial interface MLGraphBuilder {
                     1. If |dim| is not equal to |axis| and if |inputs|[|index|].{{MLOperandDescriptor/dimensions}}[|dim|] is not equal to |inputs|[0].{{MLOperandDescriptor/dimensions}}[|dim|], fail.
                     1. If |inputs|[|dim|].{{MLOperandDescriptor/type}} is not equal to |inputs|[0].{{MLOperandDescriptor/type}}.
                     1. If |dim| is equal to |axis|, add to |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] the value of |inputs|[|index|].{{MLOperandDescriptor/dimensions}}[|dim|].
-        1. Let |kind| be |inputs|[0].{{MLOperand/[[kind]]}}.
-        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=], |kind| and |desc|.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
             1. If that throws an error, re-throw the error and stop.
-        1. Make a request to the underlying platform to create an operator for this method with |inputs| connected as input and |output| connected as output and store a reference to the [=implementation-defined=] platform object to |operand|.{{MLOperand/[[operand]]}}.
+        1. Make a request to the underlying platform to create an operator for this method with |inputs| connected as input and |output| connected as output and store a reference to the [=implementation-defined=] platform object to |output|.{{MLOperand/[[operand]]}}.
             1. If that fails, throw a "{{DataError}}" {{DOMException}} and stop.
         1. Return |output|.
 </div>
