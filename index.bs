@@ -798,7 +798,7 @@ To <dfn>copy MLOperand</dfn> given |operand|, run the following steps:
     1. Let |result| be a new [=object=].
     1. Set |result|.{{MLOperand/[[builder]]}} to |operand|.{{MLOperand/[[builder]]}}.
     1. Set |result|.{{MLOperand/[[descriptor]]}} to |operand|.{{MLOperand/[[descriptor]]}}.
-    1. Set |result|.{{MLOperand/[[name]]}} to |operand|.{{MLOperand/[[name]]}}.
+    1. If |operand|.{{MLOperand/[[name]]}} [=map/exists=], then set |result|.{{MLOperand/[[name]]}} to |operand|.{{MLOperand/[[name]]}}.
     1. Return |result|.
 </div>
 
@@ -1563,8 +1563,13 @@ To <dfn>check clamp options</dfn> given |options|, run the following steps:
         1. If running the <a>check clamp options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
     1. Let |result| be the result of invoking the <a>copy MLOperand</a> steps given |operand|.
             1. If that throws an error, re-throw the error and abort these steps.
-    1. Make a request to the underlying platform to connect |result| with the [=implementation-defined=] platform operator for clamp, and store a reference to the resulting [=implementation-defined=] platform operand object in |result|.{{MLOperand/[[operand]]}}.
-        1. If that fails, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Make a request to the underlying platform to create an [=implementation-defined=] platform operand |operandImpl| given |result|.{{MLOperand/[[descriptor]]}}.
+        1. Store a reference to |operandImpl| in |result|.{{MLOperand/[[operand]]}}.
+        1. Make a request to the underlying platform to create an [=implementation-defined=] platform operator |operatorImpl| for clamp with |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/minValue}}.
+        1. Register the |operand|.{{MLOperand/[[operand]]}} as an input to |operatorImpl|.
+        1. Register the |result|.{{MLOperand/[[operand]]}} as output to |operatorImpl|.
+        1. Store a reference to |operatorImpl| in |result|.{{MLOperand/[[operator]]}}.
     1. Return |result|.
 </div>
 
@@ -1583,8 +1588,9 @@ To <dfn>check clamp options</dfn> given |options|, run the following steps:
         1. If running the <a>check clamp options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
     1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"clamp"` and |options|.
         1. If that throws an error, re-throw the error and abort these steps.
-    1. Make a request to the underlying platform to connect |op| with the [=implementation-defined=] platform operator for clamp, and store a reference to the resulting [=implementation-defined=] platform operator object in |op|.{{MLActivation/[[operator]]}}.
-        1. If that fails, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Make a request to the underlying platform to connect |op| with the [=implementation-defined=] platform operator for clamp |operatorImpl|.
+        1. Store a reference to |operatorImpl| in |op|.{{MLActivation/[[operator]]}}.
     1. Return |op|.
 </div>
 
