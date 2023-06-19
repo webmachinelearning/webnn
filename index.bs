@@ -104,19 +104,19 @@ p, ul, ol, dl {
     margin: 1em 0;
 }
 
-/* Box for Valid Usage requirements. */
-div.validusage {
-    padding: .5em;
-    border: thin solid #88e !important;
-    border-radius: .5em;
-}
-
 /*
  * Stylistic labels, for clarity of presentation of these blocks.
  *
  * NOTE: This text is non-accessible and non-selectable; surrounding
  * text must also explain the context.
  */
+
+/* Box for Valid Usage requirements. */
+div.validusage {
+    padding: .5em;
+    border: thin solid #88e !important;
+    border-radius: .5em;
+}
 .validusage {
     position: relative;
 }
@@ -134,19 +134,51 @@ div.validusage {
     content: "Valid Usage";
 }
 
-/* Box for Informal steps. */
-div.informalsteps {
+details {
     padding: .5em;
     border: thin solid #88e !important;
     border-radius: .5em;
 }
 
-/*
- * Stylistic labels, for clarity of presentation of these blocks.
- *
- * NOTE: This text is non-accessible and non-selectable; surrounding
- * text must also explain the context.
- */
+summary {
+    font-weight: bold;
+    margin: -0.5em -0.5em 0;
+    padding: 0.5em;
+}
+
+/* Box for algorithm steps. */
+
+div.algorithm-steps {
+    padding: .5em;
+    background-color: ghostwhite;
+}
+
+.algorithm-steps {
+    position: relative;
+    overflow: hidden;
+}
+.algorithm-steps::after {
+    font-weight: bold;
+    font-style: italic;
+    font-size: 130%;
+    color: rgba(0, 0, 0, 0.15);
+    color: var(--watermark-text);
+    position: absolute;
+    right: .3em;
+    bottom: .1em;
+}
+.algorithm-steps::after {
+    content: "Algorithm";
+}
+
+/* Informal steps */
+div.informalsteps {
+    padding: .5em;
+    border: thin solid #88e !important;
+    border-radius: .5em;
+    background-color: ghostwhite;
+}
+
 .informalsteps {
     position: relative;
 }
@@ -162,6 +194,28 @@ div.informalsteps {
 }
 .informalsteps::after {
     content: "Non-normative";
+}
+
+/* Internal slots */
+div.internal-slots {
+    padding: .5em;
+    border: thin solid #88e !important;
+    border-radius: .5em;
+    background-color: aliceblue;
+}
+
+.internal-slots {
+    position: relative;
+}
+.internal-slots::after {
+    font-weight: bold;
+    font-style: italic;
+    font-size: 130%;
+    color: rgba(0, 0, 0, 0.15);
+    color: var(--watermark-text);
+    position: absolute;
+    right: .3em;
+    bottom: .1em;
 }
 
 /*
@@ -262,7 +316,115 @@ th, td {
     }
 }
 
+
+/* Floating button for collapse/expand all details elements */
+
+.collapse-expand-button {
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background-color: green;
+  color: ghostwhite;
+  font-size: 32px;
+  text-align: center;
+  align-items:center;
+  justify-content:center;
+  cursor: pointer;
+}
+
+.collapse-expand-button:hover {
+  background-color: green;
+}
+
+.collapse-expand-button.expand {
+  background-color: red;
+}
+
+.collapse-expand-button.expand::before {
+  content: "+";
+}
+
+.collapse-expand-button.collapse {
+  background-color: green;
+}
+
+.collapse-expand-button.collapse::before {
+  content: "-";
+}
+
+.collapse-expand-button .tooltiptext {
+  visibility: hidden;
+  bottom: 20px;
+  right: 20px;
+  width: 120px;
+  background-color: ghostwhite;
+  color: black;
+  font-size: 18px;
+  text-align: center;
+  align-items:center;
+  justify-content:center;
+  padding: 5px 0;
+  border-radius: 5px;
+
+  /* position */
+  position: absolute;
+  z-index: 1;
+  bottom: 100%;
+  left: 50%;
+  margin-left: -60px;
+      /* Use half of the width (120/2 = 60), to center the tooltip */
+}
+
+.collapse-expand-button:hover .tooltiptext {
+  visibility: visible;
+  opacity: 0.75;
+}
+
+/* end of floating collapse/expand button */
+
 </style>
+
+<button class="collapse-expand-button" onclick="toggleCE()">
+    <span class="tooltiptext">Collapse all</span>
+</button>
+
+<script>
+    var ceButton = document.querySelector(".collapse-expand-button");
+    ceButton.classList.add("collapse");  // All details are expanded by default.
+    var scrollY = window.scrollY;
+    window.addEventListener('scroll', function() {
+        scrollY = window.scrollY;
+        ceButton.style.top = scrollY + window.innerHeight - 60 + 'px';
+    });
+
+    function toggleCE() {
+        var button = document.querySelector(".collapse-expand-button");
+        var tip = document.querySelector(".tooltiptext");
+        var allDetails = document.querySelectorAll('details');
+
+        Array.from(allDetails).forEach(function(detail, index) {
+            if (button.classList.contains("expand")) {
+                detail.open = true;
+            } else {
+                detail.removeAttribute('open');
+            }
+        });
+
+        if (button.classList.contains("expand")) {
+            button.classList.remove("expand");
+            button.classList.add("collapse");
+            tip.innerHTML = "Collapse all";
+        } else {
+            button.classList.remove("collapse");
+            button.classList.add("expand");
+            tip.innerHTML = "Expand all";
+        }
+    }
+</script>
 
 Introduction {#intro}
 =====================
