@@ -809,7 +809,11 @@ string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
 Its <a>default allowlist</a> is <code>'self'</code>.
 
 ### The {{ML/createContext()}} method ### {#api-ml-createcontext}
+<details open>
+<summary>
 The {{ML/createContext()}} method steps are:
+</summary>
+<div algorithm=createcontext class=algorithm-steps>
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}} and abort these steps.
 1. Let |promise| be [=a new promise=].
 1. Return |promise| and run the following steps [=in parallel=].
@@ -826,14 +830,22 @@ The {{ML/createContext()}} method steps are:
         1. If |options|["{{powerPreference}}"] [=map/exists=], then set |context|.{{[[powerPreference]]}} to |options|["{{powerPreference}}"]. Otherwise, set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
 1. If the <a>validate MLContext</a> steps given |context| return `false`, [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
 1. [=Resolve=] |promise| with |context|.
+</div>
+</details>
 
 ### The {{ML/createContextSync()}} method ### {#api-ml-createcontextsync}
+<details open>
+<summary>
 The {{ML/createContextSync()}} method steps are:
+</summary>
+<div algorithm=createcontextsync class=algorithm-steps>
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
 1. Let |options| be the first argument.
 1. Let |context| be the result of running the <a>create context</a> steps given |options|.
 1. If the <a>validate MLContext</a> steps given |context| return `false`, throw a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
 1. Return |context|.
+</div>
+</details>
 
 ## The MLGraph interface ## {#api-mlgraph}
 The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
@@ -843,9 +855,9 @@ The {{MLGraph}} interface represents a compiled computational graph. A compiled 
 interface MLGraph {};
 </script>
 
+<div class=internal-slots>
 {{MLGraph}} has the following internal slots:
-
-<dl dfn-type=attribute dfn-for="MLGraph">
+  <dl dfn-type=attribute dfn-for="MLGraph">
     : <dfn>\[[context]]</dfn> of type {{MLContext}}
     ::
         The context of type {{MLContext}} associated with this {{MLGraph}}.
@@ -861,7 +873,8 @@ interface MLGraph {};
     : <dfn>\[[implementation]]</dfn>
     ::
         The underlying implementation provided by the User Agent.
-</dl>
+  </dl>
+</div>
 
 ### The MLOperandDescriptor dictionary ### {#api-mloperanddescriptor}
 <script type=idl>
@@ -888,15 +901,18 @@ dictionary MLOperandDescriptor {
 };
 </script>
 
-<div algorithm>
+<details open>
+  <summary>
     The <dfn for="MLOperandDescriptor">byte length</dfn> of an {{MLOperandDescriptor}} |desc| is the value returned by the following steps:
-
+  </summary>
+  <div class=algorithm-steps>
     1. Let |elementLength| be 1.
     1. For each |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
         1. Set |elementLength| to |elementLength| × |dimension|.
     1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
     1. Return |elementLength| × |elementSize|.
-</div>
+  </div>
+</details>
 
 ### The MLOperand interface ### {#api-mloperand}
 
@@ -909,9 +925,9 @@ For instance, an {{MLOperand}} may represent a constant feeding to an operation 
 interface MLOperand {};
 </script>
 
-{{MLOperand}} has the following internal slots:
 <div class=internal-slots>
-<dl dfn-type=attribute dfn-for="MLOperand">
+{{MLOperand}} has the following internal slots:
+  <dl dfn-type=attribute dfn-for="MLOperand">
     : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
     ::
         The {{MLOperand}}'s associated builder object.
@@ -931,7 +947,7 @@ interface MLOperand {};
     : <dfn>\[[operator]]</dfn> of type [=object=]
     ::
         Reference to {{MLOperand}}'s corresponding [=implementation-defined=] platform operator object.
-</dl>
+  </dl>
 </div>
 
 To get the <dfn for="MLOperand">rank</dfn> of an {{MLOperand}} |operand|, run the following steps:
@@ -944,44 +960,60 @@ Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/cons
 #### Creating {{MLOperand}} #### {#api-mloperand-create}
 The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, internally using the following algorithms.
 
-To <dfn>create MLOperand</dfn> given |builder| and |desc|, run the following steps:
-<div class=algorithm-steps>
+<details open>
+  <summary>
+    To <dfn>create MLOperand</dfn> given |builder| and |desc|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
     1. If |builder| is not an instance of {{MLGraphBuilder}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. If |desc| is not an [=object=] that [=implements=] {{MLOperandDescriptor}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. Let |operand| be a new [=object=].
     1. Set |operand|.{{MLOperand/[[builder]]}} to |builder|.
     1. Set |operand|.{{MLOperand/[[descriptor]]}} to |desc|.
     1. Return |operand|.
-</div>
+  </div>
+</details>
 
-To <dfn>copy MLOperand</dfn> given |operand|, run the following steps:
-<div class=algorithm-steps>
+<details open>
+  <summary>
+    To <dfn>copy MLOperand</dfn> given |operand|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
     1. If |operand| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" and stop.
     1. Let |result| be a new [=object=].
     1. Set |result|.{{MLOperand/[[builder]]}} to |operand|.{{MLOperand/[[builder]]}}.
     1. Set |result|.{{MLOperand/[[descriptor]]}} to |operand|.{{MLOperand/[[descriptor]]}}.
     1. If |operand|.{{MLOperand/[[name]]}} [=map/exists=], then set |result|.{{MLOperand/[[name]]}} to |operand|.{{MLOperand/[[name]]}}.
     1. Return |result|.
-</div>
+  </div>
+</details>
 
-To <dfn>check dimensions</dfn> given |dimensions| and |type|, run the following steps:
-<div class=algorithm-steps>
+<details open>
+  <summary>
+    To <dfn>check dimensions</dfn> given |dimensions| and |type|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
     1. If |dimensions| is not an array of positive numbers, return `false`;
     1. If |dimensions|.length is 0, return `false`.
     1. If |dimensions|.length is too large to be supported by the implementation, return `false`.
     1. If any element of |dimensions| is not a positive number, or it is too large to be supported by the implementation given |type|, return `false`.
     1. Return `true`.
-</div>
+  </div>
+</details>
 
-To <dfn for="MLOperand">validate MLOperand</dfn> given |operand| and |builder|, run the following steps:
-<div class=algorithm-steps>
+<details open>
+  <summary>
+    To <dfn for="MLOperand">validate MLOperand</dfn> given |operand| and |builder|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
     1. If |operand|.{{MLOperand/[[builder]]}} is not an instance of {{MLGraphBuilder}}, return `false`.
     1. If |builder| is not `undefined` and is not equal to |operand|.{{MLOperand/[[builder]]}}, return `false`.
     1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
     1. If |desc| is not an [=object=] that [=implements=] {{MLOperandDescriptor}}, return `false`.
     1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and invoking <a>check dimensions</a> given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/type}} returns `false`, then return `false`.
     1. Return `true`.
-</div>
+  </div>
+</details>
 
 ### The MLActivation interface ### {#api-mlactivation}
 
@@ -1073,9 +1105,9 @@ typedef record<DOMString, ArrayBufferView> MLNamedArrayBufferViews;
 interface MLContext {};
 </script>
 
+<div class=internal-slots>
 {{MLContext}} has the following internal slots:
-
-<dl dfn-type=attribute dfn-for="MLContext">
+  <dl dfn-type=attribute dfn-for="MLContext">
     : <dfn>\[[contextType]]</dfn> of type [=context type=]
     ::
         The {{MLContext}}'s [=context type=].
@@ -1085,19 +1117,26 @@ interface MLContext {};
     : <dfn>\[[powerPreference]]</dfn> of type [=power preference=]
     ::
         The {{MLContext}}'s [=power preference=].
-</dl>
+  </dl>
+</div>
 
 <div class="note">
 When the {{[[contextType]]}} is set to [=default-context|default=] with the {{MLContextOptions}}.{{deviceType}} set to [=device-type-gpu|gpu=], the user agent is responsible for creating an internal GPU device that operates within the context and is capable of ML workload submission on behalf of the calling application. In this setting however, only {{ArrayBufferView}} inputs and outputs are allowed in and out of the graph execution since the application has no way to know what type of internal GPU device is being created on their behalf. In this case, the user agent is responsible for automatic uploads and downloads of the inputs and outputs to and from the GPU memory using this said internal device.
 </div>
 
 ### The {{MLContext}} validation algorithm ### {#api-mlcontext-validate}
+<details open>
+<summary>
 To <dfn lt="validate MLContext">validate {{MLContext}}</dfn>, given |context|, run these steps:
+</summary>
+<div class=algorithm-steps>
 1. If |context|.{{[[contextType]]}} is not "[=webgpu-context|webgpu=]" or "[=default-context|default=], return `false`.
 1. If |context|.{{[[deviceType]]}} is not "[=device-type-cpu|cpu=]" or "[=device-type-gpu|gpu=]", return `false`.
 1. If |context|.{{[[powerPreference]]}} is not "[=power-preference-default|default=]" or "[=power-preference-high-performance|high-performance=]" or "[=power-preference-low-power|low-power=]", return `false`.
 1. If the user agent cannot support |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, return `false`.
 1. Return `true`;
+</div>
+</details>
 
 ### Synchronous Execution ### {#api-mlcontext-sync-execution}
 Synchronously carries out the computational workload of a compiled graph {{MLGraph}} on the calling thread, which must be a worker thread, to produce results as defined by the operations in the graph. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an "{{OperationError}}" {{DOMException}}.
@@ -1164,7 +1203,10 @@ To <dfn>validate buffer with descriptor</dfn> given |bufferView| and |descriptor
 #### Examples #### {#api-mlcontext-sync-execution-examples}
 
 <div class="example">
+<details open>
+<summary>
 The following code showcases the synchronous computation with optional outputs in a worker.
+</summary>
 <pre highlight="js">
 const context = navigator.ml.createContextSync();
 
@@ -1196,9 +1238,14 @@ context.computeSync(graph, inputs, {'e': bufferE});
 console.log(&#96;values: ${bufferE}&#96;);
 </pre>
 </div>
+</details>
 
-### The {{MLNamedArrayBufferViews}} transfer algorithm ### {#mlnamedarraybufferviews-transfer}
+### The {{MLNamedArrayBufferViews}} transfer algorithm ### {#mlnamedarraybufferviews-transfer-alg}
+<details open>
+<summary>
 To <dfn for="MLNamedArrayBufferViews">transfer</dfn> an {{MLNamedArrayBufferViews}} |views|:
+</summary>
+<div class=algorithm-steps>
 1. Let |transferredViews| be a new {{MLNamedArrayBufferViews}}.
 1. For each |key| -> |value| of |views|:
     1. Let |transferredBuffer| be the result of [=ArrayBuffer/transfer|transferring=] the [=underlying buffer=] of |value|.
@@ -1207,6 +1254,8 @@ To <dfn for="MLNamedArrayBufferViews">transfer</dfn> an {{MLNamedArrayBufferView
     1. Let |transferredView| be [=Construct=](|constructor|, |transferredBuffer|, |value|.\[[ByteOffset]], |elementsNumber|).
     1. Set |transferredViews|[|key|] to |transferredView|.
 1. Return |transferredViews|.
+</div>
+</details>
 
 ### Asynchronous Execution ### {#api-mlcontext-async-execution}
 Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU timeline for the submission of GPU workload on the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an "{{OperationError}}" {{DOMException}}.
@@ -1284,7 +1333,10 @@ partial interface MLContext {
 #### Examples #### {#api-mlcontext-async-execution-examples}
 
 <div class="example">
+<details open>
+<summary>
 The following code showcases the asynchronous computation.
+</summary>
 <pre highlight="js">
 const operandType = {type: 'float32', dimensions: [2, 2]};
 const context = await navigator.ml.createContext();
@@ -1309,6 +1361,7 @@ console.log('Output value: ' + result.outputs.C);
 // Note: the result.outputs.C buffer is different from the bufferC, but it
 // shares the same backing memory allocation.
 </pre>
+</details>
 </div>
 
 ### WebGPU Interoperability ### {#api-mlcontext-webgpu-interop}
@@ -1336,9 +1389,9 @@ typedef record<DOMString, MLGPUResource> MLNamedGPUResources;
 interface MLCommandEncoder {};
 </script>
 
+<div class=internal-slots>
 {{MLCommandEncoder}} has the following internal slots:
-
-<dl dfn-type=attribute dfn-for="MLCommandEncoder">
+  <dl dfn-type=attribute dfn-for="MLCommandEncoder">
     : <dfn>\[[context]]</dfn> of type {{MLContext}}
     ::
         The context of type {{MLContext}} associated with this {{MLCommandEncoder}}.
@@ -1346,7 +1399,8 @@ interface MLCommandEncoder {};
     : <dfn>\[[implementation]]</dfn>
     ::
         The underlying implementation provided by the User Agent.
-</dl>
+  </dl>
+</div>
 
 ### Graph Initialization ### {#api-mlcommandencoder-graph-initialization}
 Record the initialization of the {{MLGraph}}. This is a necessary step for optimal performance during graph execution as it gives the platform an opportunity to prepare and optimize constant input data for the subsequent execution of the graph. This method should only be called once per graph.
@@ -1364,9 +1418,16 @@ partial interface MLCommandEncoder {
     **Returns:** {{undefined}}.
 </div>
 
-<div class="note">
-Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant()}} method as constant operands during graph construction time.
-</div>
+<details open>
+  <summary>
+    The {{MLCommandEncoder/initializeGraph(graph)}} steps are:
+  </summary>
+  <div algorithm=mlcommandencoder.initializegraph>
+    <div class="note">
+        Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant()}} method as constant operands during graph construction time.
+    </div>
+  </div>
+</details>
 
 ### Dispatch Execution Commands ### {#api-mlcommandencoder-dispatch-commands}
 Record the {{MLGraph}} execution with the inputs {{MLNamedGPUResources}} and outputs {{MLNamedGPUResources}}.
@@ -1475,22 +1536,33 @@ Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGr
 </dl>
 
 ### The {{MLGraphBuilder}} constructor ### {#api-mlgraphbuilder-constructor}
-The [=new=] {{MLGraphBuilder}} constructor steps are:
-1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
-1. Let |context| be the first argument.
-1. If the <a>validate MLContext</a> steps given |context| return `false`, throw a "{{TypeError}}" and abort these steps.
-1. Set {{MLGraphBuilder/[[context]]}} to |context|.
+<details open>
+  <summary>
+    The [=new=] {{MLGraphBuilder}} constructor steps are:
+  </summary>
+  <div class=algorithm-steps>
+    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
+    1. Let |context| be the first argument.
+    1. If the <a>validate MLContext</a> steps given |context| return `false`, throw a "{{TypeError}}" and abort these steps.
+    1. Set {{MLGraphBuilder/[[context]]}} to |context|.
+  </div>
+</details>
 
 ### The {{MLGraphBuilder/input()}} method  ### {#api-mlgraphbuilder-input}
 Create a named {{MLOperand}} based on a descriptor, that can be used as an input.
-<div class="note">
+
+<div>
     **Arguments:**
         - *name*: a [=string=] name of the input.
         - *descriptor*: an {{MLOperandDescriptor}} object.
     **Returns:**: an {{MLOperand}} object.
 </div>
-<div algorithm=input>
+
+<details open>
+  <summary>
     The {{MLGraphBuilder/input(name, descriptor)}} steps are:
+  </summary>
+  <div algorithm=input class=algorithm-steps>
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
@@ -1507,20 +1579,26 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
     1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
     1. Make a request to the underlying platform to register |operand| as an input and store a reference to the corresponding [=implementation-defined=] platform object in |operand|.{{MLOperand/[[operand]]}}.
         1. If that fails, throw an "{{OperationError}}" {{DOMException}} and abort these steps.
+    1. Return |operand|.
+  </div>
+</details>
 
 ### The constant() method  ### {#api-mlgraphbuilder-constant-method}
 Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
 
 #### The {{MLGraphBuilder/constant(descriptor, bufferView)}} method  #### {#api-mlgraphbuilder-constant}
-<div class="note">
+<div>
     **Arguments:**
         - *descriptor*: an {{MLOperandDescriptor}} object
         - *bufferView*: an {{MLBufferView}}
     **Returns:**: an {{MLOperand}} object.
 </div>
 
-<div algorithm=constant class=algorithm-steps>
-The {{MLGraphBuilder/constant(descriptor, bufferView)}} steps are:
+<details open>
+  <summary>
+    The {{MLGraphBuilder/constant(descriptor, bufferView)}} steps are:
+  </summary>
+  <div algorithm=constant class=algorithm-steps>
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
@@ -1536,19 +1614,23 @@ The {{MLGraphBuilder/constant(descriptor, bufferView)}} steps are:
     1. Make a request to the underlying platform to register |operand| as a tensor constant with |bytes| as value and store a reference to the corresponding [=implementation-defined=] object to |operand|.{{MLOperand/[[operand]]}}.
         1. If that fails, throw an "{{OperationError}}" {{DOMException}} and stop.
     1. Return |operand|.
-</div>
+  </div>
+</details>
 
 #### The {{MLGraphBuilder/constant(value, type)}} method  #### {#api-mlgraphbuilder-constant-value-type}
 
-<div class="note">
+<div>
     **Arguments:**
         - *value*: a number
         - *type*: an optional {{MLOperandType}}, by default *"float32"*.
     **Returns:**: an {{MLOperand}} object.
 </div>
 
-<div algorithm=constant-value-type class=algorithm-steps>
-The {{MLGraphBuilder/constant(value, type)}} steps are:
+<details open>
+  <summary>
+    The {{MLGraphBuilder/constant(value, type)}} steps are:
+  </summary>
+  <div algorithm=constant-value-type class=algorithm-steps>
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
@@ -1566,7 +1648,8 @@ The {{MLGraphBuilder/constant(value, type)}} steps are:
     1. Make a request to the underlying platform to register |operand| as a scalar constant with |value| as value and store a reference of the [=implementation-defined=] platform object for the corresponding (scalar or tensor constant) operand to |operand|.{{MLOperand/[[operand]]}}.
         1. If that throws, re-throw the error and stop.
     1. Return |operand|.
-</div>
+  </div>
+</details>
 
 ### The batchNormalization() method ### {#api-mlgraphbuilder-batchnorm}
 Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phase of this operation.
@@ -1609,23 +1692,21 @@ partial interface MLGraphBuilder {
         An {{MLActivation}} object. Specifies the optional activation function that immediately follows the normalization operation.
 </dl>
 
-<div class="note">
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input N-D tensor.
         - *mean*: an {{MLOperand}}. Specifies the 1-D tensor of the mean values of the input features across the batch whose length is equal to the size of the input dimension denoted by  {{MLBatchNormalizationOptions/axis}}.
         - *variance*: an {{MLOperand}}. The 1-D tensor of the variance values of the input features across the batch whose length is equal to the size of the input dimension denoted by {{MLBatchNormalizationOptions/axis}}.
         - *options*: an optional {{MLBatchNormalizationOptions}}. Specifies the optional parameters of the operation.
-              - *scale*: an {{MLOperand}}. The 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by *options.axis*.
-              - *bias*: an {{MLOperand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
-              - *axis*: an {{unsigned long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. Its value must be in the range [0, N-1] where N is the rank of input tensor. When it's not specified, the default value is 1.
-              - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
-              - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the normalization operation.
 
     **Returns:** an {{MLOperand}}. The batch-normalized N-D tensor of the same shape as the input tensor.
 </div>
 
-<div algorithm=batchnorm>
+<details open>
+  <summary>
     The {{MLGraphBuilder/batchNormalization()}} method steps are:
+  </summary>
+  <div algorithm=batchnorm class=algorithm-steps>
     1. Let |input| be the first argument. To validate |input|, run these substeps:
         1. If |input| is not an [=object=] that [=implements=] {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
     1. Let |mean| be the second argument, representing a vector with the moving mean values for |input|. To validate |mean|, run the following substeps:
@@ -1638,12 +1719,13 @@ partial interface MLGraphBuilder {
         1. If |input| is a 4-D tensor of the *"nchw"* layout, set |options|.axis to 1.
         1. If |input| is a 4-D tensor of the *"nhwc"* layout, set |options|.axis to 3.
     1. Let |result| be an {{MLOperand}} representing the results. It may use the same underlying data as |input|.
-    1. Issue a request to the underlying platform to initialize the batch normalization, given |input|, |mean|, |variance|, |options| and |result| to store the results and |options|. Wait for completion.
+    1. Issue a request to the underlying platform to initialize the batch normalization, given |result| to store the results and |options|. Wait for completion.
         <div class="informalsteps">
             1. If |options|.activation [=map/exists=], implementations MAY use it to optimize the operation flow.
         </div>
     1. Return |result|.
-</div>
+  </div>
+</details>
 
 <div class="note">
     The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout and the activation is of operator type *relu* can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
@@ -1679,11 +1761,14 @@ partial interface MLGraphBuilder {
 </script>
 
 <div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     if (options.minValue === undefined) {
       if (options.maxValue === undefined) {
         return x;
@@ -1699,17 +1784,23 @@ partial interface MLGraphBuilder {
             builder.constant(options.maxValue));
       }
     }
-    </pre>
+  </pre>
 </div>
 
-To <dfn>check clamp options</dfn> given |options|, run the following steps:
-    1. If |options| is not an object that [=implements=] {{MLClampOptions}}, then return `false`.
+<details open>
+  <summary>
+    To <dfn>check clamp options</dfn> given |options|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. If |options| is not an [=object=] that [=implements=] {{MLClampOptions}}, then return `false`.
     1. If |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}} are not a [=numeric type=], then then return `false`.
     1. If |options|.{{MLClampOptions/minValue}} is greater than |options|.{{MLClampOptions/maxValue}}, then return `false`.
     1. Return `true`.
+  </div>
+</details>
 
 #### The {{MLGraphBuilder/clamp(operand, options)}} method #### {#api-mlgraphbuilder-clamp-operand-options}
-<div class="note">
+<div>
     **Arguments:**
         - *operand*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
@@ -1718,8 +1809,12 @@ To <dfn>check clamp options</dfn> given |options|, run the following steps:
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *operand*.
 </div>
-<div algorithm=clamp>
+
+<details open>
+  <summary>
     The {{MLGraphBuilder/clamp(operand, options)}} method steps are:
+  </summary>
+  <div algorithm=clamp class=algorithm-steps>
     1. Let |operand| be the first argument.
     1. Let |options| be the second argument.
         1. If running the <a>check clamp options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
@@ -1733,10 +1828,11 @@ To <dfn>check clamp options</dfn> given |options|, run the following steps:
         1. Register the |result|.{{MLOperand/[[operand]]}} as output to |operatorImpl|.
         1. Store a reference to |operatorImpl| in |result|.{{MLOperand/[[operator]]}}.
     1. Return |result|.
-</div>
+  </div>
+</details>
 
 #### The {{MLGraphBuilder/clamp(options)}} method #### {#api-mlgraphbuilder-clamp-options}
-<div class="note">
+<div>
     **Arguments:**
         - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
             - *minValue*: a {{float}} scalar. Specifies the minimum value of the range. When it is not specified, the clamping is not performed on the lower limit of the range.
@@ -1744,8 +1840,12 @@ To <dfn>check clamp options</dfn> given |options|, run the following steps:
     **Returns:**
         - an {{MLActivation}}. The operator representing the clamp operation.
 </div>
-<div algorithm=clamp-options>
+
+<details open>
+  <summary>
     The {{MLGraphBuilder/clamp(options)}} method steps are:
+  </summary>
+  <div algorithm=clamp-options class=algorithm-steps>
     1. Let |options| be the first argument.
         1. If running the <a>check clamp options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
     1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"clamp"` and |options|.
@@ -1754,7 +1854,8 @@ To <dfn>check clamp options</dfn> given |options|, run the following steps:
         1. Make a request to the underlying platform to connect |op| with the [=implementation-defined=] platform operator for clamp |operatorImpl|.
         1. Store a reference to |operatorImpl| in |op|.{{MLActivation/[[operator]]}}.
     1. Return |op|.
-</div>
+  </div>
+</details>
 
 ### The concat() method ### {#api-mlgraphbuilder-concat}
 Concatenates the input tensors along a given axis.
@@ -1774,8 +1875,12 @@ partial interface MLGraphBuilder {
     that all the inputs concatenated along. The size of that dimension is
     computed as the sum of all the input sizes of the same dimension.
 </div>
-<div algorithm=concat>
+
+<details open>
+  <summary>
     The {{MLGraphBuilder/concat(inputs, axis)}} steps are:
+  </summary>
+  <div algorithm=concat class=algorithm-steps>
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
@@ -1804,7 +1909,8 @@ partial interface MLGraphBuilder {
         1. Make a request to the underlying platform to create an operator for this method with |inputs| connected as input and |output| connected as output and store a reference to the [=implementation-defined=] platform object to |output|.{{MLOperand/[[operand]]}}.
             1. If that fails, throw a "{{DataError}}" {{DOMException}} and stop.
         1. Return |output|.
-</div>
+  </div>
+</details>
 
 ### The conv2d() method ### {#api-mlgraphbuilder-conv2d}
 Compute a 2-D convolution given 4-D input and filter tensors
@@ -3339,12 +3445,15 @@ partial interface MLGraphBuilder {
 
     **Returns:** a sequence of {{MLOperand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the length of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the length of the output sequence equals to the length of *splits*. The shape of the i-th output tensor is the same as as *input* except along *axis* where the dimension size is *splits[i]*.
 
-    <div class="note">
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     // This sample shows the case that the splits parameter is an array.
     const outputs = [];
     let starts = Array(input_rank).fill(0);
@@ -3357,8 +3466,8 @@ partial interface MLGraphBuilder {
       start += size;
     }
     return outputs;
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### The squeeze() method ### {#api-mlgraphbuilder-squeeze}
@@ -3441,6 +3550,8 @@ const context = await navigator.ml.createContext({powerPreference: 'low-power'})
 </div>
 
 <div class="example">
+<details open>
+<summary>
 The following code builds a graph as:
 <pre>
 constant1 ---+
@@ -3451,6 +3562,7 @@ constant2 ---+                                    |
              +--- Add ---> intermediateOutput2 ---+
 input2    ---+
 </pre>
+</summary>
 <pre highlight="js">
 // Use tensors in 4 dimensions.
 const TENSOR_DIMS = [1, 2, 2, 2];
@@ -3484,6 +3596,7 @@ const intermediateOutput2 = builder.add(constant2, input2);
 // output is the output MLOperand of the Mul operation.
 const output = builder.mul(intermediateOutput1, intermediateOutput2);
 </pre>
+</details>
 </div>
 
 <div class="example">
@@ -3495,7 +3608,10 @@ const graph = await builder.build({'output': output});
 </div>
 
 <div class="example">
-The following code executes the compiled graph.
+<details open>
+  <summary>
+    The following code executes the compiled graph.
+  </summary>
 <pre highlight="js">
 // Setup the input buffers with value 1.
 const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1);
@@ -3513,6 +3629,7 @@ const result = await context.compute(graph, inputs, outputs);
 console.log('Output value: ' + result.outputs.output);
 // Output value: 2.25,2.25,2.25,2.25,2.25,2.25,2.25,2.25
 </pre>
+</details>
 </div>
 
 # Appendices # {#appendices}
