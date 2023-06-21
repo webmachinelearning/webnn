@@ -1538,12 +1538,29 @@ interface MLGraphBuilder {
 Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to [=default-context|default=], the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
 </div>
 
+{{MLBufferResourceView}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLBufferResourceView>
+    : <dfn>resource</dfn>
+    ::
+        A {{GPUBuffer}} object. Specifies the GPU buffer source.
+
+    : <dfn>offset</dfn>
+    ::
+        Specifies an {{unsigned long long}} offset in the buffer source.
+
+    : <dfn>size</dfn>
+    ::
+        Specifies the {{unsigned long long}} size of the buffer view.
+</dl>
+
+<div class=internal-slots>
 {{MLGraphBuilder}} has the following internal slots:
-<dl dfn-type=attribute dfn-for="MLGraphBuilder">
+  <dl dfn-type=attribute dfn-for="MLGraphBuilder">
     : <dfn>\[[context]]</dfn> of type {{MLContext}}
     ::
         The context of type {{MLContext}} associated with this {{MLGraphBuilder}}.
-</dl>
+  </dl>
+</div>
 
 ### The {{MLGraphBuilder}} constructor ### {#api-mlgraphbuilder-constructor}
 <details open>
@@ -1592,6 +1609,58 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
             1. Store a reference of |operandImpl| in |operand|.{{MLOperand/[[operand]]}}.
             1. Register |operand| as an input.
     1. Return |operand|.
+  </div>
+</details>
+
+### The build() method ### {#api-mlgraphbuilder-build}
+Build a composed graph up to a given output operand into a computational graph, asynchronously or synchronously.
+
+#### The {{MLGraphBuilder/build(outputs)}} method #### {#api-mlgraphbuilder-build-outputs}
+<details open>
+  <summary>
+    The {{MLGraphBuilder/build(outputs)}} steps are:
+  </summary>
+  <div algorithm=build-outputs class=algorithm-steps>
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. Let |promise| be [=a new promise=].
+    1. Return |promise| and run the following steps [=in parallel=].
+    1. Return the result of invoking {{MLGraphBuilder/buildSync(outputs)}} given |outputs|.
+        1. If that throws, re-throw the error and stop.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/buildSync(outputs)}} method #### {#api-mlgraphbuilder-buildsync-outputs}
+<details open>
+  <summary>
+    The {{MLGraphBuilder/buildSync(outputs)}} steps are:
+  </summary>
+  <div algorithm=buildsync-outputs class=algorithm-steps>
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. If |outputs| is not an instance of {{MLNamedOperands}}, then throw an "{{TypeError}}" {{DOMException}} and stop.
+    1. For each |element| in |outputs|:
+        1. If |element|.key is not a [=string=], then throw an "{{TypeError}}" {{DOMException}} and stop.
+        1. If |element|.value is not an instance of {{MLOperand}}, then throw an "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |graph| be a new {{MLGraph}}:
+            1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
+            1. Set |graph|.{{MLGraph/[[outputDescriptors]]}} to |outputs|.
+        1. Make a request to the underlying platform to:
+            1. Connect |graph| to a new [=implementation-defined=] graph implementation |graphImpl| given |graph|.
+            1. Store a reference to |graphImpl| in |graph|.{{MLGraph/[[implementation]]}}.
+        1. Make a request to the underlying platform to initialize the graph:
+            1. For each |operand| in |outputs|:
+                1. If |operand| was created as an input by the underlying platform:
+                    1. Add |operand| to |graph|.{{MLGraph/[[inputDescriptors]]}}.
+                    1. Initialize the weights of |operand|.
+                1. If |operand| was created as a constant by the underlying platform:
+                    1. Preprocess and optimize the tensor data of |operand|.
+                1. Update |graphImpl| with |operand|.{{MLOperand/[[operand]]}}.
+                1. Update |graphImpl| with |operand|.{{MLOperand/[[operator]]}}.
+    1. Return |graph|.
   </div>
 </details>
 
