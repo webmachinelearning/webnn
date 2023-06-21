@@ -1963,54 +1963,131 @@ partial interface MLGraphBuilder {
   MLOperand conv2d(MLOperand input, MLOperand filter, optional MLConv2dOptions options = {});
 };
 </script>
-<div algorithm=conv2d>
+
+{{MLConv2dOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLConv2dOptions>
+    : <dfn>padding</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 4: [beginning_height, ending_height, beginning_width, ending_width].
+        Specifies the additional rows and columns added to the beginning and ending of each spatial dimension of the convolution input.
+        The default value is [0, 0, 0, 0].
+
+    : <dfn>strides</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [stride_height, stride_width].
+        Specifies the stride of the sliding window for each spatial dimension of the convolution input.
+        The default value is [1, 1].
+
+    : <dfn>dilations</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [dilation_height, dilation_width]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
+        The default value is [1, 1].
+
+    : <dfn>autoPad</dfn>
+    ::
+        An {{MLAutoPad}} [=string=].
+        Specifies the automatic input padding options.
+        The default value is *"explicit"*, which means that the values in the {{MLConv2dOptions/padding}} array should be used for input padding.
+        When the option is set other than *"explicit"*, the values in the {{MLConv2dOptions/padding}} array are ignored.
+
+        With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered.
+
+        The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
+
+    : <dfn>groups</dfn>
+    ::
+        An {{unsigned long}} scalar.
+        Specifies the number of groups that input channels and output channels are divided into.
+        The default value is 1.
+
+    : <dfn>inputLayout</dfn>
+    ::
+        An {{MLInputOperandLayout}} [=string=].
+        Specifies the layout format of the input and output tensor as follows:
+            - **"nchw"**
+                - input tensor: *[batches, input_channels, height, width]*
+                - output tensor: *[batches, output_channels, height, width]*
+            - **"nhwc"**:
+                - input tensor: *[batches, height, width, input_channels]*
+                - output tensor: *[batches, height, width, output_channels]*
+        The default value is *"nchw"*.
+
+    : <dfn>filterLayout</dfn>
+    ::
+          An {{MLConv2dFilterOperandLayout}} [=string=].
+          Specifies the layout format of the filter tensor as follow:
+              - **"oihw"**: *[output_channels, input_channels/groups, height, width]*
+              - **"hwio"**: *[height, width, input_channels/groups, output_channels]*
+              - **"ohwi"**: *[output_channels, height, width, input_channels/groups]*
+              - **"ihwo"**: *[input_channels/groups, height, width, output_channels]*
+          The default value is *"oihw"*.
+
+    : <dfn>bias</dfn>
+    ::
+          An {{MLOperand}} object.
+          Specifies the additional 1-D tensor with the shape of *[output_channels]* whose values are to be added to the convolution result.
+
+    : <dfn>activation</dfn>
+    ::
+            An {{MLActivation}} object.
+            Specifies the optional activation function that immediately follows the convolution operation.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
-            is interpreted according to the value of *options.inputLayout*.
+            is interpreted according to the value of *options*.{{MLConv2dOptions/inputLayout}}.
         - *filter*: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
-            interpreted according to the value of *options.filterLayout* and *options.groups*.
-        - *options*: an optional {{MLConv2dOptions}}. The optional parameters of the operation.
-            - *padding*: a sequence of {{unsigned long}} of length 4. The additional rows and columns added to the beginning and ending of each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
-            - *strides*: a sequence of {{unsigned long}} of length 2. The stride of the sliding window for each spatial dimension of *input*, [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
-            - *dilations*: a sequence of {{unsigned long}} of length 2. The dilation factor for each spatial dimension of *input*, [dilation_height, dilation_width]. If not present, the values are assumed to be [1,1].
-            - *autoPad*: an {{MLAutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
-            - *groups*: an {{unsigned long}} scalar. The number of groups that input channels and output channels are divided into, default to 1.
-            - *inputLayout*: an {{MLInputOperandLayout}}. The default value is *"nchw"*. This option specifies the layout format of the input and output tensor as follow:
+            interpreted according to the value of *options*.{{MLConv2dOptions/filterLayout}} and *options*.{{MLConv2dOptions/groups}}.
+        - *options*: an {{MLConv2dOptions}}. The optional parameters of the operation.
 
-                "nchw":
-                    - input tensor: [batches, input_channels, height, width]
-                    - output tensor: [batches, output_channels, height, width]
+    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options*.{{MLConv2dOptions/inputLayout}} value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follow:
 
-                "nhwc":
-                    - input tensor: [batches, height, width, input_channels]
-                    - output tensor: [batches, height, width, output_channels]
+    *output_size = 1 + (input_size - (filter_size - 1) ** *dilation - 1 + beginning_padding + ending_padding) / stride*
+</div>
 
-            - *filterLayout*: an {{MLConv2dFilterOperandLayout}}. The default value is *"oihw"*. This option specifies the layout format of the filter tensor as follow:
-
-                "oihw":
-                    - [output_channels, input_channels/groups, height, width]
-
-                "hwio":
-                    - [height, width, input_channels/groups, output_channels]
-
-                "ohwi":
-                    - [output_channels, height, width, input_channels/groups]
-
-                "ihwo":
-                    - [input_channels/groups, height, width, output_channels]
-
-            - *bias*: an {{MLOperand}}. The additional 1-D tensor with the shape of [output_channels] whose values are to be added to the convolution result.
-            - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the convolution operation.
-
-    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.inputLayout* value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follow:
-
-    *output size = 1 + (input size - (filter size - 1) ** *dilation - 1 + beginning padding + ending padding) / stride*
-
-    <div class="note">
+<div class="note">
     A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options.groups* = input_channels = output_channels and the shape of filter tensor is [options.groups, 1, height, width]
     for *"oihw"* layout, [height, width, 1, options.groups] for *"hwio"* layout, [options.groups, height, width, 1] for *"ohwi"* layout and [1, height, width, options.groups] for *"ihwo"* layout.
-    </div>
 </div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/conv2d(input, filter, options)}} steps are:
+  </summary>
+  <div algorithm=conv2d class=algorithm-steps>
+    1. If |input| or |filter| is not an instance of {{MLOperand}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |input_size| be the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |filter_size| be the size of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. If |input_size| is not `4`, then then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |filter_size| is not `4`, then then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLConv2dOptions/padding}} is `undefined`, set it to `[0, 0, 0, 0]`.
+    1. If |options|.{{MLConv2dOptions/strides}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConv2dOptions/dilations}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConv2dOptions/autoPad}} is `undefined`, set it to `"explicit"`.
+    1. If |options|.{{MLConv2dOptions/groups}} is `undefined`, set it to `1`.
+    1. If |options|.{{MLConv2dOptions/inputLayout}} is `undefined`, set it to `"nchw"`.
+    1. If |options|.{{MLConv2dOptions/filterLayout}} is `undefined`, set it to `"oihw"`.
+    1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=] and it is not an instance of {{MLOperand}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=] and it is not an instance of {{MLActivation}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |output_shape| be the result of calculating output dimensions based on input, filter, dilation, padding and stride, taking into account |options|.{{MLConv2dOptions/inputLayout}}.
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |output_shape|.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Create an [=implementation-defined=] platform operator |conv2dImpl| for this method, given |options| and |filter|.
+                1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=],register it as activation to |conv2dImpl|.
+            1. Store a reference of |conv2dImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |conv2dImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |conv2dImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |conv2dImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The convTranspose2d() method ### {#api-mlgraphbuilder-convtranspose2d}
 Compute a 2-D transposed convolution given 4-D input and filter tensors
@@ -2041,48 +2118,143 @@ partial interface MLGraphBuilder {
                             optional MLConvTranspose2dOptions options = {});
 };
 </script>
-<div algorithm=convtranspose2d>
+
+{{MLConvTranspose2dOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLConvTranspose2dOptions>
+    : <dfn>padding</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 4: [beginning_height, ending_height, beginning_width, ending_width].
+        Specifies the additional rows and columns added to the beginning and ending of each spatial dimension of the convolution input.
+        The default value is [0, 0, 0, 0].
+
+    : <dfn>strides</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [stride_height, stride_width].
+        Specifies the stride of the sliding window for each spatial dimension of the convolution input.
+        The default value is [1, 1].
+
+    : <dfn>dilations</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [dilation_height, dilation_width]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
+        The default value is [1, 1].
+
+    : <dfn>outputPadding</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2.
+        Specifies the padding values applied to each spatial dimension of the output tensor. The explicit padding values are needed to disambiguate the output tensor shape for transposed convolution when the value of the *options*.{{MLConvTranspose2dOptions/strides}} is greater than 1.
+
+        Note that these values are only used to disambiguate output shape when needed; it does not necessarily cause any padding value to be written to the output tensor.
+
+        The default values is [0, 0].
+
+    : <dfn>outputSizes</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2.
+        Specifies the sizes of the last two dimensions of the output tensor. When the output sizes are explicitly specified, the output padding values in {{MLConvTranspose2dOptions/outputPadding}} are ignored.
+
+        If not specified, the output sizes are automatically computed.
+
+    : <dfn>autoPad</dfn>
+    ::
+        An {{MLAutoPad}} [=string=].
+        Specifies the automatic input padding options.
+        The default value is *"explicit"*, which means that the values in the {{MLConvTranspose2dOptions/padding}} array should be used for input padding.
+
+        When the option is set other than *"explicit"*, the values in the {{MLConvTranspose2dOptions/padding}} array are ignored.
+
+        With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered.
+
+        The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
+
+    : <dfn>groups</dfn>
+    ::
+        An {{unsigned long}} scalar.
+        Specifies the number of groups that input channels and output channels are divided into.
+        The default value is 1.
+
+    : <dfn>inputLayout</dfn>
+    ::
+        An {{MLInputOperandLayout}} [=string=].
+        Specifies the layout format of the input and output tensor as follows:
+            - **"nchw"**
+                - input tensor: *[batches, input_channels, height, width]*
+                - output tensor: *[batches, output_channels, height, width]*
+            - **"nhwc"**:
+                - input tensor: *[batches, height, width, input_channels]*
+                - output tensor: *[batches, height, width, output_channels]*
+        The default value is *"nchw"*.
+
+    : <dfn>filterLayout</dfn>
+    ::
+        An {{MLConvTranspose2dFilterOperandLayout}} [=string=].
+        Specifies the layout format of the filter tensor as follow:
+            - **"iohw"**: [input_channels, output_channels/groups, height, width]
+            - **"hwoi"**: [height, width, output_channels/groups, input_channels]
+            - **"ohwi"**: [output_channels/groups, height, width, input_channels]
+        The default value is *"iohw"*.
+
+    : <dfn>bias</dfn>
+    ::
+        An {{MLOperand}} object.
+        Specifies the additional 1-D tensor with the shape of *[output_channels]* whose values are to be added to the convolution result.
+
+    : <dfn>activation</dfn>
+    ::
+        An {{MLActivation}} object.
+        Specifies the optional activation function that immediately follows the convolution operation.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
-            is interpreted according to the value of *options.inputLayout*.
+            is interpreted according to the value of *options*.{{MLConvTranspose2dOptions/inputLayout}}.
         - *filter*: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
-            interpreted according to the value of *options.filterLayout* and *options.groups*.
-        - *options*: an optional {{MLConvTranspose2dOptions}}. The optional parameters of the operation.
-            - *padding*: a sequence of {{unsigned long}} of length 4. The additional rows and columns added to the beginning and ending of each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
-            - *strides*: a sequence of {{unsigned long}} of length 2. The stride of the sliding window for each spatial dimension of *input*, [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
-            - *dilations*: a sequence of {{unsigned long}} of length 2. The dilation factor for each spatial dimension of *input*, [dilation_height, dilation_width]. If not present, the values are assumed to be [1,1].
-            - *outputPadding*: a sequence of {{unsigned long}} of length 2. The padding values applied to each spatial dimension of the output tensor. This explicit padding values are needed to disambiguate the output tensor shape for transposed convolution when the value of the *options.strides* is greater than 1. Note that these values are only used to disambiguate output shape when needed; it does not necessarily cause any padding value to be written to the output tensor. If not specified, the values are assumed to be [0,0].
-            - *outputSizes*: a sequence of {{unsigned long}} of length 2. The sizes of the last two dimensions of the output tensor. When the output sizes are explicitly specified, the output padding values in *options.outputPadding* are ignored. If not specified, the output sizes are automatically computed.
-            - *autoPad*: an {{MLAutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
-            - *groups*: an {{unsigned long}} scalar. The number of groups that input channels and output channels are divided into, default to 1.
-            - *inputLayout*: an {{MLInputOperandLayout}}. The default value is *"nchw"*. This option specifies the layout format of the input and output tensor as follow:
+            interpreted according to the value of *options*.{{MLConvTranspose2dOptions/filterLayout}} and {{MLConvTranspose2dOptions/groups}}.
+        - *options*: an optional {{MLConvTranspose2dOptions}}.
 
-                "nchw":
-                    - input tensor: [batches, input_channels, height, width]
-                    - output tensor: [batches, output_channels, height, width]
+    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options*.{{MLConvTranspose2dOptions/inputLayout}} value. More specifically, unless the *options*.{{MLConvTranspose2dOptions/outputSizes}} values are explicitly specified, the *options*.{{MLConvTranspose2dOptions/outputPadding}} may be needed to compute the spatial dimension values of the output tensor as follow:
 
-                "nhwc":
-                    - input tensor: [batches, height, width, input_channels]
-                    - output tensor: [batches, height, width, output_channels]
-
-            - *filterLayout*: an {{MLConvTranspose2dFilterOperandLayout}}. The default value is *"iohw"*. This option specifies the layout format of the filter tensor as follow:
-
-                "iohw":
-                    - [input_channels, output_channels/groups, height, width]
-
-                "hwoi":
-                    - [height, width, output_channels/groups, input_channels]
-
-                "ohwi":
-                    - [output_channels/groups, height, width, input_channels]
-
-            - *bias*: an {{MLOperand}}. The additional 1-D tensor with the shape of [output_channels] whose values are to be added to the transposed convolution result.
-            - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the transposed convolution operation.
-
-    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options.inputLayout* value. More specifically, unless the *options.outputSizes* values are explicitly specified, the *options.outputPadding* may be needed to compute the spatial dimension values of the output tensor as follow:
-
-    *output size = (input size - 1) ** *stride + (filter size - 1) ** *dilation + 1 - beginning padding - ending padding + output padding*
+    *output_size = (input_size - 1) ** *stride + (filter_size - 1) ** *dilation + 1 - beginning_padding - ending_padding + output_padding*
 </div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/convTranspose2d(input, filter, options)}} steps are:
+  </summary>
+  <div algorithm=convtranspose2d class=algorithm-steps>
+    1. If |input| or |filter| is not an instance of {{MLOperand}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |input_size| be the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |filter_size| be the size of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. If |input_size| is not `4`, then then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |filter_size| is not `4`, then then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLConvTranspose2dOptions/padding}} is `undefined`, set it to `[0, 0, 0, 0]`.
+    1. If |options|.{{MLConvTranspose2dOptions/strides}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConvTranspose2dOptions/dilations}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} is `undefined`, set it to `[0, 0]`.
+    1. If |options|.{{MLConvTranspose2dOptions/autoPad}} is `undefined`, set it to `"explicit"`.
+    1. If |options|.{{MLConvTranspose2dOptions/groups}} is `undefined`, set it to `1`.
+    1. If |options|.{{MLConvTranspose2dOptions/inputLayout}} is `undefined`, set it to `"nchw"`.
+    1. If |options|.{{MLConvTranspose2dOptions/filterLayout}} is `undefined`, set it to `"iohw"`.
+    1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=] and it is not an instance of {{MLOperand}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=] and it is not an instance of {{MLActivation}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |output_shape| be the result of calculating output dimensions based on |input|, |filter|, |options|.{{MLConvTranspose2dOptions/dilations}}, |options|.{{MLConvTranspose2dOptions/padding}} and |options|.{{MLConvTranspose2dOptions/strides}}, taking into account |options|.{{MLConvTranspose2dOptions/inputLayout}}.
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |output_shape|.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Create an [=implementation-defined=] platform operator |convTranspose2dImpl| for this method, given |options| and |filter|.
+                1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=],register it as activation to |convTranspose2dImpl|.
+            1. Store a reference of |convTranspose2dImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |convTranspose2dImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |convTranspose2dImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |convTranspose2dImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### Element-wise binary operations ### {#api-mlgraphbuilder-binary}
 Compute the element-wise binary addition, subtraction, multiplication, division,
