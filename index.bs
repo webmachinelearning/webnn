@@ -1054,7 +1054,7 @@ The {{MLActivation}} objects (including the ones passed as input to methods) are
 
 <details open>
   <summary>
-    To <dfn>create MLActivation</dfn> given |builder|, |name| and |options|, run the following steps:
+    To <dfn>create MLActivation</dfn> given |builder|, |name|, |options| and |init-steps|, run the following steps:
   </summary>
   <div class=algorithm-steps>
     1. If |builder| is not an instance of {{MLGraphBuilder}}, throw a "{{TypeError}}" and abort these steps.
@@ -1065,8 +1065,10 @@ The {{MLActivation}} objects (including the ones passed as input to methods) are
     1. If |options| is an [=object=], set |activation|.{{MLActivation/[[options]]}} to |options|.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operator |opImpl| defined for |name| to |activation|.{{MLActivation/[[operator]]}}, given |options|.
+            1. Create an [=implementation-defined=] platform operator |opImpl| defined for |name| to |activation|.{{MLActivation/[[operator]]}}.
             1. Store a reference of |opImpl| in |activation|.{{MLActivation/[[operator]]}}.
+        1. If |init-steps| are defined, run |init-steps| with |options|.
+            1. Otherwise, initialize |activation|.{{MLActivation/[[operator]]}} given |options| in an [=implementation-defined=] way for the given |name| operation.
     1. Return |activation|.
   </div>
 </details>
@@ -1582,14 +1584,13 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
         1. If |descriptor|.{{MLOperandDescriptor/dimensions}} [=map/exists=]:
             1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return `false`, throw a "{{DataError}}" {{DOMException}} and stop.
             1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. Let |operand| be the result of invoking the <a>create MLOperand</a> steps with [=this=] and |descriptor|.
-        1. If that throws, re-throw the exception and stop.
-    1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |operand| be the result of invoking the <a>create MLOperand</a> steps with [=this=] and |descriptor|.
+        1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform input operand |operandImpl| as an input given |operand|.
+            1. Create an [=implementation-defined=] platform input operand |operandImpl| given |descriptor|.
+            1. Store a reference of |operandImpl| in |operand|.{{MLOperand/[[operand]]}}.
             1. Register |operand| as an input.
-            1. Store a reference to |operandImpl| in |operand|.{{MLOperand/[[operand]]}}.
     1. Return |operand|.
   </div>
 </details>
@@ -1619,14 +1620,13 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
         1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return `false`, throw a "{{DataError}}" {{DOMException}} and stop.
     1. Let |bufferView| be the second argument.
         1. If invoking <a>validate buffer with descriptor</a> given |bufferView| and |descriptor| return `false`, then throw a "{{TypeError}}" {{DOMException}} and stop.
-    1. Let |operand| be the result of invoking the <a>create MLOperand</a> steps with [=this=] and |descriptor|.
-        1. If that throws, re-throw the exception and stop.
-    1. Let |bytes| be the result of invoking [[=get a copy of the bytes held by the buffer source=]] given |bufferView|.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |operand| be the result of invoking the <a>create MLOperand</a> steps with [=this=] and |descriptor|.
+        1. Let |bytes| be the result of invoking [[=get a copy of the bytes held by the buffer source=]] given |bufferView|.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operand |constant| for this method, given |operand|.
+            1. Create an [=implementation-defined=] platform operand |constantImpl|, given |descriptor|.
+            1. Store a reference of |constantImpl| in |operand|.{{MLOperand/[[operand]]}}.
             1. Register |operand| as a tensor constant with |bytes| as value.
-            1. Store a reference of |constant| in |operand|.{{MLOperand/[[operand]]}}.
     1. Return |operand|.
   </div>
 </details>
@@ -1660,9 +1660,9 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Let |operand| be the result of invoking the <a>create MLOperand</a> steps with [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operand |constant|, given |operand|.
+            1. Create an [=implementation-defined=] platform operand |constantImpl|, given |descriptor|.
+            1. Store a reference of |constantImpl| in |operand|.{{MLOperand/[[operand]]}}.
             1. Register |operand| as a scalar constant with |value| as value.
-            1. Store a reference of |constant| in |operand|.{{MLOperand/[[operand]]}}.
     1. Return |operand|.
   </div>
 </details>
@@ -1734,15 +1734,13 @@ partial interface MLGraphBuilder {
         1. If |options|.axis is not a number between 0 and the rank of |input|, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
         1. If |input| is a 4-D tensor of the *"nchw"* layout, set |options|.axis to 1.
         1. If |input| is a 4-D tensor of the *"nhwc"* layout, set |options|.axis to 3.
-    1. Let |result| be an {{MLOperand}} representing the results. It may use the same underlying data as |input|.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps with [=this=] and |descriptor|, that may use the same underlying data as |input|.
         1. Make a request to the underlying platform to initialize the batch normalization:
             1. Create an [=implementation-defined=] platform operator |batchNormImpl| for this method, given |input|, |mean|, |variance| and |options|.
-            1. Register |result| as output to |batchNormImpl|.
-                <div class="informalsteps">
-                    1. If |options|.activation [=map/exists=], implementations MAY use it to optimize the operation flow.
-                </div>
-    1. Return |result|.
+            1. If |options|.activation [=map/exists=],register it as activation to |batchNormImpl|.
+            1. Connect |output| as output to |batchNormImpl|.
+    1. Return |output|.
   </div>
 </details>
 
@@ -1837,18 +1835,16 @@ partial interface MLGraphBuilder {
     1. Let |operand| be the first argument.
     1. Let |options| be the second argument.
         1. If running the <a>check clamp options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
-    1. Let |result| be the result of invoking the <a>copy MLOperand</a> steps given |operand|.
-            1. If that throws an error, re-throw the error and abort these steps.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
-        1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operand |operandImpl| given |result|.{{MLOperand/[[descriptor]]}}.
-            1. Store a reference to |operandImpl| in |result|.{{MLOperand/[[operand]]}}.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |operand|.
         1. Make a request to the underlying platform to:
             1. Create an [=implementation-defined=] platform operator |clampImpl| for this method, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/minValue}}.
-            1. Register |operand|.{{MLOperand/[[operand]]}} as input to |clampImpl|.
-            1. Register |result|.{{MLOperand/[[operand]]}} as output to |clampImpl|.
-            1. Store a reference to |clampImpl| in |result|.{{MLOperand/[[operator]]}}.
-    1. Return |result|.
+            1. Store a reference of |clampImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| given |output| and |clampImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |operand|.{{MLOperand/[[operand]]}} as input to |clampImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |clampImpl|.
+    1. Return |output|.
   </div>
 </details>
 
@@ -1922,14 +1918,15 @@ partial interface MLGraphBuilder {
                     1. If |dim| is not equal to |axis| and if |inputs|[|index|].{{MLOperandDescriptor/dimensions}}[|dim|] is not equal to |inputs|[0].{{MLOperandDescriptor/dimensions}}[|dim|], fail.
                     1. If |inputs|[|dim|].{{MLOperandDescriptor/type}} is not equal to |inputs|[0].{{MLOperandDescriptor/type}}.
                     1. If |dim| is equal to |axis|, add to |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] the value of |inputs|[|index|].{{MLOperandDescriptor/dimensions}}[|dim|].
-        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
-            1. If that throws an error, re-throw the error and stop.
         1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+            1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
             1. Make a request to the underlying platform to:
-                1. Create an [=implementation-defined=] platform operator |concat| for this method, given |inputs| and |axis|.
-                1. Register |inputs|.{{MLOperand/[[operand]]}} as an input to |concat|.
-                1. Register |output|.{{MLOperand/[[operand]]}} as output to |concat|.
-                1. Store a reference of |concat| in |output|.{{MLOperand/[[operator]]}}.
+                1. Create an [=implementation-defined=] platform operator |concatImpl| for this method, given |inputs| and |axis|.
+                1. Store a reference of |concatImpl| in |output|.{{MLOperand/[[operator]]}}.
+                1. Create an [=implementation-defined=] platform operand |outputImpl| given |output| and |concatImpl|.
+                1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+            1. Connect |inputs| as input to |concatImpl|.
+            1. Connect |output|.{{MLOperand/[[operand]]}} as output to |concatImpl|.
         1. Return |output|.
   </div>
 </details>
