@@ -2526,24 +2526,20 @@ partial interface MLGraphBuilder {
 Computes the nonlinear function `y = x * max(0, min(6, (x + 3))) / 6` that is introduced by [[MobileNetV3]] on the input tensor element-wise.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand hardSwish(MLOperand x);
+  MLOperand hardSwish(MLOperand input);
   MLActivation hardSwish();
 };
 </script>
-<div algorithm=hard-swish>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the hard-swish operation.
-
-    <div class="note">
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     return builder.div(
                builder.mul(
                    x,
@@ -2553,9 +2549,57 @@ partial interface MLGraphBuilder {
                            builder.constant(6),
                            builder.add(x, builder.constant(3))))),
                builder.constant(6));
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
+
+#### The {{MLGraphBuilder/hardSwish(input)}} method #### {#api-mlgraphbuilder-hardswish-input}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *input*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/hardSwish(input)}} method steps are:
+  </summary>
+  <div algorithm=hardswish-input class=algorithm-steps>
+    1. Let |input| be the first argument.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the hard-swish operation.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/hardSwish()}} method #### {#api-mlgraphbuilder-hardswish}
+<div>
+    **Arguments:**
+        - None.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the hard-swish operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/hardSwish()}} method steps are:
+  </summary>
+  <div algorithm=hard-swish class=algorithm-steps>
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"hardSwish"`.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+ </div>
+</details>
 
 ### The instanceNormalization() method ### {#api-mlgraphbuilder-instancenorm}
 Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-mlgraphbuilder-batchnorm]] where the mean and variance values used in the calculation are previously computed across the batch dimension during the model training phase, the mean and variance values used in the calculation of an instance normalization are computed internally on the fly per input feature.
