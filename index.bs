@@ -3172,7 +3172,7 @@ partial interface MLGraphBuilder {
 
 
 ### Reduction operations ### {#api-mlgraphbuilder-reduce}
-Reduce the input along the dimensions given in *axes*.
+Reduce the input tensor along all dimensions, or along the axes specified in the {{MLReduceOptions/axes}}  array parameter. For each specified axis, the dimension with that index is reduced, i.e. the resulting tensor will not contain it, unless the {{MLReduceOptions/keepDimensions}} option is specified. The values of the resulting tensor are calculated using the specified reduction function that takes as parameters all the values across the reduced dimension.
 <script type=idl>
 dictionary MLReduceOptions {
   sequence<unsigned long> axes = null;
@@ -3192,7 +3192,8 @@ partial interface MLGraphBuilder {
   MLOperand reduceSumSquare(MLOperand input, optional MLReduceOptions options = {});
 };
 </script>
-<div algorithm=reduce>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLReduceOptions}}. The optional parameters of the operation.
@@ -3202,7 +3203,9 @@ partial interface MLGraphBuilder {
                 The default value is false.
 
     **Returns:** an {{MLOperand}}. The reduced output tensor.
+</div>
 
+<div class="note">
     **Reduction types:**
         - *L1*: Compute the <a href="https://mathworld.wolfram.com/L1-Norm.html">L1 norm</a> of all the input values along the axes.
         - *L2*: Compute the <a href="https://mathworld.wolfram.com/L2-Norm.html">L2 norm</a> of all the input values along the axes.
@@ -3215,6 +3218,82 @@ partial interface MLGraphBuilder {
         - *Sum*: Compute the sum of all the input values along the axes.
         - *SumSquare*: Compute the sum of the square of all the input values along the axes.
 </div>
+
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder" data-lt="reduce-op">create reduce operation</dfn> given |op|, |input| and |options|, run the following steps:
+  </summary>
+  <div algorithm=reduce class=algorithm-steps>
+    1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be a new {{MLReduceOptions}} object with |options|.{{MLReduceOptions/keepDimensions}} set to `false` and |options|.{{MLReduceOptions/axes}} set to `null`.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the |op| reduce operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The following reduce algorithms are supported.
+  </summary>
+    The {{MLGraphBuilder/reduceL1(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceL1", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceL2(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceL2", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceLogSum(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceLogSum", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceLogSumExp(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceLogSumExp", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceMax(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceMax", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceMean(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceMean", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceMin(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceMin", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceProduct(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceProduct", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceSum(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceSum", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceSumSquare(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceSumSquare", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+</details>
 
 ### The relu() method ### {#api-mlgraphbuilder-relu}
 Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">rectified linear function</a> of the input tensor.
