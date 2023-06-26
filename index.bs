@@ -3144,21 +3144,46 @@ partial interface MLGraphBuilder {
 </div>
 
 ### The prelu() method ### {#api-mlgraphbuilder-prelu}
-Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Parametric_ReLU">parametric version of rectified linear function (Parametric Relu)</a> on the input tensor element-wise. Parametric Relu is a type of leaky ReLU that, instead of having a scalar slope like 0.01, making the slope (coefficient of leakage) into a parameter that is learned during the model training phase of this operation. The calculation follows the expression `max(0, x) + slope ∗ min(0, x)`.
+Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Parametric_ReLU">parametric version of rectified linear function (Parametric ReLU)</a> on the input tensor element-wise. Parametric ReLU is a type of leaky ReLU that, instead of having a scalar slope like 0.01, making the slope (coefficient of leakage) into a parameter that is learned during the model training phase of this operation. The calculation follows the expression `max(0, x) + slope ∗ min(0, x)`.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand prelu(MLOperand x, MLOperand slope);
+  MLOperand prelu(MLOperand input, MLOperand slope);
 };
 </script>
-<div algorithm=prelu>
+
+<div>
     **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
-        - *slope*: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or unidirectionally broadcastable to the shape of input tensor *x* according to [[!numpy-broadcasting-rule]].
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *slope*: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or unidirectionally broadcastable to the shape of input tensor *input* according to [[!numpy-broadcasting-rule]].
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
+</div>
 
-    <div class="note">
+<details open>
+  <summmary>
+    The {{MLGraphBuilder/prelu(input, slope)}} steps are:
+  </summary>
+  <div algorithm=prelu-input-slope class=algorithm-steps>
+    1. If |input| or |slope| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}}.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |slope|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If that throws an error, re-throw the error and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |descriptor|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the PreLU operation, given |slope|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -3167,9 +3192,7 @@ partial interface MLGraphBuilder {
     return builder.add(builder.max(builder.constant(0), x),
                        builder.mul(slope, builder.min(builder.constant(0), x)));
     </pre>
-    </div>
 </div>
-
 
 ### Reduction operations ### {#api-mlgraphbuilder-reduce}
 Reduce the input along the dimensions given in *axes*.
