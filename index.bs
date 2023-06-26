@@ -3017,21 +3017,79 @@ partial interface MLGraphBuilder {
                 optional MLPadOptions options = {});
 };
 </script>
-<div algorithm=pad>
+
+{{MLPadOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLPadOptions>
+    : <dfn>mode</dfn>
+    ::
+        An {{MLPaddingMode}} [=string=].
+        Specifies the different ways to pad the tensor.
+        The default value is `"constant"`.
+
+    : <dfn>value</dfn>
+    ::
+        A {{float}}.
+        Specifies the padding value when {{MLPadOptions/mode}} is set to `"constant"`.
+        The default value is `0`.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *beginningPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the beginning of each input dimension, of length *N* where *N* is the rank of the input tensor. For each dimension *d* of *input*, *beginningPadding[d]* indicates how many values to add before the content in that dimension.
         - *endingPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the ending of each input dimension, of length *N* where *N* is the rank of the input tensor. For each dimension *d* of *input*, *endingPadding[d]* indicates how many values to add after the content in that dimension.
         - *options*: an optional {{MLPadOptions}}. The optional parameters of the operation.
-            - *mode*: an {{MLPaddingMode}}. The different ways to pad the tensor. When not set, it's assumed to be "constant".
-            - *value*: a {{float}}. The pad value when the *options.mode* is set to *"constant"*. When not set, it's assumed to be 0.
 
     **Returns:** an {{MLOperand}}. The padded output tensor. Each dimension of the output tensor can be calculated as follow:
 
     *output size = beginning padding + input size + ending padding*
+</div>
 
-    <div class="example">
-    <pre highlight="js">
+<details open>
+  <summary>
+    To <dfn dfn-for=MLGraphBuilder>calculate padding output sizes</dfn>, given |input|, |beginningPadding| and |endingPadding|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |shape| be a copy of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. For |index| between `0` and the rank of |shape|:
+        1. Add to |shape|[|index|] the value of |beginningPadding|[|index|].
+        1. Add to |shape|[|index|] the value of |endingPadding|[|index|].
+    1. Return |shape|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/pad(input, beginningPadding, endingPadding, options)}} steps are:
+  </summary>
+  <div algorithm=pad class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |beginningPadding| or |endingPadding| is not a sequence of {{unsigned long}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLPadOptions/mode}} is `undefined`, set it to `"constant"`.
+        1. Otherwise, if |options|.{{MLPadOptions/mode}} is not one of {{MLPaddingMode}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLPadOptions/value}} is `undefined`, set it to `0`.
+    1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate padding output sizes</a> given |input|, |beginningPadding| and |endingPadding|.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the padding operation, given |beginningPadding|, |endingPadding| and |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="example">
+<details open>
+  <summary>
+    Examples for constant, edge, reflection and symmetric padding:
+  </summary>
+  <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
     const input = builder.constant(
       { type: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
@@ -3066,8 +3124,8 @@ partial interface MLGraphBuilder {
     //     [5,4,4,5,6,6,5],
     //     [5,4,4,5,6,6,5]]
     builder.pad(input, beginningPadding, endingPadding, { mode: "symmetric" });
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### Pooling operations ### {#api-mlgraphbuilder-pool2d}
