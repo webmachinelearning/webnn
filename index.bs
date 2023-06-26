@@ -2559,6 +2559,7 @@ partial interface MLGraphBuilder {
 
 ### The instanceNormalization() method ### {#api-mlgraphbuilder-instancenorm}
 Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-mlgraphbuilder-batchnorm]] where the mean and variance values used in the calculation are previously computed across the batch dimension during the model training phase, the mean and variance values used in the calculation of an instance normalization are computed internally on the fly per input feature.
+
 <script type=idl>
 dictionary MLInstanceNormalizationOptions {
   MLOperand scale;
@@ -2572,22 +2573,71 @@ partial interface MLGraphBuilder {
                                 optional MLInstanceNormalizationOptions options = {});
 };
 </script>
-<div algorithm=instancenorm>
+
+The {{MLInstanceNormalizationOptions}} members are:
+<dl dfn-type=dict-member dfn-for=MLInstanceNormalizationOptions>
+    : <dfn>scale</dfn>
+    ::
+        An {{MLOperand}}. Specifies he 1-D tensor of the scaling values whose length is equal to the number of channels, i.e. the size of the feature dimension of the input. For example, for an |input| tensor with `nchw` layout, the length is the value of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
+
+    : <dfn>bias</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 1-D tensor of the bias values whose length is equal to the size of the feature dimension of the input. For example, for an |input| tensor with `nchw` layout, the length is the value of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
+
+    : <dfn>epsilon</dfn>
+    ::
+        A {{float}} scalar. Specifies a small value to prevent computational error due to divide-by-zero.
+
+    : <dfn>layout</dfn>
+    ::
+        An {{MLInputOperandLayout}}. Specifies the layout format of the input.
+
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 4-D tensor.
         - *options*: an optional {{MLInstanceNormalizationOptions}}. The optional parameters of the operation.
-              - *scale*: an {{MLOperand}}. The 1-D tensor of the scaling values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
-              - *bias*: an {{MLOperand}}. The 1-D tensor of the bias values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
-              - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
-              - *layout*: an {{MLInputOperandLayout}}. This option specifies the layout format of the input. The default value is *"nchw"*.
 
     **Returns:** an {{MLOperand}}. The instance-normalized 4-D tensor of the same shape as the input tensor.
+</div>
 
-    <div class="note">
+<details open>
+  <summary>
+    The {{MLGraphBuilder/instanceNormalization(input, options)}} steps are:
+  </summary>
+  <div algorithm=instancenorm class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If the rank of |input| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLInstanceNormalizationOptions/scale}} is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If the rank of |options|.{{MLInstanceNormalizationOptions/scale}} is not equal to the size of the channel dimension of |input|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLInstanceNormalizationOptions/bias}} is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If the rank of |options|.{{MLInstanceNormalizationOptions/bias}} is not equal to the size of the channel dimension of |input|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLInstanceNormalizationOptions/epsilon}} is `undefined`, let it be `0.00001`.
+    1. If |options|.{{MLInstanceNormalizationOptions/layout}} is `undefined`, let it be `"nchw"`.
+    1. Otherwise if |options|.{{MLInstanceNormalizationOptions/layout}} is not one of {{MLInputOperandLayout}}, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the instance normalization operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout can be generically emulated from
     the usage of other operations as follow. However, user agents typically have a more efficient implementation for it,
     therefore its usage is encouraged from the performance standpoint.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     // The mean reductions happen over the spatial dimensions of the input
     // e.g. axis 2 and 3 of the input tensor.
     const reduceOptions = { axes: [2,3], keepDimensions: true };
@@ -2614,8 +2664,8 @@ partial interface MLGraphBuilder {
         ),
       builder.reshape(options.bias, shape)
       );
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### The leakyRelu() method ### {#api-mlgraphbuilder-leakyrelu}
