@@ -2969,31 +2969,63 @@ partial interface MLGraphBuilder {
   MLOperand matmul(MLOperand a, MLOperand b);
 };
 </script>
-<div algorithm=matmul>
+
+<div>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input N-D tensor.
-        - *b*: an {{MLOperand}}. The second input N-D tensor.
+        - *a*: an {{MLOperand}}. The first N-dimensional input tensor.
+        - *b*: an {{MLOperand}}. The second N-dimensional input tensor.
 
-    **Returns:** an {{MLOperand}}. The output N-D tensor that contains the matrix
+    **Returns:** an {{MLOperand}}. The output tensor that contains the matrix
     product of two input tensors.
-
-    Compute the matrix product of two input tensors. It behaves as following:
-        - If both *a* and *b* are 2-D, they are multiplied like conventional
-            matrices and produce a 2-D tensor as the output.
-        - If either *a* or *b* is N-D, N > 2, it is treated as a stack of
-            matrices with dimensions corresponding to the last two indices. The
-            matrix multiplication will be broadcasted accordingly by following
-            [[!numpy-broadcasting-rule]]. The output is a N-D tensor whose rank
-            is the maximum rank of the input tensors. For each dimension, except
-            the last two, of the output tensor, its size is the maximum size
-            along that dimension of the input tensors.
-        - If *a* is 1-D, it is converted to a 2-D tensor by prepending a 1 to
-            its dimensions.
-        - If *b* is 1-D, it is converted to a 2-D tensor by by appending a 1 to
-            its dimensions.
-        - If both *a* and *b* are 1-D, the operation is a vector dot-product,
-            which produces a scalar output.
 </div>
+<div>
+    Computes the matrix product of two input tensors as follows:
+        - If both *a* and *b* are 2-dimensional, they are multiplied like conventional
+            matrices and produce a 2-dimensional tensor as the output.
+        - If either *a* or *b* is `N`-dimensional where `N > 2`, it is treated as a stack of matrices with dimensions corresponding to the last two indices. The matrix multiplication will be broadcasted accordingly by following the [[!numpy-broadcasting-rule]]. The output is a `N`-dimensional tensor whose rank is the maximum rank of the input tensors. For each dimension, except the last two, of the output tensor, its size is the maximum size along that dimension of the input tensors.
+        - If *a* is 1-dimensional, it is converted to a 2-dimensional tensor by prepending a 1 to its dimensions.
+        - If *b* is 1-dimensional, it is converted to a 2-dimensional tensor by by appending a 1 to its dimensions.
+        - If both *a* and *b* are 1-dimensional, the operation is a vector dot-product, which produces a scalar output.
+</div>
+
+<details open>
+  <summary>
+    To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given |a| and |b| run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the size of |shapeA|.
+    1. Let |shapeB| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the size of |shapeB|.
+    1. If |sizeA| and |sizeB| is `1`, return `[ 1 ]`.
+    1. If | sizeA| is `1` and |sizeB| is not, then insert `1` in the front of |shapeA| to become [ 1 | |shapeA| ] and let |sizeA| be `2`.
+    1. If | sizeB| is `1` and |sizeA| is not, then insert `1` in the front of |shapeB| to become [ 1 | |shapeB| ] and let |sizeB| be `2`.
+    1. Let |shape| be an array whose size |size| is the maximum of |sizeA| and |sizeB|.
+    1. For each |index| between 0 and |size|:
+       1. Set |shape|[|index|] to the maximum of |shapeA|[|index|] and |shapeB|[|index|].
+    1. Return |shape|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/matmul(a, b)}} steps are:
+  </summary>
+  <div algorithm=matmul class=algorithm-steps>
+    1. If |a| or |b| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate matmul output sizes</a> given |a| and |b|.
+    1. Set |desc|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the matrix multiplication operation.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The pad() method ### {#api-mlgraphbuilder-pad}
 Inflate the tensor with constant or mirrored values on the edges.
