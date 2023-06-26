@@ -2691,6 +2691,7 @@ partial interface MLGraphBuilder {
 
 ### The lstm() method ### {#api-mlgraphbuilder-lstm}
 Long Short-Term Memory [[LSTM]] recurrent network uses an input, output, forget, and cell gate to compute the output state that rolls into the output across the temporal sequence of the network.
+
 <script type=idl>
 enum MLLstmWeightLayout {
   "iofg", // input-output-forget-cell gate ordering
@@ -2715,29 +2716,132 @@ partial interface MLGraphBuilder {
                            optional MLLstmOptions options = {});
 };
 </script>
-<div algorithm=lstm>
+
+{{MLLstmOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLLstmOptions>
+    : <dfn>bias</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 2-D input bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
+
+    : <dfn>recurrentBias</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 2-D recurrent bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
+
+    : <dfn>peepholeWeight</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 2-D weight tensor for peepholes of shape [num_directions, 4 * hidden_size]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
+
+    : <dfn>initialHiddenState</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, implementations SHOULD use a tensor filled with zero.
+
+    : <dfn>initialCellState</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, implementations SHOULD use a tensor filled with zero.
+
+    : <dfn>returnSequence</dfn>
+    ::
+         A {{boolean}} indicating whether to also return the entire sequence with every output from each time step in it in addition to the output of the last time step.
+
+    : <dfn>direction</dfn>
+    ::
+        An {{MLRecurrentNetworkDirection}}. Specifies the processing direction of the input sequence. When set to `"both"`, the size of the first dimension of the weight and the bias tensor shapes must be `2`, and the input is processed in both directions.
+
+    : <dfn>layout</dfn>
+    ::
+        An {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the `input (i)`, `output (o)`, `forget (f)`, and `cell (g)` gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is `"iofg"`.
+
+    : <dfn>activations</dfn>
+    ::
+        A sequence of {{MLActivation}}. A sequence of three activation functions, the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, implementations SHOULD use the sequence of the sigmoid function (`"sigmoid"`) followed by two hyperbolic tangent functions (`"tanh"`) respectively.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batch_size, input_size].
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 4 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 4 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 4 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
+        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 4 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
         - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
-            - *bias*: an {{MLOperand}}. The 2-D input bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *recurrentBias*: an {{MLOperand}}. The 2-D recurrent bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *peepholeWeight*: an {{MLOperand}}. The 2-D weight tensor for peepholes of shape [num_directions, 3 * hidden_size]. The pack ordering of the weight vectors is for the *input (i)*, *output (o)*, and *forget (f)* gate respectively.
-            - *initialHiddenState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
-            - *initialCellState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
-            - *returnSequence*: a {{boolean}} indicating whether to also return the entire sequence with every output from each time step in it in addition to the output of the last time step. Default to false.
-            - *direction*: an {{MLRecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
-            - *layout*: an {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the *input (i)*, *output (o)*, *forget (f)*, and *cell (g)* gate, as indicated in the second dimension of the weight and bias tensor shapes. When not specified, the default layout is *"iofg"*.
-            - *activations*: a sequence of {{MLActivation}}. A sequence of three activation functions, the first one is used for the *input (i)*, *forget (f)*, and *output (o)* gate, the second one is used for the *cell (g)* gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, they are assumed to be of the sigmoid function (*"sigmoid"*) followed by two hyperbolic tangent functions (*"tanh"*) respectively.
+        - *options*: an optional {{MLLstmOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output cell state from the last time step of the network. Additionally, if *options.returnSequence* is set to true, the third element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every output from each time step in the temporal sequence.
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output cell state from the last time step of the network. Additionally, if |options|.{{MLLstmOptions/returnSequence}} is set to true, the third element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every output from each time step in the temporal sequence.
+</div>
 
-    <div class="note">
+<details open>
+  <summary>
+    The {{MLGraphBuilder/lstm(input, weight, recurrentWeight, steps, hiddenSize, options)}} steps are:
+  </summary>
+  <div algorithm=lstm class=algorithm-steps>
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLLstmOptions/direction}} is `undefined`, set it to `"forward"`.
+    1. If |options|.{{MLLstmOptions/direction}} is not one of {{MLRecurrentNetworkDirection}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |num_directions| be `1` if |options|.{{MLLstmOptions/direction}} is `"forward"`, or otherwise let it be `2`.
+    1. If |input|, |weight| or |recurrentWeight| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        <div class="note">
+            The shape of |input|, |weight| or |recurrentWeight| could be also checked here.
+        </div>
+    1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not equal to |steps|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |batch_size| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
+    1. If |options|.{{MLLstmOptions/bias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batch_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[2] is not |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batch_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[2] is not |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/returnSequence}} is `undefined`, set it to `false`.
+    1. If |options|.{{MLLstmOptions/layout}} is `undefined`, set it to `"iofg"`.
+    1. If |options|.{{MLLstmOptions/layout}} is not one of {{MLLstmWeightLayout}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
+        1. If it is not an array of size `3`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If any of its elements is not an instance of {{MLActivation}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |desc| a new {{MLOperandDescriptor}}.
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |nume_directions|, |batch_size|, |hiddenSize| ].
+        1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+        1. Let |output0| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Let |output1| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |steps|, |nume_directions|, |batch_size|, |hiddenSize| ].
+        1. Let |output2| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Let |output| be the array [ |output0|, |output1|, |output2 ].
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the LSTM operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
+            1. Store a reference of |opImpl| in |output0|.{{MLOperand/[[operator]]}}, |output1|.{{MLOperand/[[operator]]}} and |output2|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output0|.{{MLOperand/[[operand]]}}, |output1|.{{MLOperand/[[operand]]}} and |output2|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output| as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     const numDirections = (options.direction == "both" ? 2 : 1);
     let hiddenState = options.initialHiddenState;
     let cellState = options.initialCellState;
@@ -2809,8 +2913,8 @@ partial interface MLGraphBuilder {
     }
 
     return (sequence ? [hiddenState, cellState, sequence] : [hiddenState, cellState]);
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### The lstmCell() method ### {#api-mlgraphbuilder-lstmcell}
@@ -2831,7 +2935,31 @@ partial interface MLGraphBuilder {
                                optional MLLstmCellOptions options = {});
 };
 </script>
-<div algorithm=lstmcell>
+
+{{MLLstmCellOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLLstmCellOptions>
+    : <dfn>bias</dfn>
+    ::
+        An {{MLOperand}}. The 1-D input bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
+
+    : <dfn>recurrentBias</dfn>
+    ::
+        An {{MLOperand}}. The 1-D recurrent bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
+
+    : <dfn>peepholeWeight</dfn>
+    ::
+        An {{MLOperand}}. The 1-D weight tensor for peepholes of shape [3 * hidden_size]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
+
+    : <dfn>layout</dfn>
+    ::
+        An {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the `input (i)`, `output (o)`, `forget (f)`, and `cell (g)` gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is `"iofg"`.
+
+    : <dfn>activations</dfn>
+    ::
+        A sequence of {{MLActivation}}. A sequence of three activation functions, the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, they are assumed to be of the sigmoid function (`"sigmoid"`) followed by two hyperbolic tangent functions (`"tanh"`) respectively.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batch_size, input_size].
         - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [4 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
@@ -2840,17 +2968,60 @@ partial interface MLGraphBuilder {
         - *cellState*: an {{MLOperand}}. The 2-D input cell state tensor of shape [batch_size, hidden_size].
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLLstmCellOptions}}. The optional parameters of the operation.
-            - *bias*: an {{MLOperand}}. The 1-D input bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *recurrentBias*: an {{MLOperand}}. The 1-D recurrent bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *peepholeWeight*: an {{MLOperand}}. The 1-D weight tensor for peepholes of shape [3 * hidden_size]. The pack ordering of the weight vectors is for the *input (i)*, *output (o)*, and *forget (f)* gate respectively.
-            - *layout*: an {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the *input (i)*, *output (o)*, *forget (f)*, and *cell (g)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"iofg"*.
-            - *activations*: a sequence of {{MLActivation}}. A sequence of three activation functions, the first one is used for the *input (i)*, *forget (f)*, and *output (o)* gate, the second one is used for the *cell (g)* gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, they are assumed to be of the sigmoid function (*"sigmoid"*) followed by two hyperbolic tangent functions (*"tanh"*) respectively.
 
     **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape [batch_size, hidden_size].
+</div>
 
-    <div class="note">
+<details open>
+  <summary>
+    The {{MLGraphBuilder/lstmCell(input, weight, recurrentWeight, hiddenState, cellState, hiddenSize, options)}} steps are:
+  </summary>
+  <div algorithm=lstmcell class=algorithm-steps>
+    1. If |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If the rank of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |batch_size| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0].
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmCellOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmCellOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmCellOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 3 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmCellOptions/layout}} is `undefined`, set it to `"iofg"`.
+    1. If |options|.{{MLLstmCellOptions/layout}} is not one of {{MLLstmWeightLayout}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=]:
+        1. If it is not an array of size `3`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If any of its elements is not an instance of {{MLActivation}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |batch_size|, |hiddenSize| ].
+    1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output0| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Let |output1| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Let |output| be the array [ |output0|, |output1| ].
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the LSTM cell operation, given |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |hiddenSize| and |options|.
+            1. Store a reference of |opImpl| in |output0|.{{MLOperand/[[operator]]}} and |output1|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output0|.{{MLOperand/[[operand]]}} and |output1|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output| as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated via other operations as shown below, when the weight layout is the default *"iofg"* layout, and the activation functions of the input/forget/output gate and the cell gate/the cell state's filter for the output hidden state are of the operator types *sigmoid* and *tanh* respectively.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     const zero = builder.constant(0);
 
     // input gate (i)
@@ -2958,8 +3129,8 @@ partial interface MLGraphBuilder {
     let ht = builder.mul(o, builder.tanh(ct));
 
     return [ht, ct];
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### The matmul() method ### {#api-mlgraphbuilder-matmul}
