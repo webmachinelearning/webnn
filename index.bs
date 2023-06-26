@@ -2654,6 +2654,7 @@ partial interface MLGraphBuilder {
 
 ### The linear() method ### {#api-mlgraphbuilder-linear}
 Calculate a linear function `y = alpha * x + beta` on the input tensor.
+
 <script type=idl>
 dictionary MLLinearOptions {
   float alpha = 1;
@@ -2661,22 +2662,12 @@ dictionary MLLinearOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand linear(MLOperand x, optional MLLinearOptions options = {});
+  MLOperand linear(MLOperand input, optional MLLinearOptions options = {});
   MLActivation linear(optional MLLinearOptions options = {});
 };
 </script>
-<div algorithm=linear>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
-            - *alpha*: a {{float}} scalar multiplier, default to 1.
-            - *beta*: a {{float}} scalar addition, default to 0.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the linear operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -2686,8 +2677,86 @@ partial interface MLGraphBuilder {
               builder.mul(x, builder.constant(options.alpha)),
               builder.constant(options.beta));
     </pre>
-    </div>
 </div>
+
+{{MLLinearOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLLinearOptions>
+    : <dfn>alpha</dfn>
+    ::
+         A {{float}} scalar multiplier.
+         The default value is `1`.
+    : <dfn>beta</dfn>
+    ::
+         A {{float}} scalar addition.
+         The default value is `0`.
+</dl>
+
+<details open>
+  <summary>
+    To <dfn>check linear options</dfn> given |options|, run the following steps:
+  </summary>
+  <div algorithm=check-linear-options class=algorithm-steps>
+    1. If |options| is not an [=object=] that [=implements=] {{MLLinearOptions}}, then return `false`.
+    1. If |options|.{{MLEluOptions/alpha}} is `undefined`, set |options|.{{MLLinearOptions/alpha}} to `1`.
+    1. Else if |options|.{{MLLinearOptions/alpha}} is not a [=numeric type=], then then return `false`.
+    1. If |options|.{{MLLinearOptions/beta}} is `undefined`, set |options|.{{MLLinearOptions/beta}} to `0`.
+    1. Else if |options|.{{MLLinearOptions/beta}} is not a [=numeric type=], then then return `false`.
+    1. Return `true`.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/linear(input, options)}} method #### {#api-mlgraphbuilder-linear-input-options}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/linear(input, options)}} method steps are:
+  </summary>
+  <div algorithm=linear-input-options class=algorithm-steps>
+    1. Let |input| be the first argument.
+    1. Let |options| be the second argument.
+        1. If running the <a>check linear options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the linear operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/linear(options)}} method #### {#api-mlgraphbuilder-linear-options}
+<div>
+    **Arguments:**
+        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the linear operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/linear(options)}} method steps are:
+  </summary>
+  <div algorithm=linear-options class=algorithm-steps>
+    1. Let |options| be the first argument.
+        1. If running the <a>check linear options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"linear"` and |options|.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The lstm() method ### {#api-mlgraphbuilder-lstm}
 Long Short-Term Memory [[LSTM]] recurrent network uses an input, output, forget, and cell gate to compute the output state that rolls into the output across the temporal sequence of the network.
