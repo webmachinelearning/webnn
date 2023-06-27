@@ -3297,23 +3297,16 @@ partial interface MLGraphBuilder {
     tensor is specified by the *newShape* argument.
 </div>
 
-### The sigmoid() method ### {#api-mlgraphbuilder-sigmoid}
+### The sigmoid() method ### {#api-mlgraphbuilder-sigmoid-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Sigmoid_function">sigmoid function</a> of the input tensor. The calculation follows the expression `1 / (exp(-x) + 1)`.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand sigmoid(MLOperand x);
+  MLOperand sigmoid(MLOperand input);
   MLActivation sigmoid();
 };
 </script>
-<div algorithm=sigmoid>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the sigmoid operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -3325,8 +3318,55 @@ partial interface MLGraphBuilder {
                 builder.exp(builder.neg(x)),
                 builder.constant(1)));
     </pre>
-    </div>
 </div>
+
+#### The {{MLGraphBuilder/sigmoid(input)}} method #### {#api-mlgraphbuilder-sigmoid-input}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *input*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/sigmoid(input)}} steps are:
+  </summary>
+  <div algorithm=sigmoid-input class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the sigmoid operation.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/sigmoid()}} method #### {#api-mlgraphbuilder-sigmoid}
+<div>
+    **Arguments:**
+        - None.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the sigmoid operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/sigmoid()}} method steps are:
+  </summary>
+  <div algorithm=sigmoid class=algorithm-steps>
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"sigmoid"`.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The slice() method ### {#api-mlgraphbuilder-slice}
 Produce a slice of the input tensor.
