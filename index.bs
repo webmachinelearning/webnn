@@ -3509,23 +3509,16 @@ partial interface MLGraphBuilder {
     **Returns:** an {{MLOperand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
 </div>
 
-### The tanh() method ### {#api-mlgraphbuilder-tanh}
+### The tanh() method ### {#api-mlgraphbuilder-tanh-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Hyperbolic_functions">hyperbolic tangent function</a> of the input tensor. The calculation follows the expression `(exp(2 * x) - 1) / (exp(2 * x) + 1)`.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand tanh(MLOperand x);
+  MLOperand tanh(MLOperand input);
   MLActivation tanh();
 };
 </script>
-<div algorithm=tanh>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the tanh operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -3535,8 +3528,55 @@ partial interface MLGraphBuilder {
               builder.sub(builder.exp(builder.mul(builder.constant(2), x)), builder.constant(1)),
               builder.add(builder.exp(builder.mul(builder.constant(2), x)), builder.constant(1)));
     </pre>
-    </div>
 </div>
+
+#### The {{MLGraphBuilder/tanh(input)}} method #### {#api-mlgraphbuilder-tanh-input}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/tanh(input)}} steps are:
+  </summary>
+  <div algorithm=tanh-input class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the hyperbolic tangent operation.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/tanh()}} method #### {#api-mlgraphbuilder-tanh}
+<div>
+    **Arguments:**
+        - None.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the tanh operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/tanh()}} method steps are:
+  </summary>
+  <div algorithm=tanh class=algorithm-steps>
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"tanh"`.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The transpose() method ### {#api-mlgraphbuilder-transpose}
 Permute the dimensions of the input tensor according to the *permutation* argument.
