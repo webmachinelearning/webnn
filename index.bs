@@ -3549,14 +3549,50 @@ partial interface MLGraphBuilder {
   MLOperand transpose(MLOperand input, optional MLTransposeOptions options = {});
 };
 </script>
-<div algorithm=transpose>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input N-D tensor.
         - *options*: an optional {{MLTransposeOptions}}. The optional parameters of the operation.
-            - *permutation*: a sequence of {{unsigned long}} values. The values used to permute the output shape. When it's not specified, it's set to [N-1, ..., 0], where N is the rank of the input tensor, e.g. [2,1,0] for a 3-D tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor.
 </div>
+
+{{MLTransposeOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLTransposeOptions>
+    : <dfn>permutation</dfn>
+    ::
+        A sequence of {{unsigned long}} values.
+        Specifies the values used to permute the output shape.
+        The default value is [N-1, ..., 0], where N is the rank of the input tensor, e.g. [2,1,0] for a 3-D tensor.
+        These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
+</dl>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/transpose(input, options)}} steps are:
+  </summary>
+  <div algorithm=transpose class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLTransposeOptions/permutation}} is `undefined`, let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
+        1. If |options|.{{MLTransposeOptions/permutation}} is not a sequence of {{unsigned long}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If the rank of |options|.{{MLTransposeOptions/permutation}} is not the same as the rank of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If the values in |options|.{{MLTransposeOptions/permutation}} are not between `0` and the rank of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} minus `1`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If the values in |options|.{{MLTransposeOptions/permutation}} contain duplicate value, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the transpose operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 Examples {#examples}
 =====================
