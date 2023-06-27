@@ -3335,7 +3335,7 @@ partial interface MLGraphBuilder {
   MLOperand slice(MLOperand input, sequence<unsigned long> starts, sequence<unsigned long> sizes);
 };
 </script>
-<div algorithm=slice>
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *starts*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the starting index to slice of each input dimension, of length N where N is the rank of the input tensor. For each dimension *d* of *input*, *starts[d]* indicates the starting index to slice in that dimension. The starting index must be in the range [0, input size - 1] in that dimension.
@@ -3343,6 +3343,30 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/slice(input, starts, sizes)}} steps are:
+  </summary>
+  <div algorithm=slice class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |starts| or |sizes| is not a sequence of {{long}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |sizes|.size is 0, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        <div class="note">
+            Further validation of |starts| and |sizes| given |input| is left [=implementation-defined=].
+        </div>
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the slice operation, given |starts| and |sizes|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The softmax() method ### {#api-mlgraphbuilder-softmax}
 Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
