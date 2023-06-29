@@ -4863,21 +4863,56 @@ partial interface MLGraphBuilder {
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
 
+### The softmax() method ### {#api-mlgraphbuilder-softmax-method}
+Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
+the 2-D input tensor along axis 1.
+<script type=idl>
+partial interface MLGraphBuilder {
+  MLOperand softmax(MLOperand input);
+  MLActivation softmax();
+};
+</script>
+
+<div class="note">
 <details open>
   <summary>
-    The {{MLGraphBuilder/slice(input, starts, sizes)}} steps are:
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
   </summary>
-  <div algorithm=slice class=algorithm-steps>
+  <pre highlight="js">
+    // This sample deploys a well-known implementation trick [1] to compute the
+    // exponentials of the distances to the max value, instead of the exponentials
+    // of the input values itself, in order to increase the numerical stability of
+    // the result.
+    // [1]: https://cs231n.github.io/linear-classify/#softmax
+    const max_x = builder.reduceMax(x, { axes: [1], keepDimensions: true });
+    const exp_x = builder.exp(builder.sub(x, max_x));
+    return builder.div(exp_x, builder.reduceSum(exp_x, { axes: [1], keepDimensions: true }));
+  </pre>
+</details>
+</div>
+
+#### The {{MLGraphBuilder/softmax(input)}} method #### {#api-mlgraphbuilder-softmax-input}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input 2-D tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output 2-D tensor that contains the softmax results, of the same shape as the input tensor.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/softmax(input)}} steps are:
+  </summary>
+  <div algorithm=softmax-input class=algorithm-steps>
     1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
-    1. If |starts| or |sizes| is not a sequence of {{long}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
-    1. If |sizes|.size is 0, then throw a "{{TypeError}}" {{DOMException}} and stop.
-        <div class="note">
-            Further validation of |starts| and |sizes| given |input| is left [=implementation-defined=].
-        </div>
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the slice operation, given |starts| and |sizes|.
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the softmax operation.
             1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
             1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
@@ -4887,42 +4922,27 @@ partial interface MLGraphBuilder {
   </div>
 </details>
 
-### The softmax() method ### {#api-mlgraphbuilder-softmax}
-Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
-the 2-D input tensor along axis 1.
-<script type=idl>
-partial interface MLGraphBuilder {
-  MLOperand softmax(MLOperand x);
-  MLActivation softmax();
-};
-</script>
-<div algorithm=softmax>
+#### The {{MLGraphBuilder/softmax()}} method #### {#api-mlgraphbuilder-softmax}
+<div>
     **Arguments:**
-        - *x*: an {{MLOperand}}. The input 2-D tensor.
+        - None.
 
     **Returns:**
-        - an {{MLOperand}}. The output 2-D tensor that contains the softmax results, of the same shape as the input tensor.
         - an {{MLActivation}}. The activation function representing the softmax operation.
-
-    <div class="note">
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
-    <pre highlight="js">
-    // This sample deploys a well-known implementation trick [1] to compute the
-    // exponentials of the distances to the max value, instead of the exponentials
-    // of the input values itself, in order to increase the numerical stability of
-    // the result.
-    // [1]: https://cs231n.github.io/linear-classify/#softmax
-    const max_x = builder.reduceMax(x, { axes: [1], keepDimensions: true });
-    const exp_x = builder.exp(builder.sub(x, max_x));
-    return builder.div(exp_x, builder.reduceSum(exp_x, { axes: [1], keepDimensions: true }));
-    </pre>
-    </div>
 </div>
+<details open>
+  <summary>
+    The {{MLGraphBuilder/softmax()}} method steps are:
+  </summary>
+  <div algorithm=softmax class=algorithm-steps>
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"softmax"`.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
-### The softplus() method ### {#api-mlgraphbuilder-softplus-method}
+### The softplus() method ### {#api-mlgraphbuilder-softplus}
+
 Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Softplus">softplus function</a> of the input tensor. The calculation follows the expression `ln(1 + exp(steepness * x)) / steepness`.
 <script type=idl>
 dictionary MLSoftplusOptions {
