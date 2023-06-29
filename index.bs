@@ -2559,28 +2559,20 @@ partial interface MLGraphBuilder {
 </details>
 
 ### The elu() method ### {#api-mlgraphbuilder-elu}
-Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#ELU"> exponential linear unit function</a> on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha * (exp(min(0, x)) - 1)`.
+Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#ELU"> exponential linear unit function</a> (ELU) on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha * (exp(min(0, x)) - 1)`.
+
 <script type=idl>
 dictionary MLEluOptions {
   float alpha = 1;
 };
 
 partial interface MLGraphBuilder {
-  MLOperand elu(MLOperand x, optional MLEluOptions options = {});
+  MLOperand elu(MLOperand input, optional MLEluOptions options = {});
   MLActivation elu(optional MLEluOptions options = {});
 };
 </script>
-<div algorithm=elu>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
-            - *alpha*: a {{float}} scalar multiplier, default to 1.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the elu operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -2594,8 +2586,74 @@ partial interface MLGraphBuilder {
                   builder.exp(builder.min(builder.constant(0), x)),
                   builder.constant(1))));
     </pre>
-    </div>
 </div>
+
+<details open>
+  <summary>
+    To <dfn>check ELU options</dfn> given |options|, run the following steps:
+  </summary>
+  <div algorithm=check-elu-options class=algorithm-steps>
+    1. If |options| is not an [=object=] that [=implements=] {{MLEluOptions}}, then return `false`.
+    1. If |options|.{{MLEluOptions/alpha}} is `undefined`, set |options|.{{MLEluOptions/alpha}} to `1`.
+    1. Else if |options|.{{MLEluOptions/alpha}} is not a [=numeric type=], then then return `false`.
+    1. Return `true`.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/elu(input, options)}} method #### {#api-mlgraphbuilder-elu-input-options}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
+            - *alpha*: a {{float}} scalar multiplier, default to 1.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/elu(input, options)}} method steps are:
+  </summary>
+  <div algorithm=elu-input-options class=algorithm-steps>
+    1. Let |input| be the first argument.
+    1. Let |options| be the second argument.
+        1. If running the <a>check ELU options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the ELU operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/elu(options)}} method #### {#api-mlgraphbuilder-elu-options}
+<div>
+    **Arguments:**
+        - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
+            - *alpha*: a {{float}} scalar multiplier, default to 1.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the elu operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/elu(options)}} method steps are:
+  </summary>
+  <div algorithm=elu-options class=algorithm-steps>
+    1. Let |options| be the first argument.
+        1. If |options| is `undefined`, let |options| be a new {{MLEluOptions}} object.
+        1. If running the <a>check ELU options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"elu"` and |options|.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The gemm() method ### {#api-mlgraphbuilder-gemm}
 Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape [M, K] or [K, M], `B` is a 2-D tensor with shape [K, N] or [N, K], and `C` is broadcastable to the shape [M, N]. `A` and `B` may optionally be transposed prior to the calculation.
