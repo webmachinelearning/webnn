@@ -2451,25 +2451,27 @@ partial interface MLGraphBuilder {
 Compute the element-wise unary operation for input tensor.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand abs(MLOperand x);
-  MLOperand ceil(MLOperand x);
-  MLOperand cos(MLOperand x);
-  MLOperand exp(MLOperand x);
-  MLOperand floor(MLOperand x);
-  MLOperand log(MLOperand x);
-  MLOperand neg(MLOperand x);
-  MLOperand sin(MLOperand x);
-  MLOperand tan(MLOperand x);
+  MLOperand abs(MLOperand input);
+  MLOperand ceil(MLOperand input);
+  MLOperand cos(MLOperand input);
+  MLOperand exp(MLOperand input);
+  MLOperand floor(MLOperand input);
+  MLOperand log(MLOperand input);
+  MLOperand neg(MLOperand input);
+  MLOperand sin(MLOperand input);
+  MLOperand tan(MLOperand input);
 };
 </script>
-<div algorithm=unary>
+
+<div>
     **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
+        - *input*: an {{MLOperand}}. The input tensor.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise unary operation of the input tensor. The shape of the output
     tensor is the same as the shape of input tensor.
-
+</div>
+<div>
     **Operation types:**
         - *abs*: Compute the absolute value of the input tensor, element-wise.
         - *ceil*: Compute the ceiling of the input tensor, element-wise.
@@ -2481,6 +2483,80 @@ partial interface MLGraphBuilder {
         - *sin*: Compute the sine of the input tensor, element-wise.
         - *tan*: Compute the tangent of the input tensor, element-wise.
 </div>
+
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create element-wise unary operation</dfn> given |op| and |input|, run the following steps:
+  </summary>
+  <div algorithm=unary class=algorithm-steps>
+    1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "exp", "floor", "log", "neg", "sin", "tan".
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |kind| be `"output"`.
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the unary operation |op|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The element-wise unary operation algorithms invoke the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] steps as follows.
+  </summary>
+  <div class=algorithm-steps>
+    The {{MLGraphBuilder/abs(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "abs" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/ceil(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "ceil" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/cos(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "cos" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/exp(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "exp" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/floor(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "floor" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/log(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "log" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/neg(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "neg" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/sin(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "sin" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/tan(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "tan" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+  </div>
+</details>
 
 ### The elu() method ### {#api-mlgraphbuilder-elu}
 Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#ELU"> exponential linear unit function</a> on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha * (exp(min(0, x)) - 1)`.
