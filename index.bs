@@ -4598,21 +4598,15 @@ partial interface MLGraphBuilder {
 
 ### The relu() method ### {#api-mlgraphbuilder-relu}
 Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">rectified linear function</a> of the input tensor.
+
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand relu(MLOperand x);
+  MLOperand relu(MLOperand input);
   MLActivation relu();
 };
 </script>
-<div algorithm=relu>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the relu operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -4620,8 +4614,55 @@ partial interface MLGraphBuilder {
     <pre highlight="js">
     return builder.max(builder.constant(0), x);
     </pre>
-    </div>
 </div>
+
+#### The {{MLGraphBuilder/relu(input)}} method #### {#api-mlgraphbuilder-relu-input}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/relu(input)}} steps are:
+  </summary>
+  <div algorithm=relu-input class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the ReLU operation.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/relu()}} method #### {#api-mlgraphbuilder-relu}
+<div>
+    **Arguments:**
+        - None.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the relu operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/relu()}} method steps are:
+  </summary>
+  <div algorithm=relu class=algorithm-steps>
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"relu"`.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The resample2d() method ### {#api-mlgraphbuilder-resample2d}
 Resample the tensor values from the source to the destination spatial dimensions according to the scaling factors.
