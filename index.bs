@@ -1538,12 +1538,29 @@ interface MLGraphBuilder {
 Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to [=default-context|default=], the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
 </div>
 
+{{MLBufferResourceView}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLBufferResourceView>
+    : <dfn>resource</dfn>
+    ::
+        A {{GPUBuffer}} object. Specifies the GPU buffer source.
+
+    : <dfn>offset</dfn>
+    ::
+        Specifies an {{unsigned long long}} offset in the buffer source.
+
+    : <dfn>size</dfn>
+    ::
+        Specifies the {{unsigned long long}} size of the buffer view.
+</dl>
+
+<div class=internal-slots>
 {{MLGraphBuilder}} has the following internal slots:
-<dl dfn-type=attribute dfn-for="MLGraphBuilder">
+  <dl dfn-type=attribute dfn-for="MLGraphBuilder">
     : <dfn>\[[context]]</dfn> of type {{MLContext}}
     ::
         The context of type {{MLContext}} associated with this {{MLGraphBuilder}}.
-</dl>
+  </dl>
+</div>
 
 ### The {{MLGraphBuilder}} constructor ### {#api-mlgraphbuilder-constructor}
 <details open>
@@ -1592,6 +1609,58 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
             1. Store a reference of |operandImpl| in |operand|.{{MLOperand/[[operand]]}}.
             1. Register |operand| as an input.
     1. Return |operand|.
+  </div>
+</details>
+
+### The build() method ### {#api-mlgraphbuilder-build}
+Build a composed graph up to a given output operand into a computational graph, asynchronously or synchronously.
+
+#### The {{MLGraphBuilder/build(outputs)}} method #### {#api-mlgraphbuilder-build-outputs}
+<details open>
+  <summary>
+    The {{MLGraphBuilder/build(outputs)}} steps are:
+  </summary>
+  <div algorithm=build-outputs class=algorithm-steps>
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. Let |promise| be [=a new promise=].
+    1. Return |promise| and run the following steps [=in parallel=].
+    1. Return the result of invoking {{MLGraphBuilder/buildSync(outputs)}} given |outputs|.
+        1. If that throws, re-throw the error and stop.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/buildSync(outputs)}} method #### {#api-mlgraphbuilder-buildsync-outputs}
+<details open>
+  <summary>
+    The {{MLGraphBuilder/buildSync(outputs)}} steps are:
+  </summary>
+  <div algorithm=buildsync-outputs class=algorithm-steps>
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. If |outputs| is not an instance of {{MLNamedOperands}}, then throw an "{{TypeError}}" {{DOMException}} and stop.
+    1. For each |element| in |outputs|:
+        1. If |element|.key is not a [=string=], then throw an "{{TypeError}}" {{DOMException}} and stop.
+        1. If |element|.value is not an instance of {{MLOperand}}, then throw an "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |graph| be a new {{MLGraph}}:
+            1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
+            1. Set |graph|.{{MLGraph/[[outputDescriptors]]}} to |outputs|.
+        1. Make a request to the underlying platform to:
+            1. Connect |graph| to a new [=implementation-defined=] graph implementation |graphImpl| given |graph|.
+            1. Store a reference to |graphImpl| in |graph|.{{MLGraph/[[implementation]]}}.
+        1. Make a request to the underlying platform to initialize the graph:
+            1. For each |operand| in |outputs|:
+                1. If |operand| was created as an input by the underlying platform:
+                    1. Add |operand| to |graph|.{{MLGraph/[[inputDescriptors]]}}.
+                    1. Initialize the weights of |operand|.
+                1. If |operand| was created as a constant by the underlying platform:
+                    1. Preprocess and optimize the tensor data of |operand|.
+                1. Update |graphImpl| with |operand|.{{MLOperand/[[operand]]}}.
+                1. Update |graphImpl| with |operand|.{{MLOperand/[[operator]]}}.
+    1. Return |graph|.
   </div>
 </details>
 
@@ -1963,54 +2032,131 @@ partial interface MLGraphBuilder {
   MLOperand conv2d(MLOperand input, MLOperand filter, optional MLConv2dOptions options = {});
 };
 </script>
-<div algorithm=conv2d>
+
+{{MLConv2dOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLConv2dOptions>
+    : <dfn>padding</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 4: [beginning_height, ending_height, beginning_width, ending_width].
+        Specifies the additional rows and columns added to the beginning and ending of each spatial dimension of the convolution input.
+        The default value is [0, 0, 0, 0].
+
+    : <dfn>strides</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [stride_height, stride_width].
+        Specifies the stride of the sliding window for each spatial dimension of the convolution input.
+        The default value is [1, 1].
+
+    : <dfn>dilations</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [dilation_height, dilation_width]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
+        The default value is [1, 1].
+
+    : <dfn>autoPad</dfn>
+    ::
+        An {{MLAutoPad}} [=string=].
+        Specifies the automatic input padding options.
+        The default value is *"explicit"*, which means that the values in the {{MLConv2dOptions/padding}} array should be used for input padding.
+        When the option is set other than *"explicit"*, the values in the {{MLConv2dOptions/padding}} array are ignored.
+
+        With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered.
+
+        The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
+
+    : <dfn>groups</dfn>
+    ::
+        An {{unsigned long}} scalar.
+        Specifies the number of groups that input channels and output channels are divided into.
+        The default value is 1.
+
+    : <dfn>inputLayout</dfn>
+    ::
+        An {{MLInputOperandLayout}} [=string=].
+        Specifies the layout format of the input and output tensor as follows:
+            - **"nchw"**
+                - input tensor: *[batches, input_channels, height, width]*
+                - output tensor: *[batches, output_channels, height, width]*
+            - **"nhwc"**:
+                - input tensor: *[batches, height, width, input_channels]*
+                - output tensor: *[batches, height, width, output_channels]*
+        The default value is *"nchw"*.
+
+    : <dfn>filterLayout</dfn>
+    ::
+          An {{MLConv2dFilterOperandLayout}} [=string=].
+          Specifies the layout format of the filter tensor as follow:
+              - **"oihw"**: *[output_channels, input_channels/groups, height, width]*
+              - **"hwio"**: *[height, width, input_channels/groups, output_channels]*
+              - **"ohwi"**: *[output_channels, height, width, input_channels/groups]*
+              - **"ihwo"**: *[input_channels/groups, height, width, output_channels]*
+          The default value is *"oihw"*.
+
+    : <dfn>bias</dfn>
+    ::
+          An {{MLOperand}} object.
+          Specifies the additional 1-D tensor with the shape of *[output_channels]* whose values are to be added to the convolution result.
+
+    : <dfn>activation</dfn>
+    ::
+            An {{MLActivation}} object.
+            Specifies the optional activation function that immediately follows the convolution operation.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
-            is interpreted according to the value of *options.inputLayout*.
+            is interpreted according to the value of *options*.{{MLConv2dOptions/inputLayout}}.
         - *filter*: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
-            interpreted according to the value of *options.filterLayout* and *options.groups*.
-        - *options*: an optional {{MLConv2dOptions}}. The optional parameters of the operation.
-            - *padding*: a sequence of {{unsigned long}} of length 4. The additional rows and columns added to the beginning and ending of each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
-            - *strides*: a sequence of {{unsigned long}} of length 2. The stride of the sliding window for each spatial dimension of *input*, [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
-            - *dilations*: a sequence of {{unsigned long}} of length 2. The dilation factor for each spatial dimension of *input*, [dilation_height, dilation_width]. If not present, the values are assumed to be [1,1].
-            - *autoPad*: an {{MLAutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
-            - *groups*: an {{unsigned long}} scalar. The number of groups that input channels and output channels are divided into, default to 1.
-            - *inputLayout*: an {{MLInputOperandLayout}}. The default value is *"nchw"*. This option specifies the layout format of the input and output tensor as follow:
+            interpreted according to the value of *options*.{{MLConv2dOptions/filterLayout}} and *options*.{{MLConv2dOptions/groups}}.
+        - *options*: an {{MLConv2dOptions}}. The optional parameters of the operation.
 
-                "nchw":
-                    - input tensor: [batches, input_channels, height, width]
-                    - output tensor: [batches, output_channels, height, width]
+    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options*.{{MLConv2dOptions/inputLayout}} value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follow:
 
-                "nhwc":
-                    - input tensor: [batches, height, width, input_channels]
-                    - output tensor: [batches, height, width, output_channels]
+    *output_size = 1 + (input_size - (filter_size - 1) ** *dilation - 1 + beginning_padding + ending_padding) / stride*
+</div>
 
-            - *filterLayout*: an {{MLConv2dFilterOperandLayout}}. The default value is *"oihw"*. This option specifies the layout format of the filter tensor as follow:
-
-                "oihw":
-                    - [output_channels, input_channels/groups, height, width]
-
-                "hwio":
-                    - [height, width, input_channels/groups, output_channels]
-
-                "ohwi":
-                    - [output_channels, height, width, input_channels/groups]
-
-                "ihwo":
-                    - [input_channels/groups, height, width, output_channels]
-
-            - *bias*: an {{MLOperand}}. The additional 1-D tensor with the shape of [output_channels] whose values are to be added to the convolution result.
-            - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the convolution operation.
-
-    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.inputLayout* value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follow:
-
-    *output size = 1 + (input size - (filter size - 1) ** *dilation - 1 + beginning padding + ending padding) / stride*
-
-    <div class="note">
+<div class="note">
     A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options.groups* = input_channels = output_channels and the shape of filter tensor is [options.groups, 1, height, width]
     for *"oihw"* layout, [height, width, 1, options.groups] for *"hwio"* layout, [options.groups, height, width, 1] for *"ohwi"* layout and [1, height, width, options.groups] for *"ihwo"* layout.
-    </div>
 </div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/conv2d(input, filter, options)}} steps are:
+  </summary>
+  <div algorithm=conv2d class=algorithm-steps>
+    1. If |input| or |filter| is not an instance of {{MLOperand}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |input_size| be the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |filter_size| be the size of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. If |input_size| is not `4`, then then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |filter_size| is not `4`, then then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLConv2dOptions/padding}} is `undefined`, set it to `[0, 0, 0, 0]`.
+    1. If |options|.{{MLConv2dOptions/strides}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConv2dOptions/dilations}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConv2dOptions/autoPad}} is `undefined`, set it to `"explicit"`.
+    1. If |options|.{{MLConv2dOptions/groups}} is `undefined`, set it to `1`.
+    1. If |options|.{{MLConv2dOptions/inputLayout}} is `undefined`, set it to `"nchw"`.
+    1. If |options|.{{MLConv2dOptions/filterLayout}} is `undefined`, set it to `"oihw"`.
+    1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=] and it is not an instance of {{MLOperand}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=] and it is not an instance of {{MLActivation}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |output_shape| be the result of calculating output dimensions based on input, filter, dilation, padding and stride, taking into account |options|.{{MLConv2dOptions/inputLayout}}.
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |output_shape|.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Create an [=implementation-defined=] platform operator |conv2dImpl| for this method, given |options| and |filter|.
+                1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=],register it as activation to |conv2dImpl|.
+            1. Store a reference of |conv2dImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |conv2dImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |conv2dImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |conv2dImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The convTranspose2d() method ### {#api-mlgraphbuilder-convtranspose2d}
 Compute a 2-D transposed convolution given 4-D input and filter tensors
@@ -2041,52 +2187,153 @@ partial interface MLGraphBuilder {
                             optional MLConvTranspose2dOptions options = {});
 };
 </script>
-<div algorithm=convtranspose2d>
+
+{{MLConvTranspose2dOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLConvTranspose2dOptions>
+    : <dfn>padding</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 4: [beginning_height, ending_height, beginning_width, ending_width].
+        Specifies the additional rows and columns added to the beginning and ending of each spatial dimension of the convolution input.
+        The default value is [0, 0, 0, 0].
+
+    : <dfn>strides</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [stride_height, stride_width].
+        Specifies the stride of the sliding window for each spatial dimension of the convolution input.
+        The default value is [1, 1].
+
+    : <dfn>dilations</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [dilation_height, dilation_width]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
+        The default value is [1, 1].
+
+    : <dfn>outputPadding</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2.
+        Specifies the padding values applied to each spatial dimension of the output tensor. The explicit padding values are needed to disambiguate the output tensor shape for transposed convolution when the value of the *options*.{{MLConvTranspose2dOptions/strides}} is greater than 1.
+
+        Note that these values are only used to disambiguate output shape when needed; it does not necessarily cause any padding value to be written to the output tensor.
+
+        The default values is [0, 0].
+
+    : <dfn>outputSizes</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2.
+        Specifies the sizes of the last two dimensions of the output tensor. When the output sizes are explicitly specified, the output padding values in {{MLConvTranspose2dOptions/outputPadding}} are ignored.
+
+        If not specified, the output sizes are automatically computed.
+
+    : <dfn>autoPad</dfn>
+    ::
+        An {{MLAutoPad}} [=string=].
+        Specifies the automatic input padding options.
+        The default value is *"explicit"*, which means that the values in the {{MLConvTranspose2dOptions/padding}} array should be used for input padding.
+
+        When the option is set other than *"explicit"*, the values in the {{MLConvTranspose2dOptions/padding}} array are ignored.
+
+        With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered.
+
+        The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
+
+    : <dfn>groups</dfn>
+    ::
+        An {{unsigned long}} scalar.
+        Specifies the number of groups that input channels and output channels are divided into.
+        The default value is 1.
+
+    : <dfn>inputLayout</dfn>
+    ::
+        An {{MLInputOperandLayout}} [=string=].
+        Specifies the layout format of the input and output tensor as follows:
+            - **"nchw"**
+                - input tensor: *[batches, input_channels, height, width]*
+                - output tensor: *[batches, output_channels, height, width]*
+            - **"nhwc"**:
+                - input tensor: *[batches, height, width, input_channels]*
+                - output tensor: *[batches, height, width, output_channels]*
+        The default value is *"nchw"*.
+
+    : <dfn>filterLayout</dfn>
+    ::
+        An {{MLConvTranspose2dFilterOperandLayout}} [=string=].
+        Specifies the layout format of the filter tensor as follow:
+            - **"iohw"**: [input_channels, output_channels/groups, height, width]
+            - **"hwoi"**: [height, width, output_channels/groups, input_channels]
+            - **"ohwi"**: [output_channels/groups, height, width, input_channels]
+        The default value is *"iohw"*.
+
+    : <dfn>bias</dfn>
+    ::
+        An {{MLOperand}} object.
+        Specifies the additional 1-D tensor with the shape of *[output_channels]* whose values are to be added to the convolution result.
+
+    : <dfn>activation</dfn>
+    ::
+        An {{MLActivation}} object.
+        Specifies the optional activation function that immediately follows the convolution operation.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
-            is interpreted according to the value of *options.inputLayout*.
+            is interpreted according to the value of *options*.{{MLConvTranspose2dOptions/inputLayout}}.
         - *filter*: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
-            interpreted according to the value of *options.filterLayout* and *options.groups*.
-        - *options*: an optional {{MLConvTranspose2dOptions}}. The optional parameters of the operation.
-            - *padding*: a sequence of {{unsigned long}} of length 4. The additional rows and columns added to the beginning and ending of each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
-            - *strides*: a sequence of {{unsigned long}} of length 2. The stride of the sliding window for each spatial dimension of *input*, [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
-            - *dilations*: a sequence of {{unsigned long}} of length 2. The dilation factor for each spatial dimension of *input*, [dilation_height, dilation_width]. If not present, the values are assumed to be [1,1].
-            - *outputPadding*: a sequence of {{unsigned long}} of length 2. The padding values applied to each spatial dimension of the output tensor. This explicit padding values are needed to disambiguate the output tensor shape for transposed convolution when the value of the *options.strides* is greater than 1. Note that these values are only used to disambiguate output shape when needed; it does not necessarily cause any padding value to be written to the output tensor. If not specified, the values are assumed to be [0,0].
-            - *outputSizes*: a sequence of {{unsigned long}} of length 2. The sizes of the last two dimensions of the output tensor. When the output sizes are explicitly specified, the output padding values in *options.outputPadding* are ignored. If not specified, the output sizes are automatically computed.
-            - *autoPad*: an {{MLAutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
-            - *groups*: an {{unsigned long}} scalar. The number of groups that input channels and output channels are divided into, default to 1.
-            - *inputLayout*: an {{MLInputOperandLayout}}. The default value is *"nchw"*. This option specifies the layout format of the input and output tensor as follow:
+            interpreted according to the value of *options*.{{MLConvTranspose2dOptions/filterLayout}} and {{MLConvTranspose2dOptions/groups}}.
+        - *options*: an optional {{MLConvTranspose2dOptions}}.
 
-                "nchw":
-                    - input tensor: [batches, input_channels, height, width]
-                    - output tensor: [batches, output_channels, height, width]
+    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options*.{{MLConvTranspose2dOptions/inputLayout}} value. More specifically, unless the *options*.{{MLConvTranspose2dOptions/outputSizes}} values are explicitly specified, the *options*.{{MLConvTranspose2dOptions/outputPadding}} may be needed to compute the spatial dimension values of the output tensor as follow:
 
-                "nhwc":
-                    - input tensor: [batches, height, width, input_channels]
-                    - output tensor: [batches, height, width, output_channels]
-
-            - *filterLayout*: an {{MLConvTranspose2dFilterOperandLayout}}. The default value is *"iohw"*. This option specifies the layout format of the filter tensor as follow:
-
-                "iohw":
-                    - [input_channels, output_channels/groups, height, width]
-
-                "hwoi":
-                    - [height, width, output_channels/groups, input_channels]
-
-                "ohwi":
-                    - [output_channels/groups, height, width, input_channels]
-
-            - *bias*: an {{MLOperand}}. The additional 1-D tensor with the shape of [output_channels] whose values are to be added to the transposed convolution result.
-            - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the transposed convolution operation.
-
-    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options.inputLayout* value. More specifically, unless the *options.outputSizes* values are explicitly specified, the *options.outputPadding* may be needed to compute the spatial dimension values of the output tensor as follow:
-
-    *output size = (input size - 1) ** *stride + (filter size - 1) ** *dilation + 1 - beginning padding - ending padding + output padding*
+    *output_size = (input_size - 1) ** *stride + (filter_size - 1) ** *dilation + 1 - beginning_padding - ending_padding + output_padding*
 </div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/convTranspose2d(input, filter, options)}} steps are:
+  </summary>
+  <div algorithm=convtranspose2d class=algorithm-steps>
+    1. If |input| or |filter| is not an instance of {{MLOperand}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |input_size| be the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |filter_size| be the size of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. If |input_size| is not `4`, then then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |filter_size| is not `4`, then then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLConvTranspose2dOptions/padding}} is `undefined`, set it to `[0, 0, 0, 0]`.
+    1. If |options|.{{MLConvTranspose2dOptions/strides}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConvTranspose2dOptions/dilations}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} is `undefined`, set it to `[0, 0]`.
+    1. If |options|.{{MLConvTranspose2dOptions/autoPad}} is `undefined`, set it to `"explicit"`.
+    1. If |options|.{{MLConvTranspose2dOptions/groups}} is `undefined`, set it to `1`.
+    1. If |options|.{{MLConvTranspose2dOptions/inputLayout}} is `undefined`, set it to `"nchw"`.
+    1. If |options|.{{MLConvTranspose2dOptions/filterLayout}} is `undefined`, set it to `"iohw"`.
+    1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=] and it is not an instance of {{MLOperand}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=] and it is not an instance of {{MLActivation}}, then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |output_shape| be the result of calculating output dimensions based on |input|, |filter|, |options|.{{MLConvTranspose2dOptions/dilations}}, |options|.{{MLConvTranspose2dOptions/padding}} and |options|.{{MLConvTranspose2dOptions/strides}}, taking into account |options|.{{MLConvTranspose2dOptions/inputLayout}}.
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |output_shape|.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Create an [=implementation-defined=] platform operator |convTranspose2dImpl| for this method, given |options| and |filter|.
+                1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=],register it as activation to |convTranspose2dImpl|.
+            1. Store a reference of |convTranspose2dImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |convTranspose2dImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |convTranspose2dImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |convTranspose2dImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### Element-wise binary operations ### {#api-mlgraphbuilder-binary}
 Compute the element-wise binary addition, subtraction, multiplication, division,
 maximum and minimum of the two input tensors.
+
+The element-wise binary operations will be broadcasted according to
+[[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
+rank of the input tensors. For each dimension of the output tensor, its size
+is the maximum size along that dimension of the input tensors.
+
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand add(MLOperand a, MLOperand b);
@@ -2098,19 +2345,16 @@ partial interface MLGraphBuilder {
   MLOperand pow(MLOperand a, MLOperand b);
 };
 </script>
-<div algorithm=binary>
+
+<div>
     **Arguments:**
         - *a*: an {{MLOperand}}. The first input tensor.
         - *b*: an {{MLOperand}}. The second input tensor.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise binary operation of the two input tensors.
-
-    The element-wise binary operation will be broadcasted according to
-    [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
-    rank of the input tensors. For each dimension of the output tensor, its size
-    is the maximum size along that dimension of the input tensors.
-
+</div>
+<div>
     **Operation types:**
         - *add*: Add the values of the two input tensors, element-wise.
         - *sub*: Subtract the values of the second input tensor from the values of the first input tensor, element-wise.
@@ -2121,29 +2365,113 @@ partial interface MLGraphBuilder {
         - *pow*: Compute the values of the values of the first input tensor to the power of the values of the second input tensor, element-wise.
 </div>
 
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder" data-lt="element-wise-binary-op">create element-wise binary operation</dfn> given |op|, |a| and |b|, run the following steps:
+  </summary>
+  <div algorithm=binary class=algorithm-steps>
+    1. [=Assert=]: |op| is one of "add", "sub", "mul", "div", "max", "min", "pow".
+    1. If |a| or |b| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}}.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If that throws an error, re-throw the error and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |descriptor|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the binary operation |op|, given |a| and |b|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder" lt="broadcast-shapes">broadcast shapes</dfn> given |shape1| and |shape2|, run the following steps:
+  </summary>
+  <div algorithm=broadcast-shape class=algorithm-steps>
+    1. [=Assert=]: The type of |shape1| and |shape2| is `sequence of unsigned long`.
+    1. Let |output| be the result of invoking the [=implementation-defined=] shape broadcast on |shape1| and |shape2|.
+            1. If that fails, throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Return |output|.
+        <div class = "note">
+        The most common implementation is that two shapes are compatible, when each of their corresponding dimensions are equal, or one of them is 1. The output shape consists of the maximum of the corresponding dimensions.
+        </div>
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The element-wise binary operation algorithms invoke the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] steps as follows.
+  </summary>
+  <div class=algorithm-steps>
+    The {{MLGraphBuilder/add(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "add", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/sub(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "sub", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/mul(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "mul", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/div(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "div", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/max(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "max", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/min(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "min", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/pow(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "pow", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+</div>
+</details>
+
 ### Element-wise unary operations ### {#api-mlgraphbuilder-unary}
 Compute the element-wise unary operation for input tensor.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand abs(MLOperand x);
-  MLOperand ceil(MLOperand x);
-  MLOperand cos(MLOperand x);
-  MLOperand exp(MLOperand x);
-  MLOperand floor(MLOperand x);
-  MLOperand log(MLOperand x);
-  MLOperand neg(MLOperand x);
-  MLOperand sin(MLOperand x);
-  MLOperand tan(MLOperand x);
+  MLOperand abs(MLOperand input);
+  MLOperand ceil(MLOperand input);
+  MLOperand cos(MLOperand input);
+  MLOperand exp(MLOperand input);
+  MLOperand floor(MLOperand input);
+  MLOperand log(MLOperand input);
+  MLOperand neg(MLOperand input);
+  MLOperand sin(MLOperand input);
+  MLOperand tan(MLOperand input);
 };
 </script>
-<div algorithm=unary>
+
+<div>
     **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
+        - *input*: an {{MLOperand}}. The input tensor.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise unary operation of the input tensor. The shape of the output
     tensor is the same as the shape of input tensor.
-
+</div>
+<div>
     **Operation types:**
         - *abs*: Compute the absolute value of the input tensor, element-wise.
         - *ceil*: Compute the ceiling of the input tensor, element-wise.
@@ -2156,29 +2484,95 @@ partial interface MLGraphBuilder {
         - *tan*: Compute the tangent of the input tensor, element-wise.
 </div>
 
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create element-wise unary operation</dfn> given |op| and |input|, run the following steps:
+  </summary>
+  <div algorithm=unary class=algorithm-steps>
+    1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "exp", "floor", "log", "neg", "sin", "tan".
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |kind| be `"output"`.
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the unary operation |op|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The element-wise unary operation algorithms invoke the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] steps as follows.
+  </summary>
+  <div class=algorithm-steps>
+    The {{MLGraphBuilder/abs(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "abs" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/ceil(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "ceil" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/cos(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "cos" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/exp(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "exp" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/floor(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "floor" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/log(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "log" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/neg(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "neg" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/sin(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "sin" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/tan(input)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation =] given "tan" and |input|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+  </div>
+</details>
+
 ### The elu() method ### {#api-mlgraphbuilder-elu}
-Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#ELU"> exponential linear unit function</a> on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha * (exp(min(0, x)) - 1)`.
+Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#ELU"> exponential linear unit function</a> (ELU) on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha * (exp(min(0, x)) - 1)`.
+
 <script type=idl>
 dictionary MLEluOptions {
   float alpha = 1;
 };
 
 partial interface MLGraphBuilder {
-  MLOperand elu(MLOperand x, optional MLEluOptions options = {});
+  MLOperand elu(MLOperand input, optional MLEluOptions options = {});
   MLActivation elu(optional MLEluOptions options = {});
 };
 </script>
-<div algorithm=elu>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
-            - *alpha*: a {{float}} scalar multiplier, default to 1.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the elu operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -2192,11 +2586,78 @@ partial interface MLGraphBuilder {
                   builder.exp(builder.min(builder.constant(0), x)),
                   builder.constant(1))));
     </pre>
-    </div>
 </div>
+
+<details open>
+  <summary>
+    To <dfn>check ELU options</dfn> given |options|, run the following steps:
+  </summary>
+  <div algorithm=check-elu-options class=algorithm-steps>
+    1. If |options| is not an [=object=] that [=implements=] {{MLEluOptions}}, then return `false`.
+    1. If |options|.{{MLEluOptions/alpha}} is `undefined`, set |options|.{{MLEluOptions/alpha}} to `1`.
+    1. Else if |options|.{{MLEluOptions/alpha}} is not a [=numeric type=], then then return `false`.
+    1. Return `true`.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/elu(input, options)}} method #### {#api-mlgraphbuilder-elu-input-options}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
+            - *alpha*: a {{float}} scalar multiplier, default to 1.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/elu(input, options)}} method steps are:
+  </summary>
+  <div algorithm=elu-input-options class=algorithm-steps>
+    1. Let |input| be the first argument.
+    1. Let |options| be the second argument.
+        1. If running the <a>check ELU options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the ELU operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/elu(options)}} method #### {#api-mlgraphbuilder-elu-options}
+<div>
+    **Arguments:**
+        - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
+            - *alpha*: a {{float}} scalar multiplier, default to 1.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the elu operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/elu(options)}} method steps are:
+  </summary>
+  <div algorithm=elu-options class=algorithm-steps>
+    1. Let |options| be the first argument.
+        1. If |options| is `undefined`, let |options| be a new {{MLEluOptions}} object.
+        1. If running the <a>check ELU options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"elu"` and |options|.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The gemm() method ### {#api-mlgraphbuilder-gemm}
 Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape [M, K] or [K, M], `B` is a 2-D tensor with shape [K, N] or [N, K], and `C` is broadcastable to the shape [M, N]. `A` and `B` may optionally be transposed prior to the calculation.
+
 <script type=idl>
 dictionary MLGemmOptions {
   MLOperand c;
@@ -2210,22 +2671,84 @@ partial interface MLGraphBuilder {
   MLOperand gemm(MLOperand a, MLOperand b, optional MLGemmOptions options = {});
 };
 </script>
-<div algorithm=gemm>
+
+{{MLGemmOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLGemmOptions>
+    : <dfn>c</dfn>
+    ::
+        An {{MLOperand}}. Specifies the third input tensor. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape [M, N] according to [[!numpy-broadcasting-rule]]. When it is not specified, the computation is done as if *c* is a scalar `0.0`.
+
+    : <dfn>alpha</dfn>
+    ::
+        A {{float}} scalar multiplier for the first input.
+
+    : <dfn>beta</dfn>
+    ::
+        A {{float}} scalar multiplier for the third input {{MLGemmOptions/c}}.
+
+    : <dfn>aTranspose</dfn>
+    ::
+        A {{boolean}} indicating if the first input should be transposed prior to calculating the output.
+
+    : <dfn>bTranspose</dfn>
+    ::
+        A {{boolean}} indicating if the second input should be transposed prior to calculating the output.
+</dl>
+
+<div>
     **Arguments:**
         - *a*: an {{MLOperand}}. The first input 2-D tensor with shape [M, K] if *aTranspose* is false, or [K, M] if *aTranspose* is true.
         - *b*: an {{MLOperand}}. The second input 2-D tensor with shape [K, N] if *bTranspose* is false, or [N, K] if *bTranspose* is true.
         - *options*: an optional {{MLGemmOptions}}. The optional parameters of the operation.
-            - *c*: an {{MLOperand}}. The third input tensor. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape [M, N] according to [[!numpy-broadcasting-rule]]. When it is not specified, the computation is done as if *c* is a scalar 0.0.
-            - *alpha*: a {{float}} scalar multiplier for the first input, default to 1.0.
-            - *beta*: a {{float}} scalar multiplier for the third input, default to 1.0.
-            - *aTranspose*: a {{boolean}} indicating if the first input should be transposed prior to calculating the output, default to false.
-            - *bTranspose*: a {{boolean}} indicating if the second input should be transposed prior to calculating the output, default to false.
 
     **Returns:** an {{MLOperand}}. The output 2-D tensor of shape [M, N] that contains the calculated product of all the inputs.
+</div>
 
-    <div class="note">
+<details open>
+  <summary>
+    The {{MLGraphBuilder/gemm(a, b, options)}} steps are:
+  </summary>
+  <div algorithm=gemm class=algorithm-steps>
+    1. If |a| or |b| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLGemmOptions/alpha}} is `undefined`, set it to `1.0`.
+    1. If |options|.{{MLGemmOptions/beta}} is `undefined`, set it to `1.0`.
+    1. If |options|.{{MLGemmOptions/aTranspose}} is `undefined`, set it to `false`.
+    1. If |options|.{{MLGemmOptions/aTranspose}} is not `false`, set it to `true`.
+    1. If |options|.{{MLGemmOptions/bTranspose}} is `undefined`, set it to `false`.
+    1. If |options|.{{MLGemmOptions/bTranspose}} is not `false`, set it to `true`.
+    1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the size of |shapeA|.
+    1. Let |shapeB| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the size of |shapeB|.
+    1. If |sizeA| is not `2` or |sizeB| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGemmOptions/aTranspose}} is `true`, then let |shapeA| be the reverse array of |shapeA|.
+    1. If |options|.{{MLGemmOptions/bTranspose}} is `true`, then let |shapeB| be the reverse array of |shapeB|.
+    1. If |shapeA|[1] is not equal to |shapeB|[0], then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGemmOptions/c}} [=map/exists=] and is not unidirectionally broadcastable to the shape [|shapeA|[0], |shapeB|[1]] according to the [[!numpy-broadcasting-rule]], then throw a "{{DataError}}" {{DOMException}} and stop.
+        <div class="note">
+            Type compatibility between |a|, |b| and |options|.{{MLGemmOptions/c}} can be also checked.
+        </div>
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [|shapeA|[0], |shapeB|[1]].
+    1. Set |desc|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the GEMM operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     if (options.aTranspose)
       a = builder.transpose(a);
 
@@ -2234,8 +2757,8 @@ partial interface MLGraphBuilder {
 
     let ab = builder.matmul(builder.mul(builder.constant(options.alpha), a), b);
     return (c ? builder.add(ab, builder.mul(builder.constant(options.beta), c)) : ab);
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### The gru() method ### {#api-mlgraphbuilder-gru}
@@ -2269,28 +2792,98 @@ partial interface MLGraphBuilder {
                           optional MLGruOptions options = {});
 };
 </script>
-<div algorithm=gru>
+
+{{MLGruOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLGruOptions>
+    : <dfn>bias</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
+
+    : <dfn>recurrentBias</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
+
+    : <dfn>initialHiddenState</dfn>
+    ::
+        An {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size].
+        When not specified, implementations SHOULD use a tensor filled with zero.
+
+    : <dfn>resetAfter</dfn>
+    ::
+        A {{boolean}} indicating whether to apply the reset gate after or before matrix multiplication. The default value is `true`.
+
+    : <dfn>returnSequence</dfn>
+    ::
+        A {{boolean}} indicating whether to also return the entire sequence with every output from each time step in it in addition to the output of the last time step.
+        The default value is `false`.
+
+    : <dfn>direction</dfn>
+    ::
+        An {{MLRecurrentNetworkDirection}}. Specifies the processing direction of the input sequence. When set to `"both"`, the size of the first dimension of the weight and the bias tensor shapes must be `2`, and the input is processed in both directions.
+
+    : <dfn>layout</dfn>
+    ::
+        An {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the `update (z)`, `reset (r)`, and `new (n)` gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is `"zrn"`.
+
+    : <dfn>activations</dfn>
+    ::
+        A sequence of {{MLActivation}}. Specifies a pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, implementations SHOULD use the the pair of sigmoid (`"sigmoid"`) and the hyperbolic tangent (`"tanh"`) functions, respectively.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batch_size, input_size].
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 3 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 3 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
         - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
-            - *bias*: an {{MLOperand}}. The 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *recurrentBias*: an {{MLOperand}}. The 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *initialHiddenState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
-            - *resetAfter*: a {{boolean}} indicating whether to apply the reset gate after or before matrix multiplication. Default to true.
-            - *returnSequence*: a {{boolean}} indicating whether to also return the entire sequence with every output from each time step in it in addition to the output of the last time step. Default to false.
-            - *direction*: an {{MLRecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
-            - *layout*: an {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is *"zrn"*.
-            - *activations*: a sequence of {{MLActivation}}. A pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, it's assumed to be the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if *options.returnSequence* is set to true, the second element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if |options|.{{MLGruOptions/returnSequence}} is set to `true`, the second element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
+</div>
 
-    <div class="note">
+<details open>
+  <summary>
+    The {{MLGraphBuilder/gru(input, weight, recurrentWeight, steps, hiddenSize, options)}} steps are:
+  </summary>
+  <div algorithm=gru class=algorithm-steps>
+    1. If |input|, |weight| or |recurrentWeight| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If the rank of |input| or |weight| is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the rank of |weight| or |recurrentWeight| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLGruOptions/bias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGruOptions/resetAfter}} is `undefined`, set it to `true`.
+    1. If |options|.{{MLGruOptions/returnSequence}} is `undefined`, set it to `false`.
+    1. If |options|.{{MLGruOptions/direction}} is `undefined`, set it to `"forward"`.
+    1. If |options|.{{MLGruOptions/direction}} is not one of {{MLRecurrentNetworkDirection}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGruOptions/layout}} is `undefined`, set it to `"zrn"`.
+    1. If |options|.{{MLGruOptions/layout}} is not one of {{MLGruWeightLayout}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and is not an array of size `2`, or if any of its elements is not an instance of {{MLActivation}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |steps| is not a [=number=] or it is `0`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |output| be an empty sequence of {{MLOperand}} objects.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for `"gru"`, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options| as parameters.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output| as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated from the usage of other operations as follows. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     const numDirections = (options.direction == "both" ? 2 : 1);
     let hiddenState = options.initialHiddenState;
 
@@ -2346,12 +2939,13 @@ partial interface MLGraphBuilder {
     }
 
     return (sequence ? [hiddenState, sequence] : [hiddenState]);
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### The gruCell() method ### {#api-mlgraphbuilder-grucell}
 A single time step of the Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of a recurrent network.
+
 <script type=idl>
 dictionary MLGruCellOptions {
   MLOperand bias;
@@ -2367,7 +2961,31 @@ partial interface MLGraphBuilder {
                     optional MLGruCellOptions options = {});
 };
 </script>
-<div algorithm=grucell>
+
+{{MLGruCellOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLGruCellOptions>
+    : <dfn>bias</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
+
+    : <dfn>recurrentBias</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
+
+    : <dfn>resetAfter</dfn>
+    ::
+        A {{boolean}} indicating whether to apply the reset gate after or before matrix multiplication. The default value is `true`.
+
+    : <dfn>layout</dfn>
+    ::
+        An {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the `update (z)`, `reset (r)`, and `new (n)` gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is `"zrn"`.
+
+    : <dfn>activations</dfn>
+    ::
+        A sequence of {{MLActivation}}. Specifies a pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, implementations SHOULD use the the pair of sigmoid (`"sigmoid"`) and the hyperbolic tangent (`"tanh"`) functions, respectively.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batch_size, input_size].
         - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [3 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
@@ -2375,17 +2993,51 @@ partial interface MLGraphBuilder {
         - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape [batch_size, hidden_size].
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLGruCellOptions}}. The optional parameters of the operation.
-            - *bias*: an {{MLOperand}}. The 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *recurrentBias*: an {{MLOperand}}. The 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *resetAfter*: a {{boolean}} indicating whether to apply the reset gate after or before matrix multiplication. Default to true.
-            - *layout*: an {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the *update (z)*, *reset (r)*, and *new (n)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"zrn"*.
-            - *activations*: a sequence of {{MLActivation}}. A pair of activation functions with the first function used for the *update (z)* and *reset (r)* gate, and the second used for the *new (n)* gate. When not specified, it's default to the sigmoid (*"sigmoid"*) and the hyperbolic tangent (*"tanh"*) function respectively.
 
     **Returns:** an {{MLOperand}}. The 2-D tensor of shape [batch_size, hidden_size], the cell output hidden state of a single time step of the recurrent network.
+</div>
 
-    <div class="note">
+<details open>
+  <summary>
+     The {{MLGraphBuilder/gruCell(input, weight, recurrentWeight, hiddenState, hiddenSize, options)}} steps are:
+  </summary>
+  <div algorithm=grucell class=algorithm-steps>
+    1. If |input|, |weight| or |recurrentWeight| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If the rank of |input| or |weight| is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the rank of |weight| or |recurrentWeight| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLGruOptions/bias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGruOptions/resetAfter}} is `undefined`, set it to `true`.
+    1. If |options|.{{MLGruOptions/layout}} is `undefined`, set it to `"zrn"`.
+    1. If |options|.{{MLGruOptions/layout}} is not one of {{MLGruWeightLayout}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and is not an array of size `2`, or if any of its elements is not an instance of {{MLActivation}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |input|.{{MLOperandDescriptor/dimensions}}[0], |hiddenSize| ].
+    1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for `"gruCell"`, given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated via other operations as shown below, when the weight layout is the default *"zrn"* layout, and the activation functions of the update/reset gate and new gate are of the operator types *sigmoid* and *tanh* respectively.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     const one = builder.constant(1);
     const zero = builder.constant(0);
 
@@ -2477,12 +3129,12 @@ partial interface MLGraphBuilder {
 
     // compute the new hidden state
     return builder.add(builder.mul(z, hiddenState), builder.mul(n, builder.sub(one, z)));
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### The hardSigmoid() method ### {#api-mlgraphbuilder-hard-sigmoid}
-Calculate the <a href="https://en.wikipedia.org/wiki/Hard_sigmoid"> non-smooth function</a> used in place of a sigmoid function on the input tensor.
+Calculate the non-smooth <a href="https://en.wikipedia.org/wiki/Hard_sigmoid">hard sigmoid function</a> on the input tensor, used instead of the sigmoid function for faster computation.
 <script type=idl>
 dictionary MLHardSigmoidOptions {
   float alpha = 0.2;
@@ -2490,22 +3142,12 @@ dictionary MLHardSigmoidOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand hardSigmoid(MLOperand x, optional MLHardSigmoidOptions options = {});
+  MLOperand hardSigmoid(MLOperand input, optional MLHardSigmoidOptions options = {});
   MLActivation hardSigmoid(optional MLHardSigmoidOptions options = {});
 };
 </script>
-<div algorithm=hard-sigmoid>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLHardSigmoidOptions}}. The optional parameters of the operation.
-            - *alpha*: a {{float}} scalar multiplier, default to 0.2.
-            - *beta*: a {{float}} scalar addition, default to 0.5.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the hard sigmoid operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -2519,31 +3161,100 @@ partial interface MLGraphBuilder {
                    builder.constant(1)),
                builder.constant(0));
     </pre>
-    </div>
 </div>
+
+{{MLHardSigmoidOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLHardSigmoidOptions>
+    : <dfn>alpha</dfn>
+    ::
+         A {{float}} scalar multiplier.
+         The default value is `0.2`.
+    : <dfn>beta</dfn>
+    ::
+         A {{float}} point scalar addition.
+         The default value is `0.5`.
+</dl>
+
+<details open>
+  <summary>
+    To <dfn>check hard-sigmoid options</dfn> given |options|, run the following steps:
+  </summary>
+  <div algorithm=check-hard-sigmoid-options class=algorithm-steps>
+    1. If |options| is not an [=object=] that [=implements=] {{MLHardSigmoidOptions}}, then return `false`.
+    1. If |options|.{{MLEluOptions/alpha}} is `undefined`, set |options|.{{MLHardSigmoidOptions/alpha}} to `0.2`.
+    1. Else if |options|.{{MLHardSigmoidOptions/alpha}} is not a [=numeric type=], then then return `false`.
+    1. If |options|.{{MLHardSigmoidOptions/beta}} is `undefined`, set |options|.{{MLHardSigmoidOptions/beta}} to `0.5`.
+    1. Else if |options|.{{MLHardSigmoidOptions/beta}} is not a [=numeric type=], then then return `false`.
+    1. Return `true`.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/hardSigmoid(input, options)}} method #### {#api-mlgraphbuilder-hardsigmoid-input-options}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLHardSigmoidOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *input*.
+</div>
+<div algorithm=hardsigmoid-input-options class=algorithm-steps>
+    The {{MLGraphBuilder/hardSigmoid(input, options)}} method steps are:
+    1. Let |input| be the first argument.
+    1. Let |options| be the second argument.
+        1. If running the <a>check hard-sigmoid options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the hard sigmoid operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+</div>
+
+#### The {{MLGraphBuilder/hardSigmoid(options)}} method #### {#api-mlgraphbuilder-hardsigmoid-options}
+<div>
+    **Arguments:**
+        - *options*: an optional {{MLHardSigmoidOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the hard sigmoid operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/hardSigmoid(options)}} method steps are:
+  </summary>
+  <div algorithm=hard-sigmoid-options class=algorithm-steps>
+    1. Let |options| be the first argument.
+        1. If running the <a>check hard-sigmoid options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"hardSigmoid"` and |options|.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The hardSwish() method ### {#api-mlgraphbuilder-hard-swish}
 Computes the nonlinear function `y = x * max(0, min(6, (x + 3))) / 6` that is introduced by [[MobileNetV3]] on the input tensor element-wise.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand hardSwish(MLOperand x);
+  MLOperand hardSwish(MLOperand input);
   MLActivation hardSwish();
 };
 </script>
-<div algorithm=hard-swish>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the hard-swish operation.
-
-    <div class="note">
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     return builder.div(
                builder.mul(
                    x,
@@ -2553,12 +3264,61 @@ partial interface MLGraphBuilder {
                            builder.constant(6),
                            builder.add(x, builder.constant(3))))),
                builder.constant(6));
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
+
+#### The {{MLGraphBuilder/hardSwish(input)}} method #### {#api-mlgraphbuilder-hardswish-input}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *input*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/hardSwish(input)}} method steps are:
+  </summary>
+  <div algorithm=hardswish-input class=algorithm-steps>
+    1. Let |input| be the first argument.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the hard-swish operation.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/hardSwish()}} method #### {#api-mlgraphbuilder-hardswish}
+<div>
+    **Arguments:**
+        - None.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the hard-swish operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/hardSwish()}} method steps are:
+  </summary>
+  <div algorithm=hard-swish class=algorithm-steps>
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"hardSwish"`.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+ </div>
+</details>
 
 ### The instanceNormalization() method ### {#api-mlgraphbuilder-instancenorm}
 Normalize the input features using [[Instance-Normalization]]. Unlike [[#api-mlgraphbuilder-batchnorm]] where the mean and variance values used in the calculation are previously computed across the batch dimension during the model training phase, the mean and variance values used in the calculation of an instance normalization are computed internally on the fly per input feature.
+
 <script type=idl>
 dictionary MLInstanceNormalizationOptions {
   MLOperand scale;
@@ -2572,22 +3332,71 @@ partial interface MLGraphBuilder {
                                 optional MLInstanceNormalizationOptions options = {});
 };
 </script>
-<div algorithm=instancenorm>
+
+The {{MLInstanceNormalizationOptions}} members are:
+<dl dfn-type=dict-member dfn-for=MLInstanceNormalizationOptions>
+    : <dfn>scale</dfn>
+    ::
+        An {{MLOperand}}. Specifies he 1-D tensor of the scaling values whose length is equal to the number of channels, i.e. the size of the feature dimension of the input. For example, for an |input| tensor with `nchw` layout, the length is the value of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
+
+    : <dfn>bias</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 1-D tensor of the bias values whose length is equal to the size of the feature dimension of the input. For example, for an |input| tensor with `nchw` layout, the length is the value of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
+
+    : <dfn>epsilon</dfn>
+    ::
+        A {{float}} scalar. Specifies a small value to prevent computational error due to divide-by-zero.
+
+    : <dfn>layout</dfn>
+    ::
+        An {{MLInputOperandLayout}}. Specifies the layout format of the input.
+
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 4-D tensor.
         - *options*: an optional {{MLInstanceNormalizationOptions}}. The optional parameters of the operation.
-              - *scale*: an {{MLOperand}}. The 1-D tensor of the scaling values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
-              - *bias*: an {{MLOperand}}. The 1-D tensor of the bias values whose length is equal to the size of the feature dimension of the input e.g. for the input tensor with *nchw* layout, the feature dimension is 1.
-              - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
-              - *layout*: an {{MLInputOperandLayout}}. This option specifies the layout format of the input. The default value is *"nchw"*.
 
     **Returns:** an {{MLOperand}}. The instance-normalized 4-D tensor of the same shape as the input tensor.
+</div>
 
-    <div class="note">
+<details open>
+  <summary>
+    The {{MLGraphBuilder/instanceNormalization(input, options)}} steps are:
+  </summary>
+  <div algorithm=instancenorm class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If the rank of |input| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLInstanceNormalizationOptions/scale}} is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If the rank of |options|.{{MLInstanceNormalizationOptions/scale}} is not equal to the size of the channel dimension of |input|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLInstanceNormalizationOptions/bias}} is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If the rank of |options|.{{MLInstanceNormalizationOptions/bias}} is not equal to the size of the channel dimension of |input|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLInstanceNormalizationOptions/epsilon}} is `undefined`, let it be `0.00001`.
+    1. If |options|.{{MLInstanceNormalizationOptions/layout}} is `undefined`, let it be `"nchw"`.
+    1. Otherwise if |options|.{{MLInstanceNormalizationOptions/layout}} is not one of {{MLInputOperandLayout}}, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the instance normalization operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout can be generically emulated from
     the usage of other operations as follow. However, user agents typically have a more efficient implementation for it,
     therefore its usage is encouraged from the performance standpoint.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     // The mean reductions happen over the spatial dimensions of the input
     // e.g. axis 2 and 3 of the input tensor.
     const reduceOptions = { axes: [2,3], keepDimensions: true };
@@ -2614,33 +3423,25 @@ partial interface MLGraphBuilder {
         ),
       builder.reshape(options.bias, shape)
       );
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### The leakyRelu() method ### {#api-mlgraphbuilder-leakyrelu}
 Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Leaky_ReLU"> leaky version of rectified linear function</a> on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha ∗ min(0, x)`.
+
 <script type=idl>
 dictionary MLLeakyReluOptions {
   float alpha = 0.01;
 };
 
 partial interface MLGraphBuilder {
-  MLOperand leakyRelu(MLOperand x, optional MLLeakyReluOptions options = {});
+  MLOperand leakyRelu(MLOperand input, optional MLLeakyReluOptions options = {});
   MLActivation leakyRelu(optional MLLeakyReluOptions options = {});
 };
 </script>
-<div algorithm=leakyrelu>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
-            - *alpha*: a {{float}} scalar multiplier, default to 0.01.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the leaky relu operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -2649,11 +3450,86 @@ partial interface MLGraphBuilder {
     return builder.add(builder.max(builder.constant(0), x),
               builder.mul(builder.constant(options.alpha), builder.min(builder.constant(0), x)));
     </pre>
-    </div>
 </div>
+
+{{MLLeakyReluOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLLeakyReluOptions>
+    : <dfn>alpha</dfn>
+    ::
+         A {{float}} scalar multiplier.
+         The default value is `0.01`.
+</dl>
+
+<details open>
+  <summary>
+    To <dfn>check leaky-relu options</dfn> given |options|, run the following steps:
+  </summary>
+  <div algorithm=check-leaky-relu-options class=algorithm-steps>
+    1. If |options| is not an [=object=] that [=implements=] {{MLLeakyReluOptions}}, then return `false`.
+    1. If |options|.{{MLLeakyReluOptions/alpha}} is `undefined`, set |options|.{{MLLeakyReluOptions/alpha}} to `1`.
+    1. Else if |options|.{{MLLeakyReluOptions/alpha}} is not a [=numeric type=], then then return `false`.
+    1. Return `true`.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/leakyRelu(input, options)}} method #### {#api-mlgraphbuilder-leaky-relu-input-options}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *input*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/leakyRelu(input, options)}} method steps are:
+  </summary>
+  <div algorithm=leakyrelu-input-options class=algorithm-steps>
+    1. Let |input| be the first argument.
+    1. Let |options| be the second argument.
+        1. If |options| is `undefined`, let |options| be a new {{MLLeakyReluOptions}} object.
+        1. If running the <a>check leaky-relu options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the Leaky RELU operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/leakyRelu(options)}} method #### {#api-mlgraphbuilder-leaky-relu-options}
+<div>
+    **Arguments:**
+        - *options*: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the leaky relu operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/elu(options)}} method steps are:
+  </summary>
+  <div algorithm=leakyrelu-options class=algorithm-steps>
+    1. Let |options| be the first argument.
+        1. If |options| is `undefined`, let |options| be a new {{MLLeakyReluOptions}} object.
+        1. If running the <a>check leaky-relu options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"leakyRelu"` and |options|.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The linear() method ### {#api-mlgraphbuilder-linear}
 Calculate a linear function `y = alpha * x + beta` on the input tensor.
+
 <script type=idl>
 dictionary MLLinearOptions {
   float alpha = 1;
@@ -2661,22 +3537,12 @@ dictionary MLLinearOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand linear(MLOperand x, optional MLLinearOptions options = {});
+  MLOperand linear(MLOperand input, optional MLLinearOptions options = {});
   MLActivation linear(optional MLLinearOptions options = {});
 };
 </script>
-<div algorithm=linear>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
-            - *alpha*: a {{float}} scalar multiplier, default to 1.
-            - *beta*: a {{float}} scalar addition, default to 0.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the linear operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -2686,11 +3552,90 @@ partial interface MLGraphBuilder {
               builder.mul(x, builder.constant(options.alpha)),
               builder.constant(options.beta));
     </pre>
-    </div>
 </div>
+
+{{MLLinearOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLLinearOptions>
+    : <dfn>alpha</dfn>
+    ::
+         A {{float}} scalar multiplier.
+         The default value is `1`.
+    : <dfn>beta</dfn>
+    ::
+         A {{float}} scalar addition.
+         The default value is `0`.
+</dl>
+
+<details open>
+  <summary>
+    To <dfn>check linear options</dfn> given |options|, run the following steps:
+  </summary>
+  <div algorithm=check-linear-options class=algorithm-steps>
+    1. If |options| is not an [=object=] that [=implements=] {{MLLinearOptions}}, then return `false`.
+    1. If |options|.{{MLEluOptions/alpha}} is `undefined`, set |options|.{{MLLinearOptions/alpha}} to `1`.
+    1. Else if |options|.{{MLLinearOptions/alpha}} is not a [=numeric type=], then then return `false`.
+    1. If |options|.{{MLLinearOptions/beta}} is `undefined`, set |options|.{{MLLinearOptions/beta}} to `0`.
+    1. Else if |options|.{{MLLinearOptions/beta}} is not a [=numeric type=], then then return `false`.
+    1. Return `true`.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/linear(input, options)}} method #### {#api-mlgraphbuilder-linear-input-options}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/linear(input, options)}} method steps are:
+  </summary>
+  <div algorithm=linear-input-options class=algorithm-steps>
+    1. Let |input| be the first argument.
+    1. Let |options| be the second argument.
+        1. If running the <a>check linear options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the linear operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/linear(options)}} method #### {#api-mlgraphbuilder-linear-options}
+<div>
+    **Arguments:**
+        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the linear operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/linear(options)}} method steps are:
+  </summary>
+  <div algorithm=linear-options class=algorithm-steps>
+    1. Let |options| be the first argument.
+        1. If running the <a>check linear options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"linear"` and |options|.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The lstm() method ### {#api-mlgraphbuilder-lstm}
 Long Short-Term Memory [[LSTM]] recurrent network uses an input, output, forget, and cell gate to compute the output state that rolls into the output across the temporal sequence of the network.
+
 <script type=idl>
 enum MLLstmWeightLayout {
   "iofg", // input-output-forget-cell gate ordering
@@ -2715,29 +3660,132 @@ partial interface MLGraphBuilder {
                            optional MLLstmOptions options = {});
 };
 </script>
-<div algorithm=lstm>
+
+{{MLLstmOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLLstmOptions>
+    : <dfn>bias</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 2-D input bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
+
+    : <dfn>recurrentBias</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 2-D recurrent bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
+
+    : <dfn>peepholeWeight</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 2-D weight tensor for peepholes of shape [num_directions, 4 * hidden_size]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
+
+    : <dfn>initialHiddenState</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, implementations SHOULD use a tensor filled with zero.
+
+    : <dfn>initialCellState</dfn>
+    ::
+        An {{MLOperand}}. Specifies the 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, implementations SHOULD use a tensor filled with zero.
+
+    : <dfn>returnSequence</dfn>
+    ::
+         A {{boolean}} indicating whether to also return the entire sequence with every output from each time step in it in addition to the output of the last time step.
+
+    : <dfn>direction</dfn>
+    ::
+        An {{MLRecurrentNetworkDirection}}. Specifies the processing direction of the input sequence. When set to `"both"`, the size of the first dimension of the weight and the bias tensor shapes must be `2`, and the input is processed in both directions.
+
+    : <dfn>layout</dfn>
+    ::
+        An {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the `input (i)`, `output (o)`, `forget (f)`, and `cell (g)` gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is `"iofg"`.
+
+    : <dfn>activations</dfn>
+    ::
+        A sequence of {{MLActivation}}. A sequence of three activation functions, the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, implementations SHOULD use the sequence of the sigmoid function (`"sigmoid"`) followed by two hyperbolic tangent functions (`"tanh"`) respectively.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batch_size, input_size].
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 4 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 4 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 4 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
+        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 4 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
         - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
-            - *bias*: an {{MLOperand}}. The 2-D input bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *recurrentBias*: an {{MLOperand}}. The 2-D recurrent bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *peepholeWeight*: an {{MLOperand}}. The 2-D weight tensor for peepholes of shape [num_directions, 3 * hidden_size]. The pack ordering of the weight vectors is for the *input (i)*, *output (o)*, and *forget (f)* gate respectively.
-            - *initialHiddenState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
-            - *initialCellState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
-            - *returnSequence*: a {{boolean}} indicating whether to also return the entire sequence with every output from each time step in it in addition to the output of the last time step. Default to false.
-            - *direction*: an {{MLRecurrentNetworkDirection}}. The processing direction of the input sequence. When set to *"both"*, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
-            - *layout*: an {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the *input (i)*, *output (o)*, *forget (f)*, and *cell (g)* gate, as indicated in the second dimension of the weight and bias tensor shapes. When not specified, the default layout is *"iofg"*.
-            - *activations*: a sequence of {{MLActivation}}. A sequence of three activation functions, the first one is used for the *input (i)*, *forget (f)*, and *output (o)* gate, the second one is used for the *cell (g)* gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, they are assumed to be of the sigmoid function (*"sigmoid"*) followed by two hyperbolic tangent functions (*"tanh"*) respectively.
+        - *options*: an optional {{MLLstmOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output cell state from the last time step of the network. Additionally, if *options.returnSequence* is set to true, the third element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every output from each time step in the temporal sequence.
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output cell state from the last time step of the network. Additionally, if |options|.{{MLLstmOptions/returnSequence}} is set to true, the third element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every output from each time step in the temporal sequence.
+</div>
 
-    <div class="note">
+<details open>
+  <summary>
+    The {{MLGraphBuilder/lstm(input, weight, recurrentWeight, steps, hiddenSize, options)}} steps are:
+  </summary>
+  <div algorithm=lstm class=algorithm-steps>
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLLstmOptions/direction}} is `undefined`, set it to `"forward"`.
+    1. If |options|.{{MLLstmOptions/direction}} is not one of {{MLRecurrentNetworkDirection}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |num_directions| be `1` if |options|.{{MLLstmOptions/direction}} is `"forward"`, or otherwise let it be `2`.
+    1. If |input|, |weight| or |recurrentWeight| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        <div class="note">
+            The shape of |input|, |weight| or |recurrentWeight| could be also checked here.
+        </div>
+    1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not equal to |steps|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |batch_size| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
+    1. If |options|.{{MLLstmOptions/bias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batch_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[2] is not |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batch_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[2] is not |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/returnSequence}} is `undefined`, set it to `false`.
+    1. If |options|.{{MLLstmOptions/layout}} is `undefined`, set it to `"iofg"`.
+    1. If |options|.{{MLLstmOptions/layout}} is not one of {{MLLstmWeightLayout}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
+        1. If it is not an array of size `3`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If any of its elements is not an instance of {{MLActivation}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |desc| a new {{MLOperandDescriptor}}.
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |nume_directions|, |batch_size|, |hiddenSize| ].
+        1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+        1. Let |output0| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Let |output1| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |steps|, |nume_directions|, |batch_size|, |hiddenSize| ].
+        1. Let |output2| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Let |output| be the array [ |output0|, |output1|, |output2 ].
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the LSTM operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
+            1. Store a reference of |opImpl| in |output0|.{{MLOperand/[[operator]]}}, |output1|.{{MLOperand/[[operator]]}} and |output2|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output0|.{{MLOperand/[[operand]]}}, |output1|.{{MLOperand/[[operand]]}} and |output2|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output| as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     const numDirections = (options.direction == "both" ? 2 : 1);
     let hiddenState = options.initialHiddenState;
     let cellState = options.initialCellState;
@@ -2809,8 +3857,8 @@ partial interface MLGraphBuilder {
     }
 
     return (sequence ? [hiddenState, cellState, sequence] : [hiddenState, cellState]);
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### The lstmCell() method ### {#api-mlgraphbuilder-lstmcell}
@@ -2831,7 +3879,31 @@ partial interface MLGraphBuilder {
                                optional MLLstmCellOptions options = {});
 };
 </script>
-<div algorithm=lstmcell>
+
+{{MLLstmCellOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLLstmCellOptions>
+    : <dfn>bias</dfn>
+    ::
+        An {{MLOperand}}. The 1-D input bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
+
+    : <dfn>recurrentBias</dfn>
+    ::
+        An {{MLOperand}}. The 1-D recurrent bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
+
+    : <dfn>peepholeWeight</dfn>
+    ::
+        An {{MLOperand}}. The 1-D weight tensor for peepholes of shape [3 * hidden_size]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
+
+    : <dfn>layout</dfn>
+    ::
+        An {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the `input (i)`, `output (o)`, `forget (f)`, and `cell (g)` gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is `"iofg"`.
+
+    : <dfn>activations</dfn>
+    ::
+        A sequence of {{MLActivation}}. A sequence of three activation functions, the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, they are assumed to be of the sigmoid function (`"sigmoid"`) followed by two hyperbolic tangent functions (`"tanh"`) respectively.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batch_size, input_size].
         - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [4 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
@@ -2840,17 +3912,60 @@ partial interface MLGraphBuilder {
         - *cellState*: an {{MLOperand}}. The 2-D input cell state tensor of shape [batch_size, hidden_size].
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLLstmCellOptions}}. The optional parameters of the operation.
-            - *bias*: an {{MLOperand}}. The 1-D input bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *recurrentBias*: an {{MLOperand}}. The 1-D recurrent bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *peepholeWeight*: an {{MLOperand}}. The 1-D weight tensor for peepholes of shape [3 * hidden_size]. The pack ordering of the weight vectors is for the *input (i)*, *output (o)*, and *forget (f)* gate respectively.
-            - *layout*: an {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the *input (i)*, *output (o)*, *forget (f)*, and *cell (g)* gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is *"iofg"*.
-            - *activations*: a sequence of {{MLActivation}}. A sequence of three activation functions, the first one is used for the *input (i)*, *forget (f)*, and *output (o)* gate, the second one is used for the *cell (g)* gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, they are assumed to be of the sigmoid function (*"sigmoid"*) followed by two hyperbolic tangent functions (*"tanh"*) respectively.
 
     **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape [batch_size, hidden_size].
+</div>
 
-    <div class="note">
+<details open>
+  <summary>
+    The {{MLGraphBuilder/lstmCell(input, weight, recurrentWeight, hiddenState, cellState, hiddenSize, options)}} steps are:
+  </summary>
+  <div algorithm=lstmcell class=algorithm-steps>
+    1. If |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If the rank of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |batch_size| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0].
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmCellOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmCellOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=].
+        1. If it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLLstmCellOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 3 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmCellOptions/layout}} is `undefined`, set it to `"iofg"`.
+    1. If |options|.{{MLLstmCellOptions/layout}} is not one of {{MLLstmWeightLayout}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=]:
+        1. If it is not an array of size `3`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If any of its elements is not an instance of {{MLActivation}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |batch_size|, |hiddenSize| ].
+    1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output0| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Let |output1| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Let |output| be the array [ |output0|, |output1| ].
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the LSTM cell operation, given |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |hiddenSize| and |options|.
+            1. Store a reference of |opImpl| in |output0|.{{MLOperand/[[operator]]}} and |output1|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output0|.{{MLOperand/[[operand]]}} and |output1|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output| as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated via other operations as shown below, when the weight layout is the default *"iofg"* layout, and the activation functions of the input/forget/output gate and the cell gate/the cell state's filter for the output hidden state are of the operator types *sigmoid* and *tanh* respectively.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     const zero = builder.constant(0);
 
     // input gate (i)
@@ -2958,8 +4073,8 @@ partial interface MLGraphBuilder {
     let ht = builder.mul(o, builder.tanh(ct));
 
     return [ht, ct];
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### The matmul() method ### {#api-mlgraphbuilder-matmul}
@@ -2969,31 +4084,63 @@ partial interface MLGraphBuilder {
   MLOperand matmul(MLOperand a, MLOperand b);
 };
 </script>
-<div algorithm=matmul>
+
+<div>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input N-D tensor.
-        - *b*: an {{MLOperand}}. The second input N-D tensor.
+        - *a*: an {{MLOperand}}. The first N-dimensional input tensor.
+        - *b*: an {{MLOperand}}. The second N-dimensional input tensor.
 
-    **Returns:** an {{MLOperand}}. The output N-D tensor that contains the matrix
+    **Returns:** an {{MLOperand}}. The output tensor that contains the matrix
     product of two input tensors.
-
-    Compute the matrix product of two input tensors. It behaves as following:
-        - If both *a* and *b* are 2-D, they are multiplied like conventional
-            matrices and produce a 2-D tensor as the output.
-        - If either *a* or *b* is N-D, N > 2, it is treated as a stack of
-            matrices with dimensions corresponding to the last two indices. The
-            matrix multiplication will be broadcasted accordingly by following
-            [[!numpy-broadcasting-rule]]. The output is a N-D tensor whose rank
-            is the maximum rank of the input tensors. For each dimension, except
-            the last two, of the output tensor, its size is the maximum size
-            along that dimension of the input tensors.
-        - If *a* is 1-D, it is converted to a 2-D tensor by prepending a 1 to
-            its dimensions.
-        - If *b* is 1-D, it is converted to a 2-D tensor by by appending a 1 to
-            its dimensions.
-        - If both *a* and *b* are 1-D, the operation is a vector dot-product,
-            which produces a scalar output.
 </div>
+<div>
+    Computes the matrix product of two input tensors as follows:
+        - If both *a* and *b* are 2-dimensional, they are multiplied like conventional
+            matrices and produce a 2-dimensional tensor as the output.
+        - If either *a* or *b* is `N`-dimensional where `N > 2`, it is treated as a stack of matrices with dimensions corresponding to the last two indices. The matrix multiplication will be broadcasted accordingly by following the [[!numpy-broadcasting-rule]]. The output is a `N`-dimensional tensor whose rank is the maximum rank of the input tensors. For each dimension, except the last two, of the output tensor, its size is the maximum size along that dimension of the input tensors.
+        - If *a* is 1-dimensional, it is converted to a 2-dimensional tensor by prepending a 1 to its dimensions.
+        - If *b* is 1-dimensional, it is converted to a 2-dimensional tensor by by appending a 1 to its dimensions.
+        - If both *a* and *b* are 1-dimensional, the operation is a vector dot-product, which produces a scalar output.
+</div>
+
+<details open>
+  <summary>
+    To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given |a| and |b| run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the size of |shapeA|.
+    1. Let |shapeB| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the size of |shapeB|.
+    1. If |sizeA| and |sizeB| is `1`, return `[ 1 ]`.
+    1. If | sizeA| is `1` and |sizeB| is not, then insert `1` in the front of |shapeA| to become [ 1 | |shapeA| ] and let |sizeA| be `2`.
+    1. If | sizeB| is `1` and |sizeA| is not, then insert `1` in the front of |shapeB| to become [ 1 | |shapeB| ] and let |sizeB| be `2`.
+    1. Let |shape| be an array whose size |size| is the maximum of |sizeA| and |sizeB|.
+    1. For each |index| between 0 and |size|:
+       1. Set |shape|[|index|] to the maximum of |shapeA|[|index|] and |shapeB|[|index|].
+    1. Return |shape|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/matmul(a, b)}} steps are:
+  </summary>
+  <div algorithm=matmul class=algorithm-steps>
+    1. If |a| or |b| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate matmul output sizes</a> given |a| and |b|.
+    1. Set |desc|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the matrix multiplication operation.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The pad() method ### {#api-mlgraphbuilder-pad}
 Inflate the tensor with constant or mirrored values on the edges.
@@ -3017,21 +4164,79 @@ partial interface MLGraphBuilder {
                 optional MLPadOptions options = {});
 };
 </script>
-<div algorithm=pad>
+
+{{MLPadOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLPadOptions>
+    : <dfn>mode</dfn>
+    ::
+        An {{MLPaddingMode}} [=string=].
+        Specifies the different ways to pad the tensor.
+        The default value is `"constant"`.
+
+    : <dfn>value</dfn>
+    ::
+        A {{float}}.
+        Specifies the padding value when {{MLPadOptions/mode}} is set to `"constant"`.
+        The default value is `0`.
+</dl>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *beginningPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the beginning of each input dimension, of length *N* where *N* is the rank of the input tensor. For each dimension *d* of *input*, *beginningPadding[d]* indicates how many values to add before the content in that dimension.
         - *endingPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the ending of each input dimension, of length *N* where *N* is the rank of the input tensor. For each dimension *d* of *input*, *endingPadding[d]* indicates how many values to add after the content in that dimension.
         - *options*: an optional {{MLPadOptions}}. The optional parameters of the operation.
-            - *mode*: an {{MLPaddingMode}}. The different ways to pad the tensor. When not set, it's assumed to be "constant".
-            - *value*: a {{float}}. The pad value when the *options.mode* is set to *"constant"*. When not set, it's assumed to be 0.
 
     **Returns:** an {{MLOperand}}. The padded output tensor. Each dimension of the output tensor can be calculated as follow:
 
     *output size = beginning padding + input size + ending padding*
+</div>
 
-    <div class="example">
-    <pre highlight="js">
+<details open>
+  <summary>
+    To <dfn dfn-for=MLGraphBuilder>calculate padding output sizes</dfn>, given |input|, |beginningPadding| and |endingPadding|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |shape| be a copy of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. For |index| between `0` and the rank of |shape|:
+        1. Add to |shape|[|index|] the value of |beginningPadding|[|index|].
+        1. Add to |shape|[|index|] the value of |endingPadding|[|index|].
+    1. Return |shape|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/pad(input, beginningPadding, endingPadding, options)}} steps are:
+  </summary>
+  <div algorithm=pad class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |beginningPadding| or |endingPadding| is not a sequence of {{unsigned long}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLPadOptions/mode}} is `undefined`, set it to `"constant"`.
+        1. Otherwise, if |options|.{{MLPadOptions/mode}} is not one of {{MLPaddingMode}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLPadOptions/value}} is `undefined`, set it to `0`.
+    1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate padding output sizes</a> given |input|, |beginningPadding| and |endingPadding|.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the padding operation, given |beginningPadding|, |endingPadding| and |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="example">
+<details open>
+  <summary>
+    Examples for constant, edge, reflection and symmetric padding:
+  </summary>
+  <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
     const input = builder.constant(
       { type: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
@@ -3066,8 +4271,8 @@ partial interface MLGraphBuilder {
     //     [5,4,4,5,6,6,5],
     //     [5,4,4,5,6,6,5]]
     builder.pad(input, beginningPadding, endingPadding, { mode: "symmetric" });
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### Pooling operations ### {#api-mlgraphbuilder-pool2d}
@@ -3095,34 +4300,12 @@ partial interface MLGraphBuilder {
   MLOperand maxPool2d(MLOperand input, optional MLPool2dOptions options = {});
 };
 </script>
-<div algorithm=pool2d>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *options.layout*.
         - *options*: an optional {{MLPool2dOptions}}. The optional parameters of the operation.
-            - *windowDimensions*: a sequence of {{unsigned long}} of length 2. The dimensions of the sliding window,
-                [window_height, window_width]. If not present, the window dimensions are assumed to be the height
-                and width dimensions of the input shape.
-            - *padding*: a sequence of {{unsigned long}} of length 4. The additional rows and columns added to the beginning and ending of each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
-            - *strides*: a sequence of {{unsigned long}} of length 2. The stride of the
-                sliding window for each spatial dimension of *input*,
-                [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
-            - *dilations*: a sequence of {{unsigned long}} of length 2. The dilation factor
-                for each spatial dimension of *input*, [dilation_height, dilation_width].
-                If not present, the values are assumed to be [1,1].
-            - *autoPad*: an {{MLAutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
-            - *layout*: an {{MLInputOperandLayout}}. The default value is *"nchw"*. This option specifies the
-                layout format of the input and output tensor as follow:
-
-                "nchw":
-                    - input tensor: [batches, channels, height, width]
-                    - output tensor: [batches, channels, height, width]
-
-                "nhwc":
-                    - input tensor: [batches, height, width, channels]
-                    - output tensor: [batches, height, width, channels]
-            - *roundingType*: an {{MLRoundingType}}. The option specifies the rounding function used to compute the output shape.
-            - *outputSizes*: a sequence of {{unsigned long}} of length 2. The sizes of the two spacial dimensions of the output tensor. When the output sizes are explicitly specified, the options.roundingType is ignored. If not specified, the output sizes are automatically computed.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
@@ -3133,15 +4316,133 @@ partial interface MLGraphBuilder {
     or if *options.roundingType* is *"ceil"*:
 
     *output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)*
+</div>
 
-    <div class="note">
+<div class="note">
     A *global* pooling operation such as one for the max pooling operation is a variant of pooling where the window dimensions is the spatial dimensions (last two dimensions) of the input shape, as follow.
     <pre highlight="js">
     // 'global' max pooling
     builder.maxPool2d(input);
     </pre>
-    </div>
 </div>
+
+{{MLPool2dOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLPool2dOptions>
+    : <dfn>windowDimensions</dfn>
+    ::
+         A sequence of {{unsigned long}} of length 2: [window_height, window_width].
+         Specifies the dimensions of the sliding window.
+         The default value for the window dimensions are the height and width dimensions of the input shape.
+
+    : <dfn>padding</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 4: [beginning_height, ending_height, beginning_width, ending_width].
+        Specifies the additional rows and columns added to the beginning and ending of each spatial dimension of the convolution input.
+        The default value is [0,0,0,0].
+
+    : <dfn>strides</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [stride_height, stride_width].
+        Specifies the stride of the sliding window for each spatial dimension of the convolution input.
+        The default value is [1,1].
+
+    : <dfn>dilations</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [dilation_height, dilation_width]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
+        The default value is [1,1].
+
+    : <dfn>autoPad</dfn>
+    ::
+        An {{MLAutoPad}} [=string=]].
+        Specifies the automatic input padding options.
+        The default value is *"explicit"*, which means that the values in the {{MLPool2dOptions/padding}} array should be used for input padding.
+        When the option is set other than *"explicit"*, the values in the {{MLPool2dOptions/padding}} array are ignored.
+
+        With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered.
+
+        The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
+
+    : <dfn>layout</dfn>
+    ::
+        An {{MLInputOperandLayout}} [=string=].
+        Specifies the layout format of the input and output tensor as follows:
+            - **"nchw"**
+                - input tensor: *[batches, input_channels, height, width]*
+                - output tensor: *[batches, output_channels, height, width]*
+            - **"nhwc"**:
+                - input tensor: *[batches, height, width, input_channels]*
+                - output tensor: *[batches, height, width, output_channels]*
+        The default value is *"nchw"*.
+
+    : <dfn>roundingType</dfn>
+    ::
+        An {{MLRoundingType}} [=string=].
+        Specifies the rounding function used to compute the output shape.
+
+    : <dfn>outputSizes</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2.
+        Specifies the sizes of the two spacial dimensions of the output tensor. When the output sizes are explicitly specified, the {{MLPool2dOptions/roundingType}} is ignored.
+
+        If not specified, the output sizes are automatically computed.
+
+</dl>
+
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder" data-lt="pooling-op">create pooling operation</dfn> given |op|, |input| and |options|, run the following steps:
+  </summary>
+  <div algorithm=create-pooling-operation class=algorithm-steps>
+    1. [=Assert=]: |op| is one of "averagePool2d", "l2Pool2d", "maxPool2d".
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be a new {{MLPool2dOptions}} object.
+    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} is `undefined`, set |options|.{{MLPool2dOptions/padding}} to `[0, 0, 0, 0]`.
+    1. If |options|.{{MLPool2dOptions/strides}} is `undefined`, set |options|.{{MLPool2dOptions/strides}} to `[1, 1]`.
+    1. If |options|.{{MLPool2dOptions/dilations}} is `undefined`, set |options|.{{MLPool2dOptions/dilations}} to `[1, 1]`.
+    1. If |options|.{{MLPool2dOptions/autoPad}} is `undefined`, set |options|.{{MLPool2dOptions/autoPad}} to `"explicit`.
+    1. If |options|.{{MLPool2dOptions/autoPad}} is not `"explicit"`, set |options|.{{MLPool2dOptions/padding}} to `[0, 0, 0, 0]`.
+    1. If |options|.{{MLPool2dOptions/layout}} is `undefined`, set |options|.{{MLPool2dOptions/layout}} to `"nchw"`.
+    1. If |options|.{{MLPool2dOptions/roundingType}} is `undefined`, set |options|.{{MLPool2dOptions/roundingType}} to `"floor"`.
+    1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Make a request to the underlying platform to:
+            1. Calculate the output dimensions given |input| and |options|. Let |desc|.{{MLOperandDescriptor/dimensions}} be the result of that.
+            1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the |op| pooling operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The following pooling algorithms are supported.
+  </summary>
+  <div algorithm=averagePool2d class=algorithm-steps>
+    The {{MLGraphBuilder/averagePool2d(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation =] given `"averagePool2d"`, |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+  </div>
+
+  <div algorithm=l2Pool2d class=algorithm-steps>
+    The {{MLGraphBuilder/l2Pool2d(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation =] given `"l2Pool2d"`, |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+  </div>
+
+  <div algorithm=maxPool2d class=algorithm-steps>
+    The {{MLGraphBuilder/maxPool2d(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation =] given `"maxPool2d"`, |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+  </div>
+</details>
 
 ### The prelu() method ### {#api-mlgraphbuilder-prelu}
 Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Parametric_ReLU">parametric version of rectified linear function (Parametric Relu)</a> on the input tensor element-wise. Parametric Relu is a type of leaky ReLU that, instead of having a scalar slope like 0.01, making the slope (coefficient of leakage) into a parameter that is learned during the model training phase of this operation. The calculation follows the expression `max(0, x) + slope ∗ min(0, x)`.
@@ -3172,7 +4473,7 @@ partial interface MLGraphBuilder {
 
 
 ### Reduction operations ### {#api-mlgraphbuilder-reduce}
-Reduce the input along the dimensions given in *axes*.
+Reduce the input tensor along all dimensions, or along the axes specified in the {{MLReduceOptions/axes}}  array parameter. For each specified axis, the dimension with that index is reduced, i.e. the resulting tensor will not contain it, unless the {{MLReduceOptions/keepDimensions}} option is specified. The values of the resulting tensor are calculated using the specified reduction function that takes as parameters all the values across the reduced dimension.
 <script type=idl>
 dictionary MLReduceOptions {
   sequence<unsigned long> axes = null;
@@ -3192,7 +4493,8 @@ partial interface MLGraphBuilder {
   MLOperand reduceSumSquare(MLOperand input, optional MLReduceOptions options = {});
 };
 </script>
-<div algorithm=reduce>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLReduceOptions}}. The optional parameters of the operation.
@@ -3202,7 +4504,9 @@ partial interface MLGraphBuilder {
                 The default value is false.
 
     **Returns:** an {{MLOperand}}. The reduced output tensor.
+</div>
 
+<div class="note">
     **Reduction types:**
         - *L1*: Compute the <a href="https://mathworld.wolfram.com/L1-Norm.html">L1 norm</a> of all the input values along the axes.
         - *L2*: Compute the <a href="https://mathworld.wolfram.com/L2-Norm.html">L2 norm</a> of all the input values along the axes.
@@ -3216,23 +4520,93 @@ partial interface MLGraphBuilder {
         - *SumSquare*: Compute the sum of the square of all the input values along the axes.
 </div>
 
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder" data-lt="reduce-op">create reduce operation</dfn> given |op|, |input| and |options|, run the following steps:
+  </summary>
+  <div algorithm=reduce class=algorithm-steps>
+    1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be a new {{MLReduceOptions}} object with |options|.{{MLReduceOptions/keepDimensions}} set to `false` and |options|.{{MLReduceOptions/axes}} set to `null`.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the |op| reduce operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The following reduce algorithms are supported.
+  </summary>
+    The {{MLGraphBuilder/reduceL1(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceL1", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceL2(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceL2", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceLogSum(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceLogSum", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceLogSumExp(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceLogSumExp", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceMax(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceMax", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceMean(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceMean", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceMin(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceMin", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceProduct(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceProduct", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceSum(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceSum", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/reduceSumSquare(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation =] given "reduceSumSquare", |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+</details>
+
 ### The relu() method ### {#api-mlgraphbuilder-relu}
 Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">rectified linear function</a> of the input tensor.
+
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand relu(MLOperand x);
+  MLOperand relu(MLOperand input);
   MLActivation relu();
 };
 </script>
-<div algorithm=relu>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the relu operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -3240,7 +4614,6 @@ partial interface MLGraphBuilder {
     <pre highlight="js">
     return builder.max(builder.constant(0), x);
     </pre>
-    </div>
 </div>
 
 ### The resample2d() method ### {#api-mlgraphbuilder-resample2d-method}
@@ -3362,7 +4735,7 @@ partial interface MLGraphBuilder {
   MLOperand reshape(MLOperand input, sequence<unsigned long?> newShape);
 };
 </script>
-<div algorithm=reshape>
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *newShape*: a sequence of {{nullable}} {{unsigned long}}. The shape of the output tensor.
@@ -3377,36 +4750,79 @@ partial interface MLGraphBuilder {
     tensor is specified by the *newShape* argument.
 </div>
 
-### The sigmoid() method ### {#api-mlgraphbuilder-sigmoid}
+### The sigmoid() method ### {#api-mlgraphbuilder-sigmoid-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Sigmoid_function">sigmoid function</a> of the input tensor. The calculation follows the expression `1 / (exp(-x) + 1)`.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand sigmoid(MLOperand x);
+  MLOperand sigmoid(MLOperand input);
   MLActivation sigmoid();
 };
 </script>
-<div algorithm=sigmoid>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the sigmoid operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
     <pre highlight="js">
-    return builder.div(
+    return builder.div(<<<<<<< stage-sigmoid-algorithm
+4722
+ 
+
               builder.constant(1),
               builder.add(
                 builder.exp(builder.neg(x)),
                 builder.constant(1)));
     </pre>
-    </div>
 </div>
+
+#### The {{MLGraphBuilder/sigmoid(input)}} method #### {#api-mlgraphbuilder-sigmoid-input}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *input*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/sigmoid(input)}} steps are:
+  </summary>
+  <div algorithm=sigmoid-input class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the sigmoid operation.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/sigmoid()}} method #### {#api-mlgraphbuilder-sigmoid}
+<div>
+    **Arguments:**
+        - None.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the sigmoid operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/sigmoid()}} method steps are:
+  </summary>
+  <div algorithm=sigmoid class=algorithm-steps>
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"sigmoid"`.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The slice() method ### {#api-mlgraphbuilder-slice}
 Produce a slice of the input tensor.
@@ -3415,7 +4831,7 @@ partial interface MLGraphBuilder {
   MLOperand slice(MLOperand input, sequence<unsigned long> starts, sequence<unsigned long> sizes);
 };
 </script>
-<div algorithm=slice>
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *starts*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the starting index to slice of each input dimension, of length N where N is the rank of the input tensor. For each dimension *d* of *input*, *starts[d]* indicates the starting index to slice in that dimension. The starting index must be in the range [0, input size - 1] in that dimension.
@@ -3423,6 +4839,30 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/slice(input, starts, sizes)}} steps are:
+  </summary>
+  <div algorithm=slice class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |starts| or |sizes| is not a sequence of {{long}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |sizes|.size is 0, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        <div class="note">
+            Further validation of |starts| and |sizes| given |input| is left [=implementation-defined=].
+        </div>
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the slice operation, given |starts| and |sizes|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The softmax() method ### {#api-mlgraphbuilder-softmax}
 Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
@@ -3459,7 +4899,7 @@ partial interface MLGraphBuilder {
     </div>
 </div>
 
-### The softplus() method ### {#api-mlgraphbuilder-softplus}
+### The softplus() method ### {#api-mlgraphbuilder-softplus-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Softplus">softplus function</a> of the input tensor. The calculation follows the expression `ln(1 + exp(steepness * x)) / steepness`.
 <script type=idl>
 dictionary MLSoftplusOptions {
@@ -3467,19 +4907,12 @@ dictionary MLSoftplusOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand softplus(MLOperand x, optional MLSoftplusOptions options = {});
+  MLOperand softplus(MLOperand input, optional MLSoftplusOptions options = {});
   MLActivation softplus(optional MLSoftplusOptions options = {});
 };
 </script>
-<div algorithm=softplus>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
 
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the softplus operation.
-
-    <div class="note">
+<div class="note">
     The behavior of this operation can be generically emulated from the usage of
     other operations as follow. However, user agents typically have a more
     efficient implementation for it, therefore its usage is encouraged from the
@@ -3492,8 +4925,80 @@ partial interface MLGraphBuilder {
                   builder.constant(1))),
               builder.constant(options.steepness));
     </pre>
-    </div>
 </div>
+
+{{MLSoftplusOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLSoftplusOptions>
+    : <dfn>steepness</dfn>
+    ::
+         A {{float}} scalar parameter.
+         The default value is `1`.
+</dl>
+
+<details open>
+  <summary>
+    To <dfn>check softplus options</dfn> given |options|, run the following steps:
+  </summary>
+  <div algorithm=check-softplus-options class=algorithm-steps>
+    1. If |options| is not an [=object=], then return `false`.
+    1. If |options|.{{MLSoftplusOptions/steepness}} is `undefined`, set |options|.{{MLSoftplusOptions/steepness}} to `1`.
+    1. Else if |options|.{{MLSoftplusOptions/steepness}} is not a [=numeric type=], then then return `false`.
+    1. Return `true`.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/softplus(input, options)}} method #### {#api-mlgraphbuilder-softplus-input-options}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLSoftplusOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/softplus(input, options)}} method steps are:
+  </summary>
+  <div algorithm=softplus-input-options class=algorithm-steps>
+    1. Let |input| be the first argument.
+    1. Let |options| be the second argument.
+        1. If running the <a>check softplus options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the softplus operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/softplus(options)}} method #### {#api-mlgraphbuilder-softplus-options}
+<div>
+    **Arguments:**
+        - *options*: an optional {{MLSoftplusOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the softplus operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/softplus(options)}} method steps are:
+  </summary>
+  <div algorithm=softplus-options class=algorithm-steps>
+    1. Let |options| be the first argument.
+        1. If running the <a>check softplus options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"softplus"` and |options|.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The softsign() method ### {#api-mlgraphbuilder-softsign}
 Compute the <a href="https://pytorch.org/docs/stable/generated/torch.nn.Softsign.html">softsign function</a> of the input tensor. The calculation follows the expression `x / (1 + |x|)`.
@@ -3535,14 +5040,45 @@ partial interface MLGraphBuilder {
                           optional MLSplitOptions options = {});
 };
 </script>
-<div algorithm=split>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *splits*: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
         - *options*: an optional {{MLSplitOptions}}. The optional parameters of the operation.
-            - *axis*: an {{unsigned long}} scalar. The dimension along which to split. Its value must be in the range [0, N-1] where N is the rank of input tensor. Default to 0.
 
     **Returns:** a sequence of {{MLOperand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the length of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the length of the output sequence equals to the length of *splits*. The shape of the i-th output tensor is the same as as *input* except along *axis* where the dimension size is *splits[i]*.
+</div>
+
+{{MLSplitOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLSplitOptions>
+    : <dfn>axis</dfn>
+    ::
+        An {{unsigned long}} scalar. The dimension along which to split. Its value must be in the range [0, N-1] where N is the rank of input tensor.
+        The default value is `0`.
+</dl>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/split(input, splits, options)}} steps are:
+  </summary>
+  <div algorithm=split class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLSplitOptions/axis}} is `undefined`, let |options|.{{MLSplitOptions/axis}} be `0`.
+    1. If |splits| is not {{unsigned long}} or a sequence of {{unsigned long}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the split operation, given |splits| and |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 <div class="note">
 <details open>
@@ -3580,14 +5116,48 @@ partial interface MLGraphBuilder {
   MLOperand squeeze(MLOperand input, optional MLSqueezeOptions options = {});
 };
 </script>
-<div algorithm=squeeze>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLSqueezeOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{unsigned long}}. Indices to the shape dimensions of size 1 to eliminate. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
 </div>
+
+{{MLSqueezeOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLSqueezeOptions>
+    : <dfn>axes</dfn>
+    ::
+        A sequence of {{unsigned long}}.
+        Specifies the indices to the shape dimensions of size 1 to eliminate. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor.
+        When not specified, every shape dimensions of size 1 in the tensor are eliminated.
+</dl>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/squeeze(input, options)}} steps are:
+  </summary>
+  <div algorithm=squeeze class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLSqueezeOptions/axes}} [=map/exists=], then:
+        1. Let |dimensions| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. For |index| between 0 and the size of |options|.{{MLSqueezeOptions/axes}}:
+            1. Let |oneDimIndex| be |options|.{{MLSqueezeOptions/axes}}[|index|].
+            1. If |dimensions|[|oneDimIndex|] is not `1`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the squeeze operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The tanh() method ### {#api-mlgraphbuilder-tanh}
 Compute the <a href="https://en.wikipedia.org/wiki/Hyperbolic_functions">hyperbolic tangent function</a> of the input tensor. The calculation follows the expression `(exp(2 * x) - 1) / (exp(2 * x) + 1)`.
@@ -3629,14 +5199,50 @@ partial interface MLGraphBuilder {
   MLOperand transpose(MLOperand input, optional MLTransposeOptions options = {});
 };
 </script>
-<div algorithm=transpose>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input N-D tensor.
         - *options*: an optional {{MLTransposeOptions}}. The optional parameters of the operation.
-            - *permutation*: a sequence of {{unsigned long}} values. The values used to permute the output shape. When it's not specified, it's set to [N-1, ..., 0], where N is the rank of the input tensor, e.g. [2,1,0] for a 3-D tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor.
 </div>
+
+{{MLTransposeOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLTransposeOptions>
+    : <dfn>permutation</dfn>
+    ::
+        A sequence of {{unsigned long}} values.
+        Specifies the values used to permute the output shape.
+        The default value is [N-1, ..., 0], where N is the rank of the input tensor, e.g. [2,1,0] for a 3-D tensor.
+        These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
+</dl>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/transpose(input, options)}} steps are:
+  </summary>
+  <div algorithm=transpose class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLTransposeOptions/permutation}} is `undefined`, let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
+        1. If |options|.{{MLTransposeOptions/permutation}} is not a sequence of {{unsigned long}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If the rank of |options|.{{MLTransposeOptions/permutation}} is not the same as the rank of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If the values in |options|.{{MLTransposeOptions/permutation}} are not between `0` and the rank of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} minus `1`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If the values in |options|.{{MLTransposeOptions/permutation}} contain duplicate value, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the transpose operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 Examples {#examples}
 =====================
