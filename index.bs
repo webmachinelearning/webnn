@@ -4300,34 +4300,12 @@ partial interface MLGraphBuilder {
   MLOperand maxPool2d(MLOperand input, optional MLPool2dOptions options = {});
 };
 </script>
-<div algorithm=pool2d>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *options.layout*.
         - *options*: an optional {{MLPool2dOptions}}. The optional parameters of the operation.
-            - *windowDimensions*: a sequence of {{unsigned long}} of length 2. The dimensions of the sliding window,
-                [window_height, window_width]. If not present, the window dimensions are assumed to be the height
-                and width dimensions of the input shape.
-            - *padding*: a sequence of {{unsigned long}} of length 4. The additional rows and columns added to the beginning and ending of each spatial dimension of *input*, [beginning_height, ending_height, beginning_width, ending_width]. If not present, the values are assumed to be [0,0,0,0].
-            - *strides*: a sequence of {{unsigned long}} of length 2. The stride of the
-                sliding window for each spatial dimension of *input*,
-                [stride_height, stride_width]. If not present, the values are assumed to be [1,1].
-            - *dilations*: a sequence of {{unsigned long}} of length 2. The dilation factor
-                for each spatial dimension of *input*, [dilation_height, dilation_width].
-                If not present, the values are assumed to be [1,1].
-            - *autoPad*: an {{MLAutoPad}}. The automatic input padding options. By default, this argument is set to *"explicit"*, which means that the values in the *options.padding* array should be used for input padding. When the option is set other than *"explicit"*, the values in the *options.padding* array are ignored. With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered. The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
-            - *layout*: an {{MLInputOperandLayout}}. The default value is *"nchw"*. This option specifies the
-                layout format of the input and output tensor as follow:
-
-                "nchw":
-                    - input tensor: [batches, channels, height, width]
-                    - output tensor: [batches, channels, height, width]
-
-                "nhwc":
-                    - input tensor: [batches, height, width, channels]
-                    - output tensor: [batches, height, width, channels]
-            - *roundingType*: an {{MLRoundingType}}. The option specifies the rounding function used to compute the output shape.
-            - *outputSizes*: a sequence of {{unsigned long}} of length 2. The sizes of the two spacial dimensions of the output tensor. When the output sizes are explicitly specified, the options.roundingType is ignored. If not specified, the output sizes are automatically computed.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
@@ -4338,15 +4316,133 @@ partial interface MLGraphBuilder {
     or if *options.roundingType* is *"ceil"*:
 
     *output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)*
+</div>
 
-    <div class="note">
+<div class="note">
     A *global* pooling operation such as one for the max pooling operation is a variant of pooling where the window dimensions is the spatial dimensions (last two dimensions) of the input shape, as follow.
     <pre highlight="js">
     // 'global' max pooling
     builder.maxPool2d(input);
     </pre>
-    </div>
 </div>
+
+{{MLPool2dOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLPool2dOptions>
+    : <dfn>windowDimensions</dfn>
+    ::
+         A sequence of {{unsigned long}} of length 2: [window_height, window_width].
+         Specifies the dimensions of the sliding window.
+         The default value for the window dimensions are the height and width dimensions of the input shape.
+
+    : <dfn>padding</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 4: [beginning_height, ending_height, beginning_width, ending_width].
+        Specifies the additional rows and columns added to the beginning and ending of each spatial dimension of the convolution input.
+        The default value is [0,0,0,0].
+
+    : <dfn>strides</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [stride_height, stride_width].
+        Specifies the stride of the sliding window for each spatial dimension of the convolution input.
+        The default value is [1,1].
+
+    : <dfn>dilations</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2: [dilation_height, dilation_width]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
+        The default value is [1,1].
+
+    : <dfn>autoPad</dfn>
+    ::
+        An {{MLAutoPad}} [=string=]].
+        Specifies the automatic input padding options.
+        The default value is *"explicit"*, which means that the values in the {{MLPool2dOptions/padding}} array should be used for input padding.
+        When the option is set other than *"explicit"*, the values in the {{MLPool2dOptions/padding}} array are ignored.
+
+        With the *"same-upper"* option, the padding values are automatically computed such that the additional ending padding of the spatial input dimensions would allow all of the input values in the corresponding dimension to be filtered.
+
+        The *"same-lower"* option is similar but padding is applied to the beginning padding of the spatial input dimensions instead of the ending one.
+
+    : <dfn>layout</dfn>
+    ::
+        An {{MLInputOperandLayout}} [=string=].
+        Specifies the layout format of the input and output tensor as follows:
+            - **"nchw"**
+                - input tensor: *[batches, input_channels, height, width]*
+                - output tensor: *[batches, output_channels, height, width]*
+            - **"nhwc"**:
+                - input tensor: *[batches, height, width, input_channels]*
+                - output tensor: *[batches, height, width, output_channels]*
+        The default value is *"nchw"*.
+
+    : <dfn>roundingType</dfn>
+    ::
+        An {{MLRoundingType}} [=string=].
+        Specifies the rounding function used to compute the output shape.
+
+    : <dfn>outputSizes</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2.
+        Specifies the sizes of the two spacial dimensions of the output tensor. When the output sizes are explicitly specified, the {{MLPool2dOptions/roundingType}} is ignored.
+
+        If not specified, the output sizes are automatically computed.
+
+</dl>
+
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder" data-lt="pooling-op">create pooling operation</dfn> given |op|, |input| and |options|, run the following steps:
+  </summary>
+  <div algorithm=create-pooling-operation class=algorithm-steps>
+    1. [=Assert=]: |op| is one of "averagePool2d", "l2Pool2d", "maxPool2d".
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be a new {{MLPool2dOptions}} object.
+    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} is `undefined`, set |options|.{{MLPool2dOptions/padding}} to `[0, 0, 0, 0]`.
+    1. If |options|.{{MLPool2dOptions/strides}} is `undefined`, set |options|.{{MLPool2dOptions/strides}} to `[1, 1]`.
+    1. If |options|.{{MLPool2dOptions/dilations}} is `undefined`, set |options|.{{MLPool2dOptions/dilations}} to `[1, 1]`.
+    1. If |options|.{{MLPool2dOptions/autoPad}} is `undefined`, set |options|.{{MLPool2dOptions/autoPad}} to `"explicit`.
+    1. If |options|.{{MLPool2dOptions/autoPad}} is not `"explicit"`, set |options|.{{MLPool2dOptions/padding}} to `[0, 0, 0, 0]`.
+    1. If |options|.{{MLPool2dOptions/layout}} is `undefined`, set |options|.{{MLPool2dOptions/layout}} to `"nchw"`.
+    1. If |options|.{{MLPool2dOptions/roundingType}} is `undefined`, set |options|.{{MLPool2dOptions/roundingType}} to `"floor"`.
+    1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Make a request to the underlying platform to:
+            1. Calculate the output dimensions given |input| and |options|. Let |desc|.{{MLOperandDescriptor/dimensions}} be the result of that.
+            1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the |op| pooling operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The following pooling algorithms are supported.
+  </summary>
+  <div algorithm=averagePool2d class=algorithm-steps>
+    The {{MLGraphBuilder/averagePool2d(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation =] given `"averagePool2d"`, |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+  </div>
+
+  <div algorithm=l2Pool2d class=algorithm-steps>
+    The {{MLGraphBuilder/l2Pool2d(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation =] given `"l2Pool2d"`, |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+  </div>
+
+  <div algorithm=maxPool2d class=algorithm-steps>
+    The {{MLGraphBuilder/maxPool2d(input, options)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation =] given `"maxPool2d"`, |input| and |options|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+  </div>
+</details>
 
 ### The prelu() method ### {#api-mlgraphbuilder-prelu}
 Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Parametric_ReLU">parametric version of rectified linear function (Parametric Relu)</a> on the input tensor element-wise. Parametric Relu is a type of leaky ReLU that, instead of having a scalar slope like 0.01, making the slope (coefficient of leakage) into a parameter that is learned during the model training phase of this operation. The calculation follows the expression `max(0, x) + slope ∗ min(0, x)`.
