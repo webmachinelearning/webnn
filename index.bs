@@ -4970,31 +4970,29 @@ partial interface MLGraphBuilder {
     </pre>
 </div>
 
-{{MLSoftplusOptions}} has the following members:
-<dl dfn-type=dict-member dfn-for=MLSoftplusOptions>
-    : <dfn>steepness</dfn>
-    ::
-         A {{float}} scalar parameter.
-         The default value is `1`.
-</dl>
+### The softsign() method ### {#api-mlgraphbuilder-softsign-method}
+Compute the <a href="https://pytorch.org/docs/stable/generated/torch.nn.Softsign.html">softsign function</a> of the input tensor. The calculation follows the expression `x / (1 + |x|)`.
+<script type=idl>
+partial interface MLGraphBuilder {
+  MLOperand softsign(MLOperand input);
+  MLActivation softsign();
+};
+</script>
 
-<details open>
-  <summary>
-    To <dfn>check softplus options</dfn> given |options|, run the following steps:
-  </summary>
-  <div algorithm=check-softplus-options class=algorithm-steps>
-    1. If |options| is not an [=object=], then return `false`.
-    1. If |options|.{{MLSoftplusOptions/steepness}} is `undefined`, set |options|.{{MLSoftplusOptions/steepness}} to `1`.
-    1. Else if |options|.{{MLSoftplusOptions/steepness}} is not a [=numeric type=], then then return `false`.
-    1. Return `true`.
-  </div>
-</details>
+<div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.div(x, builder.add(builder.constant(1), builder.abs(x)));
+    </pre>
+</div>
 
-#### The {{MLGraphBuilder/softplus(input, options)}} method #### {#api-mlgraphbuilder-softplus-input-options}
+#### The {{MLGraphBuilder/softsign(input)}} method #### {#api-mlgraphbuilder-softsign-input}
 <div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLSoftplusOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *x*.
@@ -5002,16 +5000,14 @@ partial interface MLGraphBuilder {
 
 <details open>
   <summary>
-    The {{MLGraphBuilder/softplus(input, options)}} method steps are:
+    The {{MLGraphBuilder/softsign(input)}} steps are:
   </summary>
-  <div algorithm=softplus-input-options class=algorithm-steps>
-    1. Let |input| be the first argument.
-    1. Let |options| be the second argument.
-        1. If running the <a>check softplus options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+  <div algorithm=softsign-input class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the softplus operation, given |options|.
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the softsign operation, given |options|.
             1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
             1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
@@ -5021,54 +5017,24 @@ partial interface MLGraphBuilder {
   </div>
 </details>
 
-#### The {{MLGraphBuilder/softplus(options)}} method #### {#api-mlgraphbuilder-softplus-options}
+#### The {{MLGraphBuilder/softsign()}} method #### {#api-mlgraphbuilder-softsign}
 <div>
     **Arguments:**
-        - *options*: an optional {{MLSoftplusOptions}}. The optional parameters of the operation.
+        - None.
 
     **Returns:**
-        - an {{MLActivation}}. The activation function representing the softplus operation.
+        - an {{MLActivation}}. The activation function representing the softsign operation.
 </div>
-
 <details open>
   <summary>
-    The {{MLGraphBuilder/softplus(options)}} method steps are:
+    The {{MLGraphBuilder/softsign()}} method steps are:
   </summary>
-  <div algorithm=softplus-options class=algorithm-steps>
-    1. Let |options| be the first argument.
-        1. If running the <a>check softplus options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
-    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"softplus"` and |options|.
+  <div algorithm=softsign class=algorithm-steps>
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"softsign"`.
         1. If that throws an error, re-throw the error and abort these steps.
     1. Return |op|.
   </div>
 </details>
-
-### The softsign() method ### {#api-mlgraphbuilder-softsign}
-Compute the <a href="https://pytorch.org/docs/stable/generated/torch.nn.Softsign.html">softsign function</a> of the input tensor. The calculation follows the expression `x / (1 + |x|)`.
-<script type=idl>
-partial interface MLGraphBuilder {
-  MLOperand softsign(MLOperand x);
-  MLActivation softsign();
-};
-</script>
-<div algorithm=softsign>
-    **Arguments:**
-        - *x*: an {{MLOperand}}. The input tensor.
-
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-        - an {{MLActivation}}. The activation function representing the softsign operation.
-
-    <div class="note">
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
-    <pre highlight="js">
-    return builder.div(x, builder.add(builder.constant(1), builder.abs(x)));
-    </pre>
-    </div>
-</div>
 
 ### The split() method ### {#api-mlgraphbuilder-split}
 Split the input tensor into a number of sub tensors along the given axis.
