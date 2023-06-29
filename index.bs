@@ -2657,6 +2657,7 @@ partial interface MLGraphBuilder {
 
 ### The gemm() method ### {#api-mlgraphbuilder-gemm}
 Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape [M, K] or [K, M], `B` is a 2-D tensor with shape [K, N] or [N, K], and `C` is broadcastable to the shape [M, N]. `A` and `B` may optionally be transposed prior to the calculation.
+
 <script type=idl>
 dictionary MLGemmOptions {
   MLOperand c;
@@ -2670,22 +2671,84 @@ partial interface MLGraphBuilder {
   MLOperand gemm(MLOperand a, MLOperand b, optional MLGemmOptions options = {});
 };
 </script>
-<div algorithm=gemm>
+
+{{MLGemmOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLGemmOptions>
+    : <dfn>c</dfn>
+    ::
+        An {{MLOperand}}. Specifies the third input tensor. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape [M, N] according to [[!numpy-broadcasting-rule]]. When it is not specified, the computation is done as if *c* is a scalar `0.0`.
+
+    : <dfn>alpha</dfn>
+    ::
+        A {{float}} scalar multiplier for the first input.
+
+    : <dfn>beta</dfn>
+    ::
+        A {{float}} scalar multiplier for the third input {{MLGemmOptions/c}}.
+
+    : <dfn>aTranspose</dfn>
+    ::
+        A {{boolean}} indicating if the first input should be transposed prior to calculating the output.
+
+    : <dfn>bTranspose</dfn>
+    ::
+        A {{boolean}} indicating if the second input should be transposed prior to calculating the output.
+</dl>
+
+<div>
     **Arguments:**
         - *a*: an {{MLOperand}}. The first input 2-D tensor with shape [M, K] if *aTranspose* is false, or [K, M] if *aTranspose* is true.
         - *b*: an {{MLOperand}}. The second input 2-D tensor with shape [K, N] if *bTranspose* is false, or [N, K] if *bTranspose* is true.
         - *options*: an optional {{MLGemmOptions}}. The optional parameters of the operation.
-            - *c*: an {{MLOperand}}. The third input tensor. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape [M, N] according to [[!numpy-broadcasting-rule]]. When it is not specified, the computation is done as if *c* is a scalar 0.0.
-            - *alpha*: a {{float}} scalar multiplier for the first input, default to 1.0.
-            - *beta*: a {{float}} scalar multiplier for the third input, default to 1.0.
-            - *aTranspose*: a {{boolean}} indicating if the first input should be transposed prior to calculating the output, default to false.
-            - *bTranspose*: a {{boolean}} indicating if the second input should be transposed prior to calculating the output, default to false.
 
     **Returns:** an {{MLOperand}}. The output 2-D tensor of shape [M, N] that contains the calculated product of all the inputs.
+</div>
 
-    <div class="note">
+<details open>
+  <summary>
+    The {{MLGraphBuilder/gemm(a, b, options)}} steps are:
+  </summary>
+  <div algorithm=gemm class=algorithm-steps>
+    1. If |a| or |b| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLGemmOptions/alpha}} is `undefined`, set it to `1.0`.
+    1. If |options|.{{MLGemmOptions/beta}} is `undefined`, set it to `1.0`.
+    1. If |options|.{{MLGemmOptions/aTranspose}} is `undefined`, set it to `false`.
+    1. If |options|.{{MLGemmOptions/aTranspose}} is not `false`, set it to `true`.
+    1. If |options|.{{MLGemmOptions/bTranspose}} is `undefined`, set it to `false`.
+    1. If |options|.{{MLGemmOptions/bTranspose}} is not `false`, set it to `true`.
+    1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the size of |shapeA|.
+    1. Let |shapeB| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the size of |shapeB|.
+    1. If |sizeA| is not `2` or |sizeB| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGemmOptions/aTranspose}} is `true`, then let |shapeA| be the reverse array of |shapeA|.
+    1. If |options|.{{MLGemmOptions/bTranspose}} is `true`, then let |shapeB| be the reverse array of |shapeB|.
+    1. If |shapeA|[1] is not equal to |shapeB|[0], then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLGemmOptions/c}} [=map/exists=] and is not unidirectionally broadcastable to the shape [|shapeA|[0], |shapeB|[1]] according to the [[!numpy-broadcasting-rule]], then throw a "{{DataError}}" {{DOMException}} and stop.
+        <div class="note">
+            Type compatibility between |a|, |b| and |options|.{{MLGemmOptions/c}} can be also checked.
+        </div>
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [|shapeA|[0], |shapeB|[1]].
+    1. Set |desc|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the GEMM operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="note">
+<details open>
+  <summary>
     The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
-    <pre highlight="js">
+  </summary>
+  <pre highlight="js">
     if (options.aTranspose)
       a = builder.transpose(a);
 
@@ -2694,8 +2757,8 @@ partial interface MLGraphBuilder {
 
     let ab = builder.matmul(builder.mul(builder.constant(options.alpha), a), b);
     return (c ? builder.add(ab, builder.mul(builder.constant(options.beta), c)) : ab);
-    </pre>
-    </div>
+  </pre>
+</details>
 </div>
 
 ### The gru() method ### {#api-mlgraphbuilder-gru}
