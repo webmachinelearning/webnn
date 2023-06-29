@@ -4639,55 +4639,7 @@ partial interface MLGraphBuilder {
     </pre>
 </div>
 
-#### The {{MLGraphBuilder/relu(input)}} method #### {#api-mlgraphbuilder-relu-input}
-<div>
-    **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
-</div>
-
-<details open>
-  <summary>
-    The {{MLGraphBuilder/relu(input)}} steps are:
-  </summary>
-  <div algorithm=relu-input class=algorithm-steps>
-    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
-        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the ReLU operation.
-            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
-    1. Return |output|.
-  </div>
-</details>
-
-#### The {{MLGraphBuilder/relu()}} method #### {#api-mlgraphbuilder-relu}
-<div>
-    **Arguments:**
-        - None.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the relu operation.
-</div>
-
-<details open>
-  <summary>
-    The {{MLGraphBuilder/relu()}} method steps are:
-  </summary>
-  <div algorithm=relu class=algorithm-steps>
-    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"relu"`.
-        1. If that throws an error, re-throw the error and abort these steps.
-    1. Return |op|.
-  </div>
-</details>
-
-### The resample2d() method ### {#api-mlgraphbuilder-resample2d}
+### The resample2d() method ### {#api-mlgraphbuilder-resample2d-method}
 Resample the tensor values from the source to the destination spatial dimensions according to the scaling factors.
 <script type=idl>
 enum MLInterpolationMode {
@@ -4706,18 +4658,98 @@ partial interface MLGraphBuilder {
   MLOperand resample2d(MLOperand input, optional MLResample2dOptions options = {});
 };
 </script>
-<div algorithm=resample2d>
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 4-D tensor.
         - *options*: an optional {{MLResample2dOptions}}. The optional parameters of the operation.
-            - *mode*: an {{MLInterpolationMode}}. The interpolation algorithm used to fill the output tensor values.
-                If not set, it is assumed to be the *Nearest Neighbor* interpolation.
-            - *scales*: a sequence of {{float}} of length 2. Each value represents the scaling factor used to scale in each spatial dimensions of input, [scale_height, scale_width]. If not set, the values are assumed to be [1.0, 1.0].
-            - *sizes*: a sequence of {{unsigned long}} of length 2. The target sizes for each spatial dimensions of input, [size_height, size_width]. When the target sizes are specified, the *options.scales* argument is ignored as the scaling factor values are derived from the target sizes of each spatial dimension of input.
-            - *axes*: a sequence of {{unsigned long}} of length 2. The two consecutive dimensions of the input tensor to which the interpolation algorithm applies. The valid values in the sequence are [0, 1], [1, 2] or [2, 3]. When not specified, the sequence is assumed to be [2, 3].
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor.
 </div>
+
+{{MLResample2dOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLResample2dOptions>
+    : <dfn>mode</dfn>
+    ::
+        An {{MLInterpolationMode}} [=string=].
+        Specifies the interpolation algorithm used to fill the output tensor values.
+        The default value is `"nearest-neighbor"`, standing for *Nearest Neighbor* interpolation.
+
+    : <dfn>scales</dfn>
+    ::
+        A sequence of {{float}} of length 2.
+        Specifies the scaling factor in each spatial dimensions of the input: [scale_height, scale_width].
+        The default value is [1.0, 1.0].
+
+    : <dfn>sizes</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2.
+        Specifies the target sizes for each spatial dimensions of the input: [size_height, size_width]. When the target sizes are specified, the {{MLResample2dOptions/scales}} argument is ignored, since the scaling factor values are derived from the target sizes of each spatial dimension of the input.
+
+    : <dfn>axes</dfn>
+    ::
+        A sequence of {{unsigned long}} of length 2.
+        Specifies the two consecutive dimensions of the input tensor to which the interpolation algorithm applies. The valid values in the sequence are [0, 1], [1, 2] or [2, 3].
+        The default value is [2, 3].
+</dl>
+
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder">check resample options</dfn> given |options|, run the following steps:
+  </summary>
+  <div algorithm=check-resample-options class=algorithm-steps>
+    1. If |options| is `undefined`, let |options| be a new {{MLResample2dOptions}} object.
+    1. If |options|.{{MLResample2dOptions/mode}} [=map/exists=]:
+        1. If its value is not one of `"nearest-neighbor"` or `"linear"`, return `null`.
+    1. Otherwise, set |options|.{{MLResample2dOptions/mode}} to `"nearest-neighbor"`.
+    1. If |options|.{{MLResample2dOptions/scales}} [=map/exists=]:
+        1. If its size is not `2`, or if any of its values is not greater than `0`, return `null`.
+    1. Otherwise, set |options|.{{MLResample2dOptions/scales}} to `[1.0, 1.0]`.
+    1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=]: if its size is not `2`, or if any of its values is not greater than `0`, return `null`.
+    1. If |options|.{{MLResample2dOptions/axes}} [=map/exists=]:
+        1. If its value is not one of `[0, 1], [1, 2], [2, 3]`, return `null`.
+    1. Otherwise, set |options|.{{MLResample2dOptions/axes}} to `[2, 3]`.
+    1. Return |options|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder">resample output sizes</dfn> given |input| and |options|, run the following steps:
+  </summary>
+  <div algorithm=resample-output-sizes class=algorithm-steps>
+    1. Let |desc| be an {{MLOperandDescriptor}} initialized to |input|.{{MLOperand/[[descriptor]]}}.
+    1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then set |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} to |options|.{{MLResample2dOptions/sizes}} and return |desc|.
+    1. For |index| between `0` and the rank of |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}:
+        1. Let |inputSize| be the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|index|].
+        1. Let |outputSize| be |inputSize| multiplied by |options|.{{MLResample2dOptions/scales}}.
+            1. If that fails or |outputSize| is not a positive [=number=], then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|index|] to |outputSize|.
+    1. Return |desc|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/resample2d(input, options)}} steps are:
+  </summary>
+  <div algorithm=resample2d class=algorithm-steps>
+    1. Check if the input is a 4-dimensional tensor: if the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not `4`, throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |options| be the result of running the <a>check resample options</a> steps given |options|.
+        1. If that returns `null`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |desc| be the result of running the <a>resample output sizes</a> steps given |options|.
+        1. If that throws an error, re-throw the error and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the resample 2D operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The reshape() method ### {#api-mlgraphbuilder-reshape-method}
 Alter the shape of a tensor to a new shape. Reshape does not copy or change the content of the tensor. It just changes the tensor's logical dimensions for the subsequent operations.
