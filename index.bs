@@ -11,6 +11,7 @@ Editor: Chai Chaoweeraprasit 120203, Microsoft Corporation https://microsoft.com
 Abstract: This document describes a dedicated low-level API for neural network inference hardware acceleration.
 Repository: https://github.com/webmachinelearning/webnn
 Test Suite: https://github.com/web-platform-tests/wpt/tree/master/webnn
+Implementation Report: https://wpt.fyi/results/webnn?label=master&label=experimental&aligned&q=webnn
 !Explainer: <a href="https://github.com/webmachinelearning/webnn/blob/master/explainer.md">explainer.md</a>
 !Polyfill: <a href="https://github.com/webmachinelearning/webnn-polyfill">webnn-polyfill</a> / <a href="https://github.com/webmachinelearning/webnn-samples">webnn-samples</a>
 Markup Shorthands: markdown yes
@@ -18,6 +19,24 @@ Markup Shorthands: dfn yes
 Markup Shorthands: idl yes
 Markup Shorthands: css no
 Logo: https://webmachinelearning.github.io/webmachinelearning-logo.png
+Deadline: 2023-10-01
+Status Text: <p>
+  Further implementation experience and user feedback is being gathered for the
+  {{MLCommandEncoder}} interface that proposes to enable more efficient WebGPU
+  integration. A proposal to
+  <a href="https://github.com/webmachinelearning/webnn/pull/322">simplify
+  MLContext creation</a> is being discussed. This document is maintained and
+  updated at any time. Some parts of this document are work in progress and
+  further improvements are expected to be reflected in revised Candidate
+  Recommendation Drafts and Snaphots.
+  </p>
+  <p>Before requesting transition to <a href="https://www.w3.org/standards/types#PR">Proposed Recommendation</a>, the Working Group will seek to demonstrate that:</p>
+  <ul>
+  <li>the API is implementable on top of existing APIs of major platforms, such as Android, Windows and macOS/iOS;</li>
+  <li>it has at least two independent, interoperable implementations of every feature defined in the specification, where interoperability can be verified by passing open test suites, and two or more implementations interoperating with each other;</li>
+  <li>it has an open test suite of every feature defined in the specification.</li>
+  </ul>
+
 </pre>
 <pre class="anchors">
 urlPrefix: https://gpuweb.github.io/gpuweb/; spec: WEBGPU
@@ -42,6 +61,9 @@ urlPrefix: https://webidl.spec.whatwg.org/; spec: WEBIDL
     type: dfn
         text: underlying buffer; url: buffersource-underlying-buffer
         text: buffer byte length; url: buffersource-byte-length
+urlPrefix: https://tc39.es/proposal-float16array/; spec: float16array
+    type: interface
+        text: Float16Array; url: sec-float16array
 </pre>
 <pre class="biblio">
 {
@@ -695,7 +717,54 @@ For instance, an {{MLOperand}} may represent a constant feeding to an operation 
 interface MLOperand {};
 </script>
 
-See also [[#security-new-ops]]
+{{MLOperand}} has the following internal slots:
+<div class=internal-slots>
+<dl dfn-type=attribute dfn-for="MLOperand">
+    : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
+    ::
+        The {{MLOperand}}'s associated builder object.
+
+    : <dfn>\[[descriptor]]</dfn> of type {{MLOperandDescriptor}}
+    ::
+        The {{MLOperand}}'s descriptor.
+
+    : <dfn>\[[name]]</dfn> of type [=string=]
+    ::
+        The {{MLOperand}}'s name (only for input operands).
+
+    : <dfn>\[[operand]]</dfn> of type [=object=]
+    ::
+        Reference to {{MLOperand}}'s corresponding [=implementation-defined=] platform operand object.
+
+    : <dfn>\[[operator]]</dfn> of type [=object=]
+    ::
+        Reference to {{MLOperand}}'s corresponding [=implementation-defined=] platform operator object.
+</dl>
+</div>
+
+Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
+
+#### Creating {{MLOperand}} #### {#api-mloperand-create}
+The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, internally using the following algorithms.
+
+To <dfn>create MLOperand</dfn> given |builder| and |desc|, run the following steps:
+<div class=algorithm-steps>
+    1. If |builder| is not an instance of {{MLGraphBuilder}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |desc| is not an [=object=] that [=implements=] {{MLOperandDescriptor}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |operand| be a new [=object=].
+    1. Set |operand|.{{MLOperand/[[builder]]}} to |builder|.
+    1. Set |operand|.{{MLOperand/[[descriptor]]}} to |desc|.
+    1. Return |operand|.
+</div>
+
+To <dfn>check dimensions</dfn> given |dimensions| and |type|, run the following steps:
+<div class=algorithm-steps>
+    1. If |dimensions| is not an array of positive numbers, return `false`;
+    1. If |dimensions|.length is 0, return `false`.
+    1. If |dimensions|.length is too large to be supported by the implementation, return `false`.
+    1. If any element of |dimensions| is not a positive number, or it is too large to be supported by the implementation given |type|, return `false`.
+    1. Return `true`.
+</div>
 
 ### The MLActivation interface ### {#api-mlactivation}
 
@@ -707,7 +776,7 @@ interface MLActivation {};
 </script>
 
 <div class="note">
-These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as [[#api-mlgraphbuilder-conv2d]] or [[#api-mlgraphbuilder-batchnorm]] during a graph construction session.
+These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as [[#api-mlgraphbuilder-conv2d]] or [[#api-mlgraphbuilder-batchnorm]] during a graph construction session. Such fused activation functions can provide a significant performance improvement when supported natively by the underlying implementation. This is intended as an optimization opportunity for implementers.
 </div>
 
 <div class="note">
@@ -841,6 +910,13 @@ To <dfn lt="execute graph">execute graph</dfn>, given |graph|, |inputs| and |out
         1. If the [=element type=] of |outputTensor| doesn't match the [=element type=] of |outputValue|, then throw a "{{DataError}}" {{DOMException}} and stop.
         1. Request the underlying implementation of |graph| to set the values of elements in |outputValue| to the values of elements in |outputTensor|.
     1. Return {{undefined}}.
+</div>
+
+<div class=algorithm-steps>
+To <dfn>validate buffer with descriptor</dfn> given |bufferView| and |descriptor|, run the following steps:
+    1. If |bufferView| is not an {{MLBufferView}}, return `false`.
+    1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/type}}  according to [this table](#appendices-mloperandtype-arraybufferview-compatibility), return `false`.
+    1. If |bufferView|.\[[ByteLength]] is not equal to the [=byte length=] of |descriptor|, return `false`.
 </div>
 
 #### Examples #### {#api-mlcontext-sync-execution-examples}
@@ -1018,7 +1094,7 @@ partial interface MLCommandEncoder {
 </div>
 
 <div class="note">
-Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder}}.{{MLGraphBuilder/constant(desc, bufferView)}} method as constant operands during graph construction time.
+Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant()}} method as constant operands during graph construction time.
 </div>
 
 ### Dispatch Execution Commands ### {#api-mlcommandencoder-dispatch-commands}
@@ -1099,10 +1175,10 @@ interface MLGraphBuilder {
   constructor(MLContext context);
 
   // Create an operand for a graph input.
-  MLOperand input(DOMString name, MLOperandDescriptor desc);
+  MLOperand input(DOMString name, MLOperandDescriptor descriptor);
 
   // Create an operand for a graph constant.
-  MLOperand constant(MLOperandDescriptor desc, MLBufferView bufferView);
+  MLOperand constant(MLOperandDescriptor descriptor, MLBufferView bufferView);
 
   // Create a single-value operand from the specified number of the specified type.
   MLOperand constant(double value, optional MLOperandType type = "float32");
@@ -1131,10 +1207,95 @@ Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGr
 The [=new=] {{MLGraphBuilder}} constructor steps are:
 1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
 1. Let |context| be the first argument.
-1. If |context| is not a valid {{MLContext}}, throw a "{{TypeError}}" and abort these steps.
+1. If the <a>validate MLContext</a> steps given |context| return `false`, throw a "{{TypeError}}" and abort these steps.
 1. Set {{MLGraphBuilder/[[context]]}} to |context|.
 
-Issue(webmachinelearning/webnn#308): Add an algorithm to validate {{MLContext}}.
+### The {{MLGraphBuilder/input()}} method  ### {#api-mlgraphbuilder-input}
+Create a named {{MLOperand}} based on a descriptor, that can be used as an input.
+<div class="note">
+    **Arguments:**
+        - *name*: a [=string=] name of the input.
+        - *descriptor*: an {{MLOperandDescriptor}} object.
+    **Returns:**: an {{MLOperand}} object.
+</div>
+<div algorithm=input>
+    The {{MLGraphBuilder/input(name, descriptor)}} steps are:
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. Let |name| be the first argument.
+        1. If |name| is `undefined` or an empty [=string=], then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |descriptor| be the second argument.
+        1. If |descriptor| is not an an object that [=implements=] {{MLOperandDescriptor}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. [=Assert=]: If |descriptor|.{{MLOperandDescriptor/dimensions}} does not [=map/exist=], then |descriptor| defines a scalar input.
+        1. If |descriptor|.{{MLOperandDescriptor/dimensions}} [=map/exists=]:
+            1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return `false`, throw a "{{DataError}}" {{DOMException}} and stop.
+            1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |operand| be the result of invoking the <a>create MLOperand</a> steps with [=this=] and |descriptor|.
+        1. If that throws, re-throw the exception and stop.
+    1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
+    1. Make a request to the underlying platform to register |operand| as an input and store a reference to the corresponding [=implementation-defined=] platform object in |operand|.{{MLOperand/[[operand]]}}.
+        1. If that fails, throw an "{{OperationError}}" {{DOMException}} and abort these steps.
+
+### The constant() method  ### {#api-mlgraphbuilder-constant-method}
+Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
+
+#### The {{MLGraphBuilder/constant(descriptor, bufferView)}} method  #### {#api-mlgraphbuilder-constant}
+<div class="note">
+    **Arguments:**
+        - *descriptor*: an {{MLOperandDescriptor}} object
+        - *bufferView*: an {{MLBufferView}}
+    **Returns:**: an {{MLOperand}} object.
+</div>
+
+<div algorithm=constant class=algorithm-steps>
+The {{MLGraphBuilder/constant(descriptor, bufferView)}} steps are:
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. Let |descriptor| be the first argument.
+    1. If |descriptor| is not an an object that [=implements=] {{MLOperandDescriptor}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return `false`, throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |bufferView| be the second argument.
+        1. If invoking <a>validate buffer with descriptor</a> given |bufferView| and |descriptor| return `false`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |operand| be the result of invoking the <a>create MLOperand</a> steps with [=this=] and |descriptor|.
+        1. If that throws, re-throw the exception and stop.
+    1. Let |bytes| be the result of invoking [[=get a copy of the bytes held by the buffer source=]] given |bufferView|.
+    1. Make a request to the underlying platform to register |operand| as a tensor constant with |bytes| as value and store a reference to the corresponding [=implementation-defined=] object to |operand|.{{MLOperand/[[operand]]}}.
+        1. If that fails, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. Return |operand|.
+</div>
+
+#### The {{MLGraphBuilder/constant(value, type)}} method  #### {#api-mlgraphbuilder-constant-value-type}
+
+<div class="note">
+    **Arguments:**
+        - *value*: a number
+        - *type*: an optional {{MLOperandType}}, by default *"float32"*.
+    **Returns:**: an {{MLOperand}} object.
+</div>
+
+<div algorithm=constant-value-type class=algorithm-steps>
+The {{MLGraphBuilder/constant(value, type)}} steps are:
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. If |value| is not a [=number=], then then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |type| is `undefined`, let |type| be `"float32"`.
+    1. Otherwise, if |type| is not one of {{MLOperandType}}, then  throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+        1. Set |descriptor|.{{MLOperandDescriptor/type}} to |type|.
+        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to `undefined`.
+            <div class="note">
+                In the case of a scalar constant, |descriptor|.{{MLOperandDescriptor/dimensions}} is ignored.
+            </div>
+    1. Let |operand| be the result of invoking the <a>create MLOperand</a> steps with [=this=] and |descriptor|.
+        1. If that throws, re-throw the exception and stop.
+    1. Make a request to the underlying platform to register |operand| as a scalar constant with |value| as value and store a reference of the [=implementation-defined=] platform object for the corresponding (scalar or tensor constant) operand to |operand|.{{MLOperand/[[operand]]}}.
+        1. If that throws, re-throw the error and stop.
+    1. Return |operand|.
+</div>
 
 ### The batchNormalization() method ### {#api-mlgraphbuilder-batchnorm}
 Normalize the tensor values of input features across the batch dimension using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature supplied in this calculation as parameters are previously computed across the batch dimension of the input during the model training phase of this operation.
@@ -1142,7 +1303,7 @@ Normalize the tensor values of input features across the batch dimension using [
 dictionary MLBatchNormalizationOptions {
   MLOperand scale;
   MLOperand bias;
-  long axis = 1;
+  unsigned long axis = 1;
   float epsilon = 1e-5;
   MLActivation activation;
 };
@@ -1160,7 +1321,7 @@ partial interface MLGraphBuilder {
         - *options*: an optional {{MLBatchNormalizationOptions}}. The optional parameters of the operation.
               - *scale*: an {{MLOperand}}. The 1-D tensor of the scaling values whose length is equal to the size of the input dimension denoted by *options.axis*.
               - *bias*: an {{MLOperand}}. The 1-D tensor of the bias values whose length is equal to the size of the input dimension denoted by *options.axis*.
-              - *axis*: a {{long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. When it's not specified, the default value is 1.
+              - *axis*: an {{unsigned long}} scalar. The index to the feature count dimension of the input shape for which the mean and variance values are. Its value must be in the range [0, N-1] where N is the rank of input tensor. When it's not specified, the default value is 1.
               - *epsilon*: a {{float}} scalar. A small value to prevent computational error due to divide-by-zero. The default value is 0.00001 when not specified.
               - *activation*: an {{MLActivation}}. The optional activation function that immediately follows the normalization operation.
 
@@ -1171,7 +1332,7 @@ partial interface MLGraphBuilder {
     <div class="note">
     The behavior of this operation when the input tensor is 4-D of the *"nchw"* layout and the activation is of operator type *relu* can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
     <pre highlight="js">
-    const shape = [1,-1,1,1];
+    const shape = [1,null,1,1];
     return builder.relu(
       builder.add(
         builder.mul(
@@ -1240,16 +1401,14 @@ partial interface MLGraphBuilder {
 Concatenates the input tensors along a given axis.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand concat(sequence<MLOperand> inputs, long axis);
+  MLOperand concat(sequence<MLOperand> inputs, unsigned long axis);
 };
 </script>
 <div algorithm=concat>
     **Arguments:**
         - *inputs*: a sequence of {{MLOperand}}. All input tensors must have the
             same shape, except for the size of the dimension to concatenate on.
-        - *axis*: a {{long}} scalar. The axis that the inputs concatenate along, with
-            the value in the interval [0, N) where N is the rank of all the
-            inputs.
+        - *axis*: an {{unsigned long}} scalar. The axis that the inputs concatenate along. Its value must be in the range [0, N-1] where N is the rank of input tensors.
 
     **Returns:** an {{MLOperand}}. The concatenated tensor of all the inputs along
     the *axis*. The output tensor has the same shape except on the dimension
@@ -1330,7 +1489,7 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options.inputLayout* value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follow:
 
-    *output size = 1 + (input size - filter size - (filter size - 1) ** *(dilation - 1) + beginning padding + ending padding) / stride*
+    *output size = 1 + (input size - (filter size - 1) ** *dilation - 1 + beginning padding + ending padding) / stride*
 
     <div class="note">
     A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options.groups* = input_channels = output_channels and the shape of filter tensor is [options.groups, 1, height, width]
@@ -1407,7 +1566,7 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options.inputLayout* value. More specifically, unless the *options.outputSizes* values are explicitly specified, the *options.outputPadding* may be needed to compute the spatial dimension values of the output tensor as follow:
 
-    *output size = (input size - 1) ** *stride + filter size + (filter size - 1) ** *(dilation - 1) - beginning padding - ending padding + output padding*
+    *output size = (input size - 1) ** *stride + (filter size - 1) ** *dilation + 1 - beginning padding - ending padding + output padding*
 </div>
 
 ### Element-wise binary operations ### {#api-mlgraphbuilder-binary}
@@ -1511,7 +1670,7 @@ partial interface MLGraphBuilder {
     performance standpoint.
     <pre highlight="js">
     return builder.add(
-              builder.max(0, x),
+              builder.max(builder.constant(0), x),
               builder.mul(
                 builder.constant(options.alpha),
                 builder.sub(
@@ -1633,11 +1792,11 @@ partial interface MLGraphBuilder {
     let currentRecurrentBias = [];
 
     for (let dir = 0; dir < numDirections; ++dir) {
-      currentWeight.push(builder.squeeze(builder.slice(weight, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
-      currentRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
-      currentBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [dir, 0], [1, -1]), { axes: [0] })) : null);
+      currentWeight.push(builder.squeeze(builder.slice(weight, [dir, 0, 0], [1, 3 * hidden_size, input_size]), { axes: [0] }));
+      currentRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [dir, 0, 0], [1, 3 * hidden_size, hidden_size]), { axes: [0] }));
+      currentBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [dir, 0], [1, 3 * hidden_size]), { axes: [0] })) : null);
       currentRecurrentBias.push(options.recurrentBias ?
-        (builder.squeeze(builder.slice(options.recurrentBias, [dir, 0], [1, -1]), { axes: [0] })) : null);
+        (builder.squeeze(builder.slice(options.recurrentBias, [dir, 0], [1, 3 * hidden_size]), { axes: [0] })) : null);
     }
 
     for (let step = 0; step < steps; ++step) {
@@ -1645,12 +1804,12 @@ partial interface MLGraphBuilder {
       let currentOutput = null;
 
       for (let dir = 0; dir < numDirections; ++dir) {
-        currentHidden.push(builder.squeeze(builder.slice(hiddenState, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
+        currentHidden.push(builder.squeeze(builder.slice(hiddenState, [dir, 0, 0], [1, batch_size, hidden_size]), { axes: [0] }));
       }
 
       for (let dir = 0; dir < numDirections; ++dir) {
         let slice = (dir == 1 || options.direction == "backward" ? steps - step - 1 : step);
-        let currentInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, -1, -1]), { axes: [0] });
+        let currentInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, batch_size, input_size]), { axes: [0] });
 
         let result = builder.reshape(
           builder.gruCell(
@@ -1658,7 +1817,7 @@ partial interface MLGraphBuilder {
             currentHidden[dir], hiddenSize, { bias: currentBias[dir],
             recurrentBias: currentRecurrentBias[dir], resetAfter: options.resetAfter,
             layout: options.layout, activations: options.activations }),
-          [1, -1, hiddenSize]);
+          [1, null, hiddenSize]);
 
         currentOutput = (currentOutput ? builder.concat([currentOutput, result], 0) : result);
       }
@@ -1666,7 +1825,7 @@ partial interface MLGraphBuilder {
       hiddenState = currentOutput;
 
       if (options.returnSequence) {
-        currentOutput = builder.reshape(currentOutput, [1, numDirections, -1, hiddenSize]);
+        currentOutput = builder.reshape(currentOutput, [1, numDirections, null, hiddenSize]);
         sequence = (sequence ? builder.concat([sequence, currentOutput], 0) : currentOutput);
       }
     }
@@ -1725,11 +1884,11 @@ partial interface MLGraphBuilder {
         builder.add(
           builder.matmul(
             input,
-            builder.transpose(builder.slice(weight, [0, 0], [hiddenSize, -1]))
+            builder.transpose(builder.slice(weight, [0, 0], [hiddenSize, input_size]))
             ),
           builder.matmul(
             hiddenState,
-            builder.transpose(builder.slice(recurrentWeight, [0, 0], [hiddenSize, -1]))
+            builder.transpose(builder.slice(recurrentWeight, [0, 0], [hiddenSize, hidden_size]))
             )
           )
         )
@@ -1745,11 +1904,11 @@ partial interface MLGraphBuilder {
         builder.add(
           builder.matmul(
             input,
-            builder.transpose(builder.slice(weight, [hiddenSize, 0], [hiddenSize, -1]))
+            builder.transpose(builder.slice(weight, [hiddenSize, 0], [hiddenSize, input_size]))
             ),
           builder.matmul(
             hiddenState,
-            builder.transpose(builder.slice(recurrentWeight, [hiddenSize, 0], [hiddenSize, -1]))
+            builder.transpose(builder.slice(recurrentWeight, [hiddenSize, 0], [hiddenSize, hidden_size]))
             )
           )
         )
@@ -1764,7 +1923,7 @@ partial interface MLGraphBuilder {
           builder.add(
             builder.matmul(
               input,
-              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, input_size]))
               ),
             builder.mul(
               r,
@@ -1772,7 +1931,7 @@ partial interface MLGraphBuilder {
                 (options.recurrentBias ? builder.slice(options.recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero),
                 builder.matmul(
                   hiddenState,
-                  builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+                  builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, hidden_size]))
                   )
                 )
               )
@@ -1790,11 +1949,11 @@ partial interface MLGraphBuilder {
           builder.add(
             builder.matmul(
               input,
-              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, input_size]))
               ),
             builder.matmul(
               builder.mul(r, hiddenState),
-              builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+              builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, hidden_size]))
               )
             )
           )
@@ -1927,7 +2086,7 @@ partial interface MLGraphBuilder {
 
     // The scale and bias values are applied per input feature
     // e.g. axis 1 of the input tensor.
-    const shape = [1,-1,1,1];
+    const shape = [1,null,1,1];
     return builder.add(
       builder.mul(
         builder.reshape(options.scale, shape),
@@ -2051,7 +2210,7 @@ partial interface MLGraphBuilder {
         - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
             - *bias*: an {{MLOperand}}. The 2-D input bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
             - *recurrentBias*: an {{MLOperand}}. The 2-D recurrent bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the *options.layout* argument.
-            - *peepholeWeight*: an {{MLOperand}}. The 2-D weight tensor for peepholes of shape [num_directions, 4 * hidden_size]. The pack ordering of the weight vectors is for the *input (i)*, *output (o)*, and *forget (f)* gate respectively.
+            - *peepholeWeight*: an {{MLOperand}}. The 2-D weight tensor for peepholes of shape [num_directions, 3 * hidden_size]. The pack ordering of the weight vectors is for the *input (i)*, *output (o)*, and *forget (f)* gate respectively.
             - *initialHiddenState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
             - *initialCellState*: an {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, it's assumed to be a tensor filled with zero.
             - *returnSequence*: a {{boolean}} indicating whether to also return the entire sequence with every output from each time step in it in addition to the output of the last time step. Default to false.
@@ -2088,13 +2247,13 @@ partial interface MLGraphBuilder {
     let currentPeepholeWeight = [];
 
     for (let dir = 0; dir < numDirections; ++dir) {
-      currentWeight.push(builder.squeeze(builder.slice(weight, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
-      currentRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
-      currentBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [dir, 0], [1, -1]), { axes: [0] })) : null);
+      currentWeight.push(builder.squeeze(builder.slice(weight, [dir, 0, 0], [1, 4 * hidden_size, input_size]), { axes: [0] }));
+      currentRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [dir, 0, 0], [1, 4 * hidden_size, hidden_size]), { axes: [0] }));
+      currentBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [dir, 0], [1, 4 * hidden_size]), { axes: [0] })) : null);
       currentRecurrentBias.push(options.recurrentBias ?
-        (builder.squeeze(builder.slice(options.recurrentBias, [dir, 0], [1, -1]), { axes: [0] })) : null);
+        (builder.squeeze(builder.slice(options.recurrentBias, [dir, 0], [1, 4 * hidden_size]), { axes: [0] })) : null);
       currentPeepholeWeight.push(options.peepholeWeight ?
-        (builder.squeeze(builder.slice(options.peepholeWeight, [dir, 0], [1, -1]), { axes: [0] })) : null);
+        (builder.squeeze(builder.slice(options.peepholeWeight, [dir, 0], [1, 3 * hidden_size]), { axes: [0] })) : null);
     }
 
     for (let step = 0; step < steps; ++step) {
@@ -2104,13 +2263,13 @@ partial interface MLGraphBuilder {
       let nextCell = null;
 
       for (let dir = 0; dir < numDirections; ++dir) {
-        currentHidden.push(builder.squeeze(builder.slice(hiddenState, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
-        currentCell.push(builder.squeeze(builder.slice(cellState, [dir, 0, 0], [1, -1, -1]), { axes: [0] }));
+        currentHidden.push(builder.squeeze(builder.slice(hiddenState, [dir, 0, 0], [1, batch_size, hidden_size]), { axes: [0] }));
+        currentCell.push(builder.squeeze(builder.slice(cellState, [dir, 0, 0], [1, batch_size, hidden_size]), { axes: [0] }));
       }
 
       for (let dir = 0; dir < numDirections; ++dir) {
         let slice = (dir == 1 || options.direction == "backward" ? steps - step - 1 : step);
-        let currentInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, -1, -1]), { axes: [0] });
+        let currentInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, batch_size, input_size]), { axes: [0] });
 
         let results = builder.lstmCell(
           currentInput, currentWeight[dir], currentRecurrentWeight[dir],
@@ -2118,18 +2277,18 @@ partial interface MLGraphBuilder {
           recurrentBias: currentRecurrentBias[dir], peepholeWeight: currentPeepholeWeight[dir],
           layout: options.layout, activations: options.activations });
 
-        let output = builder.reshape(results[0], [1, -1, hiddenSize]);
-        let cell = builder.reshape(results[1], [1, -1, hiddenSize]);
+        let output = builder.reshape(results[0], [1, null, hiddenSize]);
+        let cell = builder.reshape(results[1], [1, null, hiddenSize]);
 
-        nextHidden = (nextHidden ? builder.concat([nextHidden, result], 0) : output);
-        nextCell = (nextCell ? builder.concat([nextCell, result], 0) : cell);
+        nextHidden = (nextHidden ? builder.concat([nextHidden, output], 0) : output);
+        nextCell = (nextCell ? builder.concat([nextCell, cell], 0) : cell);
       }
 
       hiddenState = nextHidden;
       cellState = nextCell;
 
       if (options.returnSequence) {
-        nextHidden = builder.reshape(nextHidden, [1, numDirections, -1, hiddenSize]);
+        nextHidden = builder.reshape(nextHidden, [1, numDirections, null, hiddenSize]);
         sequence = (sequence ? builder.concat([sequence, nextHidden], 0) : nextHidden);
       }
     }
@@ -2194,11 +2353,11 @@ partial interface MLGraphBuilder {
           builder.add(
             builder.matmul(
               input,
-              builder.transpose(builder.slice(weight, [0, 0], [hiddenSize, -1]))
+              builder.transpose(builder.slice(weight, [0, 0], [hiddenSize, input_size]))
             ),
             builder.matmul(
               hiddenState,
-              builder.transpose(builder.slice(recurrentWeight, [0, 0], [hiddenSize, -1]))
+              builder.transpose(builder.slice(recurrentWeight, [0, 0], [hiddenSize, hidden_size]))
             )
           )
         )
@@ -2220,11 +2379,11 @@ partial interface MLGraphBuilder {
           builder.add(
             builder.matmul(
               input,
-              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, input_size]))
             ),
             builder.matmul(
               hiddenState,
-              builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, -1]))
+              builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, hidden_size]))
             )
           )
         )
@@ -2241,11 +2400,11 @@ partial interface MLGraphBuilder {
         builder.add(
           builder.matmul(
             input,
-            builder.transpose(builder.slice(weight, [3 * hiddenSize, 0], [hiddenSize, -1]))
+            builder.transpose(builder.slice(weight, [3 * hiddenSize, 0], [hiddenSize, input_size]))
           ),
           builder.matmul(
             hiddenState,
-            builder.transpose(builder.slice(recurrentWeight, [3 * hiddenSize, 0], [hiddenSize, -1]))
+            builder.transpose(builder.slice(recurrentWeight, [3 * hiddenSize, 0], [hiddenSize, hidden_size]))
           )
         )
       )
@@ -2266,11 +2425,11 @@ partial interface MLGraphBuilder {
           builder.add(
             builder.matmul(
               input,
-              builder.transpose(builder.slice(weight, [hiddenSize, 0], [hiddenSize, -1]))
+              builder.transpose(builder.slice(weight, [hiddenSize, 0], [hiddenSize, input_size]))
             ),
             builder.matmul(
               hiddenState,
-              builder.transpose(builder.slice(recurrentWeight, [hiddenSize, 0], [hiddenSize, -1]))
+              builder.transpose(builder.slice(recurrentWeight, [hiddenSize, 0], [hiddenSize, hidden_size]))
             )
           )
         )
@@ -2337,55 +2496,61 @@ dictionary MLPadOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand pad(MLOperand input, MLOperand padding, optional MLPadOptions options = {});
+  MLOperand pad(MLOperand input,
+                sequence<unsigned long> beginningPadding,
+                sequence<unsigned long> endingPadding,
+                optional MLPadOptions options = {});
 };
 </script>
 <div algorithm=pad>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
-        - *padding*: an {{MLOperand}}. The 2-D Tensor of integer values indicating the number of padding values to add at the beginning and end of each input dimensions. The tensor has shape [*n*, 2] where *n* is the rank of the input tensor. For each dimension *D* of *input*, *padding[D, 0]* indicates how many values to add before the content in that dimension, and *padding[D, 1]* indicates how many values to add after the content in that dimension.
+        - *beginningPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the beginning of each input dimension, of length *N* where *N* is the rank of the input tensor. For each dimension *d* of *input*, *beginningPadding[d]* indicates how many values to add before the content in that dimension.
+        - *endingPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the ending of each input dimension, of length *N* where *N* is the rank of the input tensor. For each dimension *d* of *input*, *endingPadding[d]* indicates how many values to add after the content in that dimension.
         - *options*: an optional {{MLPadOptions}}. The optional parameters of the operation.
             - *mode*: an {{MLPaddingMode}}. The different ways to pad the tensor. When not set, it's assumed to be "constant".
             - *value*: a {{float}}. The pad value when the *options.mode* is set to *"constant"*. When not set, it's assumed to be 0.
 
-    **Returns:** an {{MLOperand}}. The padded output tensor.
+    **Returns:** an {{MLOperand}}. The padded output tensor. Each dimension of the output tensor can be calculated as follow:
+
+    *output size = beginning padding + input size + ending padding*
+
     <div class="example">
     <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
     const input = builder.constant(
       { type: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
 
-    // padding: [[1,1], [2,2]]
-    const padding = builder.constant(
-      { type: 'float32', dimensions: [2,2] }, new Float32Array([1,1,2,2]));
+    const beginningPadding = [1,2];
+    const endingPadding = [1,2];
 
     // "constant" padded:
     //    [[0,0,0,0,0,0,0],
     //     [0,0,1,2,3,0,0],
     //     [0,0,4,5,6,0,0],
     //     [0,0,0,0,0,0,0]]
-    builder.pad(input, padding);
+    builder.pad(input, beginningPadding, endingPadding);
 
     // "edge" padded:
     //    [[1,1,1,2,3,3,3],
     //     [1,1,1,2,3,3,3],
     //     [4,4,4,5,6,6,6],
     //     [4,4,4,5,6,6,6]]
-    builder.pad(input, padding, { mode: "edge" });
+    builder.pad(input, beginningPadding, endingPadding, { mode: "edge" });
 
     // "reflection" padded:
     //    [[6,5,4,5,6,5,4],
     //     [3,2,1,2,3,2,1],
     //     [6,5,4,5,6,5,4],
     //     [3,2,1,2,3,2,1]]
-    builder.pad(input, padding, { mode: "reflection" });
+    builder.pad(input, beginningPadding, endingPadding, { mode: "reflection" });
 
     // "symmetric" padded:
     //    [[2,1,1,2,3,3,2],
     //     [2,1,1,2,3,3,2],
     //     [5,4,4,5,6,6,5],
     //     [5,4,4,5,6,6,5]]
-    builder.pad(input, padding, { mode: "symmetric" });
+    builder.pad(input, beginningPadding, endingPadding, { mode: "symmetric" });
     </pre>
     </div>
 </div>
@@ -2463,11 +2628,39 @@ partial interface MLGraphBuilder {
     </div>
 </div>
 
+### The prelu() method ### {#api-mlgraphbuilder-prelu}
+Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Parametric_ReLU">parametric version of rectified linear function (Parametric Relu)</a> on the input tensor element-wise. Parametric Relu is a type of leaky ReLU that, instead of having a scalar slope like 0.01, making the slope (coefficient of leakage) into a parameter that is learned during the model training phase of this operation. The calculation follows the expression `max(0, x) + slope ∗ min(0, x)`.
+<script type=idl>
+partial interface MLGraphBuilder {
+  MLOperand prelu(MLOperand x, MLOperand slope);
+};
+</script>
+<div algorithm=prelu>
+    **Arguments:**
+        - *x*: an {{MLOperand}}. The input tensor.
+        - *slope*: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or unidirectionally broadcastable to the shape of input tensor *x* according to [[!numpy-broadcasting-rule]].
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+
+    <div class="note">
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follow. However, user agents typically have a more
+    efficient implementation for it, therefore its usage is encouraged from the
+    performance standpoint.
+    <pre highlight="js">
+    return builder.add(builder.max(builder.constant(0), x),
+                       builder.mul(slope, builder.min(builder.constant(0), x)));
+    </pre>
+    </div>
+</div>
+
+
 ### Reduction operations ### {#api-mlgraphbuilder-reduce}
 Reduce the input along the dimensions given in *axes*.
 <script type=idl>
 dictionary MLReduceOptions {
-  sequence<long> axes = null;
+  sequence<unsigned long> axes = null;
   boolean keepDimensions = false;
 };
 
@@ -2488,7 +2681,7 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLReduceOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{long}}. The dimensions to reduce where -1 means the last dimension.
+            - *axes*: a sequence of {{unsigned long}}. The dimensions to reduce. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor.
                 If not present, all dimensions are reduced.
             - *keepDimensions*: a {{boolean}}. If true, retains reduced dimensions with size of 1.
                 The default value is false.
@@ -2547,7 +2740,7 @@ dictionary MLResample2dOptions {
   MLInterpolationMode mode = "nearest-neighbor";
   sequence<float> scales;
   sequence<unsigned long> sizes;
-  sequence<long> axes;
+  sequence<unsigned long> axes;
 };
 
 partial interface MLGraphBuilder {
@@ -2562,7 +2755,7 @@ partial interface MLGraphBuilder {
                 If not set, it is assumed to be the *Nearest Neighbor* interpolation.
             - *scales*: a sequence of {{float}} of length 2. Each value represents the scaling factor used to scale in each spatial dimensions of input, [scale_height, scale_width]. If not set, the values are assumed to be [1.0, 1.0].
             - *sizes*: a sequence of {{unsigned long}} of length 2. The target sizes for each spatial dimensions of input, [size_height, size_width]. When the target sizes are specified, the *options.scales* argument is ignored as the scaling factor values are derived from the target sizes of each spatial dimension of input.
-            - *axes*: a sequence of {{long}} of length 2. The two consecutive dimensions of the input tensor to which the interpolation algorithm applies. The valid values in the sequence are [0, 1], [1, 2] or [2, 3]. When not specified, the sequence is assumed to be [2, 3].
+            - *axes*: a sequence of {{unsigned long}} of length 2. The two consecutive dimensions of the input tensor to which the interpolation algorithm applies. The valid values in the sequence are [0, 1], [1, 2] or [2, 3]. When not specified, the sequence is assumed to be [2, 3].
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor.
 </div>
@@ -2623,23 +2816,15 @@ partial interface MLGraphBuilder {
 ### The slice() method ### {#api-mlgraphbuilder-slice}
 Produce a slice of the input tensor.
 <script type=idl>
-dictionary MLSliceOptions {
-  sequence<long> axes;
-};
-
 partial interface MLGraphBuilder {
-  MLOperand slice(MLOperand input, sequence<long> starts, sequence<long> sizes,
-                optional MLSliceOptions options = {});
+  MLOperand slice(MLOperand input, sequence<unsigned long> starts, sequence<unsigned long> sizes);
 };
 </script>
 <div algorithm=slice>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
-        - *starts*: a sequence of {{long}}. The starting indices to slice of the corresponding axes of the input shape. A negative index value is interpreted as counting back from the end. For example, the value -1
-        - *sizes*: a sequence of {{long}}. The lengths to slice of the corresponding axes of the input shape.
-            The length value of -1 selects all the remaining elements from the starting index of the given axis.
-        - *options*: an optional {{MLSliceOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{long}}. The dimensions of the input shape to which *starts* and *sizes* apply. The values in the sequence are either within the [0, *r*-1] range where *r* is the input tensor rank, or the [*-r*, -1] range where negative values mean counting back from the end of the input shape. When not specified, the sequence is assumed to be [0,1,..*r-1*].
+        - *starts*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the starting index to slice of each input dimension, of length N where N is the rank of the input tensor. For each dimension *d* of *input*, *starts[d]* indicates the starting index to slice in that dimension. The starting index must be in the range [0, input size - 1] in that dimension.
+        - *sizes*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of elements to slice of each input dimension, of length N where N is the rank of the input tensor. For each dimension *d* of *input*, *sizes[d]* indicates the number of elements to slice in that dimension. The size must not be 0 and must satisfy the constraint *starting index + size <= input size* in that dimension.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
@@ -2746,7 +2931,7 @@ partial interface MLGraphBuilder {
 Split the input tensor into a number of sub tensors along the given axis.
 <script type=idl>
 dictionary MLSplitOptions {
-  long axis = 0;
+  unsigned long axis = 0;
 };
 
 partial interface MLGraphBuilder {
@@ -2760,7 +2945,7 @@ partial interface MLGraphBuilder {
         - *input*: an {{MLOperand}}. The input tensor.
         - *splits*: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
         - *options*: an optional {{MLSplitOptions}}. The optional parameters of the operation.
-            - *axis*: a {{long}}. The dimension along which to split. Default to 0. A negative value is interpreted as counting back from the end.
+            - *axis*: an {{unsigned long}} scalar. The dimension along which to split. Its value must be in the range [0, N-1] where N is the rank of input tensor. Default to 0.
 
     **Returns:** a sequence of {{MLOperand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the length of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the length of the output sequence equals to the length of *splits*. The shape of the i-th output tensor is the same as as *input* except along *axis* where the dimension size is *splits[i]*.
 
@@ -2772,9 +2957,13 @@ partial interface MLGraphBuilder {
     <pre highlight="js">
     // This sample shows the case that the splits parameter is an array.
     const outputs = [];
+    let starts = Array(input_rank).fill(0);
+    let sizes = input_shape;
     let start = 0;
     for (const size of splits) {
-      outputs.push(builder.slice(input, [start], [size], { axes: [options.axis] }));
+      starts[options.axis] = start;
+      sizes[options.axis] = size;
+      outputs.push(builder.slice(input, starts, sizes));
       start += size;
     }
     return outputs;
@@ -2786,7 +2975,7 @@ partial interface MLGraphBuilder {
 Reduce the rank of a tensor by eliminating dimensions with size 1 of the tensor shape. Squeeze only affects the tensor's logical dimensions. It does not copy or change the content in the tensor.
 <script type=idl>
 dictionary MLSqueezeOptions {
-  sequence<long> axes;
+  sequence<unsigned long> axes;
 };
 
 partial interface MLGraphBuilder {
@@ -2797,7 +2986,7 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLSqueezeOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{long}}. Indices to the shape dimensions of size 1 to eliminate. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
+            - *axes*: a sequence of {{unsigned long}}. Indices to the shape dimensions of size 1 to eliminate. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
 </div>
@@ -2835,7 +3024,7 @@ partial interface MLGraphBuilder {
 Permute the dimensions of the input tensor according to the *permutation* argument.
 <script type=idl>
 dictionary MLTransposeOptions {
-  sequence<long> permutation;
+  sequence<unsigned long> permutation;
 };
 
 partial interface MLGraphBuilder {
@@ -2846,7 +3035,7 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input N-D tensor.
         - *options*: an optional {{MLTransposeOptions}}. The optional parameters of the operation.
-            - *permutation*: a sequence of {{long}} values. The values used to permute the output shape. When it's not specified, it's set to `[N-1...0]`, where `N` is the rank of the input tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
+            - *permutation*: a sequence of {{unsigned long}} values. The values used to permute the output shape. When it's not specified, it's set to [N-1, ..., 0], where N is the rank of the input tensor, e.g. [2,1,0] for a 3-D tensor. These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor.
 </div>
@@ -2931,7 +3120,7 @@ const inputs = {
 const outputs = {'output': outputBuffer};
 const result = await context.compute(graph, inputs, outputs);
 
-console.log('Output value: ' + result.output);
+console.log('Output value: ' + result.outputs.output);
 // Output value: 2.25,2.25,2.25,2.25,2.25,2.25,2.25,2.25
 </pre>
 </div>
@@ -2950,6 +3139,9 @@ console.log('Output value: ' + result.output);
         <td>{{MLOperandType/float32}}
         <td>{{Float32Array}}
     <tr>
+        <td>{{MLOperandType/float16}}
+        <td>{{Float16Array}}
+    <tr>
         <td>{{MLOperandType/int32}}
         <td>{{Int32Array}}
     <tr>
@@ -2963,7 +3155,7 @@ console.log('Output value: ' + result.output);
         <td>{{Uint8Array}}
 </table>
 
-Issue(webmachinelearning/webnn#127): clarify the usage of {{ArrayBufferView}} for {{MLOperandType/float16}}.
+<p class="note">{{Float16Array}} is at <a href="https://tc39.es/process-document/">ECMA Stage 3</a> signaling its design is finished. Implementers wanting to enable this type ahead native implementations can emulate the type by passing raw bits via {{Uint16Array}}. <a href="https://github.com/webmachinelearning/webnn/issues/373">[Issue webnn#373]</a></p>
 
 <h2 id="acknowledgements">Acknowledgements</h2>
 
@@ -2985,6 +3177,9 @@ Thanks to Alex Gough and the Chrome Security team for security review and questi
 Thanks to Michal Karzynski for sharing practical guidelines and learnings from ONNX.
 
 Thanks to Kaustubha Govind and Chrome privacy reviewers for feedback and privacy considerations.
+
+Thanks to Jiewei Qian for Chromium implementation review and feedback.
+
 <pre class="biblio">
 {
   "Models": {

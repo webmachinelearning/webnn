@@ -14,23 +14,23 @@
 - Machine translation
 - Noise suppression
 
-These use cases and more are elaborated in the [use cases section of the API specification](https://webmachinelearning.github.io/webnn/#usecases).
+These use cases and more are elaborated in the [use cases section of the API specification](https://www.w3.org/TR/webnn/#usecases).
 
 While some of these use cases can be implemented in a constrained manner with existing Web APIs (e.g. WebGL graphics API, as demonstrated by the [WebNN API polyfill](https://github.com/webmachinelearning/webnn-polyfill) and the first-wave JS ML frameworks), the lack of access to platform capabilities beneficial for ML such as dedicated ML hardware accelerators constraints the scope of experiences and leads to inefficient implementations on modern hardware. This disadvantages the web platform in comparison to native platforms.
 
-The design process of the [Web Neural Network API](http://webmachinelearning.github.io/webnn/) (WebNN API) started by identifying the [key use cases](https://webmachinelearning.github.io/webnn/#usecases) working with the [diverse participants](https://www.w3.org/community/webmachinelearning/participants) including major browser vendors, key ML JS frameworks, interested hardware vendors, and web developers. After identification of the key use cases, the group worked down the levels of abstraction and [decomposed the key use cases into requirements](https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md). The aim of this use case-driven design process was to put [user needs first](https://w3ctag.github.io/design-principles/#priority-of-constituencies).
+The design process of the [Web Neural Network API](https://www.w3.org/TR/webnn/) (WebNN API) started by identifying the [key use cases](https://www.w3.org/TR/webnn/#usecases) working with the [diverse participants](https://www.w3.org/community/webmachinelearning/participants) including major browser vendors, key ML JS frameworks, interested hardware vendors, and web developers. After identification of the key use cases, the group worked down the levels of abstraction and [decomposed the key use cases into requirements](https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md). The aim of this use case-driven design process was to put [user needs first](https://w3ctag.github.io/design-principles/#priority-of-constituencies).
 
 With emerging ML innovations in both software and hardware ecosystem, one of the main challenges for the web is to bridge this software and hardware development and bring together a solution that scales across hardware platforms and works with any framework for web-based machine learning experiences. We propose the WebNN API as an abstraction for neural networks in the web browsers.
 
 ![WebNN architecture](content/webnn_arch.png)
 
-As illustrated in the architecture diagram of the figure above, web browsers may implement the WebNN API using native machine learning API available in the operating system. This architecture allows JavaScript frameworks to tap into cutting-edge machine learning innovations in the operating system and the hardware platform underneath it without being tied to platform-specific capabilities, bridging the gap between software and hardware through a hardware-agnostic abstraction layer. 
+As illustrated in the architecture diagram of the figure above, web browsers may implement the WebNN API using native machine learning API available in the operating system. This architecture allows JavaScript frameworks to tap into cutting-edge machine learning innovations in the operating system and the hardware platform underneath it without being tied to platform-specific capabilities, bridging the gap between software and hardware through a hardware-agnostic abstraction layer.
 
 At the heart of neural networks is a computational graph of mathematical operations. These operations are the building blocks of modern machine learning technologies in computer vision, natural language processing, and robotics.
 
 The WebNN API is a specification for constructing and executing computational graphs of neural networks. It provides web applications with the ability to create, compile, and run machine learning networks on the web browsers. The WebNN API may be implemented in web browsers using the available native operating system machine learning APIs for the best performance and reliability of results. The following code sample illustrates a simple usage of this API.
 
-``` JavaScript
+```JavaScript
 const operandType = {type: 'float32', dimensions: [2, 2]};
 const context = await navigator.ml.createContext();
 const builder = new MLGraphBuilder(context);
@@ -73,28 +73,28 @@ Web applications and frameworks can take advantage of the native operating syste
 
 Web applications and frameworks can target typical computing devices on popular operating systems that people use in their daily lives. Initial prototypes demonstrate respectable performance on:
 
-* Smartphones e.g. Google Pixel 3 or similar
-* Laptops e.g. 13" MacBook Pro 2015 or similar
+- Smartphones e.g. Google Pixel 3 or similar
+- Laptops e.g. 13" MacBook Pro 2015 or similar
 
 The WebNN API is not tied to specific platforms and is implementable by existing major platform APIs, such as:
 
-* Android Neural Networks API
-* Windows DirectML API
-* macOS/iOS ML Compute API
+- Android Neural Networks API
+- Windows DirectML API
+- macOS/iOS ML Compute API
 
-Depending on the underlying hardware capabilities, these platform APIs may make use of CPU parallelism, general-purpose GPU, or dedicated hardware accelerators for machine learning. The WebNN API provides [performance adaptation](https://webmachinelearning.github.io/webnn/#usecase-perf-adapt) options but remains hardware agnostic.
+Depending on the underlying hardware capabilities, these platform APIs may make use of CPU parallelism, general-purpose GPU, or dedicated hardware accelerators for machine learning. The WebNN API provides [performance adaptation](https://www.w3.org/TR/webnn/#usecase-perf-adapt) options but remains hardware agnostic.
 
 ## Getting started
 
 A core abstraction behind popular neural networks is a computational graph, a directed graph with its nodes corresponding to operations (ops) and input variables. One node's output value is the input to another node. The WebNN API brings this abstraction to the web.
 
-In the WebNN API, the [`MLOperand`](https://webmachinelearning.github.io/webnn/#api-mloperand) objects represent input, output, and constant multi-dimensional arrays known as [tensors](https://mathworld.wolfram.com/Tensor.html). The [`MLContext`](https://webmachinelearning.github.io/webnn/#api-mlcontext) defines a set of operations that facilitate the construction and execution of this computational graph. Such operations may be accelerated with dedicated hardware such as the GPUs, CPUs with extensions for deep learning, or dedicated ML accelerators. These operations defined by the WebNN API are required by [models](https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md) that address key application use cases. Additionally, the WebNN API provides affordances to build a computational graph, compile the graph, execute the graph, and integrate the graph with other Web APIs that provide input data to the graph e.g. media APIs for image or video frames and sensor APIs for sensory data. Please see the [programming model overview](https://webmachinelearning.github.io/webnn/#programming-model-overview) for details.
+In the WebNN API, the [`MLOperand`](https://www.w3.org/TR/webnn/#api-mloperand) objects represent input, output, and constant multi-dimensional arrays known as [tensors](https://mathworld.wolfram.com/Tensor.html). The [`MLContext`](https://www.w3.org/TR/webnn/#api-mlcontext) defines a set of operations that facilitate the construction and execution of this computational graph. Such operations may be accelerated with dedicated hardware such as the GPUs, CPUs with extensions for deep learning, or dedicated ML accelerators. These operations defined by the WebNN API are required by [models](https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md) that address key application use cases. Additionally, the WebNN API provides affordances to build a computational graph, compile the graph, execute the graph, and integrate the graph with other Web APIs that provide input data to the graph e.g. media APIs for image or video frames and sensor APIs for sensory data. Please see the [programming model overview](https://www.w3.org/TR/webnn/#programming-model-overview) for details.
 
-The specification includes an [example](https://webmachinelearning.github.io/webnn/#examples) that builds, compiles, and executes a graph comprised of three ops, takes four inputs and returns one output.
+The specification includes an [example](https://www.w3.org/TR/webnn/#examples) that builds, compiles, and executes a graph comprised of three ops, takes four inputs and returns one output.
 
 ## Key scenarios
 
-There are many important [application use cases](https://webmachinelearning.github.io/webnn/#usecases-application) for high-performance neural network inference. One such use case is deep-learning noise suppression (DNS) in web-based video conferencing. The following sample shows how the [NSNet2](https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline) baseline implementation of deep learning-based noise suppression model may be implemented using the WebNN API.
+There are many important [application use cases](https://www.w3.org/TR/webnn/#usecases-application) for high-performance neural network inference. One such use case is deep-learning noise suppression (DNS) in web-based video conferencing. The following sample shows how the [NSNet2](https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline) baseline implementation of deep learning-based noise suppression model may be implemented using the WebNN API.
 
 ```JavaScript
 // Noise Suppression Net 2 (NSNet2) Baseline Model for Deep Noise Suppression Challenge (DNS) 2021.
@@ -161,7 +161,7 @@ export class NSNet2 {
 }
 ```
 
-Try the live version of the [WebNN NSNet2 example](https://webmachinelearning.github.io/webnn-samples/nsnet2/).  This live version builds upon [nsnet2.js](https://github.com/webmachinelearning/webnn-samples/blob/master/nsnet2/nsnet2.js) that implements the above code snippet as a JS module.
+Try the live version of the [WebNN NSNet2 example](https://webmachinelearning.github.io/webnn-samples/nsnet2/). This live version builds upon [nsnet2.js](https://github.com/webmachinelearning/webnn-samples/blob/master/nsnet2/nsnet2.js) that implements the above code snippet as a JS module.
 
 ## Detailed design discussion
 
@@ -178,7 +178,7 @@ A Model Loader API can also be built atop a Web Neural Network API without losin
 An explainer for the Model Loader API can be found [here](https://github.com/webmachinelearning/model-loader/blob/master/explainer.md).
 
 |                 | Web Neural Network API            | Model Loader API                         |
-| ---             | ---                               | ----                                     |
+| --------------- | --------------------------------- | ---------------------------------------- |
 | API style       | Graph builder (~low-level)        | Model loader (~high-level)               |
 | Spec status     | W3C Working Group deliverable     | W3C Community Group incubation           |
 | Impl experience | Cross-plat Chromium, webnn-native | ChromeOS prototype                       |
@@ -193,11 +193,11 @@ An explainer for the Model Loader API can be found [here](https://github.com/web
 
 ### What is the right level of abstraction for the neural network operations?
 
-Neural network operations are mathematical functions. There are about a hundred standard functions universally supported in popular frameworks today e.g. convolution, matrix multiplication, various reductions, and normalizations. Additionally, some frameworks provide an even more extensive set of variants of these functions for ease of use. 
+Neural network operations are mathematical functions. There are about a hundred standard functions universally supported in popular frameworks today e.g. convolution, matrix multiplication, various reductions, and normalizations. Additionally, some frameworks provide an even more extensive set of variants of these functions for ease of use.
 
 In designing the WebNN operations, a proposal to decompose high-level functions to the more rudimentary mathematical operations was considered, with the key benefit of having a reduced number of operations defined. However, such an approach would make the networks more verbose and harder to construct. It'll also risk losing the opportunity to leverage known optimizations for highly reusable functions in the operating systems and in the hardware platforms underneath it. For instance, most operating systems and modern hardware today support widely-used variants of convolutions and recurrent networks out of the box. By decomposing well-known functions into networks of rudimentary mathematical operations, their identities may be lost in the process with opportunities for significant performance gains left behind.
 
-To balance the needs of providing for future extensibility while ensuring maximum reuse and performance optimization opportunity, we chose to include both the standard functions and all the smaller operations making up the functions in the spec. For each high-level function defined, we make sure that all of its decomposed operations are also defined. This way, a newly-conceived function may be represented as a network of our decomposed operations, while a standard function can also be fully supported by the underlying platforms. An elaborate example of this principle is in the way we define the specification of the [gruCell](https://webmachinelearning.github.io/webnn/#api-mlgraphbuilder-grucell) operation as described in its notes.
+To balance the needs of providing for future extensibility while ensuring maximum reuse and performance optimization opportunity, we chose to include both the standard functions and all the smaller operations making up the functions in the spec. For each high-level function defined, we make sure that all of its decomposed operations are also defined. This way, a newly-conceived function may be represented as a network of our decomposed operations, while a standard function can also be fully supported by the underlying platforms. An elaborate example of this principle is in the way we define the specification of the [gruCell](https://www.w3.org/TR/webnn/#api-mlgraphbuilder-grucell) operation as described in its notes.
 
 ## Considered alternatives
 
