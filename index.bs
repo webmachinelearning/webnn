@@ -4469,7 +4469,7 @@ partial interface MLGraphBuilder {
     1. If |input| or |slope| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dimensions}}.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
-    1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the <a>broadcast-shapes</a> steps given |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |slope|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |slope|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
         1. If that throws an error, re-throw the error and stop.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |descriptor|.
@@ -4619,7 +4619,7 @@ partial interface MLGraphBuilder {
         1. Return |output|.
 </details>
 
-### The relu() method ### {#api-mlgraphbuilder-relu}
+### The relu() method ### {#api-mlgraphbuilder-relu-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">rectified linear function</a> of the input tensor.
 
 <script type=idl>
@@ -4638,6 +4638,54 @@ partial interface MLGraphBuilder {
     return builder.max(builder.constant(0), x);
     </pre>
 </div>
+
+#### The {{MLGraphBuilder/relu(input)}} method #### {#api-mlgraphbuilder-relu-input}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/relu(input)}} steps are:
+  </summary>
+  <div algorithm=relu-input class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the ReLU operation.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/relu()}} method #### {#api-mlgraphbuilder-relu}
+<div>
+    **Arguments:**
+        - None.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the relu operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/relu()}} method steps are:
+  </summary>
+  <div algorithm=relu class=algorithm-steps>
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"relu"`.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The resample2d() method ### {#api-mlgraphbuilder-resample2d-method}
 Resample the tensor values from the source to the destination spatial dimensions according to the scaling factors.
@@ -4773,6 +4821,37 @@ partial interface MLGraphBuilder {
     tensor is specified by the *newShape* argument.
 </div>
 
+<details open>
+  <summary>
+    The {{MLGraphBuilder/reshape(input, newShape)}} steps are:
+  </summary>
+  <div algorithm=reshape class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |outputShape| be an empty array of {{unsigned long}}.
+    1. If |newShape| is a scalar [=number=], set |outputShape| to `[ 1 ]`.
+    1. Otherwise, if |newShape| is an array of {{unsigned long}}:
+        1. If the size of |newShape| is `0`, set |outputShape| to `[ 1 ]` (reshaping to scalar).
+        1. If |newShape| contains more than one `null` value, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If any value in |newShape| is `0`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. Let |inputElementCount| be  the product of all elements in |inputs|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If |newShape| contains a `null` value, set that value to |inputElementCount| divided by the product of all other values in |newShape|.
+            1. If that value is too large for {{unsigned long}}, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If product of all values in |newShape| is not equal to |inputElementCount|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |newShape|.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the reshape operation.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
 ### The sigmoid() method ### {#api-mlgraphbuilder-sigmoid-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Sigmoid_function">sigmoid function</a> of the input tensor. The calculation follows the expression `1 / (exp(-x) + 1)`.
 <script type=idl>
@@ -4788,10 +4867,7 @@ partial interface MLGraphBuilder {
     efficient implementation for it, therefore its usage is encouraged from the
     performance standpoint.
     <pre highlight="js">
-    return builder.div(<<<<<<< stage-sigmoid-algorithm
-4722
- 
-
+    return builder.div(
               builder.constant(1),
               builder.add(
                 builder.exp(builder.neg(x)),
@@ -4862,6 +4938,30 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/slice(input, starts, sizes)}} steps are:
+  </summary>
+  <div algorithm=slice class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |starts| or |sizes| is not a sequence of {{long}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |sizes|.size is 0, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        <div class="note">
+            Further validation of |starts| and |sizes| given |input| is left [=implementation-defined=].
+        </div>
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the slice operation, given |starts| and |sizes|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The softmax() method ### {#api-mlgraphbuilder-softmax-method}
 Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
@@ -4941,8 +5041,7 @@ partial interface MLGraphBuilder {
   </div>
 </details>
 
-### The softplus() method ### {#api-mlgraphbuilder-softplus}
-
+### The softplus() method ### {#api-mlgraphbuilder-softplus-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Softplus">softplus function</a> of the input tensor. The calculation follows the expression `ln(1 + exp(steepness * x)) / steepness`.
 <script type=idl>
 dictionary MLSoftplusOptions {
@@ -4969,6 +5068,79 @@ partial interface MLGraphBuilder {
               builder.constant(options.steepness));
     </pre>
 </div>
+
+{{MLSoftplusOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLSoftplusOptions>
+    : <dfn>steepness</dfn>
+    ::
+         A {{float}} scalar parameter.
+         The default value is `1`.
+</dl>
+
+<details open>
+  <summary>
+    To <dfn>check softplus options</dfn> given |options|, run the following steps:
+  </summary>
+  <div algorithm=check-softplus-options class=algorithm-steps>
+    1. If |options| is not an [=object=], then return `false`.
+    1. If |options|.{{MLSoftplusOptions/steepness}} is `undefined`, set |options|.{{MLSoftplusOptions/steepness}} to `1`.
+    1. Else if |options|.{{MLSoftplusOptions/steepness}} is not a [=numeric type=], then then return `false`.
+    1. Return `true`.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/softplus(input, options)}} method #### {#api-mlgraphbuilder-softplus-input-options}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLSoftplusOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/softplus(input, options)}} method steps are:
+  </summary>
+  <div algorithm=softplus-input-options class=algorithm-steps>
+    1. Let |input| be the first argument.
+    1. Let |options| be the second argument.
+        1. If running the <a>check softplus options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the softplus operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+#### The {{MLGraphBuilder/softplus(options)}} method #### {#api-mlgraphbuilder-softplus-options}
+<div>
+    **Arguments:**
+        - *options*: an optional {{MLSoftplusOptions}}. The optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the softplus operation.
+</div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/softplus(options)}} method steps are:
+  </summary>
+  <div algorithm=softplus-options class=algorithm-steps>
+    1. Let |options| be the first argument.
+        1. If running the <a>check softplus options</a> steps with |options| returns `false`, then throw a "{{TypeError}}" {{DOMException}} and abort these steps.
+    1. Let |op| be the result of invoking the <a>create MLActivation</a> steps with `"softplus"` and |options|.
+        1. If that throws an error, re-throw the error and abort these steps.
+    1. Return |op|.
+  </div>
+</details>
 
 ### The softsign() method ### {#api-mlgraphbuilder-softsign-method}
 Compute the <a href="https://pytorch.org/docs/stable/generated/torch.nn.Softsign.html">softsign function</a> of the input tensor. The calculation follows the expression `x / (1 + |x|)`.
@@ -5133,6 +5305,40 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
 </div>
+
+{{MLSqueezeOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLSqueezeOptions>
+    : <dfn>axes</dfn>
+    ::
+        A sequence of {{unsigned long}}.
+        Specifies the indices to the shape dimensions of size 1 to eliminate. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor.
+        When not specified, every shape dimensions of size 1 in the tensor are eliminated.
+</dl>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/squeeze(input, options)}} steps are:
+  </summary>
+  <div algorithm=squeeze class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLSqueezeOptions/axes}} [=map/exists=], then:
+        1. Let |dimensions| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. For |index| between 0 and the size of |options|.{{MLSqueezeOptions/axes}}:
+            1. Let |oneDimIndex| be |options|.{{MLSqueezeOptions/axes}}[|index|].
+            1. If |dimensions|[|oneDimIndex|] is not `1`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the squeeze operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The tanh() method ### {#api-mlgraphbuilder-tanh-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Hyperbolic_functions">hyperbolic tangent function</a> of the input tensor. The calculation follows the expression `(exp(2 * x) - 1) / (exp(2 * x) + 1)`.
