@@ -4696,14 +4696,14 @@ partial interface MLGraphBuilder {
     **Returns:** an {{MLOperand}}. The output 4-D tensor.
 </div>
 
-### The reshape() method ### {#api-mlgraphbuilder-reshape}
+### The reshape() method ### {#api-mlgraphbuilder-reshape-method}
 Alter the shape of a tensor to a new shape. Reshape does not copy or change the content of the tensor. It just changes the tensor's logical dimensions for the subsequent operations.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand reshape(MLOperand input, sequence<unsigned long?> newShape);
 };
 </script>
-<div algorithm=reshape>
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *newShape*: a sequence of {{nullable}} {{unsigned long}}. The shape of the output tensor.
@@ -4717,6 +4717,37 @@ partial interface MLGraphBuilder {
     tensor are the same as values of the input tensor. The shape of the output
     tensor is specified by the *newShape* argument.
 </div>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/reshape(input, newShape)}} steps are:
+  </summary>
+  <div algorithm=reshape class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |outputShape| be an empty array of {{unsigned long}}.
+    1. If |newShape| is a scalar [=number=], set |outputShape| to `[ 1 ]`.
+    1. Otherwise, if |newShape| is an array of {{unsigned long}}:
+        1. If the size of |newShape| is `0`, set |outputShape| to `[ 1 ]` (reshaping to scalar).
+        1. If |newShape| contains more than one `null` value, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If any value in |newShape| is `0`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. Let |inputElementCount| be  the product of all elements in |inputs|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If |newShape| contains a `null` value, set that value to |inputElementCount| divided by the product of all other values in |newShape|.
+            1. If that value is too large for {{unsigned long}}, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If product of all values in |newShape| is not equal to |inputElementCount|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |newShape|.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the reshape operation.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The sigmoid() method ### {#api-mlgraphbuilder-sigmoid}
 Compute the <a href="https://en.wikipedia.org/wiki/Sigmoid_function">sigmoid function</a> of the input tensor. The calculation follows the expression `1 / (exp(-x) + 1)`.
