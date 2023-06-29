@@ -2328,6 +2328,12 @@ partial interface MLGraphBuilder {
 ### Element-wise binary operations ### {#api-mlgraphbuilder-binary}
 Compute the element-wise binary addition, subtraction, multiplication, division,
 maximum and minimum of the two input tensors.
+
+The element-wise binary operations will be broadcasted according to
+[[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
+rank of the input tensors. For each dimension of the output tensor, its size
+is the maximum size along that dimension of the input tensors.
+
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand add(MLOperand a, MLOperand b);
@@ -2339,19 +2345,16 @@ partial interface MLGraphBuilder {
   MLOperand pow(MLOperand a, MLOperand b);
 };
 </script>
-<div algorithm=binary>
+
+<div>
     **Arguments:**
         - *a*: an {{MLOperand}}. The first input tensor.
         - *b*: an {{MLOperand}}. The second input tensor.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise binary operation of the two input tensors.
-
-    The element-wise binary operation will be broadcasted according to
-    [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
-    rank of the input tensors. For each dimension of the output tensor, its size
-    is the maximum size along that dimension of the input tensors.
-
+</div>
+<div>
     **Operation types:**
         - *add*: Add the values of the two input tensors, element-wise.
         - *sub*: Subtract the values of the second input tensor from the values of the first input tensor, element-wise.
@@ -2361,6 +2364,88 @@ partial interface MLGraphBuilder {
         - *min*: Select the lesser values of the two input tensors, element-wise.
         - *pow*: Compute the values of the values of the first input tensor to the power of the values of the second input tensor, element-wise.
 </div>
+
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder" data-lt="element-wise-binary-op">create element-wise binary operation</dfn> given |op|, |a| and |b|, run the following steps:
+  </summary>
+  <div algorithm=binary class=algorithm-steps>
+    1. [=Assert=]: |op| is one of "add", "sub", "mul", "div", "max", "min", "pow".
+    1. If |a| or |b| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}}.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If that throws an error, re-throw the error and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>create MLOperand</a> steps given [=this=] and |descriptor|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the binary operation |op|, given |a| and |b|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    To <dfn for="MLGraphBuilder" lt="broadcast-shapes">broadcast shapes</dfn> given |shape1| and |shape2|, run the following steps:
+  </summary>
+  <div algorithm=broadcast-shape class=algorithm-steps>
+    1. [=Assert=]: The type of |shape1| and |shape2| is `sequence of unsigned long`.
+    1. Let |output| be the result of invoking the [=implementation-defined=] shape broadcast on |shape1| and |shape2|.
+            1. If that fails, throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Return |output|.
+        <div class = "note">
+        The most common implementation is that two shapes are compatible, when each of their corresponding dimensions are equal, or one of them is 1. The output shape consists of the maximum of the corresponding dimensions.
+        </div>
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The element-wise binary operation algorithms invoke the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] steps as follows.
+  </summary>
+  <div class=algorithm-steps>
+    The {{MLGraphBuilder/add(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "add", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/sub(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "sub", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/mul(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "mul", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/div(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "div", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/max(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "max", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/min(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "min", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+
+    The {{MLGraphBuilder/pow(a, b)}} steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation =] given "pow", |a| and |b|.
+            1. If that throws an error, then re-throw the error and stop.
+        1. Return |output|.
+</div>
+</details>
 
 ### Element-wise unary operations ### {#api-mlgraphbuilder-unary}
 Compute the element-wise unary operation for input tensor.
