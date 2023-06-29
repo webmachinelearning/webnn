@@ -5084,14 +5084,48 @@ partial interface MLGraphBuilder {
   MLOperand squeeze(MLOperand input, optional MLSqueezeOptions options = {});
 };
 </script>
-<div algorithm=squeeze>
+
+<div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLSqueezeOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{unsigned long}}. Indices to the shape dimensions of size 1 to eliminate. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor. When not specified, every shape dimensions of size 1 in the tensor are eliminated.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same or reduced rank with the shape dimensions of size 1 eliminated.
 </div>
+
+{{MLSqueezeOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLSqueezeOptions>
+    : <dfn>axes</dfn>
+    ::
+        A sequence of {{unsigned long}}.
+        Specifies the indices to the shape dimensions of size 1 to eliminate. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor.
+        When not specified, every shape dimensions of size 1 in the tensor are eliminated.
+</dl>
+
+<details open>
+  <summary>
+    The {{MLGraphBuilder/squeeze(input, options)}} steps are:
+  </summary>
+  <div algorithm=squeeze class=algorithm-steps>
+    1. If |input| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options| is `undefined`, let |options| be an empty [=object=].
+    1. If |options|.{{MLSqueezeOptions/axes}} [=map/exists=], then:
+        1. Let |dimensions| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. For |index| between 0 and the size of |options|.{{MLSqueezeOptions/axes}}:
+            1. Let |oneDimIndex| be |options|.{{MLSqueezeOptions/axes}}[|index|].
+            1. If |dimensions|[|oneDimIndex|] is not `1`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the squeeze operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
 
 ### The tanh() method ### {#api-mlgraphbuilder-tanh}
 Compute the <a href="https://en.wikipedia.org/wiki/Hyperbolic_functions">hyperbolic tangent function</a> of the input tensor. The calculation follows the expression `(exp(2 * x) - 1) / (exp(2 * x) + 1)`.
