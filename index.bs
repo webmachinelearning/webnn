@@ -865,46 +865,51 @@ partial interface MLContext {
 
     **Returns:** {{undefined}}.
 
-    1. If any of the following requirements are unmet, then throw a "{{DataError}}" {{DOMException}} and stop.
-        <div class=validusage>
-            1. For each |key| -> |value| of |inputs|:
-                1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must [=map/exist=].
-                1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-                1. The type of {{ArrayBufferView}} |value| must match |inputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                1. |value|.\[[ByteLength]] must equal to [=byte length=] of |inputDesc|.
-            1. For each |key| -> |value| of |outputs|:
-                1. |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|] must [=map/exist=].
-                1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
-                1. The type of {{ArrayBufferView}} |value| must match |outputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                1. |value|.\[[ByteLength]] must equal to [=byte length=] of |outputDesc|.
-        </div>
-    1. For each |key| -> |value| of |inputs|:
-        1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-        1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}}.
-        1. Set the data type of |inputTensor| to the one that matches the [=element type=] of {{ArrayBufferView}} |value|.
-        1. Set the dimensions of |inputTensor| to |inputDesc|.{{MLOperandDescriptor/dimensions}}.
-        1. Set the values of |inputTensor| to the values of |value|.
-        1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |inputTensor|.
-    1. For each |key| -> |value| of |outputs|:
-        1. Issue a compute request for output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key|.
-        1. Wait for the compute request to be completed.
-        1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
-            1. Throw an "{{OperationError}}" {{DOMException}} and stop.
-        1. Else:
-            1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
-            1. If the data type of |outputTensor| doesn't match the [=element type=] of {{ArrayBufferView}} |value|, then throw a "{{DataError}}" {{DOMException}} and stop.
-            1. If the byte length of |outputTensor| is not equal to |value|.\[[ByteLength]], then:
-                1. Throw a "{{DataError}}" {{DOMException}} and stop.
-            1. Else:
-                1. Set the values of |value| to the values of |outputTensor|.
+The {{MLContext/computeSync(graph, inputs, outputs)}} method steps are:
+    1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=], throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If invoking the <a>validate graph resources</a> algorithm given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns `false`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If invoking the <a>validate graph resources</a> algorithm given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns `false`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Invoke <a>execute graph</a> given |graph|, |inputs| and |outputs|.
+    1. If that throws an error, re-throw the error and stop.
     1. Return {{undefined}}.
+
+<div class=validusage>
+To <dfn lt="validate graph resources">validate graph resources</dfn>, given |resources| and |descriptors|, run the following steps:
+    1. [=Assert=]: the type of |resources| is {{MLNamedArrayBufferViews}}.
+    1. For each [=record=] <|key|, |value|> of |resources|:
+        1. If |descriptors|[|key|] does not [=map/exist=], return `false`.
+        1. [=Assert=]: the type of |value| is {{ArrayBufferView}}.
+        1. If running the <a>validate buffer with descriptor</a> given |value| and |descriptors|[|key|] return `false`, return `false`.
+    1. Return `true`.
 </div>
 
-<div class=algorithm-steps>
+<div class=validusage>
 To <dfn>validate buffer with descriptor</dfn> given |bufferView| and |descriptor|, run the following steps:
     1. If |bufferView| is not an {{MLBufferView}}, return `false`.
     1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/type}}  according to [this table](#appendices-mloperandtype-arraybufferview-compatibility), return `false`.
     1. If |bufferView|.\[[ByteLength]] is not equal to the [=byte length=] of |descriptor|, return `false`.
+</div>
+
+To <dfn lt="execute graph">execute graph</dfn>, given |graph|, |inputs| and |outputs|, run the following steps:
+    1. [=Assert=]: the type of |inputs| is {{MLNamedArrayBufferViews}}.
+    1. Let |inputResources| denote the input resources of |graph|.{{MLGraph/[[implementation]]}}.
+    1. For each <|key|, |inputValue|> of |inputs|:
+        1. Let |inputDescriptor| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+        1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} as follows:
+            1. Set the data type of |inputTensor| to the one that matches the [=element type=] of |inputValue|.
+            1. Set the dimensions of |inputTensor| to |inputDescriptor|.{{MLOperandDescriptor/dimensions}}.
+            1. Set the values of elements in |inputTensor| to the values of elements in |inputValue|.
+        1. Request the underlying implementation of |graph| to bind |inputResources|[|key|] to |inputTensor|.
+    1. [=Assert=]: the type of |outputs| is {{MLNamedArrayBufferViews}}.
+    1. For each <|key|, |outputValue|> of |outputs|:
+        1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |key| and |inputResources| and wait for completion.
+            1. If that returns an error, then throw an "{{OperationError}}" {{DOMException}} and stop.
+            1. Otherwise, store the result in |outputTensor|.
+        1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
+        1. If the byte length of |outputTensor| is not equal to the [=byte length=] of |outputDesc|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If the [=element type=] of |outputTensor| doesn't match the [=element type=] of |outputValue|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. Request the underlying implementation of |graph| to set the values of elements in |outputValue| to the values of elements in |outputTensor|.
+    1. Return {{undefined}}.
 </div>
 
 #### Examples #### {#api-mlcontext-sync-execution-examples}
@@ -943,7 +948,7 @@ console.log(&#96;values: ${bufferE}&#96;);
 </pre>
 </div>
 
-### The {{MLNamedArrayBufferViews}} transfer algorithm ### {#mlnamedarraybufferviews-transfer}
+### The {{MLNamedArrayBufferViews}} transfer algorithm ### {#mlnamedarraybufferviews-transfer-alg}
 To <dfn for="MLNamedArrayBufferViews">transfer</dfn> an {{MLNamedArrayBufferViews}} |views|:
 1. Let |transferredViews| be a new {{MLNamedArrayBufferViews}}.
 1. For each |key| -> |value| of |views|:
@@ -974,7 +979,6 @@ partial interface MLContext {
 </script>
 
 <div algorithm=mlcontext.compute>
-
     **Arguments:**
       - *graph*: an {{MLGraph}}. The compiled graph to be executed.
       - *inputs*: an {{MLNamedArrayBufferViews}}. The resources of inputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
@@ -982,49 +986,21 @@ partial interface MLContext {
 
     **Returns:** Promise<{{MLComputeResult}}>.
 
+    The {{MLContext/compute(graph, inputs, outputs)}} method steps are:
     1. Let |promise| be [=a new promise=].
-    1. If any of the following requirements are unmet, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}} and stop.
-        <div class=validusage>
-            1. For each |key| -> |value| of |inputs|:
-                1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must [=map/exist=].
-                1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-                1. The type of {{ArrayBufferView}} |value| must match |inputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                1. |value|.\[[ByteLength]] must equal to [=byte length=] of |inputDesc|.
-            1. For each |key| -> |value| of |outputs|:
-                1. |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|] must [=map/exist=].
-                1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
-                1. The type of {{ArrayBufferView}} |value| must match |outputDesc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
-                1. |value|.\[[ByteLength]] must equal to [=byte length=] of |outputDesc|.
-        </div>
-    1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs|.
-    1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs|.
-    1. For each |key| -> |value| of |transferredInputs|:
-        1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-        1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}}.
-        1. Set the data type of |inputTensor| to the one that matches the [=element type=] of {{ArrayBufferView}} |value|.
-        1. Set the dimensions of |inputTensor| to |inputDesc|.{{MLOperandDescriptor/dimensions}}.
-        1. Set the values of |inputTensor| to the values of |value|.
-        1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |inputTensor|.
-    1. For each |key| -> |value| of |transferredOutputs|:
-        1. Issue a compute request for output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key|.
-        1. Wait for the compute request to be completed.
-        1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
-            1. [=reject=] |promise| with an "{{OperationError}}" {{DOMException}} and stop.
-        1. Else:
-            1. Let |outputTensor| be the output tensor returned by |graph|.{{MLGraph/[[implementation]]}}.
-            1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
-            1. If the data type of |outputTensor| doesn't match the [=element type=] of {{ArrayBufferView}} |value|, then:
-                1. [=reject=] |promise| with a "{{DataError}}" {{DOMException}} and stop.
-            1. If the byte length of |outputTensor| is not equal to [=byte length=] of |outputDesc|, then:
-                1. [=reject=] |promise| with an "{{OperationError}}" {{DOMException}} and stop.
-            1. Else:
-                1. Set the values of |value| to the values of |outputTensor|.
-            1. If all compute requests are completed, then:
-                1. Let |result| be a new {{MLComputeResult}}.
-                1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
-                1. Set |result|.{{MLComputeResult/outputs}} to |transferredOutputs|.
-                1. [=Resolve=] |promise| with |result| and stop.
-    1. Return |promise|.
+    1. Return |promise| and run the following steps [=in parallel=]:
+        1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=], [=reject=] |promise| with an "{{OperationError}}" {{DOMException}} and stop.
+        1. If invoking the <a>validate graph resources</a> algorithm given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns `false`, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}} and stop.
+        1. If invoking the <a>validate graph resources</a> algorithm given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns `false`, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}} and stop.
+        1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs|.
+        1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs|.
+        1. Invoke <a>execute graph</a> given |graph|, |transferredInputs| and |transferredOutputs|.
+        1. If that throws an error, [=reject=] |promise| with the error and stop.
+        1. Otherwise, when <a>execute graph</a> has completed:
+            1. Let |result| be a new {{MLComputeResult}}.
+            1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
+            1. Set |result|.{{MLComputeResult/outputs}} to |transferredOutputs|.
+            1. [=Resolve=] |promise| with |result| and stop.
 </div>
 
 #### Examples #### {#api-mlcontext-async-execution-examples}
