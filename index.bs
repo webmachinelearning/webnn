@@ -1653,26 +1653,26 @@ Build a composed graph up to a given output operand into a computational graph, 
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
-    1. If |outputs| is not an instance of {{MLNamedOperands}}, then throw an "{{TypeError}}" {{DOMException}} and stop.
+    1. If |outputs| is not an instance of {{MLNamedOperands}} or otherwise if empty, then throw an "{{TypeError}}" {{DOMException}} and stop.
     1. For each |element| in |outputs|:
-        1. If |element|.key is not a [=string=], then throw an "{{TypeError}}" {{DOMException}} and stop.
+        1. If |element|.key is not a [=string=] or otherwise if empty, then throw an "{{TypeError}}" {{DOMException}} and stop.
         1. If |element|.value is not an instance of {{MLOperand}}, then throw an "{{TypeError}}" {{DOMException}} and stop.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Let |graph| be a new {{MLGraph}}:
             1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
-            1. Set |graph|.{{MLGraph/[[outputDescriptors]]}} to |outputs|.
         1. Make a request to the underlying platform to:
             1. Connect |graph| to a new [=implementation-defined=] graph implementation |graphImpl| given |graph|.
             1. Store a reference to |graphImpl| in |graph|.{{MLGraph/[[implementation]]}}.
         1. Make a request to the underlying platform to initialize the graph:
             1. For each |operand| in |outputs|:
+                1. If running the <a>validate MLOperand</a> given |operand| and [=this=] returns `false`, then throw a "{{TypeError}}" {{DOMException}} and stop.
                 1. If |operand| was created as an input by the underlying platform:
-                    1. Add |operand| to |graph|.{{MLGraph/[[inputDescriptors]]}}.
-                    1. Initialize the weights of |operand|.
+                    1. If |operand|.{{MLOperand/[[name]]}}] is not unique for |graphImpl|, then throw a "{{TypeError}}" {{DOMException}} and stop.
+                    1. Add |operand|.{{MLOperand/[[descriptor]]}} to |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}].
                 1. If |operand| was created as a constant by the underlying platform:
-                    1. Preprocess and optimize the tensor data of |operand|.
-                1. Update |graphImpl| with |operand|.{{MLOperand/[[operand]]}}.
-                1. Update |graphImpl| with |operand|.{{MLOperand/[[operator]]}}.
+                    1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
+                1. Register |operand|.{{MLOperand/[[operand]]}} in |graphImpl| as graph output.
+                1. Register |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
     1. Return |graph|.
   </div>
 </details>
@@ -1995,7 +1995,7 @@ partial interface MLGraphBuilder {
             1. Let |desc| be |inputs|[0].{{MLOperand/[[descriptor]]}}.
             1. Let |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] be `0`.
             1. For each |index| between 0 and the <a>rank</a> of |inputs|:
-                1. If running <a>validate MLOperand</a> given |inputs|[|index|] and [=this=]  returns `false`, then fail.
+                1. If running <a>validate MLOperand</a> given |inputs|[|index|] and [=this=] returns `false`, then fail.
                 1. For each |dim| between 0 and the <a>rank</a> of |inputs|[|index|]:
                     <div class="note">
                         If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
