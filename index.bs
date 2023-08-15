@@ -2160,15 +2160,14 @@ partial interface MLGraphBuilder {
     1. Else if |options|.{{MLConv2dOptions/groups}} is 0, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |input_size| / |options|.{{MLConv2dOptions/groups}} is not equal to |filter_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. Else if |input_size| % |options|.{{MLConv2dOptions/groups}} is not 0, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1.
     1. If |options|.{{MLConv2dOptions/inputLayout}} is `undefined`, set it to `"nchw"`.
     1. If |options|.{{MLConv2dOptions/filterLayout}} is `undefined`, set it to `"oihw"`.
     1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=] and it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. If the length of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then throw a "{{TypeError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=] and it is not an instance of {{MLActivation}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
-    1. Let |output_shape| be the result of calculating output dimensions based on input, filter, dilation, padding and stride, taking into account |options|.{{MLConv2dOptions/inputLayout}}.
-    1. If the shape of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not the same as |output_shape|, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. If |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=] and it is not an instance of {{MLActivation}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Let |output_shape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
+    1. If |output_shape| is not the same as the shape of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |output_shape|.
@@ -2324,20 +2323,32 @@ partial interface MLGraphBuilder {
     1. Let |filter_size| be the size of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. If |input_size| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |filter_size| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the type of |input| and |filter| is not the same, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. If |options| is `undefined`, let |options| be an empty [=object=].
     1. If |options|.{{MLConvTranspose2dOptions/padding}} is `undefined`, set it to `[0, 0, 0, 0]`.
+    1. Else if |options|.{{MLConvTranspose2dOptions/padding}}.length is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |options|.{{MLConvTranspose2dOptions/strides}} is `undefined`, set it to `[1, 1]`.
-    1. Else if |options|.{{MLConv2dOptions/strides}}.length is not `2`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. Else if |options|.{{MLConvTranspose2dOptions/strides}}.length is not `2`, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. If |options|.{{MLConvTranspose2dOptions/dilations}} is `undefined`, set it to `[1, 1]`.
+    1. Else if |options|.{{MLConvTranspose2dOptions/dilations}}.length is not `2`, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} is `undefined`, set it to `[0, 0]`.
+    1. Else if |options|.{{MLConvTranspose2dOptions/outputPadding}}.length is not `2`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
+        1. If |options|.{{MLConvTranspose2dOptions/outputSizes}}.length is not `2`, then throw a "{{TypeError}}" {{DOMException}} and stop.
+        1. If the elements of |options|.{{MLConvTranspose2dOptions/outputSizes}} are not smaller than the elements at the same dimension (index) for |options|.{{MLConvTranspose2dOptions/strides}}, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |options|.{{MLConvTranspose2dOptions/autoPad}} is `undefined`, set it to `"explicit"`.
     1. If |options|.{{MLConvTranspose2dOptions/groups}} is `undefined`, set it to `1`.
+    1. If |input_size| / |options|.{{MLConvTranspose2dOptions/groups}} is not equal to |filter_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Else if |input_size| % |options|.{{MLConvTranspose2dOptions/groups}} is not 0, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |options|.{{MLConvTranspose2dOptions/inputLayout}} is `undefined`, set it to `"nchw"`.
     1. If |options|.{{MLConvTranspose2dOptions/filterLayout}} is `undefined`, set it to `"iohw"`.
     1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=] and it is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If the length of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then throw a "{{TypeError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=] and it is not an instance of {{MLActivation}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
-    1. Let |output_shape| be the result of calculating output dimensions based on |input|, |filter|, |options|.{{MLConvTranspose2dOptions/dilations}}, |options|.{{MLConvTranspose2dOptions/padding}} and |options|.{{MLConvTranspose2dOptions/strides}}, taking into account |options|.{{MLConvTranspose2dOptions/inputLayout}}.
+    1. Let |output_shape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
+    1. If |output_shape| is not the same as the shape of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |output_shape|.
@@ -2356,8 +2367,7 @@ partial interface MLGraphBuilder {
 </details>
 
 ### Element-wise binary operations ### {#api-mlgraphbuilder-binary}
-Compute the element-wise binary addition, subtraction, multiplication, division,
-maximum and minimum of the two input tensors.
+Compute the element-wise binary addition, subtraction, multiplication, division, power, maximum and minimum of the two input tensors.
 
 The element-wise binary operations will be broadcasted according to
 [[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
@@ -2404,7 +2414,7 @@ partial interface MLGraphBuilder {
     1. If |a| or |b| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}}.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
     1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
         1. If that throws an error, re-throw the error and stop.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
@@ -4520,7 +4530,7 @@ partial interface MLGraphBuilder {
   <div algorithm=prelu-input-slope class=algorithm-steps>
     1. If |input| or |slope| is not an instance of {{MLOperand}}, then throw a "{{TypeError}}" {{DOMException}} and stop.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}}.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
     1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |slope|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
         1. If that throws an error, re-throw the error and stop.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
@@ -4893,7 +4903,7 @@ partial interface MLGraphBuilder {
         1. If the size of |newShape| is `0`, set |outputShape| to `[ 1 ]` (reshaping to scalar).
         1. If |newShape| contains more than one `null` value, then throw a "{{DataError}}" {{DOMException}} and stop.
         1. If any value in |newShape| is `0`, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. Let |inputElementCount| be  the product of all elements in |inputs|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. Let |inputElementCount| be the product of all elements in |inputs|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
         1. If |newShape| contains a `null` value, set that value to |inputElementCount| divided by the product of all other values in |newShape|.
             1. If that value is too large for {{unsigned long}}, then throw a "{{DataError}}" {{DOMException}} and stop.
         1. If product of all values in |newShape| is not equal to |inputElementCount|, then throw a "{{DataError}}" {{DOMException}} and stop.
