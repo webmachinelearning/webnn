@@ -1005,7 +1005,7 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |operand|.{{MLOperand/[[builder]]}} is {{MLGraphBuilder}}.
-    1. If |builder| is not `undefined` and is not equal to |operand|.{{MLOperand/[[builder]]}}, return `false`.
+    1. If |builder| [=map/exists=]] and is not equal to |operand|.{{MLOperand/[[builder]]}}, return `false`.
     1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
     1. If |desc| is not an [=object=] that [=implements=] {{MLOperandDescriptor}}, return `false`.
     1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and invoking <a>check dimensions</a> given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/type}} returns `false`, then return `false`.
@@ -1056,7 +1056,7 @@ The {{MLActivation}} objects (including the ones passed as input to methods) are
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |builder| is {{MLGraphBuilder}}.
-    1. If |name| is `undefined` or `null`,  throw a "{{TypeError}}" and abort these steps.
+    1. If |name| is empty, then throw a "{{TypeError}}" and abort these steps.
     1. Let |activation| be a new [=object=].
     1. Set |activation|.{{MLActivation/[[builder]]}} to |builder|.
     1. Set |activation|.{{MLActivation/[[name]]}} to |name|.
@@ -2131,21 +2131,17 @@ partial interface MLGraphBuilder {
     1. If |input_size| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |filter_size| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If the type of |input| and |filter| is not the same, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
-    1. If |options|.{{MLConv2dOptions/padding}} is `undefined`, set it to `[0, 0, 0, 0]`.
+    1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to `[0, 0, 0, 0]`.
     1. Else if |options|.{{MLConv2dOptions/padding}}.length is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLConv2dOptions/strides}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], set it to `[1, 1]`.
     1. Else if |options|.{{MLConv2dOptions/strides}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
     1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLConv2dOptions/dilations}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConv2dOptions/dilations}} does not [=map/exist=], set it to `[1, 1]`.
     1. Else if |options|.{{MLConv2dOptions/dilations}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLConv2dOptions/autoPad}} is `undefined`, set it to `"explicit"`.
-    1. If |options|.{{MLConv2dOptions/groups}} is `undefined`, set it to `1`.
-    1. Else if |options|.{{MLConv2dOptions/groups}} is 0, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLConv2dOptions/autoPad}} does not [=map/exist=], set it to `"explicit"`.
+    1. If |options|.{{MLConv2dOptions/groups}} is 0, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |input_size| / |options|.{{MLConv2dOptions/groups}} is not equal to |filter_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. Else if |input_size| % |options|.{{MLConv2dOptions/groups}} is not 0, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLConv2dOptions/inputLayout}} is `undefined`, set it to `"nchw"`.
-    1. If |options|.{{MLConv2dOptions/filterLayout}} is `undefined`, set it to `"oihw"`.
     1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConv2dOptions/bias}} is {{MLOperand}}.
     1. If the length of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then [=exception/throw=] a {{TypeError}} and stop.
@@ -2310,25 +2306,20 @@ partial interface MLGraphBuilder {
     1. If |input_size| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |filter_size| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If the type of |input| and |filter| is not the same, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
-    1. If |options|.{{MLConvTranspose2dOptions/padding}} is `undefined`, set it to `[0, 0, 0, 0]`.
+    1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to `[0, 0, 0, 0]`.
     1. Else if |options|.{{MLConvTranspose2dOptions/padding}}.length is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLConvTranspose2dOptions/strides}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConvTranspose2dOptions/strides}} does not [=map/exist=], set it to `[1, 1]`.
     1. Else if |options|.{{MLConvTranspose2dOptions/strides}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
     1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLConvTranspose2dOptions/dilations}} is `undefined`, set it to `[1, 1]`.
+    1. If |options|.{{MLConvTranspose2dOptions/dilations}} does not [=map/exist=], set it to `[1, 1]`.
     1. Else if |options|.{{MLConvTranspose2dOptions/dilations}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} is `undefined`, set it to `[0, 0]`.
+    1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} does not [=map/exist=], set it to `[0, 0]`.
     1. Else if |options|.{{MLConvTranspose2dOptions/outputPadding}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
     1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
         1. If |options|.{{MLConvTranspose2dOptions/outputSizes}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
         1. If the elements of |options|.{{MLConvTranspose2dOptions/outputSizes}} are not smaller than the elements at the same dimension (index) for |options|.{{MLConvTranspose2dOptions/strides}}, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLConvTranspose2dOptions/autoPad}} is `undefined`, set it to `"explicit"`.
-    1. If |options|.{{MLConvTranspose2dOptions/groups}} is `undefined`, set it to `1`.
     1. If |input_size| / |options|.{{MLConvTranspose2dOptions/groups}} is not equal to |filter_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. Else if |input_size| % |options|.{{MLConvTranspose2dOptions/groups}} is not 0, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLConvTranspose2dOptions/inputLayout}} is `undefined`, set it to `"nchw"`.
-    1. If |options|.{{MLConvTranspose2dOptions/filterLayout}} is `undefined`, set it to `"iohw"`.
     1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConvTranspose2dOptions/bias}} is {{MLOperand}}.
     1. If the length of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then [=exception/throw=] a {{TypeError}} and stop.
@@ -2724,13 +2715,6 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=gemm class=algorithm-steps>
     1. [=Assert=]: the type of |a| and |b| is {{MLOperand}}.
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
-    1. If |options|.{{MLGemmOptions/alpha}} is `undefined`, set it to `1.0`.
-    1. If |options|.{{MLGemmOptions/beta}} is `undefined`, set it to `1.0`.
-    1. If |options|.{{MLGemmOptions/aTranspose}} is `undefined`, set it to `false`.
-    1. If |options|.{{MLGemmOptions/aTranspose}} is not `false`, set it to `true`.
-    1. If |options|.{{MLGemmOptions/bTranspose}} is `undefined`, set it to `false`.
-    1. If |options|.{{MLGemmOptions/bTranspose}} is not `false`, set it to `true`.
     1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the size of |shapeA|.
     1. Let |shapeB| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the size of |shapeB|.
     1. If |sizeA| is not `2` or |sizeB| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
@@ -2864,7 +2848,6 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
     1. If the rank of |input| or |weight| is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If the rank of |weight| or |recurrentWeight| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=].
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
@@ -2874,11 +2857,7 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=].
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLGruOptions/resetAfter}} is `undefined`, set it to `true`.
-    1. If |options|.{{MLGruOptions/returnSequence}} is `undefined`, set it to `false`.
-    1. If |options|.{{MLGruOptions/direction}} is `undefined`, set it to `"forward"`.
     1. If |options|.{{MLGruOptions/direction}} is not one of {{MLRecurrentNetworkDirection}}, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLGruOptions/layout}} is `undefined`, set it to `"zrn"`.
     1. If |options|.{{MLGruOptions/layout}} is not one of {{MLGruWeightLayout}}, then [=exception/throw=] a {{TypeError}} and stop.
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and is not an array of {{MLActivation}} objects with size `2`, then [=exception/throw=] a {{TypeError}} and stop.
     1. If |steps| is not a [=number=] or it is `0`, then [=exception/throw=] a {{TypeError}} and stop.
@@ -3019,15 +2998,12 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
     1. If the rank of |input| or |weight| is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If the rank of |weight| or |recurrentWeight| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLGruOptions/resetAfter}} is `undefined`, set it to `true`.
-    1. If |options|.{{MLGruOptions/layout}} is `undefined`, set it to `"zrn"`.
     1. If |options|.{{MLGruOptions/layout}} is not one of {{MLGruWeightLayout}}, then [=exception/throw=] a {{TypeError}} and stop.
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and is not an array of {{MLActivation}} objects with size `2`, then [=exception/throw=] a {{TypeError}} and stop.
     1. Let |desc| a new {{MLOperandDescriptor}}.
@@ -3366,13 +3342,10 @@ The {{MLInstanceNormalizationOptions}} members are:
   <div algorithm=instancenorm class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. If the rank of |input| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
     1. [=Assert=]:  the type of |options|.{{MLInstanceNormalizationOptions/scale}} is {{MLOperand}}.
     1. If the rank of |options|.{{MLInstanceNormalizationOptions/scale}} is not equal to the size of the channel dimension of |input|, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. [=Assert=]: the type of |options|.{{MLInstanceNormalizationOptions/bias}} is  {{MLOperand}}.
     1. If the rank of |options|.{{MLInstanceNormalizationOptions/bias}} is not equal to the size of the channel dimension of |input|, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLInstanceNormalizationOptions/epsilon}} is `undefined`, let it be `0.00001`.
-    1. If |options|.{{MLInstanceNormalizationOptions/layout}} is `undefined`, let it be `"nchw"`.
     1. Otherwise if |options|.{{MLInstanceNormalizationOptions/layout}} is not one of {{MLInputOperandLayout}}, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
@@ -3685,8 +3658,6 @@ partial interface MLGraphBuilder {
     The {{MLGraphBuilder/lstm(input, weight, recurrentWeight, steps, hiddenSize, options)}} steps are:
   </summary>
   <div algorithm=lstm class=algorithm-steps>
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
-    1. If |options|.{{MLLstmOptions/direction}} is `undefined`, set it to `"forward"`.
     1. If |options|.{{MLLstmOptions/direction}} is not one of {{MLRecurrentNetworkDirection}}, then [=exception/throw=] a {{TypeError}} and stop.
     1. Let |num_directions| be `1` if |options|.{{MLLstmOptions/direction}} is `"forward"`, or otherwise let it be `2`.
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
@@ -3722,8 +3693,6 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
         1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batch_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
         1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[2] is not |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLLstmOptions/returnSequence}} is `undefined`, set it to `false`.
-    1. If |options|.{{MLLstmOptions/layout}} is `undefined`, set it to `"iofg"`.
     1. If |options|.{{MLLstmOptions/layout}} is not one of {{MLLstmWeightLayout}}, then [=exception/throw=] a {{TypeError}} and stop.
     1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
         1. If it is not an array of size `3`, then [=exception/throw=] a {{TypeError}} and stop.
@@ -3892,7 +3861,6 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |input|, |weight|, |recurrentWeight|, |hiddenState| and |cellState| is {{MLOperand}}.
     1. If the rank of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. Let |batch_size| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0].
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
     1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
@@ -3905,7 +3873,6 @@ partial interface MLGraphBuilder {
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
         1. If |options|.{{MLLstmCellOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 3 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLLstmCellOptions/layout}} is `undefined`, set it to `"iofg"`.
     1. If |options|.{{MLLstmCellOptions/layout}} is not one of {{MLLstmWeightLayout}}, then [=exception/throw=] a {{TypeError}} and stop.
     1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=]:
         1. If it is not an array of size `3`, then [=exception/throw=] a {{TypeError}} and stop.
@@ -4180,10 +4147,7 @@ partial interface MLGraphBuilder {
   <div algorithm=pad class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. If |beginningPadding| or |endingPadding| is not a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
-    1. If |options|.{{MLPadOptions/mode}} is `undefined`, set it to `"constant"`.
-        1. Otherwise, if |options|.{{MLPadOptions/mode}} is not one of {{MLPaddingMode}}, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLPadOptions/value}} is `undefined`, set it to `0`.
+    1. If |options|.{{MLPadOptions/mode}} is not one of {{MLPaddingMode}}, then [=exception/throw=] a {{TypeError}} and stop.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate padding output sizes</a> given |input|, |beginningPadding| and |endingPadding|.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
@@ -4364,19 +4328,15 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: |op| is one of "averagePool2d", "l2Pool2d", "maxPool2d".
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. If the length of of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options| is `undefined`, let |options| be a new {{MLPool2dOptions}} object.
-    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} is `undefined`, set |options|.{{MLPool2dOptions/padding}} to `[0, 0, 0, 0]`.
+    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} does not [=map/exist=], set |options|.{{MLPool2dOptions/padding}} to `[0, 0, 0, 0]`.
     1. If the length of of |padding|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLPool2dOptions/strides}} is `undefined`, set |options|.{{MLPool2dOptions/strides}} to `[1, 1]`.
+    1. If |options|.{{MLPool2dOptions/strides}} does not [=map/exist=], set |options|.{{MLPool2dOptions/strides}} to `[1, 1]`.
     1. If the length of of |options|.{{MLPool2dOptions/strides}} is not 2, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If any value in |options|.{{MLPool2dOptions/strides}} is not greater than 0, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLPool2dOptions/dilations}} is `undefined`, set |options|.{{MLPool2dOptions/dilations}} to `[1, 1]`.
+    1. If |options|.{{MLPool2dOptions/dilations}} does not [=map/exist=], set |options|.{{MLPool2dOptions/dilations}} to `[1, 1]`.
     1. If the length of of |options|.{{MLPool2dOptions/dilations}} is not 2, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLPool2dOptions/autoPad}} is `undefined`, set |options|.{{MLPool2dOptions/autoPad}} to `"explicit"`.
     1. If |options|.{{MLPool2dOptions/autoPad}} is not `"explicit"`, set |options|.{{MLPool2dOptions/padding}} to `[0, 0, 0, 0]`.
-    1. If |options|.{{MLPool2dOptions/layout}} is `undefined`, set |options|.{{MLPool2dOptions/layout}} to `"nchw"`.
-    1. If |options|.{{MLPool2dOptions/roundingType}} is `undefined`, set |options|.{{MLPool2dOptions/roundingType}} to `"floor"`.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Make a request to the underlying platform to:
@@ -4528,7 +4488,6 @@ partial interface MLGraphBuilder {
   <div algorithm=reduce class=algorithm-steps>
     1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If |options| is `undefined`, let |options| be a new {{MLReduceOptions}} object with |options|.{{MLReduceOptions/keepDimensions}} set to `false` and |options|.{{MLReduceOptions/axes}} set to `null`.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
         1. Make a request to the underlying platform to:
@@ -5217,8 +5176,6 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=split class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
-    1. If |options|.{{MLSplitOptions/axis}} is `undefined`, let |options|.{{MLSplitOptions/axis}} be `0`.
     1. If |splits| is not {{unsigned long}} or a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}} and stop.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Let |output| be the result of invoking the <a>copy MLOperand</a> steps given |input|.
@@ -5293,7 +5250,6 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=squeeze class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
     1. If |options|.{{MLSqueezeOptions/axes}} [=map/exists=], then:
         1. Let |dimensions| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
         1. For |index| between 0 and the size of |options|.{{MLSqueezeOptions/axes}}:
@@ -5421,8 +5377,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=transpose class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If |options| is `undefined`, let |options| be an empty [=object=].
-    1. If |options|.{{MLTransposeOptions/permutation}} is `undefined`, let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
         1. If |options|.{{MLTransposeOptions/permutation}} is not a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}} and stop.
         1. If the rank of |options|.{{MLTransposeOptions/permutation}} is not the same as the rank of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a {{TypeError}} and stop.
