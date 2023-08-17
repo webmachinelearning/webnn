@@ -814,7 +814,7 @@ Its <a>default allowlist</a> is <code>'self'</code>.
     The {{ML/createContext(options)}} method steps are:
 </summary>
 <div algorithm=createcontext class=algorithm-steps>
-    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}} and abort these steps.
+    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |promise| be [=a new promise=].
     1. Return |promise| and run the following steps [=in parallel=].
     1. Run the <dfn>create context</dfn> steps given |options|:
@@ -827,7 +827,7 @@ Its <a>default allowlist</a> is <code>'self'</code>.
             1. Set |context|.{{[[contextType]]}} to "[=default-context|default=]".
             1. If |options|["{{deviceType}}"] [=map/exists=], then set |context|.{{[[deviceType]]}} to |options|["{{deviceType}}"]. Otherwise, set |context|.{{[[deviceType]]}} to "[=device-type-cpu|cpu=]".
             1. If |options|["{{powerPreference}}"] [=map/exists=], then set |context|.{{[[powerPreference]]}} to |options|["{{powerPreference}}"]. Otherwise, set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
-    1. If <a>validating MLContext</a> given |context| return `false`, [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
+    1. If <a>validating MLContext</a> given |context| returns `false`, [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}}.
     1. [=Resolve=] |promise| with |context|.
 </div>
 </details>
@@ -838,9 +838,9 @@ Its <a>default allowlist</a> is <code>'self'</code>.
     The {{ML/createContextSync(options)}} method steps are:
   </summary>
   <div algorithm=createcontextsync class=algorithm-steps>
-    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
+    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
     1. Let |context| be the result of running the <a>create context</a> steps given |options|.
-    1. If <a>validating MLContext</a> given |context| return `false`, throw a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
+    1. If <a>validating MLContext</a> given |context| return `false`, then [=exception/throw=] a "{{NotSupportedError}}" {{DOMException}}.
     1. Return |context|.
   </div>
 </details>
@@ -1055,12 +1055,12 @@ The {{MLActivation}} objects (including the ones passed as input to methods) are
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |builder| is {{MLGraphBuilder}}.
-    1. If |name| is empty, then throw a "{{TypeError}}" and abort these steps.
+    1. If |name| is empty, then [=exception/throw=] a "{{TypeError}}" and abort these steps.
     1. Let |activation| be a new [=object=].
     1. Set |activation|.{{MLActivation/[[builder]]}} to |builder|.
     1. Set |activation|.{{MLActivation/[[name]]}} to |name|.
     1. If |options| is an [=object=], set |activation|.{{MLActivation/[[options]]}} to |options|.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Make a request to the underlying platform to:
             1. Create an [=implementation-defined=] platform operator |opImpl| for the given |name| operation.
             1. Store a reference of |opImpl| in |activation|.{{MLActivation/[[operator]]}}.
@@ -1140,7 +1140,7 @@ When the {{[[contextType]]}} is set to [=default-context|default=] with the {{ML
 </details>
 
 ### Synchronous Execution ### {#api-mlcontext-sync-execution}
-Synchronously carries out the computational workload of a compiled graph {{MLGraph}} on the calling thread, which must be a worker thread, to produce results as defined by the operations in the graph. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an "{{OperationError}}" {{DOMException}}.
+Synchronously carries out the computational workload of a compiled graph {{MLGraph}} on the calling thread, which must be a worker thread, to produce results as defined by the operations in the graph. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it[=exception/throws=] an "{{OperationError}}" {{DOMException}}.
 
 <script type=idl>
 partial interface MLContext {
@@ -1164,11 +1164,11 @@ partial interface MLContext {
     The {{MLContext/computeSync(graph, inputs, outputs)}} method steps are:
   </summary>
   <div algorithm=mlcontext.computesync class=algorithm-steps>
-    1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=], throw an "{{OperationError}}" {{DOMException}} and stop.
-    1. If <a>validating graph resources</a> given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns `false`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If <a>validating graph resources</a> given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns `false`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=], [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. If <a>validating graph resources</a> given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns `false`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If <a>validating graph resources</a> given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns `false`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Invoke <a>execute graph</a> given |graph|, |inputs| and |outputs|.
-    1. If that throws an error, re-throw the error and stop.
+    1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return {{undefined}}.
   </div>
 </details>
@@ -1182,7 +1182,7 @@ partial interface MLContext {
     1. [=map/For each=] [=record=] <|key|, |value|> of |resources|:
         1. If |descriptors|[|key|] does not [=map/exist=], return `false`.
         1. [=Assert=]: the type of |value| is {{ArrayBufferView}}.
-        1. If <a>validating buffer with descriptor</a> given |value| and |descriptors|[|key|] return `false`, return `false`.
+        1. If <a>validating buffer with descriptor</a> given |value| and |descriptors|[|key|] returns `false`, then return `false`.
     1. Return `true`.
   </div>
 </details>
@@ -1215,11 +1215,11 @@ partial interface MLContext {
     1. [=Assert=]: the type of |outputs| is {{MLNamedArrayBufferViews}}.
     1. [=map/For each=] <|key|, |outputValue|> of |outputs|:
         1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |key| and |inputResources| and wait for completion.
-            1. If that returns an error, then throw an "{{OperationError}}" {{DOMException}} and stop.
+            1. If that returns an error, then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
             1. Otherwise, store the result in |outputTensor|.
         1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
-        1. If the byte length of |outputTensor| is not equal to the [=byte length=] of |outputDesc|, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If the [=element type=] of |outputTensor| doesn't match the [=element type=] of |outputValue|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If the byte length of |outputTensor| is not equal to the [=byte length=] of |outputDesc|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If the [=element type=] of |outputTensor| doesn't match the [=element type=] of |outputValue|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Request the underlying implementation of |graph| to set the values of elements in |outputValue| to the values of elements in |outputTensor|.
     1. Return {{undefined}}.
   </div>
@@ -1283,7 +1283,7 @@ partial interface MLContext {
 </details>
 
 ### Asynchronous Execution ### {#api-mlcontext-async-execution}
-Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU timeline for the submission of GPU workload on the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it throws an "{{OperationError}}" {{DOMException}}.
+Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU timeline for the submission of GPU workload on the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it[=exception/throws=] an "{{OperationError}}" {{DOMException}}.
 
 <div class="note">
 In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the calling thread from modifying the input and output resources while the computation is ongoing, this method [=MLNamedArrayBufferViews/transfer|transfers=] the input and output {{MLNamedArrayBufferViews}} to new views that share the same backing memory allocations. The transferred views are returned to the caller via the promise fulfillment with the computation result written into the backing memory of the output views.
@@ -1316,18 +1316,18 @@ partial interface MLContext {
   <div algorithm=mlcontext.compute class=algorithm-steps>
     1. Let |promise| be [=a new promise=].
     1. Return |promise| and run the following steps [=in parallel=]:
-        1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=], [=reject=] |promise| with an "{{OperationError}}" {{DOMException}} and stop.
-        1. If <a>validating graph resources</a> given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns `false`, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}} and stop.
-        1. If <a>validating graph resources</a> given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns `false`, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}} and stop.
+        1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=], [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}.
+        1. If <a>validating graph resources</a> given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns `false`, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}}.
+        1. If <a>validating graph resources</a> given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns `false`, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}}.
         1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs|.
         1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs|.
         1. Invoke <a>execute graph</a> given |graph|, |transferredInputs| and |transferredOutputs|.
-        1. If that throws an error, [=reject=] |promise| with the error and stop.
+        1. If that [=exception/throws=] an error, [=reject=] |promise| with the error.
         1. Otherwise, when <a>execute graph</a> has completed:
             1. Let |result| be a new {{MLComputeResult}}.
             1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
             1. Set |result|.{{MLComputeResult/outputs}} to |transferredOutputs|.
-            1. [=Resolve=] |promise| with |result| and stop.
+            1. [=Resolve=] |promise| with |result|.
   </div>
 </details>
 
@@ -1365,7 +1365,7 @@ partial interface MLContext {
 </div>
 
 ### WebGPU Interoperability ### {#api-mlcontext-webgpu-interop}
-Create {{MLCommandEncoder}} interface used to record the ML workload onto a WebGPU-compatible {{GPUCommandBuffer}} to allow mixing of ML workload with other GPU workload in an application that leverages WebGPU. This method only succeeds on an {{MLContext}} created with {{GPUDevice}}. Otherwise, it throws an "{{OperationError}}" {{DOMException}}.
+Create {{MLCommandEncoder}} interface used to record the ML workload onto a WebGPU-compatible {{GPUCommandBuffer}} to allow mixing of ML workload with other GPU workload in an application that leverages WebGPU. This method only succeeds on an {{MLContext}} created with {{GPUDevice}}. Otherwise, it[=exception/throws=] an "{{OperationError}}" {{DOMException}}.
 
 <script type=idl>
 partial interface MLContext {
@@ -1452,7 +1452,7 @@ partial interface MLCommandEncoder {
     The {{MLCommandEncoder/dispatch(graph, inputs, outputs)}} steps are:
   </summary>
   <div algorithm=mlcommandencoder.dispatch class=algorithm-steps>
-    1. If any of the following requirements are unmet, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If any of the following requirements are unmet, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         <div class=validusage>
             1. [=map/For each=] |key| &rarr; |value| of |inputs|:
                 1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must [=map/exist=].
@@ -1471,7 +1471,7 @@ partial interface MLCommandEncoder {
         1. Set the output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |value|.
     1. Issue a compute request of |graph|.{{MLGraph/[[implementation]]}}.
     1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
-        1. Throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. Throw an "{{OperationError}}" {{DOMException}}.
     1. Return {{undefined}}.
   </div>
 </details>
@@ -1497,7 +1497,7 @@ partial interface MLCommandEncoder {
     The {{MLCommandEncoder/finish(descriptor)}} method steps are:
   </summary>
   <div algorithm=mlcommandencoder.finish class=algorithm-steps>
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Make a request to the underlying platform to complete the recording of the ML workload, given |descriptor|.
             <div class="note">
                 See the related <a href="https://www.w3.org/TR/webgpu/#dom-gpucommandencoder-finish">WebGPU steps</a>.
@@ -1578,8 +1578,8 @@ Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGr
     The [=new=] {{MLGraphBuilder(context)}} constructor steps are:
   </summary>
   <div class=algorithm-steps>
-    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, throw a "{{SecurityError}}" {{DOMException}} and abort these steps.
-    1. If <a>validating MLContext</a> given |context| return `false`, throw a "{{TypeError}}" and abort these steps.
+    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
+    1. If <a>validating MLContext</a> given |context| returns `false`, then [=exception/throw=] a "{{TypeError}}" and abort these steps.
     1. Set {{MLGraphBuilder/[[context]]}} to |context|.
   </div>
 </details>
@@ -1602,13 +1602,13 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
-    1. If |name| is empty, then [=exception/throw=] a {{TypeError}} and stop.
+    1. If |name| is empty, then [=exception/throw=] a {{TypeError}}.
     1. [=Assert=]: the type of |descriptor| is {{MLOperandDescriptor}}.
     1. [=Assert=]: If |descriptor|.{{MLOperandDescriptor/dimensions}} does not [=map/exist=], then |descriptor| defines a scalar input.
     1. If |descriptor|.{{MLOperandDescriptor/dimensions}} [=map/exists=]:
-        1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return `false`, throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return `false`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
         1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
         1. Make a request to the underlying platform to:
@@ -1634,7 +1634,7 @@ Build a composed graph up to a given output operand into a computational graph, 
     1. Let |promise| be [=a new promise=].
     1. Return |promise| and run the following steps [=in parallel=].
     1. Return the result of invoking {{MLGraphBuilder/buildSync(outputs)}} given |outputs|.
-        1. If that throws, re-throw the error and stop.
+        1. If that [=exception/throws=], re-[=exception/throw=] the error.
   </div>
 </details>
 
@@ -1648,12 +1648,12 @@ Build a composed graph up to a given output operand into a computational graph, 
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
     1. [=Assert=]: the type of |outputs| is {{MLNamedOperands}}.
-    1. If |outputs| is empty, then [=exception/throw=] a {{TypeError}} and stop.
+    1. If |outputs| is empty, then [=exception/throw=] a {{TypeError}}.
     1. [=map/For each=] |element| in |outputs|:
         1. [=Assert=]: the type of |element|.key is [=string=].
-        1. If |element|.key is empty, then [=exception/throw=] a {{TypeError}} and stop.
+        1. If |element|.key is empty, then [=exception/throw=] a {{TypeError}}.
         1. [=Assert=]: the type of |element|.value is {{MLOperand}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |graph| be a new {{MLGraph}}:
             1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
         1. Make a request to the underlying platform to:
@@ -1661,9 +1661,9 @@ Build a composed graph up to a given output operand into a computational graph, 
             1. Store a reference to |graphImpl| in |graph|.{{MLGraph/[[implementation]]}}.
         1. Make a request to the underlying platform to initialize the graph:
             1. [=map/For each=] |operand| in |outputs|:
-                1. If <a>validating MLOperand</a> given |operand| and [=this=] returns `false`, then [=exception/throw=] a {{TypeError}} and stop.
+                1. If <a>validating MLOperand</a> given |operand| and [=this=] returns `false`, then [=exception/throw=] a {{TypeError}}.
                 1. If |operand| was created as an input by the underlying platform:
-                    1. If |operand|.{{MLOperand/[[name]]}}] is not unique for |graphImpl|, then [=exception/throw=] a {{TypeError}} and stop.
+                    1. If |operand|.{{MLOperand/[[name]]}}] is not unique for |graphImpl|, then [=exception/throw=] a {{TypeError}}.
                     1. Add |operand|.{{MLOperand/[[descriptor]]}} to |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}].
                 1. If |operand| was created as a constant by the underlying platform:
                     1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
@@ -1693,10 +1693,10 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
     1. [=Assert=]: the type of |descriptor| is {{MLOperandDescriptor}}.
-    1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return `false`, throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If <a>validating buffer with descriptor</a> given |bufferView| and |descriptor| return `false`, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return `false`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If <a>validating buffer with descriptor</a> given |bufferView| and |descriptor| returns `false`, then [=exception/throw=] a {{TypeError}}.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
         1. Let |bytes| be the result of invoking the [[=get a copy of the bytes held by the buffer source=]] steps given |bufferView|.
         1. Make a request to the underlying platform to:
@@ -1724,15 +1724,15 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
-    1. If |value| is not a [=number=], then [=exception/throw=] a {{TypeError}} and stop.
-    1. Otherwise, if |type| is not one of {{MLOperandType}}, then  [=exception/throw=] a {{TypeError}} and stop.
+    1. If |value| is not a [=number=], then [=exception/throw=] a {{TypeError}}.
+    1. Otherwise, if |type| is not one of {{MLOperandType}}, then  [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
         1. Set |descriptor|.{{MLOperandDescriptor/type}} to |type|.
         1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to `undefined`.
             <div class="note">
                 In the case of a scalar constant, |descriptor|.{{MLOperandDescriptor/dimensions}} is ignored.
             </div>
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
             1. Create an [=implementation-defined=] platform operand |constantImpl| to represent a constant, given |descriptor|.
@@ -1799,11 +1799,11 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=batchnorm class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |mean| and |variance| is {{MLOperand}}.
-    1. If |mean|.{{MLOperand/[[descriptor]]}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not equal with |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} from which the dimension represented by |options|.axis is removed, then  [=exception/throw=] a {{TypeError}} and abort these steps.
-    1. If |options|.axis is not a number between 0 and the rank of |input|, then [=exception/throw=] a {{TypeError}} and abort these steps.
+    1. If |mean|.{{MLOperand/[[descriptor]]}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not equal with |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} from which the dimension represented by |options|.axis is removed, then  [=exception/throw=] a {{TypeError}}.
+    1. If |options|.axis is not a number between 0 and the rank of |input|, then [=exception/throw=] a {{TypeError}}.
     1. If |input| is a 4-D tensor of the *"nchw"* layout, set |options|.axis to 1.
     1. If |input| is a 4-D tensor of the *"nhwc"* layout, set |options|.axis to 3.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|, that may use the same underlying data as |input|.
         1. Make a request to the underlying platform to initialize the batch normalization:
             1. Create an [=implementation-defined=] platform operator |batchNormImpl| for this method, given |input|, |mean|, |variance| and |options|.
@@ -1903,8 +1903,8 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=clamp class=algorithm-steps>
     1. [=Assert=]: the type of |operand| is {{MLOperand}}.
-    1. If running the <a>check clamp options</a> steps given |options| returns `false`, then [=exception/throw=] a {{TypeError}} and abort these steps.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If running the <a>check clamp options</a> steps given |options| returns `false`, then [=exception/throw=] a {{TypeError}}.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |operand|.
         1. Make a request to the underlying platform to:
             1. Create an [=implementation-defined=] platform operator |clampImpl| for this method, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}}.
@@ -1932,9 +1932,9 @@ partial interface MLGraphBuilder {
     The {{MLGraphBuilder/clamp(options)}} method steps are:
   </summary>
   <div algorithm=clamp-options class=algorithm-steps>
-    1. If running the <a>check clamp options</a> steps given |options| returns `false`, then [=exception/throw=] a {{TypeError}} and abort these steps.
+    1. If running the <a>check clamp options</a> steps given |options| returns `false`, then [=exception/throw=] a {{TypeError}}.
     1. Let |op| be the result of <a>creating an MLActivation</a> given [=this=],  `"clamp"` and |options|.
-        1. If that throws an error, re-throw the error and abort these steps.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
   </div>
 </details>
@@ -1970,7 +1970,7 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |axis| is `unsigned long`.
     1. [=Assert=]: the shape, i.e. {{MLOperandDescriptor/dimensions}}) of each operand in |inputs| is the same, except on the dimension given by |axis| on which they are concatenated.
     1. [=Assert=]: the {{MLOperandDescriptor/type}} of each operand in |inputs| is the same.
-    1. If any of the following steps fail, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If any of the following steps fail, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If |axis| is greater than or equal to the <a>rank</a> of |inputs|, fail.
         1. Let |desc| be |inputs|[0].{{MLOperand/[[descriptor]]}}.
         1. Let |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] be `0`.
@@ -1983,7 +1983,7 @@ partial interface MLGraphBuilder {
                 1. If |dim| is not equal to |axis| and if |inputs|[|index|].{{MLOperandDescriptor/dimensions}}[|dim|] is not equal to |inputs|[0].{{MLOperandDescriptor/dimensions}}[|dim|], fail.
                 1. If |inputs|[|dim|].{{MLOperandDescriptor/type}} is not equal to |inputs|[0].{{MLOperandDescriptor/type}}.
                 1. If |dim| is equal to |axis|, add to |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] the value of |inputs|[|index|].{{MLOperandDescriptor/dimensions}}[|dim|].
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
             1. Create an [=implementation-defined=] platform operator |concatImpl| for this method, given |inputs| and |axis|.
@@ -2124,32 +2124,32 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |input| and |filter| is {{MLOperand}}.
     1. Let |input_size| be the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. Let |filter_size| be the size of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-    1. If |input_size| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |filter_size| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If the type of |input| and |filter| is not the same, then [=exception/throw=] a {{TypeError}} and stop.
+    1. If |input_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |filter_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the type of |input| and |filter| is not the same, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to `« 0, 0, 0, 0 »`.
-    1. Else if |options|.{{MLConv2dOptions/padding}}.length is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Else if |options|.{{MLConv2dOptions/padding}}.length is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], set it to `« 1, 1 »`.
-    1. Else if |options|.{{MLConv2dOptions/strides}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}} and stop.
+    1. Else if |options|.{{MLConv2dOptions/strides}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
+    1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/dilations}} does not [=map/exist=], set it to `« 1, 1 »`.
-    1. Else if |options|.{{MLConv2dOptions/dilations}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
+    1. Else if |options|.{{MLConv2dOptions/dilations}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/autoPad}} does not [=map/exist=], set it to `"explicit"`.
-    1. If |options|.{{MLConv2dOptions/groups}} is 0, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |input_size| / |options|.{{MLConv2dOptions/groups}} is not equal to |filter_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. Else if |input_size| % |options|.{{MLConv2dOptions/groups}} is not 0, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |options|.{{MLConv2dOptions/groups}} is 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |input_size| / |options|.{{MLConv2dOptions/groups}} is not equal to |filter_size|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Else if |input_size| % |options|.{{MLConv2dOptions/groups}} is not 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConv2dOptions/bias}} is {{MLOperand}}.
-    1. If the length of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}} and stop.
+    1. If the length of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConv2dOptions/activation}} is {{MLActivation}}.
     1. Let |output_shape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
-    1. If |output_shape| is not the same as the shape of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |output_shape| is not the same as the shape of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |output_shape|.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
             1. Create an [=implementation-defined=] platform operator |conv2dImpl| for this method, given |options| and |filter|.
@@ -2299,35 +2299,35 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |input| and |filter| is {{MLOperand}}.
     1. Let |input_size| be the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. Let |filter_size| be the size of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-    1. If |input_size| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |filter_size| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If the type of |input| and |filter| is not the same, then [=exception/throw=] a {{TypeError}} and stop.
+    1. If |input_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |filter_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the type of |input| and |filter| is not the same, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to `« 0, 0, 0, 0 »`.
-    1. Else if |options|.{{MLConvTranspose2dOptions/padding}}.length is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Else if |options|.{{MLConvTranspose2dOptions/padding}}.length is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConvTranspose2dOptions/strides}} does not [=map/exist=], set it to `« 1, 1 »`.
-    1. Else if |options|.{{MLConvTranspose2dOptions/strides}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}} and stop.
+    1. Else if |options|.{{MLConvTranspose2dOptions/strides}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
+    1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/dilations}} does not [=map/exist=], set it to `« 1, 1 »`.
-    1. Else if |options|.{{MLConvTranspose2dOptions/dilations}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
+    1. Else if |options|.{{MLConvTranspose2dOptions/dilations}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} does not [=map/exist=], set it to `« 0, 0 »`.
-    1. Else if |options|.{{MLConvTranspose2dOptions/outputPadding}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
+    1. Else if |options|.{{MLConvTranspose2dOptions/outputPadding}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
-        1. If |options|.{{MLConvTranspose2dOptions/outputSizes}}.length is not `2`, then [=exception/throw=] a {{TypeError}} and stop.
-        1. If the elements of |options|.{{MLConvTranspose2dOptions/outputSizes}} are not smaller than the elements at the same dimension (index) for |options|.{{MLConvTranspose2dOptions/strides}}, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |input_size| / |options|.{{MLConvTranspose2dOptions/groups}} is not equal to |filter_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. Else if |input_size| % |options|.{{MLConvTranspose2dOptions/groups}} is not 0, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLConvTranspose2dOptions/outputSizes}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
+        1. If the elements of |options|.{{MLConvTranspose2dOptions/outputSizes}} are not smaller than the elements at the same dimension (index) for |options|.{{MLConvTranspose2dOptions/strides}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |input_size| / |options|.{{MLConvTranspose2dOptions/groups}} is not equal to |filter_size|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Else if |input_size| % |options|.{{MLConvTranspose2dOptions/groups}} is not 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConvTranspose2dOptions/bias}} is {{MLOperand}}.
-    1. If the length of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}} and stop.
+    1. If the length of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConvTranspose2dOptions/activation}} is {{MLActivation}}.
     1. Let |output_shape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
-    1. If |output_shape| is not the same as the shape of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |output_shape| is not the same as the shape of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |output_shape|.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
             1. Create an [=implementation-defined=] platform operator |convTranspose2dImpl| for this method, given |options| and |filter|.
@@ -2387,12 +2387,12 @@ partial interface MLGraphBuilder {
   <div algorithm=binary class=algorithm-steps>
     1. [=Assert=]: |op| is one of "add", "sub", "mul", "div", "max", "min", "pow".
     1. [=Assert=]: the type of |a| and |b| is {{MLOperand}}.
-    1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
     1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If that throws an error, re-throw the error and stop.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the binary operation |op|, given |a| and |b|.
@@ -2412,7 +2412,7 @@ partial interface MLGraphBuilder {
   <div algorithm=broadcast-shape class=algorithm-steps>
     1. [=Assert=]: The type of |shape1| and |shape2| is `sequence of unsigned long`.
     1. Let |output| be the result of invoking the [=implementation-defined=] shape broadcast on |shape1| and |shape2|.
-            1. If that fails, throw a "{{DataError}}" {{DOMException}} and stop.
+            1. If that fails, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Return |output|.
         <div class = "note">
         The most common implementation is that two shapes are compatible, when each of their corresponding dimensions are equal, or one of them is 1. The output shape consists of the maximum of the corresponding dimensions.
@@ -2427,37 +2427,37 @@ partial interface MLGraphBuilder {
   <div class=algorithm-steps>
     The {{MLGraphBuilder/add(a, b)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "add", |a| and |b|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/sub(a, b)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "sub", |a| and |b|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/mul(a, b)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "mul", |a| and |b|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/div(a, b)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "div", |a| and |b|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/max(a, b)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "max", |a| and |b|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/min(a, b)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "min", |a| and |b|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/pow(a, b)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "pow", |a| and |b|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 </div>
 </details>
@@ -2507,7 +2507,7 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "exp", "floor", "log", "neg", "sin", "tan".
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the unary operation |op|.
@@ -2527,47 +2527,47 @@ partial interface MLGraphBuilder {
   <div class=algorithm-steps>
     The {{MLGraphBuilder/abs(input)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "abs" and |input|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/ceil(input)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "ceil" and |input|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/cos(input)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "cos" and |input|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/exp(input)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "exp" and |input|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/floor(input)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "floor" and |input|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/log(input)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "log" and |input|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/neg(input)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "neg" and |input|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/sin(input)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "sin" and |input|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/tan(input)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "tan" and |input|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
   </div>
 </details>
@@ -2622,7 +2622,7 @@ partial interface MLGraphBuilder {
     The {{MLGraphBuilder/elu(input, options)}} method steps are:
   </summary>
   <div algorithm=elu-input-options class=algorithm-steps>
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the ELU operation, given |options|.
@@ -2712,18 +2712,18 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |a| and |b| is {{MLOperand}}.
     1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the size of |shapeA|.
     1. Let |shapeB| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the size of |shapeB|.
-    1. If |sizeA| is not `2` or |sizeB| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |sizeA| is not `2` or |sizeB| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGemmOptions/aTranspose}} is `true`, then let |shapeA| be the reverse array of |shapeA|.
     1. If |options|.{{MLGemmOptions/bTranspose}} is `true`, then let |shapeB| be the reverse array of |shapeB|.
-    1. If |shapeA|[1] is not equal to |shapeB|[0], then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLGemmOptions/c}} [=map/exists=] and is not unidirectionally broadcastable to the shape [|shapeA|[0], |shapeB|[1]] according to the [[!numpy-broadcasting-rule]], then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |shapeA|[1] is not equal to |shapeB|[0], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLGemmOptions/c}} [=map/exists=] and is not unidirectionally broadcastable to the shape [|shapeA|[0], |shapeB|[1]] according to the [[!numpy-broadcasting-rule]], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         <div class="note">
             Type compatibility between |a|, |b| and |options|.{{MLGemmOptions/c}} can be also checked.
         </div>
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [|shapeA|[0], |shapeB|[1]].
     1. Set |desc|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the GEMM operation, given |options|.
@@ -2841,23 +2841,23 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=gru class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
-    1. If the rank of |input| or |weight| is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If the rank of |weight| or |recurrentWeight| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the rank of |input| or |weight| is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the rank of |weight| or |recurrentWeight| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=].
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=].
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=].
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLGruOptions/direction}} is not one of {{MLRecurrentNetworkDirection}}, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLGruOptions/layout}} is not one of {{MLGruWeightLayout}}, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and is not an array of {{MLActivation}} objects with size `2`, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |steps| is not a [=number=] or it is `0`, then [=exception/throw=] a {{TypeError}} and stop.
+        1. If its rank is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLGruOptions/direction}} is not one of {{MLRecurrentNetworkDirection}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLGruOptions/layout}} is not one of {{MLGruWeightLayout}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and is not an array of {{MLActivation}} objects with size `2`, then [=exception/throw=] a {{TypeError}}.
+    1. If |steps| is not a [=number=] or it is `0`, then [=exception/throw=] a {{TypeError}}.
     1. Let |output| be an empty sequence of {{MLOperand}} objects.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for `"gru"`, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options| as parameters.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
@@ -2991,20 +2991,20 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=grucell class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
-    1. If the rank of |input| or |weight| is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If the rank of |weight| or |recurrentWeight| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the rank of |input| or |weight| is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the rank of |weight| or |recurrentWeight| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If its rank is not `1`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLGruOptions/layout}} is not one of {{MLGruWeightLayout}}, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and is not an array of {{MLActivation}} objects with size `2`, then [=exception/throw=] a {{TypeError}} and stop.
+        1. If its rank is not `1`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLGruOptions/layout}} is not one of {{MLGruWeightLayout}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and is not an array of {{MLActivation}} objects with size `2`, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |input|.{{MLOperandDescriptor/dimensions}}[0], |hiddenSize| ].
     1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for `"gruCell"`, given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
@@ -3180,7 +3180,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=hardsigmoid-input-options class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the hard sigmoid operation, given |options|.
@@ -3208,7 +3208,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=hard-sigmoid-options class=algorithm-steps>
     1. Let |op| be the result of <a>creating an MLActivation</a> given [=this=], `"hardSigmoid"` and |options|.
-        1. If that throws an error, re-throw the error and abort these steps.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
   </div>
 </details>
@@ -3258,7 +3258,7 @@ partial interface MLGraphBuilder {
     The {{MLGraphBuilder/hardSwish(input)}} method steps are:
   </summary>
   <div algorithm=hardswish-input class=algorithm-steps>
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the hard-swish operation.
@@ -3286,7 +3286,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=hardswish class=algorithm-steps>
     1. Let |op| be the result of <a>creating an MLActivation</a> given [=this=] and `"hardSwish"`.
-        1. If that throws an error, re-throw the error and abort these steps.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
  </div>
 </details>
@@ -3342,13 +3342,13 @@ The {{MLInstanceNormalizationOptions}} members are:
   </summary>
   <div algorithm=instancenorm class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If the rank of |input| is not `4`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the rank of |input| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. [=Assert=]:  the type of |options|.{{MLInstanceNormalizationOptions/scale}} is {{MLOperand}}.
-    1. If the rank of |options|.{{MLInstanceNormalizationOptions/scale}} is not equal to the size of the channel dimension of |input|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the rank of |options|.{{MLInstanceNormalizationOptions/scale}} is not equal to the size of the channel dimension of |input|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. [=Assert=]: the type of |options|.{{MLInstanceNormalizationOptions/bias}} is  {{MLOperand}}.
-    1. If the rank of |options|.{{MLInstanceNormalizationOptions/bias}} is not equal to the size of the channel dimension of |input|, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. Otherwise if |options|.{{MLInstanceNormalizationOptions/layout}} is not one of {{MLInputOperandLayout}}, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If the rank of |options|.{{MLInstanceNormalizationOptions/bias}} is not equal to the size of the channel dimension of |input|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Otherwise if |options|.{{MLInstanceNormalizationOptions/layout}} is not one of {{MLInputOperandLayout}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the instance normalization operation, given |options|.
@@ -3451,7 +3451,7 @@ partial interface MLGraphBuilder {
     The {{MLGraphBuilder/leakyRelu(input, options)}} method steps are:
   </summary>
   <div algorithm=leakyrelu-input-options class=algorithm-steps>
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the Leaky RELU operation, given |options|.
@@ -3479,7 +3479,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=leakyrelu-options class=algorithm-steps>
     1. Let |op| be the result of <a>creating an MLActivation</a> given [=this=], `"leakyRelu"` and |options|.
-        1. If that throws an error, re-throw the error and abort these steps.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
   </div>
 </details>
@@ -3542,7 +3542,7 @@ partial interface MLGraphBuilder {
     The {{MLGraphBuilder/linear(input, options)}} method steps are:
   </summary>
   <div algorithm=linear-input-options class=algorithm-steps>
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the linear operation, given |options|.
@@ -3570,7 +3570,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=linear-options class=algorithm-steps>
     1. Let |op| be the result of <a>creating an MLActivation</a> given [=this=],  `"linear"` and |options|.
-        1. If that throws an error, re-throw the error and abort these steps.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
   </div>
 </details>
@@ -3659,46 +3659,46 @@ partial interface MLGraphBuilder {
     The {{MLGraphBuilder/lstm(input, weight, recurrentWeight, steps, hiddenSize, options)}} steps are:
   </summary>
   <div algorithm=lstm class=algorithm-steps>
-    1. If |options|.{{MLLstmOptions/direction}} is not one of {{MLRecurrentNetworkDirection}}, then [=exception/throw=] a {{TypeError}} and stop.
+    1. If |options|.{{MLLstmOptions/direction}} is not one of {{MLRecurrentNetworkDirection}}, then [=exception/throw=] a {{TypeError}}.
     1. Let |num_directions| be `1` if |options|.{{MLLstmOptions/direction}} is `"forward"`, or otherwise let it be `2`.
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
         <div class="note">
             The shape of |input|, |weight| or |recurrentWeight| could be also checked here.
         </div>
-    1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not equal to |steps|, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not equal to |steps|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |batch_size| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
     1. If |options|.{{MLLstmOptions/bias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If its rank is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batch_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[2] is not |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If its rank is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batch_size|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[2] is not |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `3`, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batch_size|, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[2] is not |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLLstmOptions/layout}} is not one of {{MLLstmWeightLayout}}, then [=exception/throw=] a {{TypeError}} and stop.
+        1. If its rank is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batch_size|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[2] is not |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLLstmOptions/layout}} is not one of {{MLLstmWeightLayout}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
-        1. If it is not an array of size `3`, then [=exception/throw=] a {{TypeError}} and stop.
+        1. If it is not an array of size `3`, then [=exception/throw=] a {{TypeError}}.
         1. [=Assert=]: the type of its elements is {{MLActivation}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |desc| a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |nume_directions|, |batch_size|, |hiddenSize| ].
         1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
@@ -3860,28 +3860,28 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=lstmcell class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |weight|, |recurrentWeight|, |hiddenState| and |cellState| is {{MLOperand}}.
-    1. If the rank of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not `2`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the rank of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |batch_size| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0].
     1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmCellOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If its rank is not `1`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmCellOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 4 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmCellOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 4 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If its rank is not `1`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmCellOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 4 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `1`, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If |options|.{{MLLstmCellOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 3 * |hiddenSize|, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If |options|.{{MLLstmCellOptions/layout}} is not one of {{MLLstmWeightLayout}}, then [=exception/throw=] a {{TypeError}} and stop.
+        1. If its rank is not `1`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmCellOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not 3 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLLstmCellOptions/layout}} is not one of {{MLLstmWeightLayout}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=]:
-        1. If it is not an array of size `3`, then [=exception/throw=] a {{TypeError}} and stop.
+        1. If it is not an array of size `3`, then [=exception/throw=] a {{TypeError}}.
         1. [=Assert=]: the type of its elements is {{MLActivation}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |batch_size|, |hiddenSize| ].
     1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output0| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Let |output1| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Let |output| be the array [ |output0|, |output1| ].
@@ -4065,7 +4065,7 @@ partial interface MLGraphBuilder {
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate matmul output sizes</a> steps given |a| and |b|.
     1. Set |desc|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the matrix multiplication operation.
@@ -4147,11 +4147,11 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=pad class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If |beginningPadding| or |endingPadding| is not a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |options|.{{MLPadOptions/mode}} is not one of {{MLPaddingMode}}, then [=exception/throw=] a {{TypeError}} and stop.
+    1. If |beginningPadding| or |endingPadding| is not a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLPadOptions/mode}} is not one of {{MLPaddingMode}}, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate padding output sizes</a> steps given |input|, |beginningPadding| and |endingPadding|.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the padding operation, given |beginningPadding|, |endingPadding| and |options|.
@@ -4328,18 +4328,18 @@ partial interface MLGraphBuilder {
   <div algorithm=create-pooling-operation class=algorithm-steps>
     1. [=Assert=]: |op| is one of "averagePool2d", "l2Pool2d", "maxPool2d".
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If the length of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the length of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} does not [=map/exist=], set |options|.{{MLPool2dOptions/padding}} to `« 0, 0, 0, 0 »`.
-    1. If the length of |padding|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the length of |padding|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLPool2dOptions/strides}} does not [=map/exist=], set |options|.{{MLPool2dOptions/strides}} to `« 1, 1 »`.
-    1. If the length of |options|.{{MLPool2dOptions/strides}} is not 2, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If any value in |options|.{{MLPool2dOptions/strides}} is not greater than 0, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the length of |options|.{{MLPool2dOptions/strides}} is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If any value in |options|.{{MLPool2dOptions/strides}} is not greater than 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLPool2dOptions/dilations}} does not [=map/exist=], set |options|.{{MLPool2dOptions/dilations}} to `« 1, 1 »`.
-    1. If the length of |options|.{{MLPool2dOptions/dilations}} is not 2, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the length of |options|.{{MLPool2dOptions/dilations}} is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLPool2dOptions/autoPad}} is not `"explicit"`, set |options|.{{MLPool2dOptions/padding}} to `« 0, 0, 0, 0 »`.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Make a request to the underlying platform to:
             1. Calculate the output dimensions given |input| and |options|. Let |desc|.{{MLOperandDescriptor/dimensions}} be the result of that.
             1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
@@ -4360,21 +4360,21 @@ partial interface MLGraphBuilder {
   <div algorithm=averagePool2d class=algorithm-steps>
     The {{MLGraphBuilder/averagePool2d(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation=] given `"averagePool2d"`, |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
   </div>
 
   <div algorithm=l2Pool2d class=algorithm-steps>
     The {{MLGraphBuilder/l2Pool2d(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation=] given `"l2Pool2d"`, |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
   </div>
 
   <div algorithm=maxPool2d class=algorithm-steps>
     The {{MLGraphBuilder/maxPool2d(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation=] given `"maxPool2d"`, |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
   </div>
 </details>
@@ -4405,8 +4405,8 @@ partial interface MLGraphBuilder {
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
     1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |slope|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If that throws an error, re-throw the error and stop.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the PreLU operation, given |slope|.
@@ -4489,7 +4489,7 @@ partial interface MLGraphBuilder {
   <div algorithm=reduce class=algorithm-steps>
     1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the |op| reduce operation, given |options|.
@@ -4508,52 +4508,52 @@ partial interface MLGraphBuilder {
   </summary>
     The {{MLGraphBuilder/reduceL1(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceL1", |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/reduceL2(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceL2", |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/reduceLogSum(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceLogSum", |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/reduceLogSumExp(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceLogSumExp", |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/reduceMax(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceMax", |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/reduceMean(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceMean", |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/reduceMin(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceMin", |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/reduceProduct(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceProduct", |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/reduceSum(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceSum", |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 
     The {{MLGraphBuilder/reduceSumSquare(input, options)}} steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceSumSquare", |input| and |options|.
-            1. If that throws an error, then re-throw the error and stop.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
 </details>
 
@@ -4596,7 +4596,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=relu-input class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the ReLU operation.
@@ -4624,7 +4624,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=relu class=algorithm-steps>
     1. Let |op| be the result of <a>creating an MLActivation</a> given [=this=] and `"relu"`.
-        1. If that throws an error, re-throw the error and abort these steps.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
   </div>
 </details>
@@ -4707,7 +4707,7 @@ partial interface MLGraphBuilder {
     1. For |index| between `0` and the rank of |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}:
         1. Let |inputSize| be the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|index|].
         1. Let |outputSize| be |inputSize| multiplied by |options|.{{MLResample2dOptions/scales}}.
-            1. If that fails or |outputSize| is not a positive [=number=], then throw a "{{DataError}}" {{DOMException}} and stop.
+            1. If that fails or |outputSize| is not a positive [=number=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|index|] to |outputSize|.
     1. Return |desc|.
   </div>
@@ -4718,11 +4718,11 @@ partial interface MLGraphBuilder {
     The {{MLGraphBuilder/resample2d(input, options)}} steps are:
   </summary>
   <div algorithm=resample2d class=algorithm-steps>
-    1. Check if the input is a 4-dimensional tensor: if the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not `4`, throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If running the <a>check resample options</a> steps given |options| returns `false`, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. Check if the input is a 4-dimensional tensor: if the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If running the <a>check resample options</a> steps given |options| returns `false`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| be the result of running the <a>resample output sizes</a> steps given |options|.
-        1. If that throws an error, re-throw the error and stop.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the resample 2D operation, given |options|.
@@ -4767,15 +4767,15 @@ partial interface MLGraphBuilder {
     1. If |newShape| is a scalar [=number=], set |outputShape| to `«  1  »`.
     1. Otherwise, if |newShape| is an array of {{unsigned long}}:
         1. If the size of |newShape| is `0`, set |outputShape| to `«  1  »` (reshaping to scalar).
-        1. If |newShape| contains more than one `null` value, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If any value in |newShape| is `0`, then throw a "{{DataError}}" {{DOMException}} and stop.
+        1. If |newShape| contains more than one `null` value, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If any value in |newShape| is `0`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Let |inputElementCount| be the product of all elements in |inputs|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
         1. If |newShape| contains a `null` value, set that value to |inputElementCount| divided by the product of all other values in |newShape|.
-            1. If that value is too large for {{unsigned long}}, then throw a "{{DataError}}" {{DOMException}} and stop.
-        1. If product of all values in |newShape| is not equal to |inputElementCount|, then throw a "{{DataError}}" {{DOMException}} and stop.
+            1. If that value is too large for {{unsigned long}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |newShape|.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the reshape operation.
@@ -4830,7 +4830,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=sigmoid-input class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the sigmoid operation.
@@ -4858,7 +4858,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=sigmoid class=algorithm-steps>
     1. Let |op| be the result of <a>creating an MLActivation</a> given [=this=] and `"sigmoid"`.
-        1. If that throws an error, re-throw the error and abort these steps.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
   </div>
 </details>
@@ -4885,12 +4885,12 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=slice class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If |starts| or |sizes| is not a sequence of {{long}}, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If |sizes|.size is 0, then [=exception/throw=] a {{TypeError}} and stop.
+    1. If |starts| or |sizes| is not a sequence of {{long}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |sizes|.size is 0, then [=exception/throw=] a {{TypeError}}.
         <div class="note">
             Further validation of |starts| and |sizes| given |input| is left [=implementation-defined=].
         </div>
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the slice operation, given |starts| and |sizes|.
@@ -4949,8 +4949,8 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=softmax-input class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If the length of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 2, then throw a "{{DataError}}" {{DOMException}} and stop.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If the length of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the softmax operation.
@@ -4977,7 +4977,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=softmax class=algorithm-steps>
     1. Let |op| be the result of <a>creating an MLActivation</a> given  and  `"softmax"`.
-        1. If that throws an error, re-throw the error and abort these steps.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
   </div>
 </details>
@@ -5037,7 +5037,7 @@ partial interface MLGraphBuilder {
     The {{MLGraphBuilder/softplus(input, options)}} method steps are:
   </summary>
   <div algorithm=softplus-input-options class=algorithm-steps>
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the softplus operation, given |options|.
@@ -5065,7 +5065,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=softplus-options class=algorithm-steps>
     1. Let |op| be the result of <a>creating an MLActivation</a> given [=this=], `"softplus"` and |options|.
-        1. If that throws an error, re-throw the error and abort these steps.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
   </div>
 </details>
@@ -5108,7 +5108,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=softsign-input class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the softsign operation, given |options|.
@@ -5135,7 +5135,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=softsign class=algorithm-steps>
     1. Let |op| be the result of <a>creating an MLActivation</a> given [=this=] and `"softsign"`.
-        1. If that throws an error, re-throw the error and abort these steps.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
   </div>
 </details>
@@ -5177,8 +5177,8 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=split class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If |splits| is not {{unsigned long}} or a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If |splits| is not {{unsigned long}} or a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}}.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the split operation, given |splits| and |options|.
@@ -5255,8 +5255,8 @@ partial interface MLGraphBuilder {
         1. Let |dimensions| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
         1. For |index| between 0 and the size of |options|.{{MLSqueezeOptions/axes}}:
             1. Let |oneDimIndex| be |options|.{{MLSqueezeOptions/axes}}[|index|].
-            1. If |dimensions|[|oneDimIndex|] is not `1`, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+            1. If |dimensions|[|oneDimIndex|] is not `1`, then [=exception/throw=] a {{TypeError}}.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the squeeze operation, given |options|.
@@ -5309,7 +5309,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=tanh-input class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the hyperbolic tangent operation.
@@ -5337,7 +5337,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=tanh class=algorithm-steps>
     1. Let |op| be the result of <a>creating an MLActivation</a> given [=this=] and `"tanh"`.
-        1. If that throws an error, re-throw the error and abort these steps.
+        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
   </div>
 </details>
@@ -5380,11 +5380,11 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
-        1. If |options|.{{MLTransposeOptions/permutation}} is not a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}} and stop.
-        1. If the rank of |options|.{{MLTransposeOptions/permutation}} is not the same as the rank of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a {{TypeError}} and stop.
-        1. If the values in |options|.{{MLTransposeOptions/permutation}} are not between `0` and the rank of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} minus `1`, then [=exception/throw=] a {{TypeError}} and stop.
-        1. If the values in |options|.{{MLTransposeOptions/permutation}} contain duplicate value, then [=exception/throw=] a {{TypeError}} and stop.
-    1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
+        1. If |options|.{{MLTransposeOptions/permutation}} is not a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}}.
+        1. If the rank of |options|.{{MLTransposeOptions/permutation}} is not the same as the rank of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a {{TypeError}}.
+        1. If the values in |options|.{{MLTransposeOptions/permutation}} are not between `0` and the rank of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} minus `1`, then [=exception/throw=] a {{TypeError}}.
+        1. If the values in |options|.{{MLTransposeOptions/permutation}} contain duplicate value, then [=exception/throw=] a {{TypeError}}.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the transpose operation, given |options|.
