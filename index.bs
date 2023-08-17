@@ -1005,7 +1005,7 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |operand|.{{MLOperand/[[builder]]}} is {{MLGraphBuilder}}.
-    1. If |builder| [=map/exists=]] and is not equal to |operand|.{{MLOperand/[[builder]]}}, return `false`.
+    1. If |builder| is not equal to |operand|.{{MLOperand/[[builder]]}}, return `false`.
     1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
     1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and invoking <a>check dimensions</a> given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/type}} returns `false`, then return `false`.
     1. Return `true`.
@@ -1799,7 +1799,6 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=batchnorm class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |mean| and |variance| is {{MLOperand}}.
-    1. [=Assert=]: the type of |mean| is
     1. If |mean|.{{MLOperand/[[descriptor]]}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not equal with |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} from which the dimension represented by |options|.axis is removed, then  [=exception/throw=] a {{TypeError}} and abort these steps.
     1. If |options|.axis is not a number between 0 and the rank of |input|, then [=exception/throw=] a {{TypeError}} and abort these steps.
     1. If |input| is a 4-D tensor of the *"nchw"* layout, set |options|.axis to 1.
@@ -2507,7 +2506,6 @@ partial interface MLGraphBuilder {
   <div algorithm=unary class=algorithm-steps>
     1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "exp", "floor", "log", "neg", "sin", "tan".
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. Let |kind| be `"output"`.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
@@ -2616,7 +2614,7 @@ partial interface MLGraphBuilder {
             - *alpha*: a {{float}} scalar multiplier, default to 1.
 
     **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
 <details open>
@@ -3162,7 +3160,7 @@ partial interface MLGraphBuilder {
          The default value is `0.2`.
     : <dfn>beta</dfn>
     ::
-         A {{float}} point scalar addition.
+         A {{float}} scalar addition.
          The default value is `0.5`.
 </dl>
 
@@ -3175,8 +3173,13 @@ partial interface MLGraphBuilder {
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
-<div algorithm=hardsigmoid-input-options class=algorithm-steps>
+
+<details open>
+  <summary>
     The {{MLGraphBuilder/hardSigmoid(input, options)}} method steps are:
+  </summary>
+  <div algorithm=hardsigmoid-input-options class=algorithm-steps>
+    1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. If any of the following sub-steps fail, throw an "{{OperationError}}" {{DOMException}} and stop.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
@@ -3187,7 +3190,8 @@ partial interface MLGraphBuilder {
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
     1. Return |output|.
-</div>
+  </div>
+</details>
 
 #### The {{MLGraphBuilder/hardSigmoid(options)}} method #### {#api-mlgraphbuilder-hardsigmoid-options}
 <div>
@@ -4324,14 +4328,14 @@ partial interface MLGraphBuilder {
   <div algorithm=create-pooling-operation class=algorithm-steps>
     1. [=Assert=]: |op| is one of "averagePool2d", "l2Pool2d", "maxPool2d".
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If the length of of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the length of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} does not [=map/exist=], set |options|.{{MLPool2dOptions/padding}} to `« 0, 0, 0, 0 »`.
-    1. If the length of of |padding|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the length of |padding|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 4, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |options|.{{MLPool2dOptions/strides}} does not [=map/exist=], set |options|.{{MLPool2dOptions/strides}} to `« 1, 1 »`.
-    1. If the length of of |options|.{{MLPool2dOptions/strides}} is not 2, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the length of |options|.{{MLPool2dOptions/strides}} is not 2, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If any value in |options|.{{MLPool2dOptions/strides}} is not greater than 0, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |options|.{{MLPool2dOptions/dilations}} does not [=map/exist=], set |options|.{{MLPool2dOptions/dilations}} to `« 1, 1 »`.
-    1. If the length of of |options|.{{MLPool2dOptions/dilations}} is not 2, then throw a "{{DataError}}" {{DOMException}} and stop.
+    1. If the length of |options|.{{MLPool2dOptions/dilations}} is not 2, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then throw a "{{DataError}}" {{DOMException}} and stop.
     1. If |options|.{{MLPool2dOptions/autoPad}} is not `"explicit"`, set |options|.{{MLPool2dOptions/padding}} to `« 0, 0, 0, 0 »`.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
@@ -4389,7 +4393,7 @@ partial interface MLGraphBuilder {
         - *slope*: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or unidirectionally broadcastable to the shape of input tensor *input* according to [[!numpy-broadcasting-rule]].
 
     **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *x*.
+        - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
 <details open>
