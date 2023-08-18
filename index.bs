@@ -950,7 +950,7 @@ interface MLOperand {};
 
 To get the <dfn for="MLOperand">rank</dfn> of an {{MLOperand}} |operand|, run the following steps:
 <div algorithm=rank class=algorithm-steps>
-    1. Return the size of |operand|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Return the [=list/size=] of |operand|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
 </div>
 
 Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
@@ -992,8 +992,8 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
   </summary>
   <div class=algorithm-steps>
     1. If |dimensions| is not an array of positive numbers, return `false`;
-    1. If |dimensions|.length is 0, return `false`.
-    1. If |dimensions|.length is too large to be supported by the implementation, return `false`.
+    1. If the [=list/size=] of |dimensions| is 0, return `false`.
+    1. If the [=list/size=] of |dimensions| is too large to be supported by the implementation, return `false`.
     1. If any element of |dimensions| is not a positive number, or it is too large to be supported by the implementation given |type|, return `false`.
     1. Return `true`.
   </div>
@@ -1772,7 +1772,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>axis</dfn>
     ::
-        A {{long}} scalar. Specifies the index to the feature count dimension of the input shape for which the mean and variance values are. Its value must be in the range [0, N-1] where N is the rank of input tensor. The default value is 1, corresponding to the channel (*"c"*) dimension in the *"nchw"* data layout.
+        A {{long}} scalar. Specifies the index to the feature count dimension of the input shape for which the mean and variance values are. Its value must be in the range [0, N-1] where N is the [=rank=] of the input tensor. The default value is 1, corresponding to the channel (*"c"*) dimension in the *"nchw"* data layout.
 
     : <dfn>epsilon</dfn>
     ::
@@ -1800,7 +1800,7 @@ partial interface MLGraphBuilder {
   <div algorithm=batchnorm class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |mean| and |variance| is {{MLOperand}}.
     1. If |mean|.{{MLOperand/[[descriptor]]}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not equal with |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} from which the dimension represented by |options|.axis is removed, then  [=exception/throw=] a {{TypeError}}.
-    1. If |options|.axis is not a number between 0 and the rank of |input|, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.axis is not a number between 0 and the [=rank=] of |input|, then [=exception/throw=] a {{TypeError}}.
     1. If |input| is a 4-D tensor of the *"nchw"* layout, set |options|.axis to 1.
     1. If |input| is a 4-D tensor of the *"nhwc"* layout, set |options|.axis to 3.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
@@ -1950,7 +1950,7 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *inputs*: a sequence of {{MLOperand}}. All input tensors must have the
             same shape, except for the size of the dimension to concatenate on.
-        - *axis*: an {{unsigned long}} scalar. The axis that the inputs concatenate along. Its value must be in the range [0, N-1] where N is the rank of input tensors.
+        - *axis*: an {{unsigned long}} scalar. The axis that the inputs concatenate along. Its value must be in the range [0, N-1] where N is the [=rank=] of the input tensors.
 
     **Returns:** an {{MLOperand}}. The concatenated tensor of all the inputs along
     the *axis*. The output tensor has the same shape except on the dimension
@@ -1971,12 +1971,12 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the shape, i.e. {{MLOperandDescriptor/dimensions}}) of each operand in |inputs| is the same, except on the dimension given by |axis| on which they are concatenated.
     1. [=Assert=]: the {{MLOperandDescriptor/type}} of each operand in |inputs| is the same.
     1. If any of the following steps fail, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If |axis| is greater than or equal to the <a>rank</a> of |inputs|, fail.
+        1. If |axis| is greater than or equal to the [=rank=] of |inputs|, fail.
         1. Let |desc| be |inputs|[0].{{MLOperand/[[descriptor]]}}.
         1. Let |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] be `0`.
-        1. [=map/For each=] |index| between 0 and the <a>rank</a> of |inputs|:
+        1. [=map/For each=] |index| between 0 and the [=rank=] of |inputs|:
             1. If <a>validating MLOperand</a> given |inputs|[|index|] and [=this=] returns `false`, then fail.
-            1. [=map/For each=] |dim| between 0 and the <a>rank</a> of |inputs|[|index|]:
+            1. [=map/For each=] |dim| between 0 and the [=rank=] of |inputs|[|index|]:
                 <div class="note">
                     If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
                 </div>
@@ -2122,18 +2122,18 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=conv2d class=algorithm-steps>
     1. [=Assert=]: the type of |input| and |filter| is {{MLOperand}}.
-    1. Let |input_size| be the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-    1. Let |filter_size| be the size of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |input_size| be the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |filter_size| be the [=list/size=] of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. If |input_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |filter_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If the type of |input| and |filter| is not the same, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to `« 0, 0, 0, 0 »`.
-    1. Else if |options|.{{MLConv2dOptions/padding}}.length is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Else if the [=list/size=] of |options|.{{MLConv2dOptions/padding}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], set it to `« 1, 1 »`.
-    1. Else if |options|.{{MLConv2dOptions/strides}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
+    1. Else if the [=list/size=] of |options|.{{MLConv2dOptions/strides}} is not `2`, then [=exception/throw=] a {{TypeError}}.
     1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/dilations}} does not [=map/exist=], set it to `« 1, 1 »`.
-    1. Else if |options|.{{MLConv2dOptions/dilations}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
+    1. Else if the [=list/size=] of |options|.{{MLConv2dOptions/dilations}} is not `2`, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/autoPad}} does not [=map/exist=], set it to `"explicit"`.
     1. If |options|.{{MLConv2dOptions/groups}} is 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |input_size| / |options|.{{MLConv2dOptions/groups}} is not equal to |filter_size|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -2297,22 +2297,22 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=convtranspose2d class=algorithm-steps>
     1. [=Assert=]: the type of |input| and |filter| is {{MLOperand}}.
-    1. Let |input_size| be the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-    1. Let |filter_size| be the size of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |input_size| be the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |filter_size| be the [=list/size=] of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. If |input_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |filter_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If the type of |input| and |filter| is not the same, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to `« 0, 0, 0, 0 »`.
-    1. Else if |options|.{{MLConvTranspose2dOptions/padding}}.length is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Else if the [=list/size=] of |options|.{{MLConvTranspose2dOptions/padding}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConvTranspose2dOptions/strides}} does not [=map/exist=], set it to `« 1, 1 »`.
-    1. Else if |options|.{{MLConvTranspose2dOptions/strides}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
+    1. Else if the [=list/size=] of |options|.{{MLConvTranspose2dOptions/strides}} is not `2`, then [=exception/throw=] a {{TypeError}}.
     1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/dilations}} does not [=map/exist=], set it to `« 1, 1 »`.
-    1. Else if |options|.{{MLConvTranspose2dOptions/dilations}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
+    1. Else if the [=list/size=] of |options|.{{MLConvTranspose2dOptions/dilations}} is not `2`, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} does not [=map/exist=], set it to `« 0, 0 »`.
-    1. Else if |options|.{{MLConvTranspose2dOptions/outputPadding}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
+    1. Else if the [=list/size=] of |options|.{{MLConvTranspose2dOptions/outputPadding}} is not `2`, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
-        1. If |options|.{{MLConvTranspose2dOptions/outputSizes}}.length is not `2`, then [=exception/throw=] a {{TypeError}}.
+        1. If the [=list/size=] of |options|.{{MLConvTranspose2dOptions/outputSizes}} is not `2`, then [=exception/throw=] a {{TypeError}}.
         1. If the elements of |options|.{{MLConvTranspose2dOptions/outputSizes}} are not smaller than the elements at the same dimension (index) for |options|.{{MLConvTranspose2dOptions/strides}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |input_size| / |options|.{{MLConvTranspose2dOptions/groups}} is not equal to |filter_size|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Else if |input_size| % |options|.{{MLConvTranspose2dOptions/groups}} is not 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -2345,8 +2345,8 @@ partial interface MLGraphBuilder {
 Compute the element-wise binary addition, subtraction, multiplication, division, power, maximum and minimum of the two input tensors.
 
 The element-wise binary operations will be broadcasted according to
-[[!numpy-broadcasting-rule]]. The rank of the output tensor is the maximum
-rank of the input tensors. For each dimension of the output tensor, its size
+[[!numpy-broadcasting-rule]]. The [=rank=] of the output tensor is the maximum
+[=rank=] of the input tensors. For each dimension of the output tensor, its size
 is the maximum size along that dimension of the input tensors.
 
 <script type=idl>
@@ -2710,8 +2710,8 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=gemm class=algorithm-steps>
     1. [=Assert=]: the type of |a| and |b| is {{MLOperand}}.
-    1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the size of |shapeA|.
-    1. Let |shapeB| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the size of |shapeB|.
+    1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the [=list/size=] of |shapeA|.
+    1. Let |shapeB| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the [=list/size=] of |shapeB|.
     1. If |sizeA| is not `2` or |sizeB| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGemmOptions/aTranspose}} is `true`, then let |shapeA| be the reverse array of |shapeA|.
     1. If |options|.{{MLGemmOptions/bTranspose}} is `true`, then let |shapeB| be the reverse array of |shapeB|.
@@ -2841,8 +2841,8 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=gru class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
-    1. If the rank of |input| or |weight| is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If the rank of |weight| or |recurrentWeight| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=rank=] of |input| or |weight| is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=rank=] of |weight| or |recurrentWeight| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=].
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -2991,8 +2991,8 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=grucell class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
-    1. If the rank of |input| or |weight| is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If the rank of |weight| or |recurrentWeight| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=rank=] of |input| or |weight| is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=rank=] of |weight| or |recurrentWeight| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `1`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -3342,11 +3342,11 @@ The {{MLInstanceNormalizationOptions}} members are:
   </summary>
   <div algorithm=instancenorm class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If the rank of |input| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=rank=] of |input| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. [=Assert=]:  the type of |options|.{{MLInstanceNormalizationOptions/scale}} is {{MLOperand}}.
-    1. If the rank of |options|.{{MLInstanceNormalizationOptions/scale}} is not equal to the size of the channel dimension of |input|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=rank=] of |options|.{{MLInstanceNormalizationOptions/scale}} is not equal to the [=list/size=] of the channel dimension of |input|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. [=Assert=]: the type of |options|.{{MLInstanceNormalizationOptions/bias}} is  {{MLOperand}}.
-    1. If the rank of |options|.{{MLInstanceNormalizationOptions/bias}} is not equal to the size of the channel dimension of |input|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=rank=] of |options|.{{MLInstanceNormalizationOptions/bias}} is not equal to the [=list/size=] of the channel dimension of |input|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Otherwise if |options|.{{MLInstanceNormalizationOptions/layout}} is not one of {{MLInputOperandLayout}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
@@ -3860,7 +3860,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=lstmcell class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |weight|, |recurrentWeight|, |hiddenState| and |cellState| is {{MLOperand}}.
-    1. If the rank of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=rank=] of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |batch_size| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0].
     1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
@@ -4033,7 +4033,7 @@ partial interface MLGraphBuilder {
     Computes the matrix product of two input tensors as follows:
         - If both *a* and *b* are 2-dimensional, they are multiplied like conventional
             matrices and produce a 2-dimensional tensor as the output.
-        - If either *a* or *b* is `N`-dimensional where `N > 2`, it is treated as a stack of matrices with dimensions corresponding to the last two indices. The matrix multiplication will be broadcasted accordingly by following the [[!numpy-broadcasting-rule]]. The output is a `N`-dimensional tensor whose rank is the maximum rank of the input tensors. For each dimension, except the last two, of the output tensor, its size is the maximum size along that dimension of the input tensors.
+        - If either *a* or *b* is `N`-dimensional where `N > 2`, it is treated as a stack of matrices with dimensions corresponding to the last two indices. The matrix multiplication will be broadcasted accordingly by following the [[!numpy-broadcasting-rule]]. The output is a `N`-dimensional tensor whose rank is the maximum [=rank=] of the input tensors. For each dimension, except the last two, of the output tensor, its size is the maximum size along that dimension of the input tensors.
         - If *a* is 1-dimensional, it is converted to a 2-dimensional tensor by prepending a 1 to its dimensions.
         - If *b* is 1-dimensional, it is converted to a 2-dimensional tensor by by appending a 1 to its dimensions.
         - If both *a* and *b* are 1-dimensional, the operation is a vector dot-product, which produces a scalar output.
@@ -4044,8 +4044,8 @@ partial interface MLGraphBuilder {
     To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given |a| and |b| run the following steps:
   </summary>
   <div class=algorithm-steps>
-    1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the size of |shapeA|.
-    1. Let |shapeB| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the size of |shapeB|.
+    1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the [=list/size=] of |shapeA|.
+    1. Let |shapeB| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the [=list/size=] of |shapeB|.
     1. If |sizeA| and |sizeB| is `1`, return `«  1  »`.
     1. If | sizeA| is `1` and |sizeB| is not, then insert `1` in the front of |shapeA| to become [ 1 | |shapeA| ] and let |sizeA| be `2`.
     1. If | sizeB| is `1` and |sizeA| is not, then insert `1` in the front of |shapeB| to become [ 1 | |shapeB| ] and let |sizeB| be `2`.
@@ -4119,8 +4119,8 @@ partial interface MLGraphBuilder {
 <div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
-        - *beginningPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the beginning of each input dimension, of length *N* where *N* is the rank of the input tensor. For each dimension *d* of *input*, *beginningPadding[d]* indicates how many values to add before the content in that dimension.
-        - *endingPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the ending of each input dimension, of length *N* where *N* is the rank of the input tensor. For each dimension *d* of *input*, *endingPadding[d]* indicates how many values to add after the content in that dimension.
+        - *beginningPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the beginning of each input dimension, of length *N* where *N* is the [=rank=] of the input tensor. For each dimension *d* of *input*, *beginningPadding[d]* indicates how many values to add before the content in that dimension.
+        - *endingPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the ending of each input dimension, of length *N* where *N* is the [=rank=] of the input tensor. For each dimension *d* of *input*, *endingPadding[d]* indicates how many values to add after the content in that dimension.
         - *options*: an optional {{MLPadOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The padded output tensor. Each dimension of the output tensor can be calculated as follow:
@@ -4134,7 +4134,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. Let |shape| be a copy of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-    1. For |index| between `0` and the rank of |shape|:
+    1. For |index| between `0` and the [=rank=] of |shape|:
         1. Add to |shape|[|index|] the value of |beginningPadding|[|index|].
         1. Add to |shape|[|index|] the value of |endingPadding|[|index|].
     1. Return |shape|.
@@ -4460,9 +4460,9 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLReduceOptions}}. The optional parameters of the operation.
-            - *axes*: a sequence of {{unsigned long}}. The dimensions to reduce. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor.
+            - *axes*: a sequence of {{unsigned long}}. The dimensions to reduce. The values in the sequence must be in the range [0, N-1] where N is the [=rank=] of the input tensor.
                 If not present, all dimensions are reduced.
-            - *keepDimensions*: a {{boolean}}. If true, retains reduced dimensions with size of 1.
+            - *keepDimensions*: a {{boolean}}. If true, retains reduced dimensions with [=list/size=] 1.
                 The default value is false.
 
     **Returns:** an {{MLOperand}}. The reduced output tensor.
@@ -4692,7 +4692,7 @@ partial interface MLGraphBuilder {
     1. Otherwise, if any of its values is not greater than `0`, return `false`.
     1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], and if its size is not `2`, or if any of its values is not greater than `0`, return `false`.
     1. If |options|.{{MLResample2dOptions/axes}} does not [=map/exists=], set it to `« 2, 3 »`.
-    1. Otherwise, if its value is not one of `« 0, 1], « 1, 2], « 2, 3 »`, return `false`.
+    1. Otherwise, if its value is not one of `« 0, 1», « 1, 2», « 2, 3 »`, return `false`.
     1. Return `true`.
   </div>
 </details>
@@ -4704,8 +4704,8 @@ partial interface MLGraphBuilder {
   <div algorithm=resample-output-sizes class=algorithm-steps>
     1. Let |desc| be an {{MLOperandDescriptor}} initialized to |input|.{{MLOperand/[[descriptor]]}}.
     1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then set |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} to |options|.{{MLResample2dOptions/sizes}} and return |desc|.
-    1. For |index| between `0` and the rank of |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}:
-        1. Let |inputSize| be the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|index|].
+    1. For |index| between `0` and the [=rank=] of |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}:
+        1. Let |inputSize| be the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|index|].
         1. Let |outputSize| be |inputSize| multiplied by |options|.{{MLResample2dOptions/scales}}.
             1. If that fails or |outputSize| is not a positive [=number=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|index|] to |outputSize|.
@@ -4718,7 +4718,7 @@ partial interface MLGraphBuilder {
     The {{MLGraphBuilder/resample2d(input, options)}} steps are:
   </summary>
   <div algorithm=resample2d class=algorithm-steps>
-    1. Check if the input is a 4-dimensional tensor: if the size of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Check if the input is a 4-dimensional tensor: if the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If running the <a>check resample options</a> steps given |options| returns `false`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| be the result of running the <a>resample output sizes</a> steps given |options|.
         1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
@@ -4766,7 +4766,7 @@ partial interface MLGraphBuilder {
     1. Let |outputShape| be an empty array of {{unsigned long}}.
     1. If |newShape| is a scalar [=number=], set |outputShape| to `«  1  »`.
     1. Otherwise, if |newShape| is an array of {{unsigned long}}:
-        1. If the size of |newShape| is `0`, set |outputShape| to `«  1  »` (reshaping to scalar).
+        1. If the [=list/size=] of |newShape| is `0`, set |outputShape| to `«  1  »` (reshaping to scalar).
         1. If |newShape| contains more than one `null` value, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If any value in |newShape| is `0`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Let |inputElementCount| be the product of all elements in |inputs|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
@@ -4873,8 +4873,8 @@ partial interface MLGraphBuilder {
 <div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
-        - *starts*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the starting index to slice of each input dimension, of length N where N is the rank of the input tensor. For each dimension *d* of *input*, *starts[d]* indicates the starting index to slice in that dimension. The starting index must be in the range [0, input size - 1] in that dimension.
-        - *sizes*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of elements to slice of each input dimension, of length N where N is the rank of the input tensor. For each dimension *d* of *input*, *sizes[d]* indicates the number of elements to slice in that dimension. The size must not be 0 and must satisfy the constraint *starting index + size <= input size* in that dimension.
+        - *starts*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the starting index to slice of each input dimension, of length N where N is the [=rank=] of the input tensor. For each dimension *d* of *input*, *starts[d]* indicates the starting index to slice in that dimension. The starting index must be in the range [0, input size - 1] in that dimension.
+        - *sizes*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of elements to slice of each input dimension, of length N where N is the [=rank=] of the input tensor. For each dimension *d* of *input*, *sizes[d]* indicates the number of elements to slice in that dimension. The size must not be 0 and must satisfy the constraint *starting index + size <= input size* in that dimension.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
@@ -5167,7 +5167,7 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLSplitOptions>
     : <dfn>axis</dfn>
     ::
-        An {{unsigned long}} scalar. The dimension along which to split. Its value must be in the range [0, N-1] where N is the rank of input tensor.
+        An {{unsigned long}} scalar. The dimension along which to split. Its value must be in the range [0, N-1] where N is the [=rank=] of the input tensor.
         The default value is `0`.
 </dl>
 
@@ -5217,7 +5217,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### The squeeze() method ### {#api-mlgraphbuilder-squeeze}
-Reduce the rank of a tensor by eliminating dimensions with size 1 of the tensor shape. Squeeze only affects the tensor's logical dimensions. It does not copy or change the content in the tensor.
+Reduce the [=rank=] of a tensor by eliminating dimensions with size 1 of the tensor shape. Squeeze only affects the tensor's logical dimensions. It does not copy or change the content in the tensor.
 <script type=idl>
 dictionary MLSqueezeOptions {
   sequence<unsigned long> axes;
@@ -5241,7 +5241,7 @@ partial interface MLGraphBuilder {
     : <dfn>axes</dfn>
     ::
         A sequence of {{unsigned long}}.
-        Specifies the indices to the shape dimensions of size 1 to eliminate. The values in the sequence must be in the range [0, N-1] where N is the rank of input tensor.
+        Specifies the indices to the shape dimensions of size 1 to eliminate. The values in the sequence must be in the range [0, N-1] where N is the [=rank=] of the input tensor.
         When not specified, every shape dimensions of size 1 in the tensor are eliminated.
 </dl>
 
@@ -5253,7 +5253,7 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. If |options|.{{MLSqueezeOptions/axes}} [=map/exists=], then:
         1. Let |dimensions| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. For |index| between 0 and the size of |options|.{{MLSqueezeOptions/axes}}:
+        1. For |index| between 0 and the [=list/size=] of |options|.{{MLSqueezeOptions/axes}}:
             1. Let |oneDimIndex| be |options|.{{MLSqueezeOptions/axes}}[|index|].
             1. If |dimensions|[|oneDimIndex|] is not `1`, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
@@ -5368,8 +5368,8 @@ partial interface MLGraphBuilder {
     ::
         A sequence of {{unsigned long}} values.
         Specifies the values used to permute the output shape.
-        The default value is [N-1, ..., 0], where N is the rank of the input tensor, e.g. [2,1,0] for a 3-D tensor.
-        These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the rank of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
+        The default value is [N-1, ..., 0], where N is the [=rank=] of the input tensor, e.g. [2,1,0] for a 3-D tensor.
+        These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the [=rank=] of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 </dl>
 
 <details open>
@@ -5381,8 +5381,8 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
         1. If |options|.{{MLTransposeOptions/permutation}} is not a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}}.
-        1. If the rank of |options|.{{MLTransposeOptions/permutation}} is not the same as the rank of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a {{TypeError}}.
-        1. If the values in |options|.{{MLTransposeOptions/permutation}} are not between `0` and the rank of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} minus `1`, then [=exception/throw=] a {{TypeError}}.
+        1. If the [=rank=] of |options|.{{MLTransposeOptions/permutation}} is not the same as the [=rank=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a {{TypeError}}.
+        1. If the values in |options|.{{MLTransposeOptions/permutation}} are not between `0` and the [=rank=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} minus `1`, then [=exception/throw=] a {{TypeError}}.
         1. If the values in |options|.{{MLTransposeOptions/permutation}} contain duplicate value, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
