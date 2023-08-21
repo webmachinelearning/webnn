@@ -4893,9 +4893,7 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. If |starts| or |sizes| is not a sequence of {{long}}, then [=exception/throw=] a {{TypeError}}.
     1. If |sizes|.size is 0, then [=exception/throw=] a {{TypeError}}.
-        <div class="note">
-            Further validation of |starts| and |sizes| given |input| is left [=implementation-defined=].
-        </div>
+    1. If the [=list/size=] of |starts| and |sizes| is not equal to the <a>rank</a> of |input|, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
@@ -5261,7 +5259,9 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. If |options|.{{MLSqueezeOptions/axes}} [=map/exists=], then:
         1. Let |dimensions| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. For |index| between 0 and the [=list/size=] of |options|.{{MLSqueezeOptions/axes}}:
+        1. Let |axesLength| be the [=list/size=] of |options|.{{MLSqueezeOptions/axes}}.
+        1. If |axesLength| is not smaller than the <a>rank</a> of |dimensions|,
+        1. For |index| between 0 and |axesLength|:
             1. Let |oneDimIndex| be |options|.{{MLSqueezeOptions/axes}}[|index|].
             1. If |dimensions|[|oneDimIndex|] is not `1`, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
