@@ -1131,7 +1131,7 @@ When the {{[[contextType]]}} is set to [=default-context|default=] with the {{ML
     To <dfn lt="validate MLContext">validate MLContext</dfn>, given |context|, run these steps:
   </summary>
   <div class=algorithm-steps>
-    1. If |context|.{{[[contextType]]}} is not "[=webgpu-context|webgpu=]" or "[=default-context|default=], return `false`.
+    1. If |context|.{{[[contextType]]}} is not "[=webgpu-context|webgpu=]" or "[=default-context|default=]", return `false`.
     1. If |context|.{{[[deviceType]]}} is not "[=device-type-cpu|cpu=]" or "[=device-type-gpu|gpu=]", return `false`.
     1. If |context|.{{[[powerPreference]]}} is not "[=power-preference-default|default=]" or "[=power-preference-high-performance|high-performance=]" or "[=power-preference-low-power|low-power=]", return `false`.
     1. If the user agent cannot support |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, return `false`.
@@ -1164,7 +1164,7 @@ partial interface MLContext {
     The {{MLContext/computeSync(graph, inputs, outputs)}} method steps are:
   </summary>
   <div algorithm=mlcontext.computesync class=algorithm-steps>
-    1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=], [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=]", [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
     1. If <a>validating graph resources</a> given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns `false`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If <a>validating graph resources</a> given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns `false`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Invoke <a>execute graph</a> given |graph|, |inputs| and |outputs|.
@@ -1316,7 +1316,7 @@ partial interface MLContext {
   <div algorithm=mlcontext.compute class=algorithm-steps>
     1. Let |promise| be [=a new promise=].
     1. Return |promise| and run the following steps [=in parallel=]:
-        1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=], [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}.
+        1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=]", [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}.
         1. If <a>validating graph resources</a> given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns `false`, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}}.
         1. If <a>validating graph resources</a> given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns `false`, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}}.
         1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs|.
@@ -1545,7 +1545,7 @@ interface MLGraphBuilder {
 </script>
 
 <div class="note">
-Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to [=default-context|default=], the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
+Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to "[=default-context|default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
 </div>
 
 {{MLBufferResourceView}} has the following members:
@@ -1698,7 +1698,7 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
     1. If <a>validating buffer with descriptor</a> given |bufferView| and |descriptor| returns `false`, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
-        1. Let |bytes| be the result of invoking the [[=get a copy of the bytes held by the buffer source=]] steps given |bufferView|.
+        1. Let |bytes| be the result of invoking the [=get a copy of the bytes held by the buffer source=] steps given |bufferView|.
         1. Make a request to the underlying platform to:
             1. Create an [=implementation-defined=] platform operand |constantImpl| to represent a constant, given |descriptor|.
             1. Store a reference of |constantImpl| in |operand|.{{MLOperand/[[operand]]}}.
@@ -4148,7 +4148,6 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=pad class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If |beginningPadding| or |endingPadding| is not a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLPadOptions/mode}} is not one of {{MLPaddingMode}}, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate padding output sizes</a> steps given |input|, |beginningPadding| and |endingPadding|.
@@ -4891,7 +4890,6 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=slice class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If |starts| or |sizes| is not a sequence of {{long}}, then [=exception/throw=] a {{TypeError}}.
     1. If |sizes|.size is 0, then [=exception/throw=] a {{TypeError}}.
     1. If the [=list/size=] of |starts| and |sizes| is not equal to the <a>rank</a> of |input|, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
@@ -5388,7 +5386,6 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
-        1. If |options|.{{MLTransposeOptions/permutation}} is not a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}}.
         1. If the [=rank=] of |options|.{{MLTransposeOptions/permutation}} is not the same as the [=rank=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a {{TypeError}}.
         1. If the values in |options|.{{MLTransposeOptions/permutation}} are not between `0` and the [=rank=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} minus `1`, then [=exception/throw=] a {{TypeError}}.
         1. If the values in |options|.{{MLTransposeOptions/permutation}} contain duplicate value, then [=exception/throw=] a {{TypeError}}.
