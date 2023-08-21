@@ -809,41 +809,88 @@ string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
 Its <a>default allowlist</a> is <code>'self'</code>.
 
 ### The {{ML/createContext()}} method ### {#api-ml-createcontext}
+
+<div algorithm>
 <details open>
 <summary>
-    The {{ML/createContext(options)}} method steps are:
+    To <dfn>create a context</dfn> given |options|, run these steps:
 </summary>
-<div algorithm=createcontext class=algorithm-steps>
+<div class=algorithm-steps>
+    1. Let |context| be a new {{MLContext}} object.
+    1. If |options| is a {{GPUDevice}} object,
+        1. Set |context|.{{[[contextType]]}} to "[=webgpu-context|webgpu=]".
+        1. Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
+        1. Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
+    1. Otherwise,
+        1. Set |context|.{{[[contextType]]}} to "[=default-context|default=]".
+        1. If |options|["{{deviceType}}"] [=map/exists=], then set |context|.{{[[deviceType]]}} to |options|["{{deviceType}}"]. Otherwise, set |context|.{{[[deviceType]]}} to "[=device-type-cpu|cpu=]".
+        1. If |options|["{{powerPreference}}"] [=map/exists=], then set |context|.{{[[powerPreference]]}} to |options|["{{powerPreference}}"]. Otherwise, set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
+    1. Return |context|.
+</div>
+</details>
+</div>
+
+<div algorithm>
+<details open>
+<summary>
+    The <dfn method for=ML>createContext(|options|)</dfn> steps are:
+</summary>
+<div class=algorithm-steps>
     1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |promise| be [=a new promise=].
     1. Return |promise| and run the following steps [=in parallel=].
-    1. Run the <dfn>create context</dfn> steps given |options|:
-        1. Let |context| be a new {{MLContext}} object.
-        1. If |options| is a {{GPUDevice}} object,
-            1. Set |context|.{{[[contextType]]}} to "[=webgpu-context|webgpu=]".
-            1. Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
-            1. Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
-        1. Otherwise,
-            1. Set |context|.{{[[contextType]]}} to "[=default-context|default=]".
-            1. If |options|["{{deviceType}}"] [=map/exists=], then set |context|.{{[[deviceType]]}} to |options|["{{deviceType}}"]. Otherwise, set |context|.{{[[deviceType]]}} to "[=device-type-cpu|cpu=]".
-            1. If |options|["{{powerPreference}}"] [=map/exists=], then set |context|.{{[[powerPreference]]}} to |options|["{{powerPreference}}"]. Otherwise, set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
+    1. Let |context| be the result of [=creating a context=] given |options|.
     1. If <a>validating MLContext</a> given |context| returns `false`, [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}}.
     1. [=Resolve=] |promise| with |context|.
 </div>
 </details>
+</div>
+
+<div algorithm>
+<details open>
+<summary>
+    The <dfn method for=ML>createContext(|gpuDevice|)</dfn> method steps are:
+</summary>
+<div class=algorithm-steps>
+    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. Let |promise| be [=a new promise=].
+    1. Return |promise| and run the following steps [=in parallel=].
+    1. Let |context| be the result of [=creating a context=] given |gpuDevice|.
+    1. If <a>validating MLContext</a> given |context| returns `false`, [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}}.
+    1. [=Resolve=] |promise| with |context|.
+</div>
+</details>
+</div>
 
 ### The {{ML/createContextSync()}} method ### {#api-ml-createcontextsync}
+
+<div algorithm>
 <details open>
   <summary>
-    The {{ML/createContextSync(options)}} method steps are:
+    The <dfn method for=ML>createContextSync(|options|)</dfn> method steps are:
   </summary>
-  <div algorithm=createcontextsync class=algorithm-steps>
+  <div class=algorithm-steps>
     1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
-    1. Let |context| be the result of running the <a>create context</a> steps given |options|.
+    1. Let |context| be the result [=creating a context=] |options|.
     1. If <a>validating MLContext</a> given |context| return `false`, then [=exception/throw=] a "{{NotSupportedError}}" {{DOMException}}.
     1. Return |context|.
   </div>
 </details>
+</div>
+
+<div algorithm>
+<details open>
+  <summary>
+    The <dfn method for=ML>createContextSync(|gpuDevice|)</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
+    1. Let |context| be the result [=creating a context=] with |gpuDevice|.
+    1. If <a>validating MLContext</a> given |context| return `false`, then [=exception/throw=] a "{{NotSupportedError}}" {{DOMException}}.
+    1. Return |context|.
+  </div>
+</details>
+</div>
 
 ## The MLGraph interface ## {#api-mlgraph}
 The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
