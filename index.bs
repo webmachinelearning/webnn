@@ -1972,12 +1972,12 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the shape, i.e. {{MLOperandDescriptor/dimensions}}) of each operand in |inputs| is the same, except on the dimension given by |axis| on which they are concatenated.
     1. [=Assert=]: the {{MLOperandDescriptor/type}} of each operand in |inputs| is the same.
     1. If any of the following steps fail, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If |axis| is greater than or equal to the [=rank=] of |inputs|, fail.
         1. Let |desc| be |inputs|[0].{{MLOperand/[[descriptor]]}}.
+        1. If |axis| is greater than or equal to the [=rank=] of |desc|, fail.
         1. Let |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] be `0`.
         1. [=map/For each=] |index| between 0 and the [=rank=] of |inputs|:
             1. If <a>validating MLOperand</a> given |inputs|[|index|] and [=this=] returns `false`, then fail.
-            1. [=map/For each=] |dim| between 0 and the [=rank=] of |inputs|[|index|]:
+            1. [=map/For each=] |dim| between 0 and the [=rank=] of |inputs|[|index|].{{MLOperandDescriptor/dimensions}}:
                 <div class="note">
                     If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
                 </div>
@@ -3313,7 +3313,7 @@ The {{MLInstanceNormalizationOptions}} members are:
 <dl dfn-type=dict-member dfn-for=MLInstanceNormalizationOptions>
     : <dfn>scale</dfn>
     ::
-        An {{MLOperand}}. Specifies he 1-D tensor of the scaling values whose [=list/size=] is equal to the number of channels, i.e. the size of the feature dimension of the input. For example, for an |input| tensor with `nchw` layout, the [=list/size=] is the value of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
+        An {{MLOperand}}. Specifies the 1-D tensor of the scaling values whose [=list/size=] is equal to the number of channels, i.e. the size of the feature dimension of the input. For example, for an |input| tensor with `nchw` layout, the [=list/size=] is the value of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
 
     : <dfn>bias</dfn>
     ::
@@ -5183,7 +5183,9 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=split class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If |splits| is not {{unsigned long}} or a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |splits| is not a non-zero {{unsigned long}} or a sequence of {{unsigned long}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |splits| is an {{unsigned long}}, and |input|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLSplitOptions/axis}}] % |splits| is not 0, then [=exception/throw=] a {{TypeError}}.
+    1. If |splits| is a sequence of {{unsigned long}}, and the sum of its elements is not equal to |input|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLSplitOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
