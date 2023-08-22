@@ -2455,7 +2455,7 @@ partial interface MLGraphBuilder {
 
 <details open>
   <summary>
-    To <dfn for="MLGraphBuilder" lt="broadcast-shapes">broadcast shapes</dfn> given |shape1| and |shape2|, run the following steps:
+    To <dfn for="MLGraphBuilder">broadcast-shapes</dfn> given |shape1| and |shape2|, run the following steps:
   </summary>
   <div algorithm=broadcast-shape class=algorithm-steps>
     1. [=Assert=]: The type of |shape1| and |shape2| is `sequence of unsigned long`.
@@ -2554,7 +2554,6 @@ partial interface MLGraphBuilder {
   <div algorithm=unary class=algorithm-steps>
     1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "exp", "floor", "log", "neg", "sin", "tan".
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
@@ -2759,7 +2758,7 @@ partial interface MLGraphBuilder {
   <div algorithm=gemm class=algorithm-steps>
     1. [=Assert=]: the type of |a| and |b| is {{MLOperand}}.
     1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the [=list/size=] of |shapeA|.
-    1. Let |shapeB| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the [=list/size=] of |shapeB|.
+    1. Let |shapeB| be |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the [=list/size=] of |shapeB|.
     1. If |sizeA| is not `2` or |sizeB| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGemmOptions/aTranspose}} is `true`, then let |shapeA| be the reverse array of |shapeA|.
     1. If |options|.{{MLGemmOptions/bTranspose}} is `true`, then let |shapeB| be the reverse array of |shapeB|.
@@ -3663,7 +3662,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>peepholeWeight</dfn>
     ::
-        An {{MLOperand}}. Specifies the 2-D weight tensor for peepholes of shape [num_directions, 4 * hidden_size]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
+        An {{MLOperand}}. Specifies the 2-D weight tensor for peepholes of shape [num_directions, 3 * hidden_size]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
 
     : <dfn>initialHiddenState</dfn>
     ::
@@ -3748,13 +3747,15 @@ partial interface MLGraphBuilder {
         1. [=Assert=]: the type of its elements is {{MLActivation}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |desc| a new {{MLOperandDescriptor}}.
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |nume_directions|, |batch_size|, |hiddenSize| ].
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |num_directions|, |batch_size|, |hiddenSize| ].
         1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
         1. Let |output0| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Let |output1| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |steps|, |nume_directions|, |batch_size|, |hiddenSize| ].
-        1. Let |output2| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
-        1. Let |output| be the array [ |output0|, |output1|, |output2 ].
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |steps|, |num_directions|, |batch_size|, |hiddenSize| ].
+        1. If |options|.{{MLLstmOptions/returnSequence}} is set to true:
+            1. Let |output2| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
+            1. Let |output| be the array [ |output0|, |output1|, |output2| ].
+        1. Otherwise, Let |output| be the array [ |output0|, |output1| ].
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the LSTM operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
             1. Store a reference of |opImpl| in |output0|.{{MLOperand/[[operator]]}}, |output1|.{{MLOperand/[[operator]]}} and |output2|.{{MLOperand/[[operator]]}}.
@@ -4823,7 +4824,7 @@ partial interface MLGraphBuilder {
         1. If the [=list/size=] of |newShape| is `0`, set |outputShape| to `«  1  »` (reshaping to scalar).
         1. If |newShape| contains more than one `null` value, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If any value in |newShape| is `0`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. Let |inputElementCount| be the product of all elements in |inputs|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. Let |inputElementCount| be the product of all elements in |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
         1. If |newShape| contains a `null` value, set that value to |inputElementCount| divided by the product of all other values in |newShape|.
             1. If that value is too large for {{unsigned long}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -5162,7 +5163,7 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the softsign operation, given |options|.
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the softsign operation.
             1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
             1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
