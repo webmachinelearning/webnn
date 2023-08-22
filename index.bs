@@ -1846,7 +1846,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div algorithm=batchnorm class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |mean| and |variance| is {{MLOperand}}.
-    1. If |options|.axis is not a number between 0 and the [=rank=] of |input|, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.axis is not a number in [=the range=] 0 to the [=rank=] of |input|, exclusive, then [=exception/throw=] a {{TypeError}}.
     1. If the [=list/size=] of |mean|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not equal with |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
     1. If the [=list/size=] of |variance|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not equal with |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=] and its [=list/size=] is not equal with |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
@@ -2022,9 +2022,9 @@ partial interface MLGraphBuilder {
         1. Let |desc| be |inputs|[0].{{MLOperand/[[descriptor]]}}.
         1. If |axis| is greater than or equal to the [=rank=] of |desc|, fail.
         1. Let |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] be `0`.
-        1. [=map/For each=] |index| between 0 and the [=rank=] of |inputs|:
+        1. [=map/For each=] |index| in [=the range=] 0 to the [=rank=] of |inputs|, exclusive:
             1. If <a>validating MLOperand</a> given |inputs|[|index|] and [=this=] returns `false`, then fail.
-            1. [=map/For each=] |dim| between 0 and the [=rank=] of |inputs|[|index|].{{MLOperandDescriptor/dimensions}}:
+            1. [=map/For each=] |dim| in [=the range=] 0 to the [=rank=] of |inputs|[|index|].{{MLOperandDescriptor/dimensions}}, exclusive:
                 <div class="note">
                     If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
                 </div>
@@ -4100,7 +4100,7 @@ partial interface MLGraphBuilder {
     1. If | sizeA| is `1` and |sizeB| is not, then insert `1` in the front of |shapeA| to become [ 1 | |shapeA| ] and let |sizeA| be `2`.
     1. If | sizeB| is `1` and |sizeA| is not, then insert `1` in the front of |shapeB| to become [ 1 | |shapeB| ] and let |sizeB| be `2`.
     1. Let |shape| be an array whose size |size| is the maximum of |sizeA| and |sizeB|.
-    1. [=map/For each=] |index| between 0 and |size|:
+    1. [=map/For each=] |index| in [=the range=] 0 to |size|, exclusive:
        1. Set |shape|[|index|] to the maximum of |shapeA|[|index|] and |shapeB|[|index|].
     1. Return |shape|.
   </div>
@@ -4185,7 +4185,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. Let |shape| be a copy of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-    1. For |index| between `0` and the [=rank=] of |shape|:
+    1. For |index| in [=the range=] 0 to the [=rank=] of |shape|, exclusive:
         1. Add to |shape|[|index|] the value of |beginningPadding|[|index|].
         1. Add to |shape|[|index|] the value of |endingPadding|[|index|].
     1. Return |shape|.
@@ -4759,7 +4759,7 @@ partial interface MLGraphBuilder {
   <div algorithm=resample-output-sizes class=algorithm-steps>
     1. Let |desc| be an {{MLOperandDescriptor}} initialized to |input|.{{MLOperand/[[descriptor]]}}.
     1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then set |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} to |options|.{{MLResample2dOptions/sizes}} and return |desc|.
-    1. For |index| between `0` and the [=rank=] of |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}:
+    1. For |index| in [=the range=] 0 to the [=rank=] of |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, exclusive:
         1. Let |inputSize| be the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|index|].
         1. Let |outputSize| be |inputSize| multiplied by |options|.{{MLResample2dOptions/scales}}.
             1. If that fails or |outputSize| is not a positive [=number=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -5309,7 +5309,7 @@ partial interface MLGraphBuilder {
         1. Let |dimensions| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
         1. Let |axesLength| be the [=list/size=] of |options|.{{MLSqueezeOptions/axes}}.
         1. If |axesLength| is not smaller than the <a>rank</a> of |dimensions|,
-        1. For |index| between 0 and |axesLength|:
+        1. For |index| in [=the range=] 0 to |axesLength|, exclusive:
             1. Let |oneDimIndex| be |options|.{{MLSqueezeOptions/axes}}[|index|].
             1. If |dimensions|[|oneDimIndex|] is not `1`, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
@@ -5437,7 +5437,7 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
         1. If the [=rank=] of |options|.{{MLTransposeOptions/permutation}} is not the same as the [=rank=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a {{TypeError}}.
-        1. If the values in |options|.{{MLTransposeOptions/permutation}} are not between `0` and the [=rank=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} minus `1`, then [=exception/throw=] a {{TypeError}}.
+        1. If the values in |options|.{{MLTransposeOptions/permutation}} are not in [=the range=] 0 and the [=rank=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} exclusive, then [=exception/throw=] a {{TypeError}}.
         1. If the values in |options|.{{MLTransposeOptions/permutation}} contain duplicate value, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
