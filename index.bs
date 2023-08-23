@@ -2869,7 +2869,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>layout</dfn>
     ::
-        An {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the `update (z)`, `reset (r)`, and `new (n)` gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is `"zrn"`.
+        An {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the `update (z)`, `reset (r)`, and `new (n)` gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is `"zrn"`.bias
 
     : <dfn>activations</dfn>
     ::
@@ -2895,21 +2895,20 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
-    1. If the [=rank=] of |input| or |weight| is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If the [=rank=] of |weight| or |recurrentWeight| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=rank=] of |input| or |weight| or |recurrentWeight| is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=].
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLGruOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to `3 * hiddenSize`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=].
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLGruOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to `3 * hiddenSize`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=].
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/direction}} is not one of {{MLRecurrentNetworkDirection}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/layout}} is not one of {{MLGruWeightLayout}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and is not an array of {{MLActivation}} objects with size `2`, then [=exception/throw=] a {{TypeError}}.
-    1. If |steps| is not a [=number=] or it is `0`, then [=exception/throw=] a {{TypeError}}.
+    1. If |steps| is not equal to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0], then [=exception/throw=] a {{TypeError}}.
     1. Let |output| be an empty sequence of {{MLOperand}} objects.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Make a request to the underlying platform to:
@@ -3046,14 +3045,15 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
-    1. If the [=rank=] of |input| or |weight| is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If the [=rank=] of |weight| or |recurrentWeight| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=rank=] of |input| or |weight| or |recurrentWeight| or |hiddenState| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |weight|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not equal to 3 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |recurrentWeight|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not equal to `3 * hiddenSize`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `1`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If its rank is not equal to 3 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
-        1. If its rank is not `1`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If its rank is not equal to 3 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/layout}} is not one of {{MLGruWeightLayout}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and is not an array of {{MLActivation}} objects with size `2`, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
@@ -4115,8 +4115,11 @@ partial interface MLGraphBuilder {
     1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the [=list/size=] of |shapeA|.
     1. Let |shapeB| be |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the [=list/size=] of |shapeB|.
     1. If |sizeA| and |sizeB| is `1`, return `«  1  »`.
-    1. If | sizeA| is `1` and |sizeB| is not, then insert `1` in the front of |shapeA| to become [ 1 | |shapeA| ] and let |sizeA| be `2`.
-    1. If | sizeB| is `1` and |sizeA| is not, then insert `1` in the front of |shapeB| to become [ 1 | |shapeB| ] and let |sizeB| be `2`.
+    1. If |sizeA| is `1` and |sizeB| is not, then insert `1` in the front of |shapeA| to become [ 1 | |shapeA| ] and let |sizeA| be `2`.
+    1. If |shapeA|[0] is not equal to |shapeB|[|sizeB| - 2], then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. If |sizeB| is `1` and |sizeA| is not, then insert `1` in the front of |shapeB| to become [ 1 | |shapeB| ] and let |sizeB| be `2`.
+    1. If |shapeA|[|sizeA| - 1] is not equal to |shapeB|[0], then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. If |shapeA| is not equal to |shapeB|, then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
     1. Let |shape| be an array whose size |size| is the maximum of |sizeA| and |sizeB|.
     1. [=map/For each=] |index| in [=the range=] 0 to |size|, exclusive:
        1. Set |shape|[|index|] to the maximum of |shapeA|[|index|] and |shapeB|[|index|].
@@ -4133,6 +4136,7 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |a| and |b| is {{MLOperand}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate matmul output sizes</a> steps given |a| and |b|.
+    1. If that throws an error, re-[=exception/throw=] the error.
     1. Set |desc|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
