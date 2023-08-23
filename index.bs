@@ -2081,19 +2081,19 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLConv2dOptions>
     : <dfn>padding</dfn>
     ::
-        A sequence of {{unsigned long}} of length 4: [beginning_height, ending_height, beginning_width, ending_width].
+        A sequence of {{unsigned long}} of length 4: [beginningHeight, endingHeight, beginningWidth, endingWidth].
         Specifies the additional rows and columns added to the beginning and ending of each spatial dimension of the convolution input.
         The default value is [0, 0, 0, 0].
 
     : <dfn>strides</dfn>
     ::
-        A sequence of {{unsigned long}} of length 2: [stride_height, stride_width].
+        A sequence of {{unsigned long}} of length 2: [strideHeight, strideWidth].
         Specifies the stride of the sliding window for each spatial dimension of the convolution input.
         The default value is [1, 1].
 
     : <dfn>dilations</dfn>
     ::
-        A sequence of {{unsigned long}} of length 2: [dilation_height, dilation_width]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
+        A sequence of {{unsigned long}} of length 2: [dilationHeight, dilationWidth]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
         The default value is [1, 1].
 
     : <dfn>autoPad</dfn>
@@ -2118,27 +2118,27 @@ partial interface MLGraphBuilder {
         An {{MLInputOperandLayout}} [=string=].
         Specifies the layout format of the input and output tensor as follows:
             - **"nchw"**
-                - input tensor: *[batches, input_channels, height, width]*
-                - output tensor: *[batches, output_channels, height, width]*
+                - input tensor: *[batches, inputChannels, height, width]*
+                - output tensor: *[batches, outputChannels, height, width]*
             - **"nhwc"**:
-                - input tensor: *[batches, height, width, input_channels]*
-                - output tensor: *[batches, height, width, output_channels]*
+                - input tensor: *[batches, height, width, inputChannels]*
+                - output tensor: *[batches, height, width, outputChannels]*
         The default value is *"nchw"*.
 
     : <dfn>filterLayout</dfn>
     ::
           An {{MLConv2dFilterOperandLayout}} [=string=].
           Specifies the layout format of the filter tensor as follow:
-              - **"oihw"**: *[output_channels, input_channels/groups, height, width]*
-              - **"hwio"**: *[height, width, input_channels/groups, output_channels]*
-              - **"ohwi"**: *[output_channels, height, width, input_channels/groups]*
-              - **"ihwo"**: *[input_channels/groups, height, width, output_channels]*
+              - **"oihw"**: *[outputChannels, inputChannels/groups, height, width]*
+              - **"hwio"**: *[height, width, inputChannels/groups, outputChannels]*
+              - **"ohwi"**: *[outputChannels, height, width, inputChannels/groups]*
+              - **"ihwo"**: *[inputChannels/groups, height, width, outputChannels]*
           The default value is *"oihw"*.
 
     : <dfn>bias</dfn>
     ::
           An {{MLOperand}} object.
-          Specifies the additional 1-D tensor with the shape of *[output_channels]* whose values are to be added to the convolution result.
+          Specifies the additional 1-D tensor with the shape of *[outputChannels]* whose values are to be added to the convolution result.
 
     : <dfn>activation</dfn>
     ::
@@ -2156,11 +2156,11 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options*.{{MLConv2dOptions/inputLayout}} value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follow:
 
-    *output_size = 1 + (input_size - (filter_size - 1) ** *dilation - 1 + beginning_padding + ending_padding) / stride*
+    *outputSize = 1 + (inputSize - (filterSize - 1) ** *dilation - 1 + beginningPadding + endingPadding) / stride*
 </div>
 
 <div class="note">
-    A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options.groups* = input_channels = output_channels and the shape of filter tensor is [options.groups, 1, height, width]
+    A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options.groups* = inputChannels = outputChannels and the shape of filter tensor is [options.groups, 1, height, width]
     for *"oihw"* layout, [height, width, 1, options.groups] for *"hwio"* layout, [options.groups, height, width, 1] for *"ohwi"* layout and [1, height, width, options.groups] for *"ihwo"* layout.
 </div>
 
@@ -2171,10 +2171,10 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |input| and |filter| is {{MLOperand}}.
-    1. Let |input_size| be the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-    1. Let |filter_size| be the [=list/size=] of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-    1. If |input_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If |filter_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |inputSize| be the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |filterSize| be the [=list/size=] of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. If |inputSize| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |filterSize| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If the type of |input| and |filter| is not the same, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to `« 0, 0, 0, 0 »`.
     1. Else if the [=list/size=] of |options|.{{MLConv2dOptions/padding}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -2185,19 +2185,19 @@ partial interface MLGraphBuilder {
     1. Else if the [=list/size=] of |options|.{{MLConv2dOptions/dilations}} is not `2`, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/autoPad}} does not [=map/exist=], set it to `"explicit"`.
     1. If |options|.{{MLConv2dOptions/groups}} is 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If |input_size| / |options|.{{MLConv2dOptions/groups}} is not equal to |filter_size|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. Else if |input_size| % |options|.{{MLConv2dOptions/groups}} is not 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |inputSize| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Else if |inputSize| % |options|.{{MLConv2dOptions/groups}} is not 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConv2dOptions/bias}} is {{MLOperand}}.
     1. If the [=list/size=] of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConv2dOptions/activation}} is {{MLActivation}}.
-    1. Let |output_shape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
-    1. If |output_shape| is not the same as the shape of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |outputShape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
+    1. If |outputShape| is not the same as the shape of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |output_shape|.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
@@ -2246,19 +2246,19 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLConvTranspose2dOptions>
     : <dfn>padding</dfn>
     ::
-        A sequence of {{unsigned long}} of length 4: [beginning_height, ending_height, beginning_width, ending_width].
+        A sequence of {{unsigned long}} of length 4: [beginningHeight, endingHeight, beginningWidth, endingWidth].
         Specifies the additional rows and columns added to the beginning and ending of each spatial dimension of the convolution input.
         The default value is [0, 0, 0, 0].
 
     : <dfn>strides</dfn>
     ::
-        A sequence of {{unsigned long}} of length 2: [stride_height, stride_width].
+        A sequence of {{unsigned long}} of length 2: [strideHeight, strideWidth].
         Specifies the stride of the sliding window for each spatial dimension of the convolution input.
         The default value is [1, 1].
 
     : <dfn>dilations</dfn>
     ::
-        A sequence of {{unsigned long}} of length 2: [dilation_height, dilation_width]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
+        A sequence of {{unsigned long}} of length 2: [dilationHeight, dilationWidth]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
         The default value is [1, 1].
 
     : <dfn>outputPadding</dfn>
@@ -2300,26 +2300,26 @@ partial interface MLGraphBuilder {
         An {{MLInputOperandLayout}} [=string=].
         Specifies the layout format of the input and output tensor as follows:
             - **"nchw"**
-                - input tensor: *[batches, input_channels, height, width]*
-                - output tensor: *[batches, output_channels, height, width]*
+                - input tensor: *[batches, inputChannels, height, width]*
+                - output tensor: *[batches, outputChannels, height, width]*
             - **"nhwc"**:
-                - input tensor: *[batches, height, width, input_channels]*
-                - output tensor: *[batches, height, width, output_channels]*
+                - input tensor: *[batches, height, width, inputChannels]*
+                - output tensor: *[batches, height, width, outputChannels]*
         The default value is *"nchw"*.
 
     : <dfn>filterLayout</dfn>
     ::
         An {{MLConvTranspose2dFilterOperandLayout}} [=string=].
         Specifies the layout format of the filter tensor as follow:
-            - **"iohw"**: [input_channels, output_channels/groups, height, width]
-            - **"hwoi"**: [height, width, output_channels/groups, input_channels]
-            - **"ohwi"**: [output_channels/groups, height, width, input_channels]
+            - **"iohw"**: [inputChannels, outputChannels/groups, height, width]
+            - **"hwoi"**: [height, width, outputChannels/groups, inputChannels]
+            - **"ohwi"**: [outputChannels/groups, height, width, inputChannels]
         The default value is *"iohw"*.
 
     : <dfn>bias</dfn>
     ::
         An {{MLOperand}} object.
-        Specifies the additional 1-D tensor with the shape of *[output_channels]* whose values are to be added to the convolution result.
+        Specifies the additional 1-D tensor with the shape of *[outputChannels]* whose values are to be added to the convolution result.
 
     : <dfn>activation</dfn>
     ::
@@ -2337,7 +2337,7 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options*.{{MLConvTranspose2dOptions/inputLayout}} value. More specifically, unless the *options*.{{MLConvTranspose2dOptions/outputSizes}} values are explicitly specified, the *options*.{{MLConvTranspose2dOptions/outputPadding}} may be needed to compute the spatial dimension values of the output tensor as follow:
 
-    *output_size = (input_size - 1) ** *stride + (filter_size - 1) ** *dilation + 1 - beginning_padding - ending_padding + output_padding*
+    *outputSize = (inputSize - 1) ** *stride + (filterSize - 1) ** *dilation + 1 - beginningPadding - endingPadding + outputPadding*
 </div>
 
 <details open algorithm>
@@ -2347,10 +2347,10 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |input| and |filter| is {{MLOperand}}.
-    1. Let |input_size| be the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-    1. Let |filter_size| be the [=list/size=] of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-    1. If |input_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If |filter_size| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |inputSize| be the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |filterSize| be the [=list/size=] of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. If |inputSize| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |filterSize| is not `4`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If the type of |input| and |filter| is not the same, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to `« 0, 0, 0, 0 »`.
     1. Else if the [=list/size=] of |options|.{{MLConvTranspose2dOptions/padding}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -2364,19 +2364,19 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
         1. If the [=list/size=] of |options|.{{MLConvTranspose2dOptions/outputSizes}} is not `2`, then [=exception/throw=] a {{TypeError}}.
         1. If the elements of |options|.{{MLConvTranspose2dOptions/outputSizes}} are not smaller than the elements at the same dimension (index) for |options|.{{MLConvTranspose2dOptions/strides}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If |input_size| / |options|.{{MLConvTranspose2dOptions/groups}} is not equal to |filter_size|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. Else if |input_size| % |options|.{{MLConvTranspose2dOptions/groups}} is not 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |inputSize| / |options|.{{MLConvTranspose2dOptions/groups}} is not equal to |filterSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Else if |inputSize| % |options|.{{MLConvTranspose2dOptions/groups}} is not 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConvTranspose2dOptions/bias}} is {{MLOperand}}.
     1. If the [=list/size=] of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConvTranspose2dOptions/activation}} is {{MLActivation}}.
-    1. Let |output_shape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
-    1. If |output_shape| is not the same as the shape of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |outputShape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
+    1. If |outputShape| is not the same as the shape of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |output_shape|.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
@@ -2877,15 +2877,15 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLGruOptions>
     : <dfn>bias</dfn>
     ::
-        An {{MLOperand}}. Specifies the 2-D input bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
+        An {{MLOperand}}. Specifies the 2-D input bias tensor of shape [numDirections, 3 * hiddenSize]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
 
     : <dfn>recurrentBias</dfn>
     ::
-        An {{MLOperand}}. Specifies the 2-D recurrent bias tensor of shape [num_directions, 3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
+        An {{MLOperand}}. Specifies the 2-D recurrent bias tensor of shape [numDirections, 3 * hiddenSize]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
 
     : <dfn>initialHiddenState</dfn>
     ::
-        An {{MLOperand}}. The 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size].
+        An {{MLOperand}}. The 3-D initial hidden state tensor of shape [numDirections, batchSize, hiddenSize].
         When not specified, implementations SHOULD use a tensor filled with zero.
 
     : <dfn>resetAfter</dfn>
@@ -2912,14 +2912,14 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batch_size, input_size].
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 3 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 3 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
+        - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batchSize, inputSize].
+        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [numDirections, 3 * hiddenSize, inputSize]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [numDirections, 3 * hiddenSize, hiddenSize]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
         - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the cell output from the last time step of the network. Additionally, if |options|.{{MLGruOptions/returnSequence}} is set to `true`, the second element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every cell outputs from each time step in the temporal sequence.
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [numDirections, batchSize, hiddenSize], the cell output from the last time step of the network. Additionally, if |options|.{{MLGruOptions/returnSequence}} is set to `true`, the second element is the 4-D output tensor of shape [steps, numDirections, batchSize, hiddenSize] containing every cell outputs from each time step in the temporal sequence.
 </div>
 
 <details open algorithm>
@@ -2976,11 +2976,11 @@ partial interface MLGraphBuilder {
     let currentRecurrentBias = [];
 
     for (let dir = 0; dir < numDirections; ++dir) {
-      currentWeight.push(builder.squeeze(builder.slice(weight, [dir, 0, 0], [1, 3 * hidden_size, input_size]), { axes: [0] }));
-      currentRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [dir, 0, 0], [1, 3 * hidden_size, hidden_size]), { axes: [0] }));
-      currentBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [dir, 0], [1, 3 * hidden_size]), { axes: [0] })) : null);
+      currentWeight.push(builder.squeeze(builder.slice(weight, [dir, 0, 0], [1, 3 * hiddenSize, inputSize]), { axes: [0] }));
+      currentRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [dir, 0, 0], [1, 3 * hiddenSize, hiddenSize]), { axes: [0] }));
+      currentBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [dir, 0], [1, 3 * hiddenSize]), { axes: [0] })) : null);
       currentRecurrentBias.push(options.recurrentBias ?
-        (builder.squeeze(builder.slice(options.recurrentBias, [dir, 0], [1, 3 * hidden_size]), { axes: [0] })) : null);
+        (builder.squeeze(builder.slice(options.recurrentBias, [dir, 0], [1, 3 * hiddenSize]), { axes: [0] })) : null);
     }
 
     for (let step = 0; step < steps; ++step) {
@@ -2988,12 +2988,12 @@ partial interface MLGraphBuilder {
       let currentOutput = null;
 
       for (let dir = 0; dir < numDirections; ++dir) {
-        currentHidden.push(builder.squeeze(builder.slice(hiddenState, [dir, 0, 0], [1, batch_size, hidden_size]), { axes: [0] }));
+        currentHidden.push(builder.squeeze(builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]), { axes: [0] }));
       }
 
       for (let dir = 0; dir < numDirections; ++dir) {
         let slice = (dir == 1 || options.direction == "backward" ? steps - step - 1 : step);
-        let currentInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, batch_size, input_size]), { axes: [0] });
+        let currentInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]), { axes: [0] });
 
         let result = builder.reshape(
           builder.gruCell(
@@ -3042,11 +3042,11 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLGruCellOptions>
     : <dfn>bias</dfn>
     ::
-        An {{MLOperand}}. Specifies the 1-D input bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
+        An {{MLOperand}}. Specifies the 1-D input bias tensor of shape [3 * hiddenSize]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
 
     : <dfn>recurrentBias</dfn>
     ::
-        An {{MLOperand}}. Specifies the 1-D recurrent bias tensor of shape [3 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
+        An {{MLOperand}}. Specifies the 1-D recurrent bias tensor of shape [3 * hiddenSize]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
 
     : <dfn>resetAfter</dfn>
     ::
@@ -3063,14 +3063,14 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batch_size, input_size].
-        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [3 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape [3 * hidden_size, hidden_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape [batch_size, hidden_size].
+        - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batchSize, inputSize].
+        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [3 * hiddenSize, inputSize]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape [3 * hiddenSize, hiddenSize]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape [batchSize, hiddenSize].
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLGruCellOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The 2-D tensor of shape [batch_size, hidden_size], the cell output hidden state of a single time step of the recurrent network.
+    **Returns:** an {{MLOperand}}. The 2-D tensor of shape [batchSize, hiddenSize], the cell output hidden state of a single time step of the recurrent network.
 </div>
 
 <details open algorithm>
@@ -3125,11 +3125,11 @@ partial interface MLGraphBuilder {
         builder.add(
           builder.matmul(
             input,
-            builder.transpose(builder.slice(weight, [0, 0], [hiddenSize, input_size]))
+            builder.transpose(builder.slice(weight, [0, 0], [hiddenSize, inputSize]))
             ),
           builder.matmul(
             hiddenState,
-            builder.transpose(builder.slice(recurrentWeight, [0, 0], [hiddenSize, hidden_size]))
+            builder.transpose(builder.slice(recurrentWeight, [0, 0], [hiddenSize, hiddenSize]))
             )
           )
         )
@@ -3145,11 +3145,11 @@ partial interface MLGraphBuilder {
         builder.add(
           builder.matmul(
             input,
-            builder.transpose(builder.slice(weight, [hiddenSize, 0], [hiddenSize, input_size]))
+            builder.transpose(builder.slice(weight, [hiddenSize, 0], [hiddenSize, inputSize]))
             ),
           builder.matmul(
             hiddenState,
-            builder.transpose(builder.slice(recurrentWeight, [hiddenSize, 0], [hiddenSize, hidden_size]))
+            builder.transpose(builder.slice(recurrentWeight, [hiddenSize, 0], [hiddenSize, hiddenSize]))
             )
           )
         )
@@ -3164,7 +3164,7 @@ partial interface MLGraphBuilder {
           builder.add(
             builder.matmul(
               input,
-              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, input_size]))
+              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, inputSize]))
               ),
             builder.mul(
               r,
@@ -3172,7 +3172,7 @@ partial interface MLGraphBuilder {
                 (options.recurrentBias ? builder.slice(options.recurrentBias, [2 * hiddenSize], [hiddenSize]) : zero),
                 builder.matmul(
                   hiddenState,
-                  builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, hidden_size]))
+                  builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, hiddenSize]))
                   )
                 )
               )
@@ -3190,11 +3190,11 @@ partial interface MLGraphBuilder {
           builder.add(
             builder.matmul(
               input,
-              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, input_size]))
+              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, inputSize]))
               ),
             builder.matmul(
               builder.mul(r, hiddenState),
-              builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, hidden_size]))
+              builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, hiddenSize]))
               )
             )
           )
@@ -3705,23 +3705,23 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLLstmOptions>
     : <dfn>bias</dfn>
     ::
-        An {{MLOperand}}. Specifies the 2-D input bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
+        An {{MLOperand}}. Specifies the 2-D input bias tensor of shape [numDirections, 4 * hiddenSize]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
 
     : <dfn>recurrentBias</dfn>
     ::
-        An {{MLOperand}}. Specifies the 2-D recurrent bias tensor of shape [num_directions, 4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
+        An {{MLOperand}}. Specifies the 2-D recurrent bias tensor of shape [numDirections, 4 * hiddenSize]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
 
     : <dfn>peepholeWeight</dfn>
     ::
-        An {{MLOperand}}. Specifies the 2-D weight tensor for peepholes of shape [num_directions, 3 * hidden_size]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
+        An {{MLOperand}}. Specifies the 2-D weight tensor for peepholes of shape [numDirections, 3 * hiddenSize]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
 
     : <dfn>initialHiddenState</dfn>
     ::
-        An {{MLOperand}}. Specifies the 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, implementations SHOULD use a tensor filled with zero.
+        An {{MLOperand}}. Specifies the 3-D initial hidden state tensor of shape [numDirections, batchSize, hiddenSize]. When not specified, implementations SHOULD use a tensor filled with zero.
 
     : <dfn>initialCellState</dfn>
     ::
-        An {{MLOperand}}. Specifies the 3-D initial hidden state tensor of shape [num_directions, batch_size, hidden_size]. When not specified, implementations SHOULD use a tensor filled with zero.
+        An {{MLOperand}}. Specifies the 3-D initial hidden state tensor of shape [numDirections, batchSize, hiddenSize]. When not specified, implementations SHOULD use a tensor filled with zero.
 
     : <dfn>returnSequence</dfn>
     ::
@@ -3742,14 +3742,14 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batch_size, input_size].
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [num_directions, 4 * hidden_size, input_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [num_directions, 4 * hidden_size, hidden_size]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
+        - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batchSize, inputSize].
+        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [numDirections, 4 * hiddenSize, inputSize]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
+        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [numDirections, 4 * hiddenSize, hiddenSize]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
         - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLLstmOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape [num_directions, batch_size, hidden_size], the output cell state from the last time step of the network. Additionally, if |options|.{{MLLstmOptions/returnSequence}} is set to true, the third element is the 4-D output tensor of shape [steps, num_directions, batch_size, hidden_size] containing every output from each time step in the temporal sequence.
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [numDirections, batchSize, hiddenSize], the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape [numDirections, batchSize, hiddenSize], the output cell state from the last time step of the network. Additionally, if |options|.{{MLLstmOptions/returnSequence}} is set to true, the third element is the 4-D output tensor of shape [steps, numDirections, batchSize, hiddenSize] containing every output from each time step in the temporal sequence.
 </div>
 
 <details open algorithm>
@@ -3759,39 +3759,39 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. If |options|.{{MLLstmOptions/direction}} is not one of {{MLRecurrentNetworkDirection}}, then [=exception/throw=] a {{TypeError}}.
-    1. Let |num_directions| be `1` if |options|.{{MLLstmOptions/direction}} is `"forward"`, or otherwise let it be `2`.
+    1. Let |numDirections| be `1` if |options|.{{MLLstmOptions/direction}} is `"forward"`, or otherwise let it be `2`.
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
         <div class="note">
             The shape of |input|, |weight| or |recurrentWeight| could be also checked here.
         </div>
     1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not equal to |steps|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. Let |batch_size| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
+    1. Let |batchSize| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
     1. If |options|.{{MLLstmOptions/bias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If |options|.{{MLLstmOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |numDirections|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If |options|.{{MLLstmOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If |options|.{{MLLstmOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |numDirections|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If |options|.{{MLLstmOptions/recurrentBias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If |options|.{{MLLstmOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |numDirections|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If |options|.{{MLLstmOptions/peepholeWeight}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not 4 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batch_size|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |numDirections|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batchSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If |options|.{{MLLstmOptions/initialHiddenState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[2] is not |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `3`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |num_directions|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batch_size|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not |numDirections|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1] is not equal to |batchSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If |options|.{{MLLstmOptions/initialCellState}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[2] is not |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLLstmOptions/layout}} is not one of {{MLLstmWeightLayout}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
@@ -3799,11 +3799,11 @@ partial interface MLGraphBuilder {
         1. [=Assert=]: the type of its elements is {{MLActivation}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |desc| a new {{MLOperandDescriptor}}.
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |num_directions|, |batch_size|, |hiddenSize| ].
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |numDirections|, |batchSize|, |hiddenSize| ].
         1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
         1. Let |output0| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Let |output1| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |steps|, |num_directions|, |batch_size|, |hiddenSize| ].
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |steps|, |numDirections|, |batchSize|, |hiddenSize| ].
         1. If |options|.{{MLLstmOptions/returnSequence}} is set to true:
             1. Let |output2| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
             1. Let |output| be the array [ |output0|, |output1|, |output2| ].
@@ -3849,13 +3849,13 @@ partial interface MLGraphBuilder {
     let currentPeepholeWeight = [];
 
     for (let dir = 0; dir < numDirections; ++dir) {
-      currentWeight.push(builder.squeeze(builder.slice(weight, [dir, 0, 0], [1, 4 * hidden_size, input_size]), { axes: [0] }));
-      currentRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [dir, 0, 0], [1, 4 * hidden_size, hidden_size]), { axes: [0] }));
-      currentBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [dir, 0], [1, 4 * hidden_size]), { axes: [0] })) : null);
+      currentWeight.push(builder.squeeze(builder.slice(weight, [dir, 0, 0], [1, 4 * hiddenSize, inputSize]), { axes: [0] }));
+      currentRecurrentWeight.push(builder.squeeze(builder.slice(recurrentWeight, [dir, 0, 0], [1, 4 * hiddenSize, hiddenSize]), { axes: [0] }));
+      currentBias.push(options.bias ? (builder.squeeze(builder.slice(options.bias, [dir, 0], [1, 4 * hiddenSize]), { axes: [0] })) : null);
       currentRecurrentBias.push(options.recurrentBias ?
-        (builder.squeeze(builder.slice(options.recurrentBias, [dir, 0], [1, 4 * hidden_size]), { axes: [0] })) : null);
+        (builder.squeeze(builder.slice(options.recurrentBias, [dir, 0], [1, 4 * hiddenSize]), { axes: [0] })) : null);
       currentPeepholeWeight.push(options.peepholeWeight ?
-        (builder.squeeze(builder.slice(options.peepholeWeight, [dir, 0], [1, 3 * hidden_size]), { axes: [0] })) : null);
+        (builder.squeeze(builder.slice(options.peepholeWeight, [dir, 0], [1, 3 * hiddenSize]), { axes: [0] })) : null);
     }
 
     for (let step = 0; step < steps; ++step) {
@@ -3865,13 +3865,13 @@ partial interface MLGraphBuilder {
       let nextCell = null;
 
       for (let dir = 0; dir < numDirections; ++dir) {
-        currentHidden.push(builder.squeeze(builder.slice(hiddenState, [dir, 0, 0], [1, batch_size, hidden_size]), { axes: [0] }));
-        currentCell.push(builder.squeeze(builder.slice(cellState, [dir, 0, 0], [1, batch_size, hidden_size]), { axes: [0] }));
+        currentHidden.push(builder.squeeze(builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]), { axes: [0] }));
+        currentCell.push(builder.squeeze(builder.slice(cellState, [dir, 0, 0], [1, batchSize, hiddenSize]), { axes: [0] }));
       }
 
       for (let dir = 0; dir < numDirections; ++dir) {
         let slice = (dir == 1 || options.direction == "backward" ? steps - step - 1 : step);
-        let currentInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, batch_size, input_size]), { axes: [0] });
+        let currentInput = builder.squeeze(builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]), { axes: [0] });
 
         let results = builder.lstmCell(
           currentInput, currentWeight[dir], currentRecurrentWeight[dir],
@@ -3923,15 +3923,15 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLLstmCellOptions>
     : <dfn>bias</dfn>
     ::
-        An {{MLOperand}}. The 1-D input bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
+        An {{MLOperand}}. The 1-D input bias tensor of shape [4 * hiddenSize]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
 
     : <dfn>recurrentBias</dfn>
     ::
-        An {{MLOperand}}. The 1-D recurrent bias tensor of shape [4 * hidden_size]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
+        An {{MLOperand}}. The 1-D recurrent bias tensor of shape [4 * hiddenSize]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
 
     : <dfn>peepholeWeight</dfn>
     ::
-        An {{MLOperand}}. The 1-D weight tensor for peepholes of shape [3 * hidden_size]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
+        An {{MLOperand}}. The 1-D weight tensor for peepholes of shape [3 * hiddenSize]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
 
     : <dfn>layout</dfn>
     ::
@@ -3944,15 +3944,15 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batch_size, input_size].
-        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [4 * hidden_size, input_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape [4 * hidden_size, hidden_size]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape [batch_size, hidden_size].
-        - *cellState*: an {{MLOperand}}. The 2-D input cell state tensor of shape [batch_size, hidden_size].
+        - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batchSize, inputSize].
+        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [4 * hiddenSize, inputSize]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape [4 * hiddenSize, hiddenSize]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape [batchSize, hiddenSize].
+        - *cellState*: an {{MLOperand}}. The 2-D input cell state tensor of shape [batchSize, hiddenSize].
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLLstmCellOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape [batch_size, hidden_size].
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape [batchSize, hiddenSize].
 </div>
 
 <details open algorithm>
@@ -3963,7 +3963,7 @@ partial interface MLGraphBuilder {
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |input|, |weight|, |recurrentWeight|, |hiddenState| and |cellState| is {{MLOperand}}.
     1. If the [=rank=] of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not `2`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. Let |batch_size| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0].
+    1. Let |batchSize| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0].
     1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=]:
         1. [=Assert=]: its type is {{MLOperand}}.
         1. If its rank is not `1`, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -3981,7 +3981,7 @@ partial interface MLGraphBuilder {
         1. If it is not an array of size `3`, then [=exception/throw=] a {{TypeError}}.
         1. [=Assert=]: the type of its elements is {{MLActivation}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |batch_size|, |hiddenSize| ].
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |batchSize|, |hiddenSize| ].
     1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output0| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
@@ -4021,11 +4021,11 @@ partial interface MLGraphBuilder {
           builder.add(
             builder.matmul(
               input,
-              builder.transpose(builder.slice(weight, [0, 0], [hiddenSize, input_size]))
+              builder.transpose(builder.slice(weight, [0, 0], [hiddenSize, inputSize]))
             ),
             builder.matmul(
               hiddenState,
-              builder.transpose(builder.slice(recurrentWeight, [0, 0], [hiddenSize, hidden_size]))
+              builder.transpose(builder.slice(recurrentWeight, [0, 0], [hiddenSize, hiddenSize]))
             )
           )
         )
@@ -4047,11 +4047,11 @@ partial interface MLGraphBuilder {
           builder.add(
             builder.matmul(
               input,
-              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, input_size]))
+              builder.transpose(builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, inputSize]))
             ),
             builder.matmul(
               hiddenState,
-              builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, hidden_size]))
+              builder.transpose(builder.slice(recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, hiddenSize]))
             )
           )
         )
@@ -4068,11 +4068,11 @@ partial interface MLGraphBuilder {
         builder.add(
           builder.matmul(
             input,
-            builder.transpose(builder.slice(weight, [3 * hiddenSize, 0], [hiddenSize, input_size]))
+            builder.transpose(builder.slice(weight, [3 * hiddenSize, 0], [hiddenSize, inputSize]))
           ),
           builder.matmul(
             hiddenState,
-            builder.transpose(builder.slice(recurrentWeight, [3 * hiddenSize, 0], [hiddenSize, hidden_size]))
+            builder.transpose(builder.slice(recurrentWeight, [3 * hiddenSize, 0], [hiddenSize, hiddenSize]))
           )
         )
       )
@@ -4093,11 +4093,11 @@ partial interface MLGraphBuilder {
           builder.add(
             builder.matmul(
               input,
-              builder.transpose(builder.slice(weight, [hiddenSize, 0], [hiddenSize, input_size]))
+              builder.transpose(builder.slice(weight, [hiddenSize, 0], [hiddenSize, inputSize]))
             ),
             builder.matmul(
               hiddenState,
-              builder.transpose(builder.slice(recurrentWeight, [hiddenSize, 0], [hiddenSize, hidden_size]))
+              builder.transpose(builder.slice(recurrentWeight, [hiddenSize, 0], [hiddenSize, hiddenSize]))
             )
           )
         )
@@ -4366,25 +4366,25 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLPool2dOptions>
     : <dfn>windowDimensions</dfn>
     ::
-         A sequence of {{unsigned long}} of length 2: [window_height, window_width].
+         A sequence of {{unsigned long}} of length 2: [windowHeight, windowWidth].
          Specifies the dimensions of the sliding window.
          The default value for the window dimensions are the height and width dimensions of the input shape.
 
     : <dfn>padding</dfn>
     ::
-        A sequence of {{unsigned long}} of length 4: [beginning_height, ending_height, beginning_width, ending_width].
+        A sequence of {{unsigned long}} of length 4: [beginningHeight, endingHeight, beginningWidth, endingWidth].
         Specifies the additional rows and columns added to the beginning and ending of each spatial dimension of the convolution input.
         The default value is [0,0,0,0].
 
     : <dfn>strides</dfn>
     ::
-        A sequence of {{unsigned long}} of length 2: [stride_height, stride_width].
+        A sequence of {{unsigned long}} of length 2: [strideHeight, strideWidth].
         Specifies the stride of the sliding window for each spatial dimension of the convolution input.
         The default value is [1,1].
 
     : <dfn>dilations</dfn>
     ::
-        A sequence of {{unsigned long}} of length 2: [dilation_height, dilation_width]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
+        A sequence of {{unsigned long}} of length 2: [dilationHeight, dilationWidth]. Specifies the dilation factor for each spatial dimension applied on the convolution filter (kernel).
         The default value is [1,1].
 
     : <dfn>autoPad</dfn>
@@ -4403,11 +4403,11 @@ partial interface MLGraphBuilder {
         An {{MLInputOperandLayout}} [=string=].
         Specifies the layout format of the input and output tensor as follows:
             - **"nchw"**
-                - input tensor: *[batches, input_channels, height, width]*
-                - output tensor: *[batches, output_channels, height, width]*
+                - input tensor: *[batches, inputChannels, height, width]*
+                - output tensor: *[batches, outputChannels, height, width]*
             - **"nhwc"**:
-                - input tensor: *[batches, height, width, input_channels]*
-                - output tensor: *[batches, height, width, output_channels]*
+                - input tensor: *[batches, height, width, inputChannels]*
+                - output tensor: *[batches, height, width, outputChannels]*
         The default value is *"nchw"*.
 
     : <dfn>roundingType</dfn>
@@ -4799,13 +4799,13 @@ partial interface MLGraphBuilder {
     : <dfn>scales</dfn>
     ::
         A sequence of {{float}} of length 2.
-        Specifies the scaling factor in each spatial dimensions of the input: [scale_height, scale_width].
+        Specifies the scaling factor in each spatial dimensions of the input: [scaleHeight, scaleWidth].
         The default value is [1.0, 1.0].
 
     : <dfn>sizes</dfn>
     ::
         A sequence of {{unsigned long}} of length 2.
-        Specifies the target sizes for each spatial dimensions of the input: [size_height, size_width]. When the target sizes are specified, the {{MLResample2dOptions/scales}} argument is ignored, since the scaling factor values are derived from the target sizes of each spatial dimension of the input.
+        Specifies the target sizes for each spatial dimensions of the input: [sizeHeight, sizeWidth]. When the target sizes are specified, the {{MLResample2dOptions/scales}} argument is ignored, since the scaling factor values are derived from the target sizes of each spatial dimension of the input.
 
     : <dfn>axes</dfn>
     ::
