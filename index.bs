@@ -1993,14 +1993,15 @@ partial interface MLGraphBuilder {
         1. If |axis| is greater than or equal to the [=rank=] of |desc|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Let |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] be 0.
         1. [=map/For each=] |index| in [=the range=] 0 to the [=rank=] of |inputs|, exclusive:
-            1. If <a>validating MLOperand</a> given |inputs|[|index|] and [=this=] returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-            1. [=map/For each=] |dim| in [=the range=] 0 to the [=rank=] of |inputs|[|index|].{{MLOperandDescriptor/dimensions}}, exclusive:
+            1. Let |input| be |inputs|[|index|].
+            1. If <a>validating MLOperand</a> given |input| and [=this=] returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+            1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not equal to |inputs|[0].{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+            1. [=map/For each=] |dim| in [=the range=] 0 to the [=rank=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, exclusive:
                 <div class="note">
                     If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
                 </div>
-                1. If |inputs|[|index|].{{MLOperandDescriptor/type}} is not equal to |inputs|[0].{{MLOperandDescriptor/type}}.
-                1. If |dim| is not equal to |axis| and if |inputs|[|index|].{{MLOperandDescriptor/dimensions}}[|dim|] is not equal to |inputs|[0].{{MLOperandDescriptor/dimensions}}[|dim|], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-                1. If |dim| is equal to |axis|, add to |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] the value of |inputs|[|index|].{{MLOperandDescriptor/dimensions}}[|dim|].
+                1. If |dim| is not equal to |axis| and if |input|.{{MLOperandDescriptor/dimensions}}[|dim|] is not equal to |inputs|[0].{{MLOperandDescriptor/dimensions}}[|dim|], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+                1. If |dim| is equal to |axis|, add to |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] the value of |input|.{{MLOperandDescriptor/dimensions}}[|dim|].
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
