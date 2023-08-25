@@ -2145,7 +2145,7 @@ partial interface MLGraphBuilder {
     1. Let |filterSize| be the [=list/size=] of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. If |inputSize| is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |filterSize| is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to `« 0, 0, 0, 0 »`.
     1. Else if the [=list/size=] of |options|.{{MLConv2dOptions/padding}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], set it to `« 1, 1 »`.
@@ -4802,10 +4802,9 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. Let |desc| be an {{MLOperandDescriptor}} initialized to |input|.{{MLOperand/[[descriptor]]}}.
-    1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then set |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} to |options|.{{MLResample2dOptions/sizes}} and return |desc|.
     1. For |index| in [=the range=] 0 to the [=list/size=] of |options|.{{MLResample2dOptions/axes}}, exclusive:
-        1. Let |inputSize| be the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|index|].
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|index|] to |inputSize| multiplied by |options|.{{MLResample2dOptions/scales}}.
+        1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], set |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to |options|.{{MLResample2dOptions/sizes}}[|index|] and return |desc|.
+        1. Otherwise, set |desc|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[|index|] multiplied by |options|.{{MLResample2dOptions/scales}}.
     1. Return |desc|.
   </div>
 </details>
