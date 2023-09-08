@@ -629,7 +629,7 @@ The WebGPU API identifies <a href="https://gpuweb.github.io/gpuweb/#privacy-mach
 
 The WebNN API defines two developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the most appropriate underlying execution device for the workload. [=Device type=] normatively indicates the kind of device and is either "cpu" or "gpu". If this type cannot be satisfied, an "{{OperationError}}" {{DOMException}} is thrown, thus this type can in some cases add two bits of entropy to the fingerprint. [=Power preference=] indicates preference as related to the power consumption and is considered a hint only and as such does not increase entropy of the fingerprint.
 
-If a future version of this specification introduces support for new a  [=device type=] that can only support a subset of {{MLOperandType}}s, that may introduce a new fingerprint.
+If a future version of this specification introduces support for new a  [=device type=] that can only support a subset of {{MLOperandDataType}}s, that may introduce a new fingerprint.
 
 In general, implementers of this API are expected to apply <a href="https://gpuweb.github.io/gpuweb/#privacy-considerations">WebGPU Privacy Considerations</a> to their implementations where applicable.
 
@@ -884,7 +884,7 @@ enum MLInputOperandLayout {
   "nhwc"
 };
 
-enum MLOperandType {
+enum MLOperandDataType {
   "float32",
   "float16",
   "int32",
@@ -895,7 +895,7 @@ enum MLOperandType {
 
 dictionary MLOperandDescriptor {
   // The operand type.
-  required MLOperandType type;
+  required MLOperandDataType type;
 
   // The dimensions field is only required for tensor operands.
   sequence<unsigned long> dimensions;
@@ -910,7 +910,7 @@ dictionary MLOperandDescriptor {
     1. Let |elementLength| be 1.
     1. [=map/For each=] |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
         1. Set |elementLength| to |elementLength| × |dimension|.
-    1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+    1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility).
     1. Return |elementLength| × |elementSize|.
   </div>
 </details>
@@ -1198,7 +1198,7 @@ partial interface MLContext {
   </summary>
   <div class=algorithm-steps>
     1. If |bufferView| is not an {{MLBufferView}}, return false.
-    1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/type}}  according to [this table](#appendices-mloperandtype-arraybufferview-compatibility), return false.
+    1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/type}}  according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility), return false.
     1. If |bufferView|.\[[ByteLength]] is not equal to the [=byte length=] of |descriptor|, return false.
   </div>
 </details>
@@ -1539,7 +1539,7 @@ interface MLGraphBuilder {
   MLOperand constant(MLOperandDescriptor descriptor, MLBufferView bufferView);
 
   // Create a single-value operand from the specified number of the specified type.
-  MLOperand constant(double value, optional MLOperandType type = "float32");
+  MLOperand constant(double value, optional MLOperandDataType type = "float32");
 
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
@@ -1721,7 +1721,7 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
 <div>
     **Arguments:**
         - *value*: a number
-        - *type*: an optional {{MLOperandType}}, by default *"float32"*.
+        - *type*: an optional {{MLOperandDataType}}, by default *"float32"*.
     **Returns:**: an {{MLOperand}} object.
 </div>
 
@@ -5602,31 +5602,31 @@ const graph = await builder.build({'output': output});
 
 # Appendices # {#appendices}
 
-## {{MLOperandType}} and {{ArrayBufferView}} compatibility ## {#appendices-mloperandtype-arraybufferview-compatibility}
+## {{MLOperandDataType}} and {{ArrayBufferView}} compatibility ## {#appendices-mloperanddatatype-arraybufferview-compatibility}
 
 <table class='data'>
     <thead class=stickyheader>
         <tr>
-            <th>{{MLOperandType}}
+            <th>{{MLOperandDataType}}
             <th>{{ArrayBufferView}}
     </thead>
     <tr>
-        <td>{{MLOperandType/float32}}
+        <td>{{MLOperandDataType/float32}}
         <td>{{Float32Array}}
     <tr>
-        <td>{{MLOperandType/float16}}
+        <td>{{MLOperandDataType/float16}}
         <td>{{Float16Array}}
     <tr>
-        <td>{{MLOperandType/int32}}
+        <td>{{MLOperandDataType/int32}}
         <td>{{Int32Array}}
     <tr>
-        <td>{{MLOperandType/uint32}}
+        <td>{{MLOperandDataType/uint32}}
         <td>{{Uint32Array}}
     <tr>
-        <td>{{MLOperandType/int8}}
+        <td>{{MLOperandDataType/int8}}
         <td>{{Int8Array}}
     <tr>
-        <td>{{MLOperandType/uint8}}
+        <td>{{MLOperandDataType/uint8}}
         <td>{{Uint8Array}}
 </table>
 
