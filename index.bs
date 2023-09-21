@@ -894,8 +894,8 @@ enum MLOperandDataType {
 };
 
 dictionary MLOperandDescriptor {
-  // The operand type.
-  required MLOperandDataType type;
+  // The operand data type.
+  required MLOperandDataType dataType;
 
   // The dimensions field is only required for tensor operands.
   sequence<unsigned long> dimensions;
@@ -1242,12 +1242,12 @@ partial interface MLContext {
 
     // Build a graph with two outputs.
     const builder = new MLGraphBuilder(context);
-    const descA = {type: 'float32', dimensions: [3, 4]};
+    const descA = {dataType: 'float32', dimensions: [3, 4]};
     const a = builder.input('a', descA);
-    const descB = {type: 'float32', dimensions: [4, 3]};
+    const descB = {dataType: 'float32', dimensions: [4, 3]};
     const bufferB = new Float32Array(sizeOfShape(descB.dimensions)).fill(0.5);
     const b = builder.constant(descB, bufferB);
-    const descC = {type: 'float32', dimensions: [3, 3]};
+    const descC = {dataType: 'float32', dimensions: [3, 3]};
     const bufferC = new Float32Array(sizeOfShape(descC.dimensions)).fill(1);
     const c = builder.constant(descC, bufferC);
     const d = builder.matmul(a, b);
@@ -1344,7 +1344,7 @@ partial interface MLContext {
     The following code showcases the asynchronous computation.
   </summary>
   <pre highlight="js">
-    const operandType = {type: 'float32', dimensions: [2, 2]};
+    const operandType = {dataType: 'float32', dimensions: [2, 2]};
     const context = await navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
     // 1. Create a computational graph 'C = 0.2 * A + B'.
@@ -1539,7 +1539,7 @@ interface MLGraphBuilder {
   MLOperand constant(MLOperandDescriptor descriptor, MLBufferView bufferView);
 
   // Create a single-value operand from the specified number of the specified type.
-  MLOperand constant(double value, optional MLOperandDataType type = "float32");
+  MLOperand constant(double value, optional MLOperandDataType dataType = "float32");
 
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
@@ -1721,7 +1721,7 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
 <div>
     **Arguments:**
         - *value*: a number
-        - *type*: an optional {{MLOperandDataType}}, by default *"float32"*.
+        - *dataType*: an optional {{MLOperandDataType}}, by default *"float32"*.
     **Returns:**: an {{MLOperand}} object.
 </div>
 
@@ -2932,7 +2932,7 @@ partial interface MLGraphBuilder {
     let hiddenState = options.initialHiddenState;
 
     if (!hiddenState) {
-      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
+      const desc = { dataType: 'float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
       hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
     }
@@ -3794,13 +3794,13 @@ partial interface MLGraphBuilder {
     let cellState = options.initialCellState;
 
     if (!hiddenState) {
-      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
+      const desc = { dataType: 'float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
       hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
     }
 
     if (!cellState) {
-      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
+      const desc = { dataType: 'float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
       cellState = builder.constant(desc, new Float32Array(totalSize).fill(0));
     }
@@ -4241,7 +4241,7 @@ partial interface MLGraphBuilder {
   <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
     const input = builder.constant(
-      { type: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
+      { dataType: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
 
     const beginningPadding = [1,2];
     const endingPadding = [1,2];
@@ -5539,7 +5539,7 @@ Given the following build graph:
     const builder = new MLGraphBuilder(context);
 
     // Create MLOperandDescriptor object.
-    const desc = {type: 'float32', dimensions: TENSOR_DIMS};
+    const desc = {dataType: 'float32', dimensions: TENSOR_DIMS};
 
     // constant1 is a constant MLOperand with the value 0.5.
     const constantBuffer1 = new Float32Array(TENSOR_SIZE).fill(0.5);
