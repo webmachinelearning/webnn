@@ -31,7 +31,7 @@ At the heart of neural networks is a computational graph of mathematical operati
 The WebNN API is a specification for constructing and executing computational graphs of neural networks. It provides web applications with the ability to create, compile, and run machine learning networks on the web browsers. The WebNN API may be implemented in web browsers using the available native operating system machine learning APIs for the best performance and reliability of results. The following code sample illustrates a simple usage of this API.
 
 ```JavaScript
-const operandType = {type: 'float32', dimensions: [2, 2]};
+const operandType = {dataType: 'float32', dimensions: [2, 2]};
 const context = await navigator.ml.createContext();
 const builder = new MLGraphBuilder(context);
 // 1. Create a computational graph 'C = 0.2 * A + B'.
@@ -127,14 +127,14 @@ export class NSNet2 {
     const weight217 = await buildConstantByNpy(builder, baseUrl + '217.npy');
     const biasFcOut4 = await buildConstantByNpy(builder, baseUrl + 'fc_out_4_bias.npy');
     // Build up the network.
-    const input = builder.input('input', {type: 'float32', dimensions: [batchSize, frames, this.frameSize]});
+    const input = builder.input('input', {dataType: 'float32', dimensions: [batchSize, frames, this.frameSize]});
     const relu20 = builder.relu(builder.add(builder.matmul(input, weight172), biasFcIn0));
     const transpose31 = builder.transpose(relu20, {permutation: [1, 0, 2]});
-    const initialState92 = builder.input('initialState92', {type: 'float32', dimensions: [1, batchSize, this.hiddenSize]});
+    const initialState92 = builder.input('initialState92', {dataType: 'float32', dimensions: [1, batchSize, this.hiddenSize]});
     const [gru94, gru93] = builder.gru(transpose31, weight192, recurrentWeight193, frames, this.hiddenSize,
         {bias: bias194, recurrentBias: recurrentBias194, initialHiddenState: initialState92, returnSequence: true});
     const squeeze95 = builder.squeeze(gru93, {axes: [1]});
-    const initialState155 = builder.input('initialState155', {type: 'float32', dimensions: [1, batchSize, this.hiddenSize]});
+    const initialState155 = builder.input('initialState155', {dataType: 'float32', dimensions: [1, batchSize, this.hiddenSize]});
     const [gru157, gru156] = builder.gru(squeeze95, weight212, recurrentWeight213, frames, this.hiddenSize,
         {bias: bias214, recurrentBias: recurrentBias214, initialHiddenState: initialState155, returnSequence: true});
     const squeeze158 = builder.squeeze(gru156, {axes: [1]});

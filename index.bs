@@ -629,7 +629,7 @@ The WebGPU API identifies <a href="https://gpuweb.github.io/gpuweb/#privacy-mach
 
 The WebNN API defines two developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the most appropriate underlying execution device for the workload. [=Device type=] normatively indicates the kind of device and is either "cpu" or "gpu". If this type cannot be satisfied, an "{{OperationError}}" {{DOMException}} is thrown, thus this type can in some cases add two bits of entropy to the fingerprint. [=Power preference=] indicates preference as related to the power consumption and is considered a hint only and as such does not increase entropy of the fingerprint.
 
-If a future version of this specification introduces support for new a  [=device type=] that can only support a subset of {{MLOperandType}}s, that may introduce a new fingerprint.
+If a future version of this specification introduces support for new a  [=device type=] that can only support a subset of {{MLOperandDataType}}s, that may introduce a new fingerprint.
 
 In general, implementers of this API are expected to apply <a href="https://gpuweb.github.io/gpuweb/#privacy-considerations">WebGPU Privacy Considerations</a> to their implementations where applicable.
 
@@ -884,7 +884,7 @@ enum MLInputOperandLayout {
   "nhwc"
 };
 
-enum MLOperandType {
+enum MLOperandDataType {
   "float32",
   "float16",
   "int32",
@@ -894,8 +894,8 @@ enum MLOperandType {
 };
 
 dictionary MLOperandDescriptor {
-  // The operand type.
-  required MLOperandType type;
+  // The operand data type.
+  required MLOperandDataType dataType;
 
   // The dimensions field is only required for tensor operands.
   sequence<unsigned long> dimensions;
@@ -910,7 +910,7 @@ dictionary MLOperandDescriptor {
     1. Let |elementLength| be 1.
     1. [=map/For each=] |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
         1. Set |elementLength| to |elementLength| × |dimension|.
-    1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/type}} according to [this table](#appendices-mloperandtype-arraybufferview-compatibility).
+    1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility).
     1. Return |elementLength| × |elementSize|.
   </div>
 </details>
@@ -1011,7 +1011,7 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
     1. [=Assert=]: the type of |operand|.{{MLOperand/[[builder]]}} is {{MLGraphBuilder}}.
     1. If |builder| is not equal to |operand|.{{MLOperand/[[builder]]}}, return false.
     1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
-    1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and invoking <a>check dimensions</a> given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/type}} returns false, then return false.
+    1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and invoking <a>check dimensions</a> given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/dataType}} returns false, then return false.
     1. Return true.
   </div>
 </details>
@@ -1198,7 +1198,7 @@ partial interface MLContext {
   </summary>
   <div class=algorithm-steps>
     1. If |bufferView| is not an {{MLBufferView}}, return false.
-    1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/type}}  according to [this table](#appendices-mloperandtype-arraybufferview-compatibility), return false.
+    1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/dataType}}  according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility), return false.
     1. If |bufferView|.\[[ByteLength]] is not equal to the [=byte length=] of |descriptor|, return false.
   </div>
 </details>
@@ -1242,12 +1242,12 @@ partial interface MLContext {
 
     // Build a graph with two outputs.
     const builder = new MLGraphBuilder(context);
-    const descA = {type: 'float32', dimensions: [3, 4]};
+    const descA = {dataType: 'float32', dimensions: [3, 4]};
     const a = builder.input('a', descA);
-    const descB = {type: 'float32', dimensions: [4, 3]};
+    const descB = {dataType: 'float32', dimensions: [4, 3]};
     const bufferB = new Float32Array(sizeOfShape(descB.dimensions)).fill(0.5);
     const b = builder.constant(descB, bufferB);
-    const descC = {type: 'float32', dimensions: [3, 3]};
+    const descC = {dataType: 'float32', dimensions: [3, 3]};
     const bufferC = new Float32Array(sizeOfShape(descC.dimensions)).fill(1);
     const c = builder.constant(descC, bufferC);
     const d = builder.matmul(a, b);
@@ -1344,7 +1344,7 @@ partial interface MLContext {
     The following code showcases the asynchronous computation.
   </summary>
   <pre highlight="js">
-    const operandType = {type: 'float32', dimensions: [2, 2]};
+    const operandType = {dataType: 'float32', dimensions: [2, 2]};
     const context = await navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
     // 1. Create a computational graph 'C = 0.2 * A + B'.
@@ -1430,7 +1430,7 @@ partial interface MLCommandEncoder {
   </summary>
   <div>
     <div class="note">
-        Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant(value, type)}} method as constant operands during graph construction time.
+        Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant(value, dataType)}} method as constant operands during graph construction time.
     </div>
   </div>
 </details>
@@ -1539,7 +1539,7 @@ interface MLGraphBuilder {
   MLOperand constant(MLOperandDescriptor descriptor, MLBufferView bufferView);
 
   // Create a single-value operand from the specified number of the specified type.
-  MLOperand constant(double value, optional MLOperandType type = "float32");
+  MLOperand constant(double value, optional MLOperandDataType dataType = "float32");
 
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
@@ -1613,7 +1613,7 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
     1. [=Assert=]: the type of |descriptor| is {{MLOperandDescriptor}}.
     1. [=Assert=]: If |descriptor|.{{MLOperandDescriptor/dimensions}} does not [=map/exist=], then |descriptor| defines a scalar input.
     1. If |descriptor|.{{MLOperandDescriptor/dimensions}} [=map/exists=]:
-        1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
@@ -1703,7 +1703,7 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
     </div>
     1. [=Assert=]: the type of |descriptor| is {{MLOperandDescriptor}}.
     1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/type}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If <a>validating buffer with descriptor</a> given |bufferView| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
@@ -1716,25 +1716,25 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
   </div>
 </details>
 
-#### The {{MLGraphBuilder/constant(value, type)}} method  #### {#api-mlgraphbuilder-constant-value-type}
+#### The {{MLGraphBuilder/constant(value, dataType)}} method  #### {#api-mlgraphbuilder-constant-value-datatype}
 
 <div>
     **Arguments:**
         - *value*: a number
-        - *type*: an optional {{MLOperandType}}, by default *"float32"*.
+        - *dataType*: an optional {{MLOperandDataType}}, by default *"float32"*.
     **Returns:**: an {{MLOperand}} object.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>constant(|value|, |type|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>constant(|value|, |dataType|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-        1. Set |descriptor|.{{MLOperandDescriptor/type}} to |type|.
+        1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |dataType|.
         1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to `undefined`.
             <div class="note">
                 In the case of a scalar constant, |descriptor|.{{MLOperandDescriptor/dimensions}} is ignored.
@@ -1987,7 +1987,7 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |inputs| is sequence of {{MLOperand}} objects.
     1. [=Assert=]: the type of |axis| is `unsigned long`.
     1. [=Assert=]: the shape, i.e. {{MLOperandDescriptor/dimensions}} of each operand in |inputs| is the same, except on the dimension given by |axis| on which they are concatenated.
-    1. [=Assert=]: the {{MLOperandDescriptor/type}} of each operand in |inputs| is the same.
+    1. [=Assert=]: the {{MLOperandDescriptor/dataType}} of each operand in |inputs| is the same.
     1. If any of the following steps fail, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Let |desc| be |inputs|[0].{{MLOperand/[[descriptor]]}}.
         1. If |axis| is greater than or equal to the [=rank=] of |desc|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -1995,7 +1995,7 @@ partial interface MLGraphBuilder {
         1. [=map/For each=] |index| in [=the range=] 0 to the [=rank=] of |inputs|, exclusive:
             1. Let |input| be |inputs|[|index|].
             1. If <a>validating MLOperand</a> given |input| and [=this=] returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-            1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not equal to |inputs|[0].{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+            1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not equal to |inputs|[0].{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
             1. [=map/For each=] |dim| in [=the range=] 0 to the [=rank=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, exclusive:
                 <div class="note">
                     If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
@@ -2146,7 +2146,7 @@ partial interface MLGraphBuilder {
     1. Let |filterSize| be the [=list/size=] of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. If |inputSize| is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |filterSize| is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not the same as |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to `« 0, 0, 0, 0 »`.
     1. Else if the [=list/size=] of |options|.{{MLConv2dOptions/padding}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], set it to `« 1, 1 »`.
@@ -2161,13 +2161,13 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConv2dOptions/bias}} is {{MLOperand}}.
     1. If the [=list/size=] of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConv2dOptions/activation}} is {{MLActivation}}.
     1. Let |outputShape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
     1. If |outputShape| is not the same as the shape of |options|.{{MLConv2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
@@ -2322,7 +2322,7 @@ partial interface MLGraphBuilder {
     1. Let |filterSize| be the [=list/size=] of |filter|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. If |inputSize| is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |filterSize| is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not the same as {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to `« 0, 0, 0, 0 »`.
     1. Else if the [=list/size=] of |options|.{{MLConvTranspose2dOptions/padding}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConvTranspose2dOptions/strides}} does not [=map/exist=], set it to `« 1, 1 »`.
@@ -2340,13 +2340,13 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConvTranspose2dOptions/bias}} is {{MLOperand}}.
     1. If the [=list/size=] of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 1, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not the same as |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=]:
         1. [=Assert=]: the type of |options|.{{MLConvTranspose2dOptions/activation}} is {{MLActivation}}.
     1. Let |outputShape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
     1. If |outputShape| is not the same as the shape of |options|.{{MLConvTranspose2dOptions/bias}}.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
@@ -2409,9 +2409,9 @@ partial interface MLGraphBuilder {
   <div class=algorithm-steps>
     1. [=Assert=]: |op| is one of "add", "sub", "mul", "div", "max", "min", "pow".
     1. [=Assert=]: the type of |a| and |b| is {{MLOperand}}.
-    1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
     1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
         1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
@@ -2780,7 +2780,7 @@ partial interface MLGraphBuilder {
         </div>
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [|shapeA|[0], |shapeB|[1]].
-    1. Set |desc|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
@@ -2932,7 +2932,7 @@ partial interface MLGraphBuilder {
     let hiddenState = options.initialHiddenState;
 
     if (!hiddenState) {
-      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
+      const desc = { dataType: 'float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
       hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
     }
@@ -3060,7 +3060,7 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |input|.{{MLOperandDescriptor/dimensions}}[0], |hiddenSize| ].
-    1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
@@ -3764,7 +3764,7 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |desc| a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |numDirections|, |batchSize|, |hiddenSize| ].
-        1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+        1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
         1. Let |output0| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Let |output1| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |steps|, |numDirections|, |batchSize|, |hiddenSize| ].
@@ -3794,13 +3794,13 @@ partial interface MLGraphBuilder {
     let cellState = options.initialCellState;
 
     if (!hiddenState) {
-      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
+      const desc = { dataType: 'float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
       hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
     }
 
     if (!cellState) {
-      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
+      const desc = { dataType: 'float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
       cellState = builder.constant(desc, new Float32Array(totalSize).fill(0));
     }
@@ -3945,7 +3945,7 @@ partial interface MLGraphBuilder {
         1. [=Assert=]: the type of its elements is {{MLActivation}}.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to [ |batchSize|, |hiddenSize| ].
-    1. Set |desc|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output0| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Let |output1| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
@@ -4133,7 +4133,7 @@ partial interface MLGraphBuilder {
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate matmul output sizes</a> steps given |a| and |b|.
     1. If that throws an error, re-[=exception/throw=] the error.
-    1. Set |desc|.{{MLOperandDescriptor/type}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
@@ -4241,7 +4241,7 @@ partial interface MLGraphBuilder {
   <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
     const input = builder.constant(
-      { type: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
+      { dataType: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
 
     const beginningPadding = [1,2];
     const endingPadding = [1,2];
@@ -4479,7 +4479,7 @@ partial interface MLGraphBuilder {
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |input| and |slope| is {{MLOperand}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/type}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/type}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
     1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |slope|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
         1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
@@ -5539,7 +5539,7 @@ Given the following build graph:
     const builder = new MLGraphBuilder(context);
 
     // Create MLOperandDescriptor object.
-    const desc = {type: 'float32', dimensions: TENSOR_DIMS};
+    const desc = {dataType: 'float32', dimensions: TENSOR_DIMS};
 
     // constant1 is a constant MLOperand with the value 0.5.
     const constantBuffer1 = new Float32Array(TENSOR_SIZE).fill(0.5);
@@ -5602,31 +5602,31 @@ const graph = await builder.build({'output': output});
 
 # Appendices # {#appendices}
 
-## {{MLOperandType}} and {{ArrayBufferView}} compatibility ## {#appendices-mloperandtype-arraybufferview-compatibility}
+## {{MLOperandDataType}} and {{ArrayBufferView}} compatibility ## {#appendices-mloperanddatatype-arraybufferview-compatibility}
 
 <table class='data'>
     <thead class=stickyheader>
         <tr>
-            <th>{{MLOperandType}}
+            <th>{{MLOperandDataType}}
             <th>{{ArrayBufferView}}
     </thead>
     <tr>
-        <td>{{MLOperandType/float32}}
+        <td>{{MLOperandDataType/float32}}
         <td>{{Float32Array}}
     <tr>
-        <td>{{MLOperandType/float16}}
+        <td>{{MLOperandDataType/float16}}
         <td>{{Float16Array}}
     <tr>
-        <td>{{MLOperandType/int32}}
+        <td>{{MLOperandDataType/int32}}
         <td>{{Int32Array}}
     <tr>
-        <td>{{MLOperandType/uint32}}
+        <td>{{MLOperandDataType/uint32}}
         <td>{{Uint32Array}}
     <tr>
-        <td>{{MLOperandType/int8}}
+        <td>{{MLOperandDataType/int8}}
         <td>{{Int8Array}}
     <tr>
-        <td>{{MLOperandType/uint8}}
+        <td>{{MLOperandDataType/uint8}}
         <td>{{Uint8Array}}
 </table>
 
