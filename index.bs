@@ -1610,7 +1610,7 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
     </div>
     1. If |name| is empty, then [=exception/throw=] a {{TypeError}}.
     1. [=Assert=]: the type of |descriptor| is {{MLOperandDescriptor}}.
-    1. [=Assert=]: If |descriptor|.{{MLOperandDescriptor/dimensions}} does not [=map/exist=], then |descriptor| defines a scalar input, equivalent to zero dimensions.
+    1. [=Assert=]: If |descriptor|.{{MLOperandDescriptor/dimensions}} does not [=map/exist=], then |descriptor| defines a scalar input, and |descriptor|.{{MLOperandDescriptor/dimensions}} is set to an empty array of {{unsigned long long}}.
     1. If |descriptor|.{{MLOperandDescriptor/dimensions}} [=map/exists=]:
         1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -4861,16 +4861,15 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
+    1. [=Assert=]: the type of |newShape| is an array of {{unsigned long long}}.
     1. Let |outputShape| be an empty array of {{unsigned long}}.
-    1. If |newShape| is a scalar [=number=], set |outputShape| to `«»`.
-    1. Otherwise, if |newShape| is an array of {{unsigned long}}:
-        1. If the [=list/size=] of |newShape| is 0, set |outputShape| to `«»` (reshaping to scalar).
-        1. If |newShape| contains more than one `null` value, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If any value in |newShape| is 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. Let |inputElementCount| be the product of all elements in |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If |newShape| contains a `null` value, set that value to |inputElementCount| divided by the product of all other values in |newShape|.
-            1. If that value is too large for {{unsigned long}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=list/size=] of |newShape| is 0, set |outputShape| to `«»` (reshaping to scalar).
+    1. If |newShape| contains more than one `null` value, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If any value in |newShape| is 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |inputElementCount| be the product of all elements in |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. If |newShape| contains a `null` value, set that value to |inputElementCount| divided by the product of all other values in |newShape|.
+        1. If that value is too large for {{unsigned long}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |newShape|.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
