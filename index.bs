@@ -1792,15 +1792,17 @@ partial interface MLGraphBuilder {
   </div>
 </details>
 
-### {{MLGraphBuilder/constant}} ### {#api-mlgraphbuilder-constant-method}
+### {{MLGraphBuilder/constant}} ### {#api-mlgraphbuilder-constant}
 Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
 
-#### {{MLGraphBuilder/constant(descriptor, bufferView)}} method  #### {#api-mlgraphbuilder-constant}
+#### {{MLGraphBuilder/constant(descriptor, bufferView)}} #### {#api-mlgraphbuilder-constant-bufferview}
+Create a constant {{MLOperand}} of the specified data type and shape that contains the initializing data.
+
 <div>
     **Arguments:**
-        - *descriptor*: an {{MLOperandDescriptor}} object
-        - *bufferView*: an {{MLBufferView}}
-    **Returns:**: an {{MLOperand}} object.
+        - *descriptor*: an {{MLOperandDescriptor}}. The descriptor of the output tensor.
+        - *bufferView*: an {{MLBufferView}}. The view of the buffer containing the initializing data.
+    **Returns:**: an {{MLOperand}}. The constant output tensor.
 </div>
 
 <details open algorithm>
@@ -1826,13 +1828,18 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
   </div>
 </details>
 
-#### {{MLGraphBuilder/constant(value, type)}} method  #### {#api-mlgraphbuilder-constant-value-type}
+#### {{MLGraphBuilder/constant(value, type)}} #### {#api-mlgraphbuilder-constant-value-type}
+Create a constant {{MLOperand}} of the specified value and data type.
+
+<div class="note">
+Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a float value is assigned to an *"int8"* data type, etc.
+</div>
 
 <div>
     **Arguments:**
-        - *value*: a number
-        - *type*: an optional {{MLOperandDataType}}, by default *"float32"*.
-    **Returns:**: an {{MLOperand}} object.
+        - *value*: a {{float}} number. The value of the constant.
+        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be *"float32"*.
+    **Returns:**: an {{MLOperand}}. The constant output.
 </div>
 
 <details open algorithm>
@@ -1855,6 +1862,49 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
             1. Create an [=implementation-defined=] platform operand |constantImpl| to represent a constant, given |descriptor|.
             1. Store a reference of |constantImpl| in |operand|.{{MLOperand/[[operand]]}}.
             1. Register |operand| as a scalar constant with |value| as value.
+    1. Return |operand|.
+  </div>
+</details>
+
+#### {{MLGraphBuilder/constant(start, end, step, type)}} #### {#api-mlgraphbuilder-constant-range}
+Create a constant {{MLOperand}} of the specified data type and shape that contains the data as specified by the range. 
+
+<div class="note">
+Data truncation will occur when the values in the range exceed the range of the specified output data type e.g. when a float value is assigned to an *"int8"* data type, etc.
+</div>
+
+<div>
+    **Arguments:**
+        - *start*: a {{float}} scalar. The starting value of the range.
+        - *end*: a {{float}} scalar. The ending value of the range.
+        - *step*: a {{float}} scalar. The gap value between two data points in the range.
+        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be *"float32"*.
+    **Returns:**: an {{MLOperand}}. The constant 1-D output tensor of size `max(0, ceil((end - start)/step))`. 
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>constant(|start|, |end|, |step|, |type|)</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+        1. Set |descriptor|.{{MLOperandDescriptor/type}} to |type|.
+        1. Let |size| be *max(0, ceil((end - start)/step))*.
+        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to [|size|].
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+        1. Let |operand| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
+        1. Make a request to the underlying platform to:
+            1. Create an [=implementation-defined=] platform memory buffer the size of |size| multiplied by sizeof(|descriptor|.{{MLOperandDescriptor/type}}).
+            2. Store the beginning address to that memory buffer as a pointer |buffer| of the corresponding data type.
+        1. [=map/For each=] |index| in [=the range=] 0 to |size|, exclusive:
+            1. Set |buffer|[|index|] to |start| + (|index| * |step|).
+        1. Make a request to the underlying platform to:
+            1. Create an [=implementation-defined=] platform operand |constantImpl| to represent a constant operand, given |descriptor|.
+            1. Store a reference of |constantImpl| in |operand|.{{MLOperand/[[operand]]}}.
+            1. Register |operand| as a constant with |buffer| as value.
     1. Return |operand|.
   </div>
 </details>
@@ -2666,9 +2716,11 @@ partial interface MLGraphBuilder {
     Examples of how gather works in different slicing schemes.
   </summary>
   <pre highlight="js">
-    // input of shape [4,3]: [
-    //    [0,1,2], [10,11,12], [20,21,22], [30,31,32]
-    // ]
+    // input of shape [4,3]:
+    //   [[ 0,  1,  2],
+    //    [10, 11, 12], 
+    //    [20, 21, 22], 
+    //    [30, 31, 32]]
     const input = builder.constant(
     { dimensions: [4,3] }, new Float32Array([0,1,2,10,11,12,20,21,22,30,31,32]));
 
@@ -2682,27 +2734,32 @@ partial interface MLGraphBuilder {
     { type: 'uint32', dimensions: [2,2] }, new Uint32Array([0,1,1,2]));
 
     // axis = 0 (default)
-    // indices of shape [2]: [3,1]
-    // output of shape [2,3]: [
-    //    [30,31,32], [10,11,12]
-    // ]
+    // indices of shape [2]: 
+    //   [3,1]
+    // output of shape [2,3]:
+    //   [[30, 31, 32], 
+    //    [10, 11, 12]]
     const output1 = builder.gather(input, indices1);
 
     // axis = 1
-    // indices of shape [3]: [2,1,1]
-    // output of shape [4,3]: [
-    //    [2,1,1], [12,11,11], [22,21,21], [32,31,31]
-    // ]
+    // indices of shape [3]:
+    //   [2,1,1]
+    // output of shape [4,3]:
+    //   [[ 2,  1,  1],
+    //    [12, 11, 11], 
+    //    [22, 21, 21],
+    //    [32, 31, 31]]
     const output2 = builder.gather(input, indices2, { axis: 1 });
 
     // axis = 1
-    // indices of shape [2,2]: [[0,1], [1,2]]
-    // output of shape [4,2,2]: [
-    //    [[0,1], [1,2]],
-    //    [[10,11], [11,12]],
-    //    [[20,21], [21,22]],
-    //    [[30,31], [31,32]]
-    // ]
+    // indices of shape [2,2]: 
+    //   [[0, 1], 
+    //    [1, 2]]
+    // output of shape [4,2,2]:
+    //   [[[ 0,  1], [ 1,  2]],
+    //    [[10, 11], [11, 12]],
+    //    [[20, 21], [21, 22]],
+    //    [[30, 31], [31, 32]]]
     const output3 = builder.gather(input, indices3, { axis: 1 });
   </pre>
 </details>
@@ -3742,7 +3799,6 @@ partial interface MLGraphBuilder {
 </div>
 
 <details open algorithm>
-
   <summary>
     The <dfn method for=MLGraphBuilder>linear(|input|, |options|)</dfn> method steps are:
   </summary>
@@ -5275,7 +5331,6 @@ partial interface MLGraphBuilder {
 </div>
 
 <details open algorithm>
-
   <summary>
     The <dfn method for=MLGraphBuilder>softmax(|input|)</dfn> method steps are:
   </summary>
@@ -5509,7 +5564,6 @@ partial interface MLGraphBuilder {
 </dl>
 
 <details open algorithm>
-
   <summary>
     The <dfn method for=MLGraphBuilder>split(|input|, |splits|, |options|)</dfn> method steps are:
   </summary>
@@ -5641,14 +5695,6 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
-    **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *options*: an optional {{MLTransposeOptions}}. The optional parameters of the operation.
-
-    **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor.
-</div>
-
 {{MLTransposeOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLTransposeOptions>
     : <dfn>permutation</dfn>
@@ -5658,6 +5704,14 @@ partial interface MLGraphBuilder {
         The default value is [N-1, ..., 0], where N is the [=rank=] of the input tensor, e.g. [2,1,0] for a 3-D tensor.
         These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the [=rank=] of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 </dl>
+
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input N-D tensor.
+        - *options*: an optional {{MLTransposeOptions}}. The optional parameters of the operation.
+
+    **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor.
+</div>
 
 <details open algorithm>
   <summary>
@@ -5682,6 +5736,108 @@ partial interface MLGraphBuilder {
     1. Return |output|.
   </div>
 </details>
+
+### {{MLGraphBuilder/tri}} ### {#api-mlgraphbuilder-tri}
+Given a 2-D tensor (matrix), return a 2-D tensor containing either the upper or lower triangular part of the input tensor.
+
+<script type=idl>
+dictionary MLTriOptions {
+  boolean upper = true;
+  long diagonal = 0;
+};
+
+partial interface MLGraphBuilder {
+  MLOperand tri(MLOperand input, optional MLTriOptions options = {});
+};
+</script>
+
+{{MLTriOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLTriOptions>
+    : <dfn>upper</dfn>
+    ::
+        A {{boolean}} value. Indicate whether the output the upper or the lower part of the input matrix is retained. If not set, it is assumed to be true, indicating that the upper part is retained.
+    : <dfn>diagonal</dfn>
+    ::
+        A {{long}} value. Specify how many diagonals above or below the main diagonals of the input matrix are retained or excluded. If not set, this value is assumed to be 0, which means no diagonals other than the main diagonals are affected. 
+</dl>
+
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input 2-D tensor.
+        - *options*: an optional {{MLTriOptions}}. The optional parameters of the operation.
+
+    **Returns:** an {{MLOperand}}. The output 2-D tensor representing a triangular matrix.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>tri(|input|, |options|)</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+        1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the tri operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<div class="example">
+<details open>
+  <summary>
+    Examples of how tri works in different diagonal settings.
+  </summary>
+  <pre highlight="js">
+    // input:
+    //   [[7, 1, 2],
+    //    [9, 4, 8],
+    //    [2, 6, 3]]
+    const input = builder.constant(
+    { dimensions: [3,3] }, new Float32Array([7,1,2,9,4,8,2,6,3]));
+
+    // upper triangular matrix:
+    //   [[7, 1, 2], 
+    //    [0, 4, 8],
+    //    [0, 0, 3]]
+    const upper = builder.tri(input);
+
+    // upper triangular matrix with one additional set of diagonals excluded:
+    //   [[0, 1, 2], 
+    //    [0, 0, 8],
+    //    [0, 0, 0]]
+    const upperPositive = builder.tri(input, { diagonal: 1 });
+
+    // upper triangular matrix with one additional set of diagonals retained:
+    //   [[7, 1, 2], 
+    //    [9, 4, 8],
+    //    [0, 6, 3]]
+    const upperNegative = builder.tri(input, { diagonal: -1 });
+
+    // lower triangular matrix:
+    //   [[7, 0, 0],
+    //    [9, 4, 0],
+    //    [2, 6, 3]]
+    const lower = builder.tri(input, { upper: false });
+
+    // lower triangular matrix with one additional set of diagonals retained:
+    //   [[7, 1, 0],
+    //    [9, 4, 8],
+    //    [2, 6, 3]]
+    const lowerPositive = builder.tri(input, { upper: false, diagonal: 1 });
+
+    // lower triangular matrix with one additional set of diagonals excluded:
+    //   [[0, 0, 0],
+    //    [9, 0, 0],
+    //    [2, 6, 0]]
+    const lowerNegative = builder.tri(input, { upper: false, diagonal: -1 });
+  </pre>
+</details>
+</div>
 
 ### {{MLGraphBuilder/where}} ### {#api-mlgraphbuilder-where}
 Select the values from the input or the other tensor depending on the corresponding Boolean values of the condition tensor. The condition tensor is often the output of one of the element-wise logical operations.
