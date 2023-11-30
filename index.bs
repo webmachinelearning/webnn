@@ -2393,9 +2393,9 @@ partial interface MLGraphBuilder {
 </details>
 
 ### Element-wise logical operations ### {#api-mlgraphbuilder-logical}
-Compare two input tensors element-wise, if the operation requires two inputs, and return a tensor of {{boolean}} values 0 or 1 for the specified input values.
+Compare input tensors element-wise and return a uint8 tensor of values 0 or 1 for the comparisons. For single-operand operations, return the logical results of the operation. 
 
-The two input tensors will be broadcasted according to [[!numpy-broadcasting-rule]]. The [=rank=] of the output tensor is the maximum
+The input tensor will be broadcasted according to [[!numpy-broadcasting-rule]]. The [=rank=] of the output tensor is the maximum
 [=rank=] of the input tensors.
 
 <script type=idl>
@@ -2424,7 +2424,7 @@ partial interface MLGraphBuilder {
         - *greaterOrEqual*: Compare if the values of the first input tensor is greater or equal, element-wise.
         - *lesser*: Compare if the values of the first input tensor is lesser, element-wise.
         - *lesserOrEqual*: Compare if the values of the first input tensor is lesser or equal, element-wise.
-        - *not*: Invert the values of the input tensor to {{boolean}} values 0 or 1, element-wise. Specifically, when the input value is non-zero, invert it to a {{boolean}} value 0. Conversely, for a zero input value, invert it to a {{boolean}} value. 
+        - *not*: Invert the values of the input tensor to values 0 or 1, element-wise. Specifically, when the input value is non-zero, invert it to a {{boolean}} value 0. Conversely, for a zero input value, invert it to a {{boolean}} value. 
 </div>
 
 <div class="note">
@@ -2438,7 +2438,7 @@ Although operations *greaterOrEqual* and *lesserOrEqual* can each be implemented
   <div class=algorithm-steps>
     1. [=Assert=]: |op| is one of "equal", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "not".
     1. [=Assert=]: the type of |a| and |b| if available is {{MLOperand}}.
-    1. If either |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} or |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} isn't "uint8", then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If either |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} or |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} (when available) isn't "uint8", then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to "uint8".
     1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
@@ -2856,7 +2856,7 @@ partial interface MLGraphBuilder {
     1. Let |dimCount| be zero.
     1. [=map/For each=] |size| &rarr; |value| of |shapeInput|:
         1. If |dimCount| is less than or equal to |axis| then [=continue=].
-        1. Set |shapeOutput|[|rankOutput| + |dimCount|] to |size|.
+        1. Set |shapeOutput|[|rankOutput| + |dimCount| - |axis| - 1] to |size|.
         1. Increment |dimCount| by one.
     1. Let |desc| a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |shapeOutput|.
@@ -3761,7 +3761,6 @@ The {{MLLayerNormalizationOptions}} members are:
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If the [=rank=] of |input| is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. [=Assert=]:  the type of |options|.{{MLLayerNormalizationOptions/scale}} is {{MLOperand}}.
     1. If the [=rank=] of |options|.{{MLLayerNormalizationOptions/scale}} is not equal to the [=list/size=] of |options|.{{MLLayerNormalizationOptions/axes}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. [=Assert=]: the type of |options|.{{MLLayerNormalizationOptions/bias}} is  {{MLOperand}}.
