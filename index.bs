@@ -1203,12 +1203,12 @@ partial interface MLContext {
 
     // Build a graph with two outputs.
     const builder = new MLGraphBuilder(context);
-    const descA = {type: 'float32', dimensions: [3, 4]};
+    const descA = {dataType: 'float32', dimensions: [3, 4]};
     const a = builder.input('a', descA);
-    const descB = {type: 'float32', dimensions: [4, 3]};
+    const descB = {dataType: 'float32', dimensions: [4, 3]};
     const bufferB = new Float32Array(sizeOfShape(descB.dimensions)).fill(0.5);
     const b = builder.constant(descB, bufferB);
-    const descC = {type: 'float32', dimensions: [3, 3]};
+    const descC = {dataType: 'float32', dimensions: [3, 3]};
     const bufferC = new Float32Array(sizeOfShape(descC.dimensions)).fill(1);
     const c = builder.constant(descC, bufferC);
     const d = builder.matmul(a, b);
@@ -1305,7 +1305,7 @@ partial interface MLContext {
     The following code showcases the asynchronous computation.
   </summary>
   <pre highlight="js">
-    const operandType = {type: 'float32', dimensions: [2, 2]};
+    const operandType = {dataType: 'float32', dimensions: [2, 2]};
     const context = await navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
     // 1. Create a computational graph 'C = 0.2 * A + B'.
@@ -1450,6 +1450,84 @@ Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGr
     1. If <a>validating MLContext</a> given |context| returns false, then [=exception/throw=] a "{{TypeError}}".
     1. Set {{MLGraphBuilder/[[context]]}} to |context|.
   </div>
+</details>
+
+### argMin/Max ### {#api-mlgraphbuilder-argminmax}
+Return the index location of the minium or maxmium values of all the input values along the axes.
+
+<script type=idl>
+dictionary MLArgMinMaxOptions {
+  sequence<unsigned long> axes = null;
+  boolean keepDimensions = false;
+};
+
+partial interface MLGraphBuilder {
+  MLOperand argMin(MLOperand input, optional MLArgMinMaxOptions options = {});
+  MLOperand argMax(MLOperand input, optional MLArgMinMaxOptions options = {});
+};
+</script>
+
+{{MLArgMinMaxOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLArgMinMaxOptions>
+    : <dfn>axes</dfn>
+    ::
+        A sequence of {{unsigned long}}. The dimensions to reduce. The values in the sequence must be in the range [0, N-1] where N is the [=rank=] of the input tensor. If not present, all dimensions are reduced.
+
+    : <dfn>keepDimensions</dfn>
+    ::
+        A {{boolean}}. If true, retains reduced dimensions with [=list/size=] 1. The default value is false.
+</dl>
+
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input N-D tensor.
+        - *options*: an optional {{MLArgMinMaxOptions}}. The optional parameters of the operation.
+
+    **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type "uint32" in the range [0, N-1] where N is the corresponding size of each of the input dimensions specified by options.axes.
+</div>
+
+<details open algorithm>
+  <summary>
+    To <dfn for="MLGraphBuilder" data-lt="argminmax-op">create argMin/argMax operation</dfn> given |op|, |input| and |options|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. [=Assert=]: |op| is one of "argMin", "argMax".
+    1. [=Assert=]: the type of |input| is {{MLOperand}}.
+    1. If |options|.{{MLArgMinMaxOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to the [=rank=] of |input|, exclusive, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |outputShape| be the result of invoking the underlying implementation for calculating reduction output dimensions, given |options|.
+    1. Let |desc| be a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/dataType}} to "uint32".
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+        1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
+        1. Make a request to the underlying platform to:
+            1. Let |opImpl| be an [=implementation-defined=] platform operator for the |op| argMin or argMax operation, given |options|.
+            1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
+            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Store a reference to |outputImpl| in |output|.{{MLOperand/[[operand]]}}.
+        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
+        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. Return |output|.
+  </div>
+</details>
+
+<details open>
+  <summary>
+    The following argMin/argMax algorithms are supported.
+  </summary>
+    <div algorithm>
+    The <dfn method for=MLGraphBuilder>argMin(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMin", |input| and |options|.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
+        1. Return |output|.
+    </div>
+
+    <div algorithm>
+    The <dfn method for=MLGraphBuilder>argMax(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMax", |input| and |options|.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
+        1. Return |output|.
+    </div>
 </details>
 
 ### batchNormalization ### {#api-mlgraphbuilder-batchnorm}
@@ -2902,13 +2980,13 @@ partial interface MLGraphBuilder {
     { dimensions: [4,3] }, new Float32Array([0,1,2,10,11,12,20,21,22,30,31,32]));
 
     const indices1 = builder.constant(
-    { type: 'uint32', dimensions: [2] }, new Uint32Array([3,1]));
+    { dataType: 'uint32', dimensions: [2] }, new Uint32Array([3,1]));
 
     const indices2 = builder.constant(
-    { type: 'uint32', dimensions: [3] }, new Uint32Array([2,1,1]));
+    { dataType: 'uint32', dimensions: [3] }, new Uint32Array([2,1,1]));
 
     const indices3 = builder.constant(
-    { type: 'uint32', dimensions: [2,2] }, new Uint32Array([0,1,1,2]));
+    { dataType: 'uint32', dimensions: [2,2] }, new Uint32Array([0,1,1,2]));
 
     // axis = 0 (default)
     // indices of shape [2]: 
@@ -3166,7 +3244,7 @@ partial interface MLGraphBuilder {
     let hiddenState = options.initialHiddenState;
 
     if (!hiddenState) {
-      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
+      const desc = { dataType: 'float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
       hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
     }
@@ -4170,13 +4248,13 @@ partial interface MLGraphBuilder {
     let cellState = options.initialCellState;
 
     if (!hiddenState) {
-      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
+      const desc = { dataType: 'float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
       hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
     }
 
     if (!cellState) {
-      const desc = { type: 'float32', dimensions: [numDirections, 1, hiddenSize] };
+      const desc = { dataType: 'float32', dimensions: [numDirections, 1, hiddenSize] };
       const totalSize = numDirections * hiddenSize;
       cellState = builder.constant(desc, new Float32Array(totalSize).fill(0));
     }
@@ -4617,7 +4695,7 @@ partial interface MLGraphBuilder {
   <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
     const input = builder.constant(
-      { type: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
+      { dataType: 'float32', dimensions: [2,3] }, new Float32Array([1,2,3,4,5,6]));
 
     const beginningPadding = [1,2];
     const endingPadding = [1,2];
@@ -4654,7 +4732,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### Pooling operations ### {#api-mlgraphbuilder-pool2d}
-Compute a reduction operation across all the elements within the moving window over the input tensor. See the description of each type of reduction in [[#api-mlgraphbuilder-reduce]].
+Compute a pooling operation across all the elements within the moving window over the input tensor.
 <script type=idl>
 enum MLRoundingType {
   "floor",
@@ -4902,8 +4980,6 @@ dictionary MLReduceOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand reduceArgMax(MLOperand input, optional MLReduceOptions options = {});
-  MLOperand reduceArgMin(MLOperand input, optional MLReduceOptions options = {});
   MLOperand reduceL1(MLOperand input, optional MLReduceOptions options = {});
   MLOperand reduceL2(MLOperand input, optional MLReduceOptions options = {});
   MLOperand reduceLogSum(MLOperand input, optional MLReduceOptions options = {});
@@ -4938,8 +5014,6 @@ partial interface MLGraphBuilder {
 
 <div class="note">
     **Reduction types:**
-        - *ArgMax*: Return the index location of the maxmium value of all the input values along the axes.
-        - *ArgMin*: Return the index location of the minimum value of all the input values along the axes.
         - *L1*: Compute the <a href="https://mathworld.wolfram.com/L1-Norm.html">L1 norm</a> of all the input values along the axes.
         - *L2*: Compute the <a href="https://mathworld.wolfram.com/L2-Norm.html">L2 norm</a> of all the input values along the axes.
         - *LogSum*: Compute the log value of the sum of all the input values along the axes.
@@ -4957,11 +5031,15 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder" data-lt="reduce-op">create reduce operation</dfn> given |op|, |input| and |options|, run the following steps:
   </summary>
   <div class=algorithm-steps>
-    1. [=Assert=]: |op| is one of "reduceArgMax", "reduceArgMin", "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
+    1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. If |options|.{{MLReduceOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to the [=rank=] of |input|, exclusive, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |outputShape| be the result of invoking the underlying implementation for calculating reduction output dimensions, given |options|.
+    1. Let |desc| a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
+        1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
             1. Let |opImpl| be an [=implementation-defined=] platform operator for the |op| reduce operation, given |options|.
             1. Store a reference of |opImpl| in |output|.{{MLOperand/[[operator]]}}.
@@ -4977,20 +5055,6 @@ partial interface MLGraphBuilder {
   <summary>
     The following reduce algorithms are supported.
   </summary>
-    <div algorithm>
-    The <dfn method for=MLGraphBuilder>reduceArgMax(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceArgMax", |input| and |options|.
-            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
-        1. Return |output|.
-    </div>
-
-    <div algorithm>
-    The <dfn method for=MLGraphBuilder>reduceArgMin(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceArgMin", |input| and |options|.
-            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
-        1. Return |output|.
-    </div>
-
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceL1(|input|, |options|)</dfn> method steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceL1", |input| and |options|.
@@ -6049,10 +6113,10 @@ partial interface MLGraphBuilder {
     builder.add(
       builder.mul(
         input,
-        builder.cast(condition, input.type())),
+        builder.cast(condition, input.dataType())),
       builder.mul(
         other,
-        builder.cast(builder.not(condition), other.type())));
+        builder.cast(builder.not(condition), other.dataType())));
     </pre>
   </details>
 </div>
@@ -6066,7 +6130,7 @@ For instance, an {{MLOperand}} may represent a constant feeding to an operation 
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLOperand {
-  MLOperandDataType type();
+  MLOperandDataType dataType();
   sequence<unsigned long> shape();
 };
 </script>
@@ -6241,7 +6305,7 @@ Given the following build graph:
     const builder = new MLGraphBuilder(context);
 
     // Create MLOperandDescriptor object.
-    const desc = {type: 'float32', dimensions: TENSOR_DIMS};
+    const desc = {dataType: 'float32', dimensions: TENSOR_DIMS};
 
     // constant1 is a constant MLOperand with the value 0.5.
     const constantBuffer1 = new Float32Array(TENSOR_SIZE).fill(0.5);
