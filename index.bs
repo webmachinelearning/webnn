@@ -1453,7 +1453,7 @@ Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGr
 </details>
 
 ### argMin/Max ### {#api-mlgraphbuilder-argminmax}
-Return the index location of the minium or maxmium values of all the input values along the axes.
+Return the index location of the minimum or maxmium values of all the input values along the axes.
 
 <script type=idl>
 dictionary MLArgMinMaxOptions {
@@ -2519,11 +2519,11 @@ partial interface MLGraphBuilder {
         - *greaterOrEqual*: Compare if the values of the first input tensor is greater or equal, element-wise.
         - *lesser*: Compare if the values of the first input tensor is lesser, element-wise.
         - *lesserOrEqual*: Compare if the values of the first input tensor is lesser or equal, element-wise.
-        - *not*: Invert the values of the input tensor to values 0 or 1, element-wise. Specifically, when the input value is non-zero, invert it to a {{boolean}} value 0. Conversely, for a zero input value, invert it to a {{boolean}} value. 
+        - *not*: Invert the values of the input tensor to values 0 or 1, element-wise. Specifically, when the input value is non-zero, invert it to a {{boolean}} value 0. Conversely, for a zero input value, invert it to a {{boolean}} value 1.
 </div>
 
 <div class="note">
-Although operations *greaterOrEqual* and *lesserOrEqual* can each be implemented in terms of operations *not*, *lesser*, and *greater* in other words `greater-or-equal(a, b)` is `not(lesser(a, b))`, they are specifically defined for performance reason to avoid double comparisons in each element-wise test.
+Although operations *greaterOrEqual* and *lesserOrEqual* can each be implemented in terms of operations *not*, *lesser*, and *greater* in other words `greater-or-equal(a, b)` is `not(lesser(a, b))`, they are specifically defined to handle NaN cases and for performance reason to avoid double comparisons.
 </div>
 
 <details open algorithm>
@@ -2919,7 +2919,7 @@ partial interface MLGraphBuilder {
 <div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input N-D tensor from which the values are gathered.
-        - *indices*: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type "uint32" in the range [0, N-1] where N is the size of the input dimension indexed by *options.axis*.
+        - *indices*: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type "uint32" or "int64" in the range [0, N-1] where N is the size of the input dimension indexed by *options.axis*.
         - *options*: an optional {{MLGatherOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=rank=] equal to the [=rank=] of *input* + the [=rank=] of *indices* - 1.
@@ -2931,6 +2931,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |input| and |indices| is {{MLOperand}}.
+    1. If |indices|.{{MLOperand/dataType()}} is neither "uint32" nor "int64", then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |shapeInput| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |rankInput| be the [=list/size=] of |shapeInput|.
     1. Let |shapeIndices| be |indices|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
     1. Let |axis| be |options|.{{MLGatherOptions/axis}}.
