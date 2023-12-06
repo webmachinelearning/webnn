@@ -1459,6 +1459,7 @@ Return the index location of the minium or maxmium values of all the input value
 dictionary MLArgMinMaxOptions {
   sequence<unsigned long> axes = null;
   boolean keepDimensions = false;
+  boolean selectLastIndex = false;
 };
 
 partial interface MLGraphBuilder {
@@ -1476,6 +1477,10 @@ partial interface MLGraphBuilder {
     : <dfn>keepDimensions</dfn>
     ::
         A {{boolean}}. If true, retains reduced dimensions with [=list/size=] 1. The default value is false.
+
+    : <dfn>selectLastIndex</dfn>
+    ::
+        A {{boolean}}. If true, select the last index instead of the first found along the axes. The default value is false.
 </dl>
 
 <div>
@@ -1483,7 +1488,7 @@ partial interface MLGraphBuilder {
         - *input*: an {{MLOperand}}. The input N-D tensor.
         - *options*: an optional {{MLArgMinMaxOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type "uint32" in the range [0, N-1] where N is the corresponding size of each of the input dimensions specified by options.axes.
+    **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type "int64" in the range [0, N-1] where N is the corresponding size of each of the input dimensions specified by options.axes.
 </div>
 
 <details open algorithm>
@@ -1496,7 +1501,7 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLArgMinMaxOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to the [=rank=] of |input|, exclusive, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |outputShape| be the result of invoking the underlying implementation for calculating reduction output dimensions, given |options|.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dataType}} to "uint32".
+    1. Set |desc|.{{MLOperandDescriptor/dataType}} to "int64".
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
@@ -2505,8 +2510,7 @@ partial interface MLGraphBuilder {
         - *a*: an {{MLOperand}}. The first input tensor.
         - *b*: an {{MLOperand}}. The second input tensor when specified.
 
-    **Returns:** an {{MLOperand}}. The output tensor that contains the result of
-    element-wise comparison of the two input tensors.
+    **Returns:** an {{MLOperand}}. The output tensor that contains the result of element-wise comparison of the two input tensors.
 </div>
 <div>
     **Operation types:**
@@ -2529,7 +2533,10 @@ Although operations *greaterOrEqual* and *lesserOrEqual* can each be implemented
   <div class=algorithm-steps>
     1. [=Assert=]: |op| is one of "equal", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "not".
     1. [=Assert=]: the type of |a| and |b| if available is {{MLOperand}}.
-    1. If either |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} or |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} (when available) isn't "uint8", then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |op| is "not".
+        1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} isn't "uint8", then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |op| is anything else but "not".
+        1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to "uint8".
     1. Let |descriptor|.{{MLOperandDescriptor/dimensions}} be the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
@@ -2874,7 +2881,7 @@ partial interface MLGraphBuilder {
         1. If the sequence length of |newShape| is not equal to the [=rank=] of |inputDesc|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Let |outputDesc| be a copy of |inputDesc|.
         1. [=map/For each=] |index| in [=the range=] 0 to the [=rank=] of |input|, exclusive:
-            1. Let |size| be the [=operand-shape=][|index|] of |input|.
+            1. Let |size| be the |input|.{{MLOperand/shape()}}[|index|].
             1. If |size| is not equal to 1 and not equal to |newShape|[index], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
             1. If |size| is equal to 1, then let |outputDesc|.{{MLOperandDescriptor/dimensions}}[|index|] be |newShape|[|index|].
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
@@ -6129,10 +6136,7 @@ For instance, an {{MLOperand}} may represent a constant feeding to an operation 
 
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLOperand {
-  MLOperandDataType dataType();
-  sequence<unsigned long> shape();
-};
+interface MLOperand {};
 </script>
 
 <div class=internal-slots>
@@ -6158,13 +6162,6 @@ interface MLOperand {
     ::
         Reference to {{MLOperand}}'s corresponding [=implementation-defined=] platform operator object.
   </dl>
-</div>
-
-<div algorithm>
-To get the <dfn for="MLOperand">operand-shape</dfn> of an {{MLOperand}} |operand|, run the following steps:
-<div class=algorithm-steps>
-    1. Return |operand|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-</div>
 </div>
 
 <div algorithm>
@@ -6229,6 +6226,50 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
     1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
     1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and invoking <a>check dimensions</a> given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/dataType}} returns false, then return false.
     1. Return true.
+  </div>
+</details>
+
+### dataType ### {#api-mloperand-datatype}
+Return a data type of the {{MLOperand}}.
+
+<script type=idl>
+partial interface MLOperand {
+  MLOperandDataType dataType();
+};
+</script>
+
+<div>
+    **Returns:** an {{MLOperandDataType}}. The data type of the operand.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLOperand>dataType()</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    1. Return [=this=].{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
+  </div>
+</details>
+
+### shape ### {#api-mloperand-shape}
+Return a shape of the {{MLOperand}}.
+
+<script type=idl>
+partial interface MLOperand {
+  sequence<unsigned long> shape();
+};
+</script>
+
+<div>
+    **Returns:** a sequence of {{unsigned long}}. The shape of the operand.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLOperand>shape()</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    1. Return [=this=].{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
   </div>
 </details>
 
