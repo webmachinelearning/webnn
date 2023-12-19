@@ -1795,7 +1795,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
-    1. If running the <a>check clamp options</a> steps given |options| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=checking clamp options=] given |options| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of  <a>copying an MLOperand</a> given |input|.
         1. Make a request to the underlying platform to:
@@ -1825,7 +1825,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>clamp(|options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. If running the <a>check clamp options</a> steps given |options| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=checking clamp options=] given |options| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "clamp" and |options|.
         1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
@@ -1914,11 +1914,11 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     </div>
     1. [=Assert=]: the type of |descriptor| is {{MLOperandDescriptor}}.
     1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=checking dimensions=] given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If <a>validating buffer with descriptor</a> given |bufferView| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
-        1. Let |bytes| be the result of invoking the [=get a copy of the bytes held by the buffer source=] steps given |bufferView|.
+        1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |bufferView|.
         1. Make a request to the underlying platform to:
             1. Create an [=implementation-defined=] platform operand |constantImpl| to represent a constant, given |descriptor|.
             1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
@@ -3695,7 +3695,7 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
     1. [=Assert=]: the type of |descriptor| is {{MLOperandDescriptor}}.
     1. [=Assert=]: If |descriptor|.{{MLOperandDescriptor/dimensions}} does not [=map/exist=], then |descriptor| defines a scalar input.
     1. If |descriptor|.{{MLOperandDescriptor/dimensions}} [=map/exists=]:
-        1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If [=checking dimensions=] given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
@@ -4595,7 +4595,7 @@ partial interface MLGraphBuilder {
   <div class=algorithm-steps>
     1. [=Assert=]: the type of |a| and |b| is {{MLOperand}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate matmul output sizes</a> steps given |a| and |b|.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=calculating matmul output sizes=] given |a| and |b|.
     1. If that throws an error, re-[=exception/throw=] the error.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
@@ -4683,7 +4683,7 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the type of |input| is {{MLOperand}}.
     1. If the [=list/size=] of |beginningPadding| and |endingPadding| is not equal to the [=rank=] of |input|, then then [=exception/throw=] a "{{TypeError}}".
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of invoking the <a>calculate padding output sizes</a> steps given |input|, |beginningPadding| and |endingPadding|.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
@@ -5298,8 +5298,8 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. If the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If running the <a>check resample options</a> steps given |options| returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. Let |desc| be the result of running the <a>resample output sizes</a> steps given |options|.
+    1. If [=checking resample options=] given |options| returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |desc| be the result of [=resampling output sizes=] given |options|.
         1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of <a>creating an MLOperand</a> given [=this=] and |desc|.
@@ -6228,7 +6228,7 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
     1. [=Assert=]: the type of |operand|.{{MLOperand/[[builder]]}} is {{MLGraphBuilder}}.
     1. If |builder| is not equal to |operand|.{{MLOperand/[[builder]]}}, return false.
     1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
-    1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and invoking <a>check dimensions</a> given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/dataType}} returns false, then return false.
+    1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and [=checking dimensions=] given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/dataType}} returns false, then return false.
     1. Return true.
   </div>
 </details>
