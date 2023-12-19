@@ -992,21 +992,21 @@ partial interface MLCommandEncoder {
   <div class=algorithm-steps>
     1. If any of the following requirements are unmet, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         <div class=validusage>
-            1. [=map/For each=] |key| &rarr; |value| of |inputs|:
-                1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|] must [=map/exist=].
-                1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
-                1. If |value| is a {{GPUBuffer}}, then:
-                    1. |value|.{{GPUBuffer/size}} must equal to [=byte length=] of |inputDesc|.
-            1. [=map/For each=] |key| &rarr; |value| of |outputs|:
-                1. |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|] must [=map/exist=].
-                1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
-                1. If |value| is a {{GPUBuffer}}, then:
-                    1. |value|.{{GPUBuffer/size}} must equal to [=byte length=] of |outputDesc|.
+            1. [=map/For each=] |name| &rarr; |input| of |inputs|:
+                1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|name|] must [=map/exist=].
+                1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|name|].
+                1. If |input| is a {{GPUBuffer}}, then:
+                    1. |input|.{{GPUBuffer/size}} must equal to [=byte length=] of |inputDesc|.
+            1. [=map/For each=] |name| &rarr; |output| of |outputs|:
+                1. |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] must [=map/exist=].
+                1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|].
+                1. If |output| is a {{GPUBuffer}}, then:
+                    1. |output|.{{GPUBuffer/size}} must equal to [=byte length=] of |outputDesc|.
         </div>
-    1. [=map/For each=] |key| &rarr; |value| of |inputs|:
-        1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |value|.
-    1. [=map/For each=] |key| &rarr; |value| of |outputs|:
-        1. Set the output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |key| to |value|.
+    1. [=map/For each=] |name| &rarr; |input| of |inputs|:
+        1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |name| to |input|.
+    1. [=map/For each=] |name| &rarr; |output| of |outputs|:
+        1. Set the output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |name| to |output|.
     1. Issue a compute request of |graph|.{{MLGraph/[[implementation]]}}.
     1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
         1. Throw an "{{OperationError}}" {{DOMException}}.
@@ -1153,9 +1153,9 @@ partial interface MLContext {
     To <dfn>validate graph resources</dfn>, given |resources| and |descriptors|, run the following steps:
   </summary>
   <div class=algorithm-steps>
-    1. [=map/For each=] |key| &rarr; |value| of |resources|:
-        1. If |descriptors|[|key|] does not [=map/exist=], return false.
-        1. If <a>validating buffer with descriptor</a> given |value| and |descriptors|[|key|] returns false, then return false.
+    1. [=map/For each=] |name| &rarr; |resource| of |resources|:
+        1. If |descriptors|[|name|] does not [=map/exist=], return false.
+        1. If <a>validating buffer with descriptor</a> given |resource| and |descriptors|[|name|] returns false, then return false.
     1. Return true.
   </div>
 </details>
@@ -1177,18 +1177,18 @@ partial interface MLContext {
   </summary>
   <div class=algorithm-steps>
     1. Let |inputResources| denote the input resources of |graph|.{{MLGraph/[[implementation]]}}.
-    1. [=map/For each=] |key| &rarr; |inputValue| of |inputs|:
-        1. Let |inputDescriptor| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
+    1. [=map/For each=] |name| &rarr; |inputValue| of |inputs|:
+        1. Let |inputDescriptor| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|name|].
         1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} as follows:
             1. Set the data type of |inputTensor| to the one that matches the [=element type=] of |inputValue|.
             1. Set the dimensions of |inputTensor| to |inputDescriptor|.{{MLOperandDescriptor/dimensions}}.
             1. Set the values of elements in |inputTensor| to the values of elements in |inputValue|.
-        1. Request the underlying implementation of |graph| to bind |inputResources|[|key|] to |inputTensor|.
-    1. [=map/For each=] |key| &rarr; |outputValue| of |outputs|:
-        1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |key| and |inputResources| and wait for completion.
+        1. Request the underlying implementation of |graph| to bind |inputResources|[|name|] to |inputTensor|.
+    1. [=map/For each=] |name| &rarr; |outputValue| of |outputs|:
+        1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |name| and |inputResources| and wait for completion.
             1. If that returns an error, then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
             1. Otherwise, store the result in |outputTensor|.
-        1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|key|].
+        1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|].
         1. If the byte length of |outputTensor| is not equal to the [=byte length=] of |outputDesc|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If the [=element type=] of |outputTensor| doesn't match the [=element type=] of |outputValue|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Request the underlying implementation of |graph| to set the values of elements in |outputValue| to the values of elements in |outputTensor|.
@@ -1244,12 +1244,12 @@ partial interface MLContext {
   </summary>
   <div class=algorithm-steps>
     1. Let |transferredViews| be a new {{MLNamedArrayBufferViews}}.
-    1. [=map/For each=] |key| &rarr; |value| of |views|:
-        1. Let |transferredBuffer| be the result of [=ArrayBuffer/transfer|transferring=] the [=underlying buffer=] of |value|.
-        1. Let |constructor| be the appropriate [=view constructor=] for the type of {{ArrayBufferView}} |value|.
-        1. Let |elementsNumber| be the result of the [=BufferSource/byte length=] of |value| ÷ [=element size=] of |value|.
-        1. Let |transferredView| be [$Construct$](|constructor|, |transferredBuffer|, |value|.\[[ByteOffset]], |elementsNumber|).
-        1. Set |transferredViews|[|key|] to |transferredView|.
+    1. [=map/For each=] |name| &rarr; |view| of |views|:
+        1. Let |transferredBuffer| be the result of [=ArrayBuffer/transfer|transferring=] the [=underlying buffer=] of |view|.
+        1. Let |constructor| be the appropriate [=view constructor=] for the type of {{ArrayBufferView}} |view|.
+        1. Let |elementsNumber| be the result of the [=BufferSource/byte length=] of |view| ÷ [=element size=] of |view|.
+        1. Let |transferredView| be [$Construct$](|constructor|, |transferredBuffer|, |view|.\[[ByteOffset]], |elementsNumber|).
+        1. Set |transferredViews|[|name|] to |transferredView|.
     1. Return |transferredViews|.
   </div>
 </details>
