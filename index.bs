@@ -638,7 +638,7 @@ Unlike WebGPU, this API does not intrinsically support custom shader authoring; 
 
 The WebGPU API identifies <a href="https://gpuweb.github.io/gpuweb/#privacy-machine-artifacts">machine-specific artifacts</a> as a privacy consideration. Given the WebNN API defines means to record an ML workload onto a WebGPU-compatible {{GPUCommandBuffer}}, compute unit scheduling may under certain circumstances introduce a fingerprint. However, similarly to WebGPU, such fingerprints are identical across most or all of the devices of each vendor, mitigating the concern. Furthermore, software implementations can be used to further eliminate such artifacts.
 
-The WebNN API defines two developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the most appropriate underlying execution device for the workload. [=Device type=] normatively indicates the kind of device and is either "cpu" or "gpu". If this type cannot be satisfied, an "{{OperationError}}" {{DOMException}} is thrown, thus this type can in some cases add two bits of entropy to the fingerprint. [=Power preference=] indicates preference as related to the power consumption and is considered a hint only and as such does not increase entropy of the fingerprint.
+The WebNN API defines two developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the most appropriate underlying execution device for the workload. [=Device type=] normatively indicates the kind of device and is either {{MLDeviceType/"cpu"}} or {{MLDeviceType/"gpu"}}. If this type cannot be satisfied, an "{{OperationError}}" {{DOMException}} is thrown, thus this type can in some cases add two bits of entropy to the fingerprint. [=Power preference=] indicates preference as related to the power consumption and is considered a hint only and as such does not increase entropy of the fingerprint.
 
 If a future version of this specification introduces support for new a  [=device type=] that can only support a subset of {{MLOperandDataType}}s, that may introduce a new fingerprint.
 
@@ -1826,7 +1826,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. If running the <a>check clamp options</a> steps given |options| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=],  `"clamp"` and |options|.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], `"clamp"` and |options|.
         1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
     1. Return |op|.
   </div>
@@ -1931,13 +1931,13 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
 Create a constant {{MLOperand}} of the specified value and data type.
 
 <div class="note">
-Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a float value is assigned to an *"int8"* data type, etc.
+Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a float value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
 </div>
 
 <div>
     **Arguments:**
         - *value*: a {{float}} number. The value of the constant.
-        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be *"float32"*.
+        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
     **Returns:**: an {{MLOperand}}. The constant output.
 </div>
 
@@ -1969,7 +1969,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
 Create a constant {{MLOperand}} of the specified data type and shape that contains the data as specified by the range. 
 
 <div class="note">
-Data truncation will occur when the values in the range exceed the range of the specified output data type e.g. when a float value is assigned to an *"int8"* data type, etc.
+Data truncation will occur when the values in the range exceed the range of the specified output data type e.g. when a float value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
 </div>
 
 <div>
@@ -1977,7 +1977,7 @@ Data truncation will occur when the values in the range exceed the range of the 
         - *start*: a {{float}} scalar. The starting value of the range.
         - *end*: a {{float}} scalar. The ending value of the range.
         - *step*: a {{float}} scalar. The gap value between two data points in the range.
-        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be *"float32"*.
+        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
     **Returns:**: an {{MLOperand}}. The constant 1-D output tensor of size `max(0, ceil((end - start)/step))`. 
 </div>
 
@@ -3188,11 +3188,11 @@ partial interface MLGraphBuilder {
 
     : <dfn>direction</dfn>
     ::
-        An {{MLRecurrentNetworkDirection}}. Specifies the processing direction of the input sequence. When set to `"both"`, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
+        An {{MLRecurrentNetworkDirection}}. Specifies the processing direction of the input sequence. When set to {{MLRecurrentNetworkDirection/"both"}}, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
 
     : <dfn>layout</dfn>
     ::
-        An {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the `update (z)`, `reset (r)`, and `new (n)` gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is `"zrn"`.bias
+        An {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the `update (z)`, `reset (r)`, and `new (n)` gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is {{MLGruWeightLayout/"zrn"}}.
 
     : <dfn>activations</dfn>
     ::
@@ -3344,7 +3344,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>layout</dfn>
     ::
-        An {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the `update (z)`, `reset (r)`, and `new (n)` gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is `"zrn"`.
+        An {{MLGruWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of GRU, specifically the `update (z)`, `reset (r)`, and `new (n)` gate, as indicated in the second dimension of the weight and bias tensor shape. When not specified, the default layout is {{MLGruWeightLayout/"zrn"}}.
 
     : <dfn>activations</dfn>
     ::
@@ -3399,7 +3399,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be generically emulated via other operations as shown below, when the weight layout is the default *"zrn"* layout, and the activation functions of the update/reset gate and new gate are of the operator types *sigmoid* and *tanh* respectively.
+    The behavior of this operation can be generically emulated via other operations as shown below, when the weight layout is the default {{MLGruWeightLayout/"zrn"}} layout, and the activation functions of the update/reset gate and new gate are of the operator types *sigmoid* and *tanh* respectively.
   </summary>
   <pre highlight="js">
     const one = builder.constant(1);
@@ -4155,11 +4155,11 @@ partial interface MLGraphBuilder {
 
     : <dfn>direction</dfn>
     ::
-        An {{MLRecurrentNetworkDirection}}. Specifies the processing direction of the input sequence. When set to `"both"`, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
+        An {{MLRecurrentNetworkDirection}}. Specifies the processing direction of the input sequence. When set to {{MLRecurrentNetworkDirection/"both"}}, the size of the first dimension of the weight and the bias tensor shapes must be 2, and the input is processed in both directions.
 
     : <dfn>layout</dfn>
     ::
-        An {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the `input (i)`, `output (o)`, `forget (f)`, and `cell (g)` gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is `"iofg"`.
+        An {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the `input (i)`, `output (o)`, `forget (f)`, and `cell (g)` gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is {{MLLstmWeightLayout/"iofg"}}.
 
     : <dfn>activations</dfn>
     ::
@@ -4184,7 +4184,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>lstm(|input|, |weight|, |recurrentWeight|, |steps|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. Let |numDirections| be 1 if |options|.{{MLLstmOptions/direction}} is `"forward"`, or otherwise let it be 2.
+    1. Let |numDirections| be 1 if |options|.{{MLLstmOptions/direction}} is {{MLRecurrentNetworkDirection/"forward"}}, or otherwise let it be 2.
     1. [=Assert=]: the type of |input|, |weight| and |recurrentWeight| is {{MLOperand}}.
         <div class="note">
             The shape of |input|, |weight| or |recurrentWeight| could be also checked here.
@@ -4363,7 +4363,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>layout</dfn>
     ::
-        An {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the `input (i)`, `output (o)`, `forget (f)`, and `cell (g)` gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is `"iofg"`.
+        An {{MLLstmWeightLayout}}. The ordering of the weight and bias vectors for the internal gates of LSTM, specifically the `input (i)`, `output (o)`, `forget (f)`, and `cell (g)` gate, as indicated in the first dimension of the weight and bias tensor shapes. When not specified, the default layout is {{MLLstmWeightLayout/"iofg"}}.
 
     : <dfn>activations</dfn>
     ::
@@ -4428,7 +4428,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be generically emulated via other operations as shown below, when the weight layout is the default *"iofg"* layout, and the activation functions of the input/forget/output gate and the cell gate/the cell state's filter for the output hidden state are of the operator types *sigmoid* and *tanh* respectively.
+    The behavior of this operation can be generically emulated via other operations as shown below, when the weight layout is the default {{MLLstmWeightLayout/"iofg"}} layout, and the activation functions of the input/forget/output gate and the cell gate/the cell state's filter for the output hidden state are of the operator types *sigmoid* and *tanh* respectively.
   </summary>
   <pre highlight="js">
     const zero = builder.constant(0);
@@ -4640,12 +4640,12 @@ partial interface MLGraphBuilder {
     ::
         An {{MLPaddingMode}} [=string=].
         Specifies the different ways to pad the tensor.
-        The default value is `"constant"`.
+        The default value is {{MLPaddingMode/"constant"}}.
 
     : <dfn>value</dfn>
     ::
         A {{float}}.
-        Specifies the padding value when {{MLPadOptions/mode}} is set to `"constant"`.
+        Specifies the padding value when {{MLPadOptions/mode}} is set to {{MLPaddingMode/"constant"}}.
         The default value is 0.
 </dl>
 
@@ -4836,11 +4836,11 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
-    value of *layout*. More specifically, if the *options.roundingType* is *"floor"*, the spatial dimensions of the output tensor can be calculated as follow:
+    value of *layout*. More specifically, if the *options.roundingType* is {{MLRoundingType/"floor"}}, the spatial dimensions of the output tensor can be calculated as follow:
 
     *output size = floor(1 + (input size - filter size + beginning padding + ending padding) / stride)*
 
-    or if *options.roundingType* is *"ceil"*:
+    or if *options.roundingType* is {{MLRoundingType/"ceil"}}:
 
     *output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)*
 </div>
@@ -5242,7 +5242,7 @@ partial interface MLGraphBuilder {
     ::
         An {{MLInterpolationMode}} [=string=].
         Specifies the interpolation algorithm used to fill the output tensor values.
-        The default value is `"nearest-neighbor"`, standing for *Nearest Neighbor* interpolation.
+        The default value is {{MLInterpolationMode/"nearest-neighbor"}}, standing for *Nearest Neighbor* interpolation.
 
     : <dfn>scales</dfn>
     ::
