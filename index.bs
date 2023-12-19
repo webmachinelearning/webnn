@@ -1143,10 +1143,8 @@ partial interface MLContext {
     To <dfn>validate graph resources</dfn>, given |resources| and |descriptors|, run the following steps:
   </summary>
   <div class=algorithm-steps>
-    1. [=Assert=]: the type of |resources| is {{MLNamedArrayBufferViews}}.
-    1. [=map/For each=] [=record=] <|key|, |value|> of |resources|:
+    1. [=map/For each=] |key| &rarr; |value| of |resources|:
         1. If |descriptors|[|key|] does not [=map/exist=], return false.
-        1. [=Assert=]: the type of |value| is {{ArrayBufferView}}.
         1. If <a>validating buffer with descriptor</a> given |value| and |descriptors|[|key|] returns false, then return false.
     1. Return true.
   </div>
@@ -1168,17 +1166,15 @@ partial interface MLContext {
     To <dfn>execute graph</dfn>, given |graph|, |inputs| and |outputs|, run the following steps:
   </summary>
   <div class=algorithm-steps>
-    1. [=Assert=]: the type of |inputs| is {{MLNamedArrayBufferViews}}.
     1. Let |inputResources| denote the input resources of |graph|.{{MLGraph/[[implementation]]}}.
-    1. [=map/For each=] <|key|, |inputValue|> of |inputs|:
+    1. [=map/For each=] |key| &rarr; |inputValue| of |inputs|:
         1. Let |inputDescriptor| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|key|].
         1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} as follows:
             1. Set the data type of |inputTensor| to the one that matches the [=element type=] of |inputValue|.
             1. Set the dimensions of |inputTensor| to |inputDescriptor|.{{MLOperandDescriptor/dimensions}}.
             1. Set the values of elements in |inputTensor| to the values of elements in |inputValue|.
         1. Request the underlying implementation of |graph| to bind |inputResources|[|key|] to |inputTensor|.
-    1. [=Assert=]: the type of |outputs| is {{MLNamedArrayBufferViews}}.
-    1. [=map/For each=] <|key|, |outputValue|> of |outputs|:
+    1. [=map/For each=] |key| &rarr; |outputValue| of |outputs|:
         1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |key| and |inputResources| and wait for completion.
             1. If that returns an error, then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
             1. Otherwise, store the result in |outputTensor|.
