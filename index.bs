@@ -800,6 +800,7 @@ Its <a>default allowlist</a> is <code>'self'</code>.
         1. Set |context|.{{[[contextType]]}} to "[=context type/default=]".
         1. If |options|["{{deviceType}}"] [=map/exists=], then set |context|.{{[[deviceType]]}} to |options|["{{deviceType}}"]. Otherwise, set |context|.{{[[deviceType]]}} to "[=device type/cpu=]".
         1. If |options|["{{powerPreference}}"] [=map/exists=], then set |context|.{{[[powerPreference]]}} to |options|["{{powerPreference}}"]. Otherwise, set |context|.{{[[powerPreference]]}} to "[=power preference/default=]".
+    1. If the user agent cannot support |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, return failure.
     1. Return |context|.
 </div>
 </details>
@@ -812,8 +813,7 @@ Its <a>default allowlist</a> is <code>'self'</code>.
     1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |promise| be [=a new promise=].
     1. Return |promise| and run the following steps [=in parallel=].
-    1. Let |context| be the result of [=creating a context=] given |options|.
-    1. If [=validating MLContext=] given |context| returns false, [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}}.
+    1. Let |context| be the result of [=creating a context=] given |options|. If that returns failure, then [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}}.
     1. [=Resolve=] |promise| with |context|.
 </div>
 </details>
@@ -826,8 +826,7 @@ Its <a>default allowlist</a> is <code>'self'</code>.
     1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |promise| be [=a new promise=].
     1. Return |promise| and run the following steps [=in parallel=].
-    1. Let |context| be the result of [=creating a context=] given |gpuDevice|.
-    1. If [=validating MLContext=] given |context| returns false, [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}}.
+    1. Let |context| be the result of [=creating a context=] given |gpuDevice|. If that returns failure, [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}}.
     1. [=Resolve=] |promise| with |context|.
 </div>
 </details>
@@ -840,8 +839,7 @@ Its <a>default allowlist</a> is <code>'self'</code>.
   </summary>
   <div class=algorithm-steps>
     1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
-    1. Let |context| be the result [=creating a context=] |options|.
-    1. If [=validating MLContext=] given |context| return false, then [=exception/throw=] a "{{NotSupportedError}}" {{DOMException}}.
+    1. Let |context| be the result of [=creating a context=] with |options|. If that returns failure, then [=exception/throw=] a "{{NotSupportedError}}" {{DOMException}}.
     1. Return |context|.
   </div>
 </details>
@@ -852,8 +850,7 @@ Its <a>default allowlist</a> is <code>'self'</code>.
   </summary>
   <div class=algorithm-steps>
     1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
-    1. Let |context| be the result [=creating a context=] with |gpuDevice|.
-    1. If [=validating MLContext=] given |context| return false, then [=exception/throw=] a "{{NotSupportedError}}" {{DOMException}}.
+    1. Let |context| be the result of [=creating a context=] with |gpuDevice|. If that returns failure, then [=exception/throw=] a "{{NotSupportedError}}" {{DOMException}}.
     1. Return |context|.
   </div>
 </details>
@@ -1066,9 +1063,9 @@ The <dfn>power preference</dfn> indicates preference as related to power consump
 <dl dfn-for="power preference">
 <dt>"<dfn>default</dfn>"</dt>
 <dd>Let the user agent select the most suitable behavior.</dd>
-<dt>"<dfn>high-performance</dfn>"</dt>
+<dt>"<dfn ignore>high-performance</dfn>"</dt>
 <dd>Prioritizes execution speed over power consumption.</dd>
-<dt>"<dfn>low-power</dfn>"</dt>
+<dt>"<dfn ignore>low-power</dfn>"</dt>
 <dd>Prioritizes power consumption over other considerations such as execution speed.</dd>
 </dl>
 
@@ -1097,21 +1094,6 @@ interface MLContext {};
 <div class="note">
 When the {{[[contextType]]}} is set to [=context type/default=] with the {{MLContextOptions}}.{{deviceType}} set to [=device type/gpu=], the user agent is responsible for creating an internal GPU device that operates within the context and is capable of ML workload submission on behalf of the calling application. In this setting however, only {{ArrayBufferView}} inputs and outputs are allowed in and out of the graph execution since the application has no way to know what type of internal GPU device is being created on their behalf. In this case, the user agent is responsible for automatic uploads and downloads of the inputs and outputs to and from the GPU memory using this said internal device.
 </div>
-
-### {{MLContext}} validation algorithm ### {#api-mlcontext-validate}
-
-<details open algorithm>
-  <summary>
-    To <dfn>validate MLContext</dfn>, given |context|, run these steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. If |context|.{{[[contextType]]}} is not "[=context type/webgpu=]" or "[=context type/default=]", return false.
-    1. If |context|.{{[[deviceType]]}} is not "[=device type/cpu=]" or "[=device type/gpu=]", return false.
-    1. If |context|.{{[[powerPreference]]}} is not "[=power preference/default=]" or "[=power preference/high-performance=]" or "[=power preference/low-power=]", return false.
-    1. If the user agent cannot support |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, return false.
-    1. Return true;
-  </div>
-</details>
 
 ### Synchronous Execution ### {#api-mlcontext-sync-execution}
 Synchronously carries out the computational workload of a compiled graph {{MLGraph}} on the calling thread, which must be a worker thread, to produce results as defined by the operations in the graph. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it [=exception/throws=] an "{{OperationError}}" {{DOMException}}.
@@ -1446,11 +1428,10 @@ Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGr
 
 <details open algorithm>
   <summary>
-    The [=new=] <dfn constructor for=MLGraphBuilder lt="MLGraphBuilder(context)">MLGraphBuilder(context)</dfn> constructor steps are:
+    The [=new=] <dfn constructor for=MLGraphBuilder lt="MLGraphBuilder(context)">MLGraphBuilder(|context|)</dfn> constructor steps are:
   </summary>
   <div class=algorithm-steps>
     1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
-    1. If [=validating MLContext=] given |context| returns false, then [=exception/throw=] a "{{TypeError}}".
     1. Set [=this=].{{MLGraphBuilder/[[context]]}} to |context|.
   </div>
 </details>
