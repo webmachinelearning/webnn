@@ -793,13 +793,13 @@ Its <a>default allowlist</a> is <code>'self'</code>.
 <div class=algorithm-steps>
     1. Let |context| be a new {{MLContext}} object.
     1. If |options| is a {{GPUDevice}} object,
-        1. Set |context|.{{[[contextType]]}} to "[=webgpu-context|webgpu=]".
-        1. Set |context|.{{[[deviceType]]}} to "[=device-type-gpu|gpu=]".
-        1. Set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
+        1. Set |context|.{{[[contextType]]}} to "[=context type/webgpu=]".
+        1. Set |context|.{{[[deviceType]]}} to "[=device type/gpu=]".
+        1. Set |context|.{{[[powerPreference]]}} to "[=power preference/default=]".
     1. Otherwise,
-        1. Set |context|.{{[[contextType]]}} to "[=default-context|default=]".
-        1. If |options|["{{deviceType}}"] [=map/exists=], then set |context|.{{[[deviceType]]}} to |options|["{{deviceType}}"]. Otherwise, set |context|.{{[[deviceType]]}} to "[=device-type-cpu|cpu=]".
-        1. If |options|["{{powerPreference}}"] [=map/exists=], then set |context|.{{[[powerPreference]]}} to |options|["{{powerPreference}}"]. Otherwise, set |context|.{{[[powerPreference]]}} to "[=power-preference-default|default=]".
+        1. Set |context|.{{[[contextType]]}} to "[=context type/default=]".
+        1. If |options|["{{deviceType}}"] [=map/exists=], then set |context|.{{[[deviceType]]}} to |options|["{{deviceType}}"]. Otherwise, set |context|.{{[[deviceType]]}} to "[=device type/cpu=]".
+        1. If |options|["{{powerPreference}}"] [=map/exists=], then set |context|.{{[[powerPreference]]}} to |options|["{{powerPreference}}"]. Otherwise, set |context|.{{[[powerPreference]]}} to "[=power preference/default=]".
     1. Return |context|.
 </div>
 </details>
@@ -1047,28 +1047,28 @@ partial interface MLCommandEncoder {
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device type=] and [=power preference=].
 
 The <dfn>context type</dfn> is the type of the execution context that manages the resources and facilitates the compilation and execution of the neural network graph:
-<dl>
-<dt>"<code><dfn data-lt="default-context">default</dfn></code>"</dt>
+<dl dfn-for="context type">
+<dt>"<dfn>default</dfn>"</dt>
 <dd>Context created per user preference options.</dd>
-<dt>"<code><dfn data-lt="webgpu-context">webgpu</dfn></code>"</dt>
+<dt>"<dfn>webgpu</dfn>"</dt>
 <dd>Context created from WebGPU device.</dd>
 </dl>
 
 The <dfn>device type</dfn> indicates the kind of device used for the context. It is one of the following:
-<dl>
-<dt>"<code><dfn data-lt="device-type-cpu">cpu</dfn></code>"</dt>
+<dl dfn-for="device type">
+<dt>"<dfn>cpu</dfn>"</dt>
 <dd>Provides the broadest compatibility and usability across all client devices with varying degrees of performance.</dd>
-<dt>"<code><dfn data-lt="device-type-gpu">gpu</dfn></code>"</dt>
+<dt>"<dfn>gpu</dfn>"</dt>
 <dd>Provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations.</dd>
 </dl>
 
 The <dfn>power preference</dfn> indicates preference as related to power consumption. It is one of the following:
-<dl>
-<dt>"<code><dfn data-lt="power-preference-default">default</dfn></code>"</dt>
+<dl dfn-for="power preference">
+<dt>"<dfn>default</dfn>"</dt>
 <dd>Let the user agent select the most suitable behavior.</dd>
-<dt>"<code><dfn data-lt="power-preference-high-performance">high-performance</dfn></code>"</dt>
+<dt>"<dfn>high-performance</dfn>"</dt>
 <dd>Prioritizes execution speed over power consumption.</dd>
-<dt>"<code><dfn data-lt="power-preference-low-power">low-power</dfn></code>"</dt>
+<dt>"<dfn>low-power</dfn>"</dt>
 <dd>Prioritizes power consumption over other considerations such as execution speed.</dd>
 </dl>
 
@@ -1095,7 +1095,7 @@ interface MLContext {};
 </div>
 
 <div class="note">
-When the {{[[contextType]]}} is set to [=default-context|default=] with the {{MLContextOptions}}.{{deviceType}} set to [=device-type-gpu|gpu=], the user agent is responsible for creating an internal GPU device that operates within the context and is capable of ML workload submission on behalf of the calling application. In this setting however, only {{ArrayBufferView}} inputs and outputs are allowed in and out of the graph execution since the application has no way to know what type of internal GPU device is being created on their behalf. In this case, the user agent is responsible for automatic uploads and downloads of the inputs and outputs to and from the GPU memory using this said internal device.
+When the {{[[contextType]]}} is set to [=context type/default=] with the {{MLContextOptions}}.{{deviceType}} set to [=device type/gpu=], the user agent is responsible for creating an internal GPU device that operates within the context and is capable of ML workload submission on behalf of the calling application. In this setting however, only {{ArrayBufferView}} inputs and outputs are allowed in and out of the graph execution since the application has no way to know what type of internal GPU device is being created on their behalf. In this case, the user agent is responsible for automatic uploads and downloads of the inputs and outputs to and from the GPU memory using this said internal device.
 </div>
 
 ### {{MLContext}} validation algorithm ### {#api-mlcontext-validate}
@@ -1105,9 +1105,9 @@ When the {{[[contextType]]}} is set to [=default-context|default=] with the {{ML
     To <dfn>validate MLContext</dfn>, given |context|, run these steps:
   </summary>
   <div class=algorithm-steps>
-    1. If |context|.{{[[contextType]]}} is not "[=webgpu-context|webgpu=]" or "[=default-context|default=]", return false.
-    1. If |context|.{{[[deviceType]]}} is not "[=device-type-cpu|cpu=]" or "[=device-type-gpu|gpu=]", return false.
-    1. If |context|.{{[[powerPreference]]}} is not "[=power-preference-default|default=]" or "[=power-preference-high-performance|high-performance=]" or "[=power-preference-low-power|low-power=]", return false.
+    1. If |context|.{{[[contextType]]}} is not "[=context type/webgpu=]" or "[=context type/default=]", return false.
+    1. If |context|.{{[[deviceType]]}} is not "[=device type/cpu=]" or "[=device type/gpu=]", return false.
+    1. If |context|.{{[[powerPreference]]}} is not "[=power preference/default=]" or "[=power preference/high-performance=]" or "[=power preference/low-power=]", return false.
     1. If the user agent cannot support |context|.{{[[contextType]]}}, |context|.{{[[deviceType]]}} and |context|.{{[[powerPreference]]}}, return false.
     1. Return true;
   </div>
@@ -1138,7 +1138,7 @@ partial interface MLContext {
     The <dfn method for=MLContext>computeSync(|graph|, |inputs|, |outputs|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=]", [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
     1. If [=validating graph resources=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If [=validating graph resources=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Invoke [=execute graph=] given |graph|, |inputs| and |outputs|.
@@ -1286,7 +1286,7 @@ partial interface MLContext {
   <div class=algorithm-steps>
     1. Let |promise| be [=a new promise=].
     1. Return |promise| and run the following steps [=in parallel=]:
-        1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=default-context|default=]", [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}.
+        1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}.
         1. If [=validating graph resources=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}}.
         1. If [=validating graph resources=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=reject=] |promise| with a "{{DataError}}" {{DOMException}}.
         1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs|.
@@ -1415,7 +1415,7 @@ interface MLGraphBuilder {
 </script>
 
 <div class="note">
-Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to "[=default-context|default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
+Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
 </div>
 
 {{MLBufferResourceView}} has the following members:
