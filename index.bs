@@ -5316,7 +5316,7 @@ partial interface MLGraphBuilder {
 Alter the shape of a tensor to a new shape. Reshape does not copy or change the content of the tensor. It just changes the tensor's logical dimensions for the subsequent operations.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand reshape(MLOperand input, sequence<unsigned long?> newShape);
+  MLOperand reshape(MLOperand input, sequence<unsigned long> newShape);
 };
 </script>
 <div>
@@ -5324,10 +5324,7 @@ partial interface MLGraphBuilder {
         - *input*: an {{MLOperand}}. The input tensor.
         - *newShape*: a sequence of [=nullable type|nullable=] {{unsigned long}}. The shape of the output tensor.
             The number of elements implied by *newShape* must be the same as the
-            number of elements in the input tensor. Only one component of
-            *newShape* can be the special value of `null`. The size of the dimension
-            with the value `null` is computed so that the total size remains
-            constant.
+            number of elements in the input tensor.
 
     **Returns:** an {{MLOperand}}. The output tensor. The values of the output
     tensor are the same as values of the input tensor. The shape of the output
@@ -5344,11 +5341,8 @@ partial interface MLGraphBuilder {
     1. If |newShape| is a scalar [=number=], set |outputShape| to «  1  ».
     1. Otherwise, if |newShape| is an array of {{unsigned long}}:
         1. If the [=list/size=] of |newShape| is 0, set |outputShape| to «  1  » (reshaping to scalar).
-        1. If |newShape| contains more than one `null` value, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If any value in |newShape| is 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Let |inputElementCount| be the product of all elements in |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If |newShape| contains a `null` value, set that value to |inputElementCount| divided by the product of all other values in |newShape|.
-            1. If that value is too large for {{unsigned long}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |newShape|.
