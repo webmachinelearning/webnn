@@ -2892,11 +2892,13 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>gemm(|a|, |b|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the [=list/size=] of |shapeA|.
-    1. Let |shapeB| be |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the [=list/size=] of |shapeB|.
+    1. Let |shapeA| be a [=list/clone=] of |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |sizeA| be the [=list/size=] of |shapeA|.
+    1. Let |shapeB| be a [=list/clone=] of |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |sizeB| be the [=list/size=] of |shapeB|.
     1. If |sizeA| is not 2 or |sizeB| is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If |options|.{{MLGemmOptions/aTranspose}} is true, then let |shapeA| be the reverse array of |shapeA|.
-    1. If |options|.{{MLGemmOptions/bTranspose}} is true, then let |shapeB| be the reverse array of |shapeB|.
+    1. If |options|.{{MLGemmOptions/aTranspose}} is true, then reverse the order of the items in |shapeA|.
+    1. If |options|.{{MLGemmOptions/bTranspose}} is true, then reverse the order of the items in |shapeB|.
     1. If |shapeA|[1] is not equal to |shapeB|[0], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGemmOptions/c}} [=map/exists=] and is not [=unidirectionally broadcastable=] to the shape [|shapeA|[0], |shapeB|[1]], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         <div class="note">
@@ -4345,16 +4347,19 @@ partial interface MLGraphBuilder {
     To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given |a| and |b| run the following steps:
   </summary>
   <div class=algorithm-steps>
-    1. Let |shapeA| be |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeA| the [=list/size=] of |shapeA|.
-    1. Let |shapeB| be |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |sizeB| the [=list/size=] of |shapeB|.
-    1. If |sizeA| and |sizeB| is 1, return the [=/list=] « 1 ».
-    1. If |sizeA| is 1 and |sizeB| is not, then insert 1 in the front of |shapeA| to become [ 1 | |shapeA| ] and let |sizeA| be 2.
+    1. Let |shapeA| be a [=list/clone=] of |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |sizeA| be the [=list/size=] of |shapeA|.
+    1. Let |shapeB| be a [=list/clone=] of |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+    1. Let |sizeB| be the [=list/size=] of |shapeB|.
+    1. If |sizeA| and |sizeB| is 1, return «  1  ».
+    1. If |sizeA| is 1, then [=list/prepend=] 1 to |shapeA| and set |sizeA| to 2.
     1. If |shapeA|[0] is not equal to |shapeB|[|sizeB| - 2], then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-    1. If |sizeB| is 1 and |sizeA| is not, then append 1 to |shapeB| to become [ |shapeB| | 1 ] and let |sizeB| be 2.
+    1. If |sizeB| is 1, then [=list/append=] 1 to |shapeB| and set |sizeB| to 2.
     1. If |shapeA|[|sizeA| - 1] is not equal to |shapeB|[0], then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-    1. Let |shape| be an array whose size |size| is the maximum of |sizeA| and |sizeB|.
+    1. Let |size| be the maximum of |sizeA| and |sizeB|.
+    1. Let |shape| be a new [=/list=].
     1. [=list/For each=] |index| in [=the range=] 0 to |size|, exclusive:
-        1. Set |shape|[|index|] to the maximum of |shapeA|[|index|] and |shapeB|[|index|].
+        1. [=list/Append=] the maximum of |shapeA|[|index|] and |shapeB|[|index|] to |shape|.
     1. Return |shape|.
   </div>
 </details>
