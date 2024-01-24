@@ -709,14 +709,16 @@ A key part of the {{MLGraphBuilder}} interface are the operations (such as
 {{MLGraphBuilder}}.{{MLGraphBuilder/gemm()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/softmax()}}). The operations have a functional
 semantics, with no side effects.
 Each operation invocation conceptually returns a distinct new value, without
-changing the value of any other {{MLOperand}}.
+changing the value of any other {{MLOperand}}. 
+
+Internally, the {{MLGraphBuilder}} methods such as {{MLGraphBuilder/gemm()}} create an [=implementation-defined=] <dfn>platform operator</dfn> which is held by the {{MLOperand}} or {{MLActivation}}, which performs the actual operation on the input data when the computation is run. An {{MLOperand}} also holds an [=implementation-defined=] <dfn>platform operand</dfn>, which references the operand in the underlying computational graph, and is connected to [=platform operators=] as input and/or output.
 
 The runtime values (of {{MLOperand}}s) are tensors, which are essentially multidimensional
 arrays. The representation of the tensors is implementation dependent, but it typically
 includes the array data stored in some buffer (memory) and some metadata describing the
 array data (such as its shape).
 
-As mentioned above, the operations have a functional semantics. This allows the implementation
+As mentioned above, the operations have functional semantics. This allows the implementation
 to potentially share the array data between multiple tensors. For example, the implementation
 of operations such as reshape, or slice may return a view of its input tensor
 that shares the same buffer as the input tensor. (In the case of reshape,
@@ -911,12 +913,12 @@ interface MLActivation {
     : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
     ::
         The graph builder object this {{MLActivation}} belongs to.
-    : <dfn>\[[options]]</dfn> of type [=object=]
+    : <dfn>\[[options]]</dfn> of type [=ordered map=]
     ::
         A dictionary containing {{MLActivation}} options.
-    : <dfn>\[[operator]]</dfn> of type [=object=]
+    : <dfn>\[[operator]]</dfn> of type [=platform operator=]
     ::
-        Reference to {{MLActivation}}'s corresponding [=implementation-defined=] platform operator object.
+        Reference to {{MLActivation}}'s corresponding [=platform operator=].
   </dl>
 </div>
 
@@ -940,7 +942,7 @@ The {{MLActivation}} objects (including the ones passed as input to methods) are
     1. If |options| is given, set |activation|.{{MLActivation/[[options]]}} to |options|.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operator |opImpl| for the given |name| operation.
+            1. Create [=platform operator=] |opImpl| for the given |name| operation.
             1. Set |activation|.{{MLActivation/[[operator]]}} to |opImpl|.
         1. If |init-steps| are given, run |init-steps| with |options|.
             1. Otherwise, initialize |activation|.{{MLActivation/[[operator]]}} given |options| in an [=implementation-defined=] way for the given |name| operation.
@@ -1526,9 +1528,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the |op| argMin or argMax operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the |op| argMin or argMax operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -1625,7 +1627,7 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |input|.{{MLOperand/[[descriptor]]}}, that may use the same underlying data as |input|.
         1. Make a request to the underlying platform to initialize the batch normalization:
-            1. Create an [=implementation-defined=] platform operator |batchNormImpl| for this method, given |input|, |mean|, |variance| and |options|.
+            1. Create [=platform operator=] |batchNormImpl| for this method, given |input|, |mean|, |variance| and |options|.
             1. If |options|.activation [=map/exists=],register it as activation to |batchNormImpl|.
             1. Connect |output| as output to |batchNormImpl|.
     1. Return |output|.
@@ -1729,9 +1731,9 @@ partial interface MLGraphBuilder {
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=], |input| and |type|.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operator |castImpl| for this method, given |type|.
+            1. Create [=platform operator=] |castImpl| for this method, given |type|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |castImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent an output, given |output| and |castImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent an output, given |output| and |castImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |operand|.{{MLOperand/[[operand]]}} as input to |castImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |castImpl|.
@@ -1811,9 +1813,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operator |clampImpl| for this method, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}}.
+            1. Create [=platform operator=] |clampImpl| for this method, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}}.
             1. Set |output|.{{MLOperand/[[operator]]}} to |clampImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent clamp output, given |output| and |clampImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent clamp output, given |output| and |clampImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |clampImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |clampImpl|.
@@ -1891,9 +1893,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operator |concatImpl| for this method, given |inputs| and |axis|.
+            1. Create [=platform operator=] |concatImpl| for this method, given |inputs| and |axis|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |concatImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent output,given |output| and |concatImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent output,given |output| and |concatImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |inputs| as input to |concatImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |concatImpl|.
@@ -1929,7 +1931,7 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |bufferView|.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operand |constantImpl| to represent a constant, given |descriptor|.
+            1. Create an [=platform operand=] |constantImpl| to represent a constant, given |descriptor|.
             1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
             1. Register |operand| as a tensor constant with |bytes| as value.
     1. Return |operand|.
@@ -1967,7 +1969,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operand |constantImpl| to represent a constant, given |descriptor|.
+            1. Create an [=platform operand=] |constantImpl| to represent a constant, given |descriptor|.
             1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
             1. Register |operand| as a scalar constant with |value| as value.
     1. Return |operand|.
@@ -2010,7 +2012,7 @@ Data truncation will occur when the values in the range exceed the range of the 
         1. [=list/For each=] |index| in [=the range=] 0 to |size|, exclusive:
             1. Set |buffer|[|index|] to |start| + (|index| * |step|).
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operand |constantImpl| to represent a constant operand, given |descriptor|.
+            1. Create an [=platform operand=] |constantImpl| to represent a constant operand, given |descriptor|.
             1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
             1. Register |operand| as a constant with |buffer| as value.
     1. Return |operand|.
@@ -2170,10 +2172,10 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operator |conv2dImpl| for this method, given |options| and |filter|.
+            1. Create [=platform operator=] |conv2dImpl| for this method, given |options| and |filter|.
                 1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=],register it as activation to |conv2dImpl|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |conv2dImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |conv2dImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |conv2dImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |conv2dImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |conv2dImpl|.
@@ -2345,10 +2347,10 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operator |convTranspose2dImpl| for this method, given |options| and |filter|.
+            1. Create [=platform operator=] |convTranspose2dImpl| for this method, given |options| and |filter|.
                 1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=],register it as activation to |convTranspose2dImpl|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |convTranspose2dImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |convTranspose2dImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |convTranspose2dImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |convTranspose2dImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |convTranspose2dImpl|.
@@ -2409,9 +2411,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the binary operation |op|, given |a| and |b|.
+            1. Let |opImpl| be [=platform operator=] for the binary operation |op|, given |a| and |b|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -2545,9 +2547,9 @@ Although operations *greaterOrEqual* and *lesserOrEqual* can each be implemented
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the binary operation |op|, given |a| and |b|.
+            1. Let |opImpl| be [=platform operator=] for the binary operation |op|, given |a| and |b|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -2659,9 +2661,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the unary operation |op|.
+            1. Let |opImpl| be [=platform operator=] for the unary operation |op|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -2820,9 +2822,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the ELU operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the ELU operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -2885,9 +2887,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDesc|.
         1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform operator |expandImpl| for this method, given |input| and |newShape|.
+            1. Create [=platform operator=] |expandImpl| for this method, given |input| and |newShape|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |expandImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent output,given |output| and |expandImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent output,given |output| and |expandImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input| as input to |expandImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |expandImpl|.
@@ -2960,9 +2962,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given |desc|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the Gather operation, given |input|, |indices|, and |options|.
+            1. Let |opImpl| be [=platform operator=] for the Gather operation, given |input|, |indices|, and |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} and |indices|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -3096,9 +3098,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the GEMM operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the GEMM operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -3223,7 +3225,7 @@ partial interface MLGraphBuilder {
     1. Let |output| be an empty sequence of {{MLOperand}} objects.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for "gru", given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options| as parameters.
+            1. Let |opImpl| be [=platform operator=] for "gru", given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options| as parameters.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output| as output to |opImpl|.
     1. Return |output|.
@@ -3373,9 +3375,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for "gruCell", given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
+            1. Let |opImpl| be [=platform operator=] for "gruCell", given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -3549,9 +3551,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the hard sigmoid operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the hard sigmoid operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -3629,9 +3631,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the hard-swish operation.
+            1. Let |opImpl| be [=platform operator=] for the hard-swish operation.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -3749,9 +3751,9 @@ The {{MLInstanceNormalizationOptions}} members are:
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the instance normalization operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the instance normalization operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -3854,9 +3856,9 @@ The {{MLLayerNormalizationOptions}} members are:
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the instance normalization operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the instance normalization operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -3955,9 +3957,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the Leaky RELU operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the Leaky RELU operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -4047,9 +4049,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the linear operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the linear operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -4205,9 +4207,9 @@ partial interface MLGraphBuilder {
             1. Let |output| be the [=/list=] « |output0|, |output1|, |output2| ».
         1. Otherwise, let |output| be the [=/list=] « |output0|, |output1| ».
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the LSTM operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
+            1. Let |opImpl| be [=platform operator=] for the LSTM operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
             1. Set |output0|.{{MLOperand/[[operator]]}}, |output1|.{{MLOperand/[[operator]]}} and |output2|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output0|.{{MLOperand/[[operand]]}}, |output1|.{{MLOperand/[[operand]]}} and |output2|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output| as output to |opImpl|.
@@ -4382,9 +4384,9 @@ partial interface MLGraphBuilder {
         1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output| be the [=/list=] « |output0|, |output1| ».
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the LSTM cell operation, given |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |hiddenSize| and |options|.
+            1. Let |opImpl| be [=platform operator=] for the LSTM cell operation, given |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |hiddenSize| and |options|.
             1. Set |output0|.{{MLOperand/[[operator]]}} and |output1|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output0|.{{MLOperand/[[operand]]}} and |output1|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output| as output to |opImpl|.
@@ -4567,9 +4569,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the matrix multiplication operation.
+            1. Let |opImpl| be [=platform operator=] for the matrix multiplication operation.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -4652,9 +4654,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the padding operation, given |beginningPadding|, |endingPadding| and |options|.
+            1. Let |opImpl| be [=platform operator=] for the padding operation, given |beginningPadding|, |endingPadding| and |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -4844,9 +4846,9 @@ partial interface MLGraphBuilder {
         1. Make a request to the underlying platform to:
             1. Calculate the output dimensions given |input| and |options|. Set |desc|.{{MLOperandDescriptor/dimensions}} to that.
             1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the |op| pooling operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the |op| pooling operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -4919,9 +4921,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the PreLU operation, given |slope|.
+            1. Let |opImpl| be [=platform operator=] for the PreLU operation, given |slope|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5013,9 +5015,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the |op| reduce operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the |op| reduce operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5140,9 +5142,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the ReLU operation.
+            1. Let |opImpl| be [=platform operator=] for the ReLU operation.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5264,9 +5266,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the resample 2D operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the resample 2D operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5310,9 +5312,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the reshape operation.
+            1. Let |opImpl| be [=platform operator=] for the reshape operation.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5402,9 +5404,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the sigmoid operation.
+            1. Let |opImpl| be [=platform operator=] for the sigmoid operation.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5459,9 +5461,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the slice operation, given |starts| and |sizes|.
+            1. Let |opImpl| be [=platform operator=] for the slice operation, given |starts| and |sizes|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5518,9 +5520,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the softmax operation.
+            1. Let |opImpl| be [=platform operator=] for the softmax operation.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5607,9 +5609,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the softplus operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the softplus operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5679,9 +5681,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the softsign operation.
+            1. Let |opImpl| be [=platform operator=] for the softsign operation.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5750,9 +5752,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the split operation, given |splits| and |options|.
+            1. Let |opImpl| be [=platform operator=] for the split operation, given |splits| and |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5828,9 +5830,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the hyperbolic tangent operation.
+            1. Let |opImpl| be [=platform operator=] for the hyperbolic tangent operation.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5901,9 +5903,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the transpose operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the transpose operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -5951,9 +5953,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the triangular operation, given |options|.
+            1. Let |opImpl| be [=platform operator=] for the triangular operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -6049,9 +6051,9 @@ partial interface MLGraphBuilder {
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
-            1. Let |opImpl| be an [=implementation-defined=] platform operator for the where operation, given |condition|, |input| and |other|.
+            1. Let |opImpl| be [=platform operator=] for the where operation, given |condition|, |input| and |other|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=implementation-defined=] platform operand |outputImpl| to represent the output, given |output| and |opImpl|.
+            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
             1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
         1. Connect |condition|.{{MLOperand/[[operand]]}}, |input| and |other|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
@@ -6103,13 +6105,13 @@ interface MLOperand {};
     ::
         The {{MLOperand}}'s name (only for input operands).
 
-    : <dfn>\[[operand]]</dfn> of type [=object=]
+    : <dfn>\[[operand]]</dfn> of type [=platform operand=]
     ::
-        Reference to {{MLOperand}}'s corresponding [=implementation-defined=] platform operand object.
+        Reference to {{MLOperand}}'s corresponding [=platform operand=].
 
-    : <dfn>\[[operator]]</dfn> of type [=object=]
+    : <dfn>\[[operator]]</dfn> of type [=platform operator=]
     ::
-        Reference to {{MLOperand}}'s corresponding [=implementation-defined=] platform operator object.
+        Reference to {{MLOperand}}'s corresponding [=platform operator=].
   </dl>
 </div>
 
