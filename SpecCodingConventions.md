@@ -89,6 +89,8 @@ Example:
 * Use the most specific types possible (e.g. MLOperand, not generic object).
 * Use `[=this=]` to refer to the current object.
 * Use `[=map/For each=] |key| → |value| of |map|` when iterating over a map, but use more specific terms for the key and value (e.g. _For each name → input of inputs:_)
+* Use `[=list/For each=] |item| of |list|` when iterating over a list, but use more specific terms for the item (e.g. _For each dimension of dimensions:_)
+* Use `[=list/For each=] |index| in [=the range=] X to Y, inclusive` when iterating over a numeric range; a range is implicitly an ordered set which is a type of list. Specify _inclusive_ or _exclusive_ regarding the upper bound, for clarity.
 * Use "let" to introduce a variable and "set" to update a variable or assign to a property.
 * Use « » notation for literal lists, which helps make it clear that they are not JavaScript arrays.
 
