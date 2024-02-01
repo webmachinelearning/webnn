@@ -5873,7 +5873,7 @@ partial interface MLGraphBuilder {
 </details>
 
 ### triangular ### {#api-mlgraphbuilder-triangular}
-Given a 2-D tensor (matrix), return a 2-D tensor containing either the upper or lower triangular part of the input tensor.
+Given a 2-D tensor (matrix), return a 2-D tensor containing either the upper or lower triangular part of the input tensor. If the input tensor has greater than 2 dimensions it is treated as a batch of matrices and the result has the same shape.
 
 <script type=idl>
 dictionary MLTriangularOptions {
@@ -5898,10 +5898,10 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor.
+        - *input*: an {{MLOperand}}. The input tensor which is at least 2-D.
         - *options*: an optional {{MLTriangularOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output 2-D tensor representing a triangular matrix.
+    **Returns:** an {{MLOperand}}. The output tensor representing a triangular matrix, or batch of matrices which is the same shape as the input.
 </div>
 
 <details open algorithm>
@@ -5909,6 +5909,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>triangular(|input|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
+    1. If the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is less than 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
@@ -5969,7 +5970,16 @@ partial interface MLGraphBuilder {
     //   [[0, 0, 0],
     //    [9, 0, 0],
     //    [2, 6, 0]]
-    const lowerNegative = builder.triangular(input, { upper: false, diagonal: -1 });
+    const lowerNegative = builder.triangular(input, { upper: false, diagonal: -1 })
+
+    // lower triangular matrix with two batches:
+    //   [[[7, 0, 0],
+    //     [9, 4, 0],
+    //     [2, 6, 3]],
+    //    [[1, 0, 0],
+    //     [4, 5, 0],
+    //     [7, 8, 9]]]
+    const lowerWithBatches = builder.triangular(input, { upper: false });
   </pre>
 </details>
 </div>
