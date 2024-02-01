@@ -723,24 +723,9 @@ The implementation may use views, as above, for intermediate values.
 
 Before the execution, the computation graph that is used to compute one or more specified outputs needs to be compiled and optimized. The key purpose of the compilation step is to enable optimizations that span two or more operations, such as operation or loop fusion.
 
-There are multiple ways by which the graph may be compiled. The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph in the background without blocking the calling thread, and returns a {{Promise}} that resolves to an {{MLGraph}}. The {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method compiles the graph immediately on the calling thread, which must be a worker thread running on CPU or GPU device, and returns an {{MLGraph}}. Both compilation methods produce an {{MLGraph}} that represents a compiled graph for optimal execution.
+The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph in the background without blocking the calling thread, and returns a {{Promise}} that resolves to an {{MLGraph}}. The compilation step produces an {{MLGraph}} that represents a compiled graph for optimal execution.
 
-Once the {{MLGraph}} is constructed, there are multiple ways by which the graph may be executed. The
-{{MLContext}}.{{MLContext/computeSync()}} method represents a way the execution of the graph is carried out immediately
-on the calling thread, which must also be a worker thread, either on a CPU or GPU device. The execution
-produces the results of the computation from all the inputs bound to the graph.
-
-The {{MLContext}}.{{MLContext/compute()}} method represents a way the execution of the graph is performed asynchronously
-either on a parallel timeline in a separate worker thread for the CPU execution or on a GPU timeline in a GPU
-command queue. This method returns immediately without blocking the calling thread while the actual execution is
-offloaded to a different timeline. This type of execution is appropriate when the responsiveness of the calling
-thread is critical to good user experience. The computation results will be placed at the bound outputs at the
-time the operation is successfully completed on the offloaded timeline at which time the calling thread is
-signaled. This type of execution supports both the CPU and GPU device.
-
-In both the {{MLContext}}.{{MLContext/compute()}} and {{MLContext}}.{{MLContext/computeSync()}} execution methods, the caller supplies
-the input values using {{MLNamedArrayBufferViews}}, binding the input {{MLOperand}}s to their values. The caller
-then supplies pre-allocated buffers for output {{MLOperand}}s using {{MLNamedArrayBufferViews}}.
+Once the {{MLGraph}} is constructed, the {{MLContext}}.{{MLContext/compute()}} method performs the execution of the graph asynchronously either on a parallel timeline in a separate worker thread for the CPU execution or on a GPU timeline in a GPU command queue. This method returns immediately without blocking the calling thread while the actual execution is offloaded to a different timeline. The caller supplies the input values using {{MLNamedArrayBufferViews}}, binding the input {{MLOperand}}s to their values. The caller then supplies pre-allocated buffers for output {{MLOperand}}s using {{MLNamedArrayBufferViews}}. The execution produces the results of the computation from all the inputs bound to the graph. The computation results will be placed at the bound outputs at the time the operation is successfully completed on the offloaded timeline at which time the calling thread is signaled. This type of execution supports both the CPU and GPU device.
 
 ## Device Selection ## {#programming-model-device-selection}
 
@@ -798,11 +783,6 @@ dictionary MLContextOptions {
 interface ML {
   Promise<MLContext> createContext(optional MLContextOptions options = {});
   Promise<MLContext> createContext(GPUDevice gpuDevice);
-
-  [Exposed=(DedicatedWorker)]
-  MLContext createContextSync(optional MLContextOptions options = {});
-  [Exposed=(DedicatedWorker)]
-  MLContext createContextSync(GPUDevice gpuDevice);
 };
 </script>
 
@@ -857,30 +837,6 @@ Its <a>default allowlist</a> is <code>'self'</code>.
     1. Let |context| be the result of [=creating a context=] given |gpuDevice|. If that returns failure, [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}}.
     1. [=Resolve=] |promise| with |context|.
 </div>
-</details>
-
-### {{ML/createContextSync}} ### {#api-ml-createcontextsync}
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=ML>createContextSync(|options|)</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
-    1. Let |context| be the result of [=creating a context=] with |options|. If that returns failure, then [=exception/throw=] a "{{NotSupportedError}}" {{DOMException}}.
-    1. Return |context|.
-  </div>
-</details>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=ML>createContextSync(|gpuDevice|)</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
-    1. Let |context| be the result of [=creating a context=] with |gpuDevice|. If that returns failure, then [=exception/throw=] a "{{NotSupportedError}}" {{DOMException}}.
-    1. Return |context|.
-  </div>
 </details>
 
 ## {{MLActivation}} interface ## {#api-mlactivation}
@@ -994,40 +950,6 @@ interface MLContext {};
 When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with the {{MLContextOptions}}.{{deviceType}} set to {{MLDeviceType/"gpu"}}, the user agent is responsible for creating an internal GPU device that operates within the context and is capable of ML workload submission on behalf of the calling application. In this setting however, only {{ArrayBufferView}} inputs and outputs are allowed in and out of the graph execution since the application has no way to know what type of internal GPU device is being created on their behalf. In this case, the user agent is responsible for automatic uploads and downloads of the inputs and outputs to and from the GPU memory using this said internal device.
 </div>
 
-### Synchronous Execution ### {#api-mlcontext-sync-execution}
-Synchronously carries out the computational workload of a compiled graph {{MLGraph}} on the calling thread, which must be a worker thread, to produce results as defined by the operations in the graph. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it [=exception/throws=] an "{{OperationError}}" {{DOMException}}.
-
-<script type=idl>
-partial interface MLContext {
-  [Exposed=(DedicatedWorker)]
-  undefined computeSync(
-      MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
-};
-</script>
-
-<div>
-    **Arguments:**
-      - *graph*: an {{MLGraph}}. The compiled graph to be executed.
-      - *inputs*: an {{MLNamedArrayBufferViews}}. The resources of inputs.
-      - *outputs*: an {{MLNamedArrayBufferViews}}. The pre-allocated resources of required outputs.
-
-    **Returns:** {{undefined}}.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLContext>computeSync(|graph|, |inputs|, |outputs|)</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-    1. If [=validating graph resources=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If [=validating graph resources=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. Invoke [=execute graph=] given |graph|, |inputs| and |outputs|.
-    1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
-    1. Return {{undefined}}.
-  </div>
-</details>
-
 <details open algorithm>
   <summary>
     To <dfn>validate graph resources</dfn>, given {{MLNamedArrayBufferViews}} |resources| and [=ordered map=] |descriptors|, run the following steps:
@@ -1074,46 +996,6 @@ partial interface MLContext {
     1. Return {{undefined}}.
   </div>
 </details>
-
-#### Examples #### {#api-mlcontext-sync-execution-examples}
-
-<div class="example">
-<details open>
-  <summary>
-    The following code showcases the synchronous computation with optional outputs in a worker.
-  </summary>
-  <pre highlight="js">
-    const context = navigator.ml.createContextSync();
-
-    // Build a graph with two outputs.
-    const builder = new MLGraphBuilder(context);
-    const descA = {dataType: 'float32', dimensions: [3, 4]};
-    const a = builder.input('a', descA);
-    const descB = {dataType: 'float32', dimensions: [4, 3]};
-    const bufferB = new Float32Array(sizeOfShape(descB.dimensions)).fill(0.5);
-    const b = builder.constant(descB, bufferB);
-    const descC = {dataType: 'float32', dimensions: [3, 3]};
-    const bufferC = new Float32Array(sizeOfShape(descC.dimensions)).fill(1);
-    const c = builder.constant(descC, bufferC);
-    const d = builder.matmul(a, b);
-    const e = builder.add(d, c);
-    const graph = builder.buildSync({'d': d, 'e': e});
-
-    const bufferA = new Float32Array(sizeOfShape(descA.dimensions)).fill(0.5);
-    const inputs = {'a': bufferA};
-
-    // Compute d.
-    const bufferD = new Float32Array(sizeOfShape([3, 3]));
-    context.computeSync(graph, inputs, {'d': bufferD});
-    console.log(&#96;values: ${bufferD}&#96;);
-
-    // Compute e.
-    const bufferE = new Float32Array(sizeOfShape([3, 3]));
-    context.computeSync(graph, inputs, {'e': bufferE});
-    console.log(&#96;values: ${bufferE}&#96;);
-  </pre>
-</details>
-</div>
 
 ### {{MLNamedArrayBufferViews}} transfer algorithm ### {#mlnamedarraybufferviews-transfer-alg}
 
@@ -1275,15 +1157,11 @@ interface MLGraphBuilder {
 
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
-
-  // Compile the graph up to the specified output operands synchronously.
-  [Exposed=(DedicatedWorker)]
-  MLGraph buildSync(MLNamedOperands outputs);
 };
 </script>
 
 <div class="note">
-Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant(value, type)}} method as constant operands during graph construction time.
+The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant(value, type)}} method as constant operands during graph construction time.
 
 Issue(552): Decide how to specify graph initialization.
 </div>
@@ -1504,7 +1382,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### build ### {#api-mlgraphbuilder-build}
-Build a composed graph up to a given output operand into a computational graph, asynchronously or synchronously.
+Build a composed graph up to a given output operand into a computational graph asynchronously.
 
 #### {{MLGraphBuilder/build(outputs)}} #### {#api-mlgraphbuilder-build-outputs}
 
@@ -1513,48 +1391,30 @@ Build a composed graph up to a given output operand into a computational graph, 
     The <dfn method for=MLGraphBuilder>build(|outputs|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    <div class="note">
-        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
-    </div>
     1. Let |promise| be [=a new promise=].
-    1. Return |promise| and run the following steps [=in parallel=].
-    1. Return the result of invoking {{MLGraphBuilder/buildSync(outputs)}} given |outputs|.
-        1. If that [=exception/throws=], re-[=exception/throw=] the error.
-  </div>
-</details>
-
-#### {{MLGraphBuilder/buildSync(outputs)}} #### {#api-mlgraphbuilder-buildsync-outputs}
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>buildSync(|outputs|)</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    <div class="note">
-        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
-    </div>
-    1. If |outputs| is empty, then [=exception/throw=] a {{TypeError}}.
-    1. [=map/For each=] |name| &rarr; |operand| of |outputs|:
-        1. If |name| is empty, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Let |graph| be a new {{MLGraph}}:
-            1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
-        1. Make a request to the underlying platform to:
-            1. Connect |graph| to a new [=implementation-defined=] graph implementation |graphImpl| given |graph|.
-            1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
-        1. Make a request to the underlying platform to initialize the graph:
-            1. [=map/For each=] |name| &rarr; |operand| of |outputs|:
-                1. If [=validating MLOperand=] given |operand| and [=this=] returns false, then [=exception/throw=] a {{TypeError}}.
-                1. If |operand| was created as an input by the underlying platform:
-                    1. If |operand|.{{MLOperand/[[name]]}}] is not unique for |graphImpl|, then [=exception/throw=] a {{TypeError}}.
-                    1. Add |operand|.{{MLOperand/[[descriptor]]}} to |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}].
-                1. If |operand| was created as a constant by the underlying platform:
-                    1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
-                1. Register |operand|.{{MLOperand/[[operand]]}} in |graphImpl| as graph output.
-                1. Register |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
-            
-            Issue(552): Decide how to specify graph initialization.
-    1. Return |graph|.
+    1. Return |promise| and run the following steps [=in parallel=]:
+        1. If |outputs| is empty, then [=reject=] |promise| with a "{{TypeError}}" {{DOMException}}.
+        1. [=map/For each=] |name| &rarr; |operand| of |outputs|:
+            1. If |name| is empty, then [=reject=] |promise| with a "{{TypeError}}" {{DOMException}}.
+        1. If any of the following sub-steps fail, then [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}.
+            1. Let |graph| be a new {{MLGraph}}:
+                1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
+            1. Make a request to the underlying platform to:
+                1. Connect |graph| to a new [=implementation-defined=] graph implementation |graphImpl| given |graph|.
+                1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
+            1. Make a request to the underlying platform to initialize the graph:
+                1. [=map/For each=] |name| &rarr; |operand| of |outputs|:
+                    1. If [=validating MLOperand=] given |operand| and [=this=] returns false, then [=reject=] |promise| with a "{{TypeError}}" {{DOMException}}.
+                    1. If |operand| was created as an input by the underlying platform:
+                        1. If |operand|.{{MLOperand/[[name]]}} is not unique for |graphImpl|, then [=reject=] |promise| with a "{{TypeError}}" {{DOMException}}.
+                        1. Add |operand|.{{MLOperand/[[descriptor]]}} to |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}].
+                    1. If |operand| was created as a constant by the underlying platform:
+                        1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
+                    1. Register |operand|.{{MLOperand/[[operand]]}} in |graphImpl| as graph output.
+                    1. Register |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
+                
+                Issue(552): Decide how to specify graph initialization.
+        1. [=Resolve=] |promise| with |graph|.
   </div>
 </details>
 
