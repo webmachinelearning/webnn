@@ -1284,7 +1284,9 @@ interface MLGraphBuilder {
 </script>
 
 <div class="note">
-Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions.
+Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant(value, type)}} method as constant operands during graph construction time.
+
+Issue(552): Decide how to specify graph initialization.
 </div>
 
 {{MLBufferResourceView}} has the following members:
@@ -1551,6 +1553,8 @@ Build a composed graph up to a given output operand into a computational graph, 
                     1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
                 1. Register |operand|.{{MLOperand/[[operand]]}} in |graphImpl| as graph output.
                 1. Register |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
+            
+            Issue(552): Decide how to specify graph initialization.
     1. Return |graph|.
   </div>
 </details>
