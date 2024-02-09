@@ -1609,11 +1609,9 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
     1. If |name| is empty, then [=exception/throw=] a {{TypeError}}.
-    1. [=Assert=]: the type of |descriptor| is {{MLOperandDescriptor}}.
-    1. [=Assert=]: If |descriptor|.{{MLOperandDescriptor/dimensions}} does not [=map/exist=], then |descriptor| defines a scalar input, and |descriptor|.{{MLOperandDescriptor/dimensions}} is set to an empty array of {{unsigned long long}}.
-    1. If |descriptor|.{{MLOperandDescriptor/dimensions}} [=map/exists=]:
-        1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |descriptor|.{{MLOperandDescriptor/dimensions}} does not [=map/exist=], then set |descriptor|.{{MLOperandDescriptor/dimensions}} is set to an empty list, indicating a scalar input.
+    1. If the [=check dimensions=] steps given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} return false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of <a>creating an MLOperand</a> given [=this=] and |descriptor|.
         1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
@@ -1671,7 +1669,7 @@ Build a composed graph up to a given output operand into a computational graph, 
             1. [=map/For each=] |operand| in |outputs|:
                 1. If <a>validating MLOperand</a> given |operand| and [=this=] returns false, then [=exception/throw=] a {{TypeError}}.
                 1. If |operand| was created as an input by the underlying platform:
-                    1. If |operand|.{{MLOperand/[[name]]}}] is not unique for |graphImpl|, then [=exception/throw=] a {{TypeError}}.
+                    1. If |operand|.{{MLOperand/[[name]]}} is not unique for |graphImpl|, then [=exception/throw=] a {{TypeError}}.
                     1. Add |operand|.{{MLOperand/[[descriptor]]}} to |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}].
                 1. If |operand| was created as a constant by the underlying platform:
                     1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
