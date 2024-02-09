@@ -1815,10 +1815,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
     </div>
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
-        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to `undefined`.
-            <div class="note">
-                In the case of a scalar constant, |descriptor|.{{MLOperandDescriptor/dimensions}} is ignored.
-            </div>
+        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the empty [=/list=] « ».
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
@@ -3997,6 +3994,7 @@ partial interface MLGraphBuilder {
         <div class="issue">
             The shape of |input|, |weight| or |recurrentWeight| could be also checked here.
         </div>
+    1. Require the shape of each tensor to match its expected rank, or else [=exception/throw=] a "{{DataError}}" {{DOMException}}: the rank of input, weight, recurrentWeight, initialHiddenState, and initialCellState is 3; and the rank of bias, recurrentBias, and peepholeWeight is 2.
     1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not equal to |steps|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |batchSize| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
     1. If |options|.{{MLLstmOptions/bias}} [=map/exists=]:
@@ -5986,7 +5984,7 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
   <div class=algorithm-steps>
     1. If |builder| is not equal to |operand|.{{MLOperand/[[builder]]}}, return false.
     1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
-    1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and [=checking dimensions=] given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/dataType}} returns false, then return false.
+    1. If [=checking dimensions=] given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/dataType}} returns false, then return false.
     1. Return true.
   </div>
 </details>
@@ -6058,7 +6056,7 @@ dictionary MLOperandDescriptor {
   required MLOperandDataType dataType;
 
   // The dimensions field is only required for tensor operands.
-  sequence<unsigned long> dimensions;
+  sequence<unsigned long> dimensions = [];
 };
 </script>
 
