@@ -2237,8 +2237,8 @@ partial interface MLGraphBuilder {
     1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
@@ -2249,21 +2249,6 @@ partial interface MLGraphBuilder {
         1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
     1. Return |output|.
-  </div>
-</details>
-
-<details open algorithm>
-  <summary>
-    To <dfn for="MLGraphBuilder">broadcast-shapes</dfn> given [=/list=] |shape1| and [=/list=] |shape2|, run the following steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. [=Assert=]: The type of |shape1| and |shape2| is `sequence of unsigned long`.
-    1. Let |output| be the result of invoking the [=implementation-defined=] shape broadcast on |shape1| and |shape2|.
-            1. If that fails, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. Return |output|.
-        <div class = "note">
-        The most common implementation is that two shapes are compatible, when each of their corresponding dimensions are equal, or one of them is 1. The output shape consists of the maximum of the corresponding dimensions.
-        </div>
   </div>
 </details>
 
@@ -2373,8 +2358,8 @@ Although operations *greaterOrEqual* and *lesserOrEqual* can each be implemented
         1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"uint8"}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
@@ -2707,16 +2692,12 @@ partial interface MLGraphBuilder {
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
-    1. If any of the following steps fail, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. Let |inputDesc| be |input|.{{MLOperand/[[descriptor]]}}.
-        1. If the sequence length of |newShape| is not equal to the [=rank=] of |inputDesc|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. Let |outputDesc| be a copy of |inputDesc|.
-        1. [=list/For each=] |index| in [=the range=] 0 to the [=rank=] of |input|, exclusive:
-            1. Let |size| be the |input|.{{MLOperand/shape()}}[|index|].
-            1. If |size| is not equal to 1 and not equal to |newShape|[index], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-            1. If |size| is equal to 1, then let |outputDesc|.{{MLOperandDescriptor/dimensions}}[|index|] be |newShape|[|index|].
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
+    1. Set |outputDescriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |newShape|.
+        1. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDesc|.
+        1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDescriptor|.
         1. Make a request to the underlying platform to:
             1. Create [=platform operator=] |expandImpl| for this method, given |input| and |newShape|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |expandImpl|.
@@ -2859,7 +2840,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### gemm ### {#api-mlgraphbuilder-gemm}
-Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape [M, K] or [K, M], `B` is a 2-D tensor with shape [K, N] or [N, K], and `C` is broadcastable to the shape [M, N]. `A` and `B` may optionally be transposed prior to the calculation.
+Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape [M, K] or [K, M], `B` is a 2-D tensor with shape [K, N] or [N, K], and `C` is [=unidirectionally broadcastable=] to the shape [M, N]. `A` and `B` may optionally be transposed prior to the calculation.
 
 <script type=idl>
 dictionary MLGemmOptions {
@@ -2879,7 +2860,7 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLGemmOptions>
     : <dfn>c</dfn>
     ::
-        The third input tensor. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape [M, N] according to [[!numpy-broadcasting-rule]]. When it is not specified, the computation is done as if *c* is a scalar 0.0.
+        The third input tensor. It is either a scalar, or of the shape that is [=unidirectionally broadcastable=] to the shape [M, N]. When it is not specified, the computation is done as if *c* is a scalar 0.0.
 
     : <dfn>alpha</dfn>
     ::
@@ -2919,7 +2900,7 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLGemmOptions/aTranspose}} is true, then let |shapeA| be the reverse array of |shapeA|.
     1. If |options|.{{MLGemmOptions/bTranspose}} is true, then let |shapeB| be the reverse array of |shapeB|.
     1. If |shapeA|[1] is not equal to |shapeB|[0], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If |options|.{{MLGemmOptions/c}} [=map/exists=] and is not unidirectionally broadcastable to the shape [|shapeA|[0], |shapeB|[1]] according to the [[!numpy-broadcasting-rule]], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLGemmOptions/c}} [=map/exists=] and is not [=unidirectionally broadcastable=] to the shape [|shapeA|[0], |shapeB|[1]], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         <div class="note">
             Type compatibility between |a|, |b| and |options|.{{MLGemmOptions/c}} can be also checked.
         </div>
@@ -4718,7 +4699,7 @@ partial interface MLGraphBuilder {
 <div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
-        - *slope*: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or unidirectionally broadcastable to the shape of input tensor *input* according to [[!numpy-broadcasting-rule]].
+        - *slope*: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or [=unidirectionally broadcastable=] to the shape of input tensor *input*.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -4732,8 +4713,8 @@ partial interface MLGraphBuilder {
   <div class=algorithm-steps>
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |slope|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |slope|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
@@ -5864,9 +5845,9 @@ partial interface MLGraphBuilder {
     1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not equal to |other|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |other|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
-    1. If |condition| is not unidirectionally broadcastable to |descriptor|.{{MLOperandDescriptor/dimensions}} according to the [[!numpy-broadcasting-rule]], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |other|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |condition| is not [=bidirectionally broadcastable=] to |descriptor|.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
@@ -6078,6 +6059,59 @@ dictionary MLOperandDescriptor {
     1. Return |elementLength| × |elementSize|.
   </div>
 </details>
+
+Algorithms {#algorithms}
+=====================
+
+## Broadcasting ## {#algorithms-broadcasting}
+
+Broadcasting refers to how operations treat tensors with different shapes, and follow the precedent set by [[!numpy-broadcasting-rule]].
+
+<div algorithm>
+To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broadcast the shapes</dfn> |A| and |B|, perform the following steps. |A| and |B| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+
+1. Let |sizeA| be the [=list/size=] of |A|.
+1. Let |sizeB| be the [=list/size=] of |B|.
+1. If |sizeB| > |sizeA|, then return failure.
+1. Let |paddedB| be a [=list/clone=] of |B|.
+1. While |paddedB|'s [=list/size=] is less than |sizeA|, [=list/prepend=] 1 to |paddedB|.
+1. Let |outputShape| be a new [=/list=].
+1. [=list/For each=] |index| in [=the range=] 0 to |sizeA|, exclusive:
+    1. Let |dimA| be |A|[|index|].
+    1. Let |dimB| be |paddedB|[|index|].
+    1. If |dimA| is not equal to |dimB| and |dimA| is not equal to 1, then return failure.
+    1. [=list/Append=] |dimA| to |outputShape|.
+1. Return |outputShape|.
+
+</div>
+
+<div algorithm>
+|A| is <dfn>unidirectionally broadcastable</dfn> to |B| if [=unidirectionally broadcasting the shapes=] |A| and |B| does not result in failure.
+</div>
+
+<div algorithm>
+To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadcast the shapes</dfn> |A| and |B|, perform the following steps. |A| and |B| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+
+1. Let |sizeA| be the [=list/size=] of |A|.
+1. Let |sizeB| be the [=list/size=] of |B|.
+1. Let |outputSize| be the maximum of |sizeA| and |sizeB|.
+1. Let |paddedA| be a [=list/clone=] of |A|.
+1. While |paddedA|'s [=list/size=] is less than |outputSize|, [=list/prepend=] 1 to |paddedA|.
+1. Let |paddedB| be a [=list/clone=] of |B|.
+1. While |paddedB|'s [=list/size=] is less than |outputSize|, [=list/prepend=] 1 to |paddedB|.
+1. Let |outputShape| be a new [=/list=].
+1. [=list/For each=] |index| in [=the range=] 0 to |outputSize|, exclusive:
+    1. Let |dimA| be |paddedA|[|index|].
+    1. Let |dimB| be |paddedB|[|index|].
+    1. If |dimA| is not equal to |dimB|, and |dimA| is not equal to 1, and |dimB| is not equal to 1, then return failure.
+    1. [=list/Append=] the maximum of |dimA| and |dimB| to |outputShape|.
+1. Return |outputShape|.
+
+</div>
+
+<div algorithm>
+|A| is <dfn>bidirectionally broadcastable</dfn> to |B| if [=bidirectionally broadcasting the shapes=] |A| and |B| does not result in failure.
+</div>
 
 Examples {#examples}
 =====================
