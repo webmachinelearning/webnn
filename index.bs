@@ -23,7 +23,7 @@ Logo: https://webmachinelearning.github.io/webmachinelearning-logo.png
 Deadline: 2023-10-01
 Status Text: <p>
   Further implementation experience and user feedback is being gathered for the
-  MLCommandEncoder interface that proposes to enable more efficient WebGPU
+  <code>MLCommandEncoder</code> interface that proposes to enable more efficient WebGPU
   integration. A proposal to
   <a href="https://github.com/webmachinelearning/webnn/pull/322">simplify
   MLContext creation</a> is being discussed. This document is maintained and
@@ -1331,7 +1331,7 @@ Return the index location of the minimum or maxmium values of all the input valu
 
 <script type=idl>
 dictionary MLArgMinMaxOptions {
-  sequence<unsigned long> axes = null;
+  sequence<unsigned long> axes;
   boolean keepDimensions = false;
   boolean selectLastIndex = false;
 };
@@ -3653,7 +3653,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>axes</dfn>
     ::  
-        The indices to the input dimensions to reduce. When this member is not present, it is assumed to be [1,2,3] that is, the reduction for the mean and variance values are calculated across all the input features for each individual sample in the batch.
+        The indices to the input dimensions to reduce. When this member is not present, it is treated as if all dimensions except the first were given (e.g. for a 4-D input tensor, axes = [1,2,3]). That is, the reduction for the mean and variance values are calculated across all the input features for each independent batch.
 
     : <dfn>epsilon</dfn>
     ::
@@ -3673,6 +3673,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>layerNormalization(|input|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
+    1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either equal to [=the range=] from 1 to |input|'s [=rank=], exclusive, if |input|'s [=rank=] is greater than 1, or an empty [=/list=] otherwise.
     1. If the [=rank=] of |options|.{{MLLayerNormalizationOptions/scale}} is not equal to the [=list/size=] of |options|.{{MLLayerNormalizationOptions/axes}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If the [=rank=] of |options|.{{MLLayerNormalizationOptions/bias}} is not equal to the [=list/size=] of |options|.{{MLLayerNormalizationOptions/axes}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. [=list/For each=] |index| in [=the range=] 0 to the [=list/size=] of |options|.{{MLLayerNormalizationOptions/axes}}, exclusive:
@@ -4765,7 +4766,7 @@ partial interface MLGraphBuilder {
 Reduce the input tensor along all dimensions, or along the axes specified in the {{MLReduceOptions/axes}}  array parameter. For each specified axis, the dimension with that index is reduced, i.e. the resulting tensor will not contain it, unless the {{MLReduceOptions/keepDimensions}} option is specified. The values of the resulting tensor are calculated using the specified reduction function that takes as parameters all the values across the reduced dimension.
 <script type=idl>
 dictionary MLReduceOptions {
-  sequence<unsigned long> axes = null;
+  sequence<unsigned long> axes;
   boolean keepDimensions = false;
 };
 
@@ -5722,7 +5723,7 @@ partial interface MLGraphBuilder {
 </details>
 
 ### triangular ### {#api-mlgraphbuilder-triangular}
-Given a 2-D tensor (matrix), return a 2-D tensor containing either the upper or lower triangular part of the input tensor.
+Given a 2-D tensor (matrix), return a 2-D tensor containing either the upper or lower triangular part of the input tensor. If the input tensor has greater than 2 dimensions it is treated as a batch of matrices and the result has the same shape.
 
 <script type=idl>
 dictionary MLTriangularOptions {
@@ -5747,10 +5748,10 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor.
+        - *input*: an {{MLOperand}}. The input tensor which is at least 2-D.
         - *options*: an optional {{MLTriangularOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output 2-D tensor representing a triangular matrix.
+    **Returns:** an {{MLOperand}}. The output tensor representing a triangular matrix, or batch of matrices which is the same shape as the input.
 </div>
 
 <details open algorithm>
@@ -5758,6 +5759,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>triangular(|input|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
+    1. If the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is less than 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
@@ -5818,7 +5820,16 @@ partial interface MLGraphBuilder {
     //   [[0, 0, 0],
     //    [9, 0, 0],
     //    [2, 6, 0]]
-    const lowerNegative = builder.triangular(input, { upper: false, diagonal: -1 });
+    const lowerNegative = builder.triangular(input, { upper: false, diagonal: -1 })
+
+    // lower triangular matrix with two batches:
+    //   [[[7, 0, 0],
+    //     [9, 4, 0],
+    //     [2, 6, 3]],
+    //    [[1, 0, 0],
+    //     [4, 5, 0],
+    //     [7, 8, 9]]]
+    const lowerWithBatches = builder.triangular(input, { upper: false });
   </pre>
 </details>
 </div>
