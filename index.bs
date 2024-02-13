@@ -7,7 +7,8 @@ Group: webmlwg
 TR: https://www.w3.org/TR/webnn/
 URL: https://webmachinelearning.github.io/webnn/
 Editor: Ningxin Hu 68202, Intel Corporation https://intel.com
-Editor: Chai Chaoweeraprasit 120203, Microsoft Corporation https://microsoft.com
+Editor: Dwayne Robinson 140212, Microsoft Corporation https://microsoft.com
+Former Editor: Chai Chaoweeraprasit 120203, Microsoft Corporation https://microsoft.com
 Abstract: This document describes a dedicated low-level API for neural network inference hardware acceleration.
 Repository: https://github.com/webmachinelearning/webnn
 Test Suite: https://github.com/web-platform-tests/wpt/tree/master/webnn
@@ -21,11 +22,9 @@ Markup Shorthands: css no
 Logo: https://webmachinelearning.github.io/webmachinelearning-logo.png
 Deadline: 2023-10-01
 Status Text: <p>
-  Further implementation experience and user feedback is being gathered for the
-  {{MLCommandEncoder}} interface that proposes to enable more efficient WebGPU
-  integration. A proposal to
-  <a href="https://github.com/webmachinelearning/webnn/pull/322">simplify
-  MLContext creation</a> is being discussed. This document is maintained and
+  Since the <a href="https://www.w3.org/TR/2023/CR-webnn-20230330/">initial Candidate Recommendation Snapshot</a> the Working Group has gathered further <a href="https://webmachinelearning.github.io/webnn-status/">implementation experience</a> and added new operations and data types needed for well-known <a href="https://github.com/webmachinelearning/webnn/issues/375">transformers to support generative AI use cases</a>. In addition, informed by this implementation experience, the group removed <code>MLCommandEncoder</code>, support for synchronous execution, and higher-level operations that can be expressed in terms of lower-level primitives in a performant manner. The group has also updated the specification to use modern authoring conventions to improve interoperability and precision of normative definitions.
+  The group is developing a new feature, a <a href="https://github.com/webmachinelearning/webnn/issues/482">backend-agnostic storage type</a>, to improve performance and interoperability between the WebNN, WebGPU APIs and purpose-built hardware for ML and expects to republish this document as a Candidate Recommendation Snapshot when ready for implementation.
+  This document is maintained and
   updated at any time. Some parts of this document are work in progress and
   further improvements are expected to be reflected in revised Candidate
   Recommendation Drafts and Snaphots.
@@ -669,7 +668,7 @@ Note: The group is <a href="https://github.com/webmachinelearning/webnn/issues/8
 
 Unlike WebGPU, this API does not intrinsically support custom shader authoring; and as a result is not prone to timing attacks that rely on shader caches, or other persistent data. The API builds upon pre-existing shaders and lower level primitives of the browser or the underlying OS. Web developers who interface with {{GPUDevice}} are expected to be aware of <a href="https://gpuweb.github.io/gpuweb/#privacy-user-agent-state">WebGPU compilation cache considerations</a>.
 
-The WebGPU API identifies <a href="https://gpuweb.github.io/gpuweb/#privacy-machine-artifacts">machine-specific artifacts</a> as a privacy consideration. Given the WebNN API defines means to record an ML workload onto a WebGPU-compatible {{GPUCommandBuffer}}, compute unit scheduling may under certain circumstances introduce a fingerprint. However, similarly to WebGPU, such fingerprints are identical across most or all of the devices of each vendor, mitigating the concern. Furthermore, software implementations can be used to further eliminate such artifacts.
+The WebGPU API identifies <a href="https://gpuweb.github.io/gpuweb/#privacy-machine-artifacts">machine-specific artifacts</a> as a privacy consideration. Similarly, the WebNN API's compute unit scheduling may under certain circumstances introduce a fingerprint. However, similarly to WebGPU, such fingerprints are identical across most or all of the devices of each vendor, mitigating the concern. Furthermore, software implementations can be used to further eliminate such artifacts.
 
 The WebNN API defines two developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the most appropriate underlying execution device for the workload. [=Device type=] normatively indicates the kind of device and is either {{MLDeviceType/"cpu"}} or {{MLDeviceType/"gpu"}}. If this type cannot be satisfied, an "{{OperationError}}" {{DOMException}} is thrown, thus this type can in some cases add two bits of entropy to the fingerprint. [=Power preference=] indicates preference as related to the power consumption and is considered a hint only and as such does not increase entropy of the fingerprint.
 
@@ -742,13 +741,6 @@ signaled. This type of execution supports both the CPU and GPU device.
 In both the {{MLContext}}.{{MLContext/compute()}} and {{MLContext}}.{{MLContext/computeSync()}} execution methods, the caller supplies
 the input values using {{MLNamedArrayBufferViews}}, binding the input {{MLOperand}}s to their values. The caller
 then supplies pre-allocated buffers for output {{MLOperand}}s using {{MLNamedArrayBufferViews}}.
-
-The {{MLCommandEncoder}} interface created by the {{MLContext}}.{{MLContext/createCommandEncoder()}} method supports
-a graph execution method that provides the maximum flexibility to callers that also utilize WebGPU in their
-application. It does this by placing the workload required to initialize and compute the results of the
-operations in the graph onto a {{GPUCommandBuffer}}. The callers are responsible for the eventual submission
-of this workload on the {{GPUQueue}} through the WebGPU queue submission mechanism. Once the submitted workload
-is completely executed, the result is avaialble in the bound output buffers.
 
 ## Device Selection ## {#programming-model-device-selection}
 
@@ -944,135 +936,6 @@ The {{MLActivation}} objects (including the ones passed as input to methods) are
         1. If |init-steps| are given, run |init-steps| with |options|.
             1. Otherwise, initialize |activation|.{{MLActivation/[[operator]]}} given |options| in an [=implementation-defined=] way for the given |name| operation.
     1. Return |activation|.
-  </div>
-</details>
-
-## {{MLCommandEncoder}} interface ## {#api-mlcommandencoder}
-The {{MLCommandEncoder}} interface represents a method of execution that synchronously records the computational workload of a compiled {{MLGraph}} to a {{GPUCommandBuffer}} on the calling thread. Since the workload is not immediately executed, just recorded, this method allows more flexibility for the caller to determine how and when the recorded commands will be submitted for execution on the GPU relative to other GPU workload on the same or different queue.
-
-<script type=idl>
-typedef (GPUBuffer or GPUTexture) MLGPUResource;
-
-typedef record<DOMString, MLGPUResource> MLNamedGPUResources;
-
-[SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLCommandEncoder {};
-</script>
-
-<div class=internal-slots>
-{{MLCommandEncoder}} has the following internal slots:
-  <dl dfn-type=attribute dfn-for="MLCommandEncoder">
-    : <dfn>\[[context]]</dfn> of type {{MLContext}}
-    ::
-        The context of type {{MLContext}} associated with this {{MLCommandEncoder}}.
-
-    : <dfn>\[[implementation]]</dfn>
-    ::
-        The underlying implementation provided by the User Agent.
-  </dl>
-</div>
-
-### Graph Initialization ### {#api-mlcommandencoder-graph-initialization}
-Record the initialization of the {{MLGraph}}. This is a necessary step for optimal performance during graph execution as it gives the platform an opportunity to prepare and optimize constant input data for the subsequent execution of the graph. This method should only be called once per graph.
-
-<script type=idl>
-partial interface MLCommandEncoder {
-  undefined initializeGraph(MLGraph graph);
-};
-</script>
-
-<div>
-    **Arguments:**
-        - *graph*: an {{MLGraph}}. The compiled graph to be initialized with graph constant inputs.
-
-    **Returns:** {{undefined}}.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLCommandEncoder>initializeGraph(<var ignore>graph</var>)</dfn> method steps are:
-  </summary>
-  <div>
-    <div class="note">
-        Graph initialization stage typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant(value, type)}} method as constant operands during graph construction time.
-    </div>
-  </div>
-</details>
-
-### Dispatch Execution Commands ### {#api-mlcommandencoder-dispatch-commands}
-Record the {{MLGraph}} execution with the inputs {{MLNamedGPUResources}} and outputs {{MLNamedGPUResources}}.
-
-<script type=idl>
-partial interface MLCommandEncoder {
-  undefined dispatch(MLGraph graph, MLNamedGPUResources inputs, MLNamedGPUResources outputs);
-};
-</script>
-
-<div>
-    **Arguments:**
-        - *graph*: an {{MLGraph}}. The compiled graph to be executed.
-        - *inputs*: an {{MLNamedGPUResources}}. The resources of inputs.
-        - *outputs*: an {{MLNamedGPUResources}}. The pre-allocated resources of required outputs.
-
-    **Returns:** {{undefined}}.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLCommandEncoder>dispatch(|graph|, |inputs|, |outputs|)</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    1. If any of the following requirements are unmet, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        <div class=validusage>
-            1. [=map/For each=] |name| &rarr; |input| of |inputs|:
-                1. |graph|.{{MLGraph/[[inputDescriptors]]}}[|name|] must [=map/exist=].
-                1. Let |inputDesc| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|name|].
-                1. If |input| is a {{GPUBuffer}}, then:
-                    1. |input|.{{GPUBuffer/size}} must equal to [=byte length=] of |inputDesc|.
-            1. [=map/For each=] |name| &rarr; |output| of |outputs|:
-                1. |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] must [=map/exist=].
-                1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|].
-                1. If |output| is a {{GPUBuffer}}, then:
-                    1. |output|.{{GPUBuffer/size}} must equal to [=byte length=] of |outputDesc|.
-        </div>
-    1. [=map/For each=] |name| &rarr; |input| of |inputs|:
-        1. Set the input of |graph|.{{MLGraph/[[implementation]]}} that is associated with |name| to |input|.
-    1. [=map/For each=] |name| &rarr; |output| of |outputs|:
-        1. Set the output of |graph|.{{MLGraph/[[implementation]]}} that is associated with |name| to |output|.
-    1. Issue a compute request of |graph|.{{MLGraph/[[implementation]]}}.
-    1. If there is an error returned by |graph|.{{MLGraph/[[implementation]]}}, then:
-        1. Throw an "{{OperationError}}" {{DOMException}}.
-    1. Return {{undefined}}.
-  </div>
-</details>
-
-### Generate GPU Command Buffer ### {#api-mlcommandencoder-generate-gpu-command-buffer}
-Complete the recording of ML workload and return a WebGPU-compatible {{GPUCommandBuffer}} containing the recorded workload.
-
-<script type=idl>
-partial interface MLCommandEncoder {
-  GPUCommandBuffer finish(optional GPUCommandBufferDescriptor descriptor = {});
-};
-</script>
-
-<div>
-    **Arguments:**
-        - *descriptor*: an optional {{GPUCommandBufferDescriptor}}. Descriptor of the command buffer.
-
-    **Returns:** {{GPUCommandBuffer}}.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLCommandEncoder>finish(|descriptor|)</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Make a request to the underlying platform to complete the recording of the ML workload, given |descriptor|.
-            <div class="note">
-                See the related <a href="https://www.w3.org/TR/webgpu/#dom-gpucommandencoder-finish">WebGPU steps</a>.
-            </div>
-    1. Return a {{GPUCommandBuffer}} containing the recorded workload.
   </div>
 </details>
 
@@ -1352,19 +1215,6 @@ partial interface MLContext {
 </details>
 </div>
 
-### WebGPU Interoperability ### {#api-mlcontext-webgpu-interop}
-Create {{MLCommandEncoder}} interface used to record the ML workload onto a WebGPU-compatible {{GPUCommandBuffer}} to allow mixing of ML workload with other GPU workload in an application that leverages WebGPU. This method only succeeds on an {{MLContext}} created with {{GPUDevice}}. Otherwise, it [=exception/throws=] an "{{OperationError}}" {{DOMException}}.
-
-<script type=idl>
-partial interface MLContext {
-  MLCommandEncoder createCommandEncoder();
-};
-</script>
-
-<div algorithm=mlcontext.createcommandencoder>
-    **Returns:** {{MLCommandEncoder}}. The command encoder used to record ML workload on the GPU.
-</div>
-
 ## {{MLGraph}} interface ## {#api-mlgraph}
 The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
 
@@ -1433,7 +1283,9 @@ interface MLGraphBuilder {
 </script>
 
 <div class="note">
-Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. See [[#api-mlcommandencoder-graph-initialization]] for more detail.
+Both {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} methods compile the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. Since this operation can be costly in some machine configurations, the calling thread of the {{MLGraphBuilder}}.{{MLGraphBuilder/buildSync()}} method must only be a worker thread to avoid potential disruption of the user experience. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant(value, type)}} method as constant operands during graph construction time.
+
+Issue(552): Decide how to specify graph initialization.
 </div>
 
 {{MLBufferResourceView}} has the following members:
@@ -1477,7 +1329,7 @@ Return the index location of the minimum or maxmium values of all the input valu
 
 <script type=idl>
 dictionary MLArgMinMaxOptions {
-  sequence<unsigned long> axes = null;
+  sequence<unsigned long> axes;
   boolean keepDimensions = false;
   boolean selectLastIndex = false;
 };
@@ -1700,6 +1552,8 @@ Build a composed graph up to a given output operand into a computational graph, 
                     1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
                 1. Register |operand|.{{MLOperand/[[operand]]}} in |graphImpl| as graph output.
                 1. Register |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
+            
+            Issue(552): Decide how to specify graph initialization.
     1. Return |graph|.
   </div>
 </details>
@@ -1959,10 +1813,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
     </div>
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
-        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to `undefined`.
-            <div class="note">
-                In the case of a scalar constant, |descriptor|.{{MLOperandDescriptor/dimensions}} is ignored.
-            </div>
+        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to an empty [=/list=].
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
@@ -2384,8 +2235,8 @@ partial interface MLGraphBuilder {
     1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
@@ -2396,21 +2247,6 @@ partial interface MLGraphBuilder {
         1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
     1. Return |output|.
-  </div>
-</details>
-
-<details open algorithm>
-  <summary>
-    To <dfn for="MLGraphBuilder">broadcast-shapes</dfn> given [=/list=] |shape1| and [=/list=] |shape2|, run the following steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. [=Assert=]: The type of |shape1| and |shape2| is `sequence of unsigned long`.
-    1. Let |output| be the result of invoking the [=implementation-defined=] shape broadcast on |shape1| and |shape2|.
-            1. If that fails, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. Return |output|.
-        <div class = "note">
-        The most common implementation is that two shapes are compatible, when each of their corresponding dimensions are equal, or one of them is 1. The output shape consists of the maximum of the corresponding dimensions.
-        </div>
   </div>
 </details>
 
@@ -2520,8 +2356,8 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
         1. If |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not equal to |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"uint8"}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |a|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |b|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
@@ -2854,16 +2690,12 @@ partial interface MLGraphBuilder {
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
-    1. If any of the following steps fail, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. Let |inputDesc| be |input|.{{MLOperand/[[descriptor]]}}.
-        1. If the sequence length of |newShape| is not equal to the [=rank=] of |inputDesc|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. Let |outputDesc| be a copy of |inputDesc|.
-        1. [=list/For each=] |index| in [=the range=] 0 to the [=rank=] of |input|, exclusive:
-            1. Let |size| be the |input|.{{MLOperand/shape()}}[|index|].
-            1. If |size| is not equal to 1 and not equal to |newShape|[index], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-            1. If |size| is equal to 1, then let |outputDesc|.{{MLOperandDescriptor/dimensions}}[|index|] be |newShape|[|index|].
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
+    1. Set |outputDescriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |newShape|.
+        1. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDesc|.
+        1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDescriptor|.
         1. Make a request to the underlying platform to:
             1. Create [=platform operator=] |expandImpl| for this method, given |input| and |newShape|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |expandImpl|.
@@ -3006,7 +2838,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### gemm ### {#api-mlgraphbuilder-gemm}
-Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape [M, K] or [K, M], `B` is a 2-D tensor with shape [K, N] or [N, K], and `C` is broadcastable to the shape [M, N]. `A` and `B` may optionally be transposed prior to the calculation.
+Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape [M, K] or [K, M], `B` is a 2-D tensor with shape [K, N] or [N, K], and `C` is [=unidirectionally broadcastable=] to the shape [M, N]. `A` and `B` may optionally be transposed prior to the calculation.
 
 <script type=idl>
 dictionary MLGemmOptions {
@@ -3026,7 +2858,7 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLGemmOptions>
     : <dfn>c</dfn>
     ::
-        The third input tensor. It is either a scalar, or of the shape that is unidirectionally broadcastable to the shape [M, N] according to [[!numpy-broadcasting-rule]]. When it is not specified, the computation is done as if *c* is a scalar 0.0.
+        The third input tensor. It is either a scalar, or of the shape that is [=unidirectionally broadcastable=] to the shape [M, N]. When it is not specified, the computation is done as if *c* is a scalar 0.0.
 
     : <dfn>alpha</dfn>
     ::
@@ -3066,7 +2898,7 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLGemmOptions/aTranspose}} is true, then let |shapeA| be the reverse array of |shapeA|.
     1. If |options|.{{MLGemmOptions/bTranspose}} is true, then let |shapeB| be the reverse array of |shapeB|.
     1. If |shapeA|[1] is not equal to |shapeB|[0], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If |options|.{{MLGemmOptions/c}} [=map/exists=] and is not unidirectionally broadcastable to the shape [|shapeA|[0], |shapeB|[1]] according to the [[!numpy-broadcasting-rule]], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLGemmOptions/c}} [=map/exists=] and is not [=unidirectionally broadcastable=] to the shape [|shapeA|[0], |shapeB|[1]], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         <div class="note">
             Type compatibility between |a|, |b| and |options|.{{MLGemmOptions/c}} can be also checked.
         </div>
@@ -3800,7 +3632,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>axes</dfn>
     ::  
-        The indices to the input dimensions to reduce. When this member is not present, it is assumed to be [1,2,3] that is, the reduction for the mean and variance values are calculated across all the input features for each individual sample in the batch.
+        The indices to the input dimensions to reduce. When this member is not present, it is treated as if all dimensions except the first were given (e.g. for a 4-D input tensor, axes = [1,2,3]). That is, the reduction for the mean and variance values are calculated across all the input features for each independent batch.
 
     : <dfn>epsilon</dfn>
     ::
@@ -3820,6 +3652,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>layerNormalization(|input|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
+    1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either equal to [=the range=] from 1 to |input|'s [=rank=], exclusive, if |input|'s [=rank=] is greater than 1, or an empty [=/list=] otherwise.
     1. If the [=rank=] of |options|.{{MLLayerNormalizationOptions/scale}} is not equal to the [=list/size=] of |options|.{{MLLayerNormalizationOptions/axes}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If the [=rank=] of |options|.{{MLLayerNormalizationOptions/bias}} is not equal to the [=list/size=] of |options|.{{MLLayerNormalizationOptions/axes}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. [=list/For each=] |index| in [=the range=] 0 to the [=list/size=] of |options|.{{MLLayerNormalizationOptions/axes}}, exclusive:
@@ -4138,9 +3971,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. Let |numDirections| be 1 if |options|.{{MLLstmOptions/direction}} is {{MLRecurrentNetworkDirection/"forward"}}, or otherwise let it be 2.
-        <div class="issue">
-            The shape of |input|, |weight| or |recurrentWeight| could be also checked here.
-        </div>
+    1. If the [=rank=] of |input| or |weight| or |recurrentWeight| is not 3, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[0] is not equal to |steps|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |batchSize| be |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}[1].
     1. If |options|.{{MLLstmOptions/bias}} [=map/exists=]:
@@ -4866,7 +4697,7 @@ partial interface MLGraphBuilder {
 <div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
-        - *slope*: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or unidirectionally broadcastable to the shape of input tensor *input* according to [[!numpy-broadcasting-rule]].
+        - *slope*: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or [=unidirectionally broadcastable=] to the shape of input tensor *input*.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -4880,8 +4711,8 @@ partial interface MLGraphBuilder {
   <div class=algorithm-steps>
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |slope|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |slope|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
@@ -4914,7 +4745,7 @@ partial interface MLGraphBuilder {
 Reduce the input tensor along all dimensions, or along the axes specified in the {{MLReduceOptions/axes}}  array parameter. For each specified axis, the dimension with that index is reduced, i.e. the resulting tensor will not contain it, unless the {{MLReduceOptions/keepDimensions}} option is specified. The values of the resulting tensor are calculated using the specified reduction function that takes as parameters all the values across the reduced dimension.
 <script type=idl>
 dictionary MLReduceOptions {
-  sequence<unsigned long> axes = null;
+  sequence<unsigned long> axes;
   boolean keepDimensions = false;
 };
 
@@ -5263,12 +5094,10 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. Let |outputShape| be an empty array of {{unsigned long}}.
-    1. If |newShape| is a scalar [=number=], set |outputShape| to the [=/list=] « 1 ».
-    1. Otherwise, if |newShape| is an array of {{unsigned long}}:
-        1. If the [=list/size=] of |newShape| is 0, set |outputShape| to the [=/list=] « 1 » (reshaping to scalar).
-        1. If any value in |newShape| is 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. Let |inputElementCount| be the product of all elements in |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If the [=list/size=] of |newShape| is 0, set |outputShape| to an empty [=/list=] for a scalar.
+    1. If any value in |newShape| is 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |inputElementCount| be the product of all elements in |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}. Empty dimensions yield an |inputElementCount| of 1.
+    1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |newShape|.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
@@ -5873,7 +5702,7 @@ partial interface MLGraphBuilder {
 </details>
 
 ### triangular ### {#api-mlgraphbuilder-triangular}
-Given a 2-D tensor (matrix), return a 2-D tensor containing either the upper or lower triangular part of the input tensor.
+Given a 2-D tensor (matrix), return a 2-D tensor containing either the upper or lower triangular part of the input tensor. If the input tensor has greater than 2 dimensions it is treated as a batch of matrices and the result has the same shape.
 
 <script type=idl>
 dictionary MLTriangularOptions {
@@ -5898,10 +5727,10 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor.
+        - *input*: an {{MLOperand}}. The input tensor which is at least 2-D.
         - *options*: an optional {{MLTriangularOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output 2-D tensor representing a triangular matrix.
+    **Returns:** an {{MLOperand}}. The output tensor representing a triangular matrix, or batch of matrices which is the same shape as the input.
 </div>
 
 <details open algorithm>
@@ -5909,6 +5738,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>triangular(|input|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
+    1. If the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is less than 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
@@ -5969,7 +5799,16 @@ partial interface MLGraphBuilder {
     //   [[0, 0, 0],
     //    [9, 0, 0],
     //    [2, 6, 0]]
-    const lowerNegative = builder.triangular(input, { upper: false, diagonal: -1 });
+    const lowerNegative = builder.triangular(input, { upper: false, diagonal: -1 })
+
+    // lower triangular matrix with two batches:
+    //   [[[7, 0, 0],
+    //     [9, 4, 0],
+    //     [2, 6, 3]],
+    //    [[1, 0, 0],
+    //     [4, 5, 0],
+    //     [7, 8, 9]]]
+    const lowerWithBatches = builder.triangular(input, { upper: false });
   </pre>
 </details>
 </div>
@@ -6004,9 +5843,9 @@ partial interface MLGraphBuilder {
     1. If |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}} is not equal to |other|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of running the [=MLGraphBuilder/broadcast-shapes=] steps given |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |other|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-        1. If that [=exception/throws=] an error, re-[=exception/throw=] the error.
-    1. If |condition| is not unidirectionally broadcastable to |descriptor|.{{MLOperandDescriptor/dimensions}} according to the [[!numpy-broadcasting-rule]], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} and |other|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+        1. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |condition| is not [=bidirectionally broadcastable=] to |descriptor|.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Make a request to the underlying platform to:
@@ -6130,7 +5969,7 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
   <div class=algorithm-steps>
     1. If |builder| is not equal to |operand|.{{MLOperand/[[builder]]}}, return false.
     1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
-    1. If |desc|.{{MLOperandDescriptor/dimensions}} [=map/exists=] and [=checking dimensions=] given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/dataType}} returns false, then return false.
+    1. If [=checking dimensions=] given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/dataType}} returns false, then return false.
     1. Return true.
   </div>
 </details>
@@ -6202,7 +6041,7 @@ dictionary MLOperandDescriptor {
   required MLOperandDataType dataType;
 
   // The dimensions field is only required for tensor operands.
-  sequence<unsigned long> dimensions;
+  sequence<unsigned long> dimensions = [];
 };
 </script>
 
@@ -6218,6 +6057,59 @@ dictionary MLOperandDescriptor {
     1. Return |elementLength| × |elementSize|.
   </div>
 </details>
+
+Algorithms {#algorithms}
+=====================
+
+## Broadcasting ## {#algorithms-broadcasting}
+
+Broadcasting refers to how operations treat tensors with different shapes, and follow the precedent set by [[!numpy-broadcasting-rule]].
+
+<div algorithm>
+To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broadcast the shapes</dfn> |A| and |B|, perform the following steps. |A| and |B| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+
+1. Let |sizeA| be the [=list/size=] of |A|.
+1. Let |sizeB| be the [=list/size=] of |B|.
+1. If |sizeB| > |sizeA|, then return failure.
+1. Let |paddedB| be a [=list/clone=] of |B|.
+1. While |paddedB|'s [=list/size=] is less than |sizeA|, [=list/prepend=] 1 to |paddedB|.
+1. Let |outputShape| be a new [=/list=].
+1. [=list/For each=] |index| in [=the range=] 0 to |sizeA|, exclusive:
+    1. Let |dimA| be |A|[|index|].
+    1. Let |dimB| be |paddedB|[|index|].
+    1. If |dimA| is not equal to |dimB| and |dimA| is not equal to 1, then return failure.
+    1. [=list/Append=] |dimA| to |outputShape|.
+1. Return |outputShape|.
+
+</div>
+
+<div algorithm>
+|A| is <dfn>unidirectionally broadcastable</dfn> to |B| if [=unidirectionally broadcasting the shapes=] |A| and |B| does not result in failure.
+</div>
+
+<div algorithm>
+To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadcast the shapes</dfn> |A| and |B|, perform the following steps. |A| and |B| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+
+1. Let |sizeA| be the [=list/size=] of |A|.
+1. Let |sizeB| be the [=list/size=] of |B|.
+1. Let |outputSize| be the maximum of |sizeA| and |sizeB|.
+1. Let |paddedA| be a [=list/clone=] of |A|.
+1. While |paddedA|'s [=list/size=] is less than |outputSize|, [=list/prepend=] 1 to |paddedA|.
+1. Let |paddedB| be a [=list/clone=] of |B|.
+1. While |paddedB|'s [=list/size=] is less than |outputSize|, [=list/prepend=] 1 to |paddedB|.
+1. Let |outputShape| be a new [=/list=].
+1. [=list/For each=] |index| in [=the range=] 0 to |outputSize|, exclusive:
+    1. Let |dimA| be |paddedA|[|index|].
+    1. Let |dimB| be |paddedB|[|index|].
+    1. If |dimA| is not equal to |dimB|, and |dimA| is not equal to 1, and |dimB| is not equal to 1, then return failure.
+    1. [=list/Append=] the maximum of |dimA| and |dimB| to |outputShape|.
+1. Return |outputShape|.
+
+</div>
+
+<div algorithm>
+|A| is <dfn>bidirectionally broadcastable</dfn> to |B| if [=bidirectionally broadcasting the shapes=] |A| and |B| does not result in failure.
+</div>
 
 Examples {#examples}
 =====================
