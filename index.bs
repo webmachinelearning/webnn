@@ -1046,7 +1046,7 @@ partial interface MLContext {
   </summary>
   <div class=algorithm-steps>
     1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/dataType}}  according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility), return false.
-    1. If |bufferView|.\[[ByteLength]] is not equal to the [=byte length=] of |descriptor|, return false.
+    1. If |bufferView|.\[[ByteLength]] is not equal to |descriptor|'s [=byte length=], return false.
   </div>
 </details>
 
@@ -1059,7 +1059,7 @@ partial interface MLContext {
     1. [=map/For each=] |name| &rarr; |inputValue| of |inputs|:
         1. Let |inputDescriptor| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|name|].
         1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} as follows:
-            1. Set the data type of |inputTensor| to the one that matches the [=element type=] of |inputValue|.
+            1. Set the data type of |inputTensor| to the one that matches |inputValue|'s [=element type=].
             1. Set the dimensions of |inputTensor| to |inputDescriptor|.{{MLOperandDescriptor/dimensions}}.
             1. Set the values of elements in |inputTensor| to the values of elements in |inputValue|.
         1. Request the underlying implementation of |graph| to bind |inputResources|[|name|] to |inputTensor|.
@@ -1068,8 +1068,8 @@ partial interface MLContext {
             1. If that returns an error, then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
             1. Otherwise, store the result in |outputTensor|.
         1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|].
-        1. If the byte length of |outputTensor| is not equal to the [=byte length=] of |outputDesc|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If the [=element type=] of |outputTensor| doesn't match the [=element type=] of |outputValue|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If the byte length of |outputTensor| is not equal to |outputDesc|'s [=byte length=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |outputTensor|'s [=element type=] doesn't match |outputValue|'s [=element type=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Request the underlying implementation of |graph| to set the values of elements in |outputValue| to the values of elements in |outputTensor|.
     1. Return {{undefined}}.
   </div>
@@ -1124,9 +1124,9 @@ partial interface MLContext {
   <div class=algorithm-steps>
     1. Let |transferredViews| be a new {{MLNamedArrayBufferViews}}.
     1. [=map/For each=] |name| &rarr; |view| of |views|:
-        1. Let |transferredBuffer| be the result of [=ArrayBuffer/transfer|transferring=] the [=underlying buffer=] of |view|.
+        1. Let |transferredBuffer| be the result of [=ArrayBuffer/transfer|transferring=] |view|'s [=underlying buffer=].
         1. Let |constructor| be the appropriate [=view constructor=] for the type of {{ArrayBufferView}} |view|.
-        1. Let |elementsNumber| be the result of the [=BufferSource/byte length=] of |view| ÷ [=element size=] of |view|.
+        1. Let |elementsNumber| be the result of |view|'s [=BufferSource/byte length=] ÷ |view|'s [=element size=].
         1. Let |transferredView| be [$Construct$](|constructor|, |transferredBuffer|, |view|.\[[ByteOffset]], |elementsNumber|).
         1. Set |transferredViews|[|name|] to |transferredView|.
     1. Return |transferredViews|.
@@ -1369,7 +1369,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: |op| is one of "argMin", "argMax".
-    1. If |options|.{{MLArgMinMaxOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to the [=rank=] of |input|, exclusive, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLArgMinMaxOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=rank=], exclusive, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |outputShape| be the result of invoking the underlying implementation for calculating reduction output dimensions, given |options|.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"int64"}}.
@@ -1462,7 +1462,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>batchNormalization(|input|, |mean|, |variance|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. If |options|.axis is not in [=the range=] 0 to the [=rank=] of |input|, exclusive, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.axis is not in [=the range=] 0 to |input|'s [=rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
     1. If |mean|'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
     1. If |mean|'s [=MLOperand/shape=][0] is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
     1. If |variance|'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
@@ -1729,13 +1729,13 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: the {{MLOperandDescriptor/dataType}} of each operand in |inputs| is the same.
     1. If any of the following steps fail, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Let |desc| be |inputs|[0].{{MLOperand/[[descriptor]]}}.
-        1. If |axis| is greater than or equal to the [=rank=] of |desc|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |axis| is greater than or equal to |desc|'s [=rank=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] to 0.
-        1. [=list/For each=] |index| in [=the range=] 0 to the [=rank=] of |inputs|, exclusive:
+        1. [=list/For each=] |index| in [=the range=] 0 to |inputs|'s [=rank=], exclusive:
             1. Let |input| be |inputs|[|index|].
             1. If [=validating MLOperand=] given |input| and [=this=] returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
             1. If |input|'s [=MLOperand/dataType=] is not equal to |inputs|[0]'s [=MLOperand/dataType=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-            1. [=list/For each=] |dim| in [=the range=] 0 to the [=rank=] of |input|, exclusive:
+            1. [=list/For each=] |dim| in [=the range=] 0 to |input|'s [=rank=], exclusive:
                 <div class="note">
                     If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
                 </div>
@@ -1775,7 +1775,7 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
-    1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |descriptor|'s [=byte length=] is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If the [=checking dimensions=] given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If [=validating buffer with descriptor=] given |bufferView| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
@@ -1990,12 +1990,12 @@ partial interface MLGraphBuilder {
     1. If |filterSize| is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |input|'s [=MLOperand/dataType=] is not the same as |filter|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
-    1. Else if the [=list/size=] of |options|.{{MLConv2dOptions/padding}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Else if |options|.{{MLConv2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
-    1. Else if the [=list/size=] of |options|.{{MLConv2dOptions/strides}} is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Else if |options|.{{MLConv2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/dilations}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
-    1. Else if the [=list/size=] of |options|.{{MLConv2dOptions/dilations}} is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Else if |options|.{{MLConv2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/autoPad}} does not [=map/exist=], set it to {{MLAutoPad/"explicit"}}.
     1. If |options|.{{MLConv2dOptions/groups}} is 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |inputSize| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -2152,16 +2152,16 @@ partial interface MLGraphBuilder {
     1. If |filterSize| is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |input|'s [=MLOperand/dataType=] is not the same as |filter|'s {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
-    1. Else if the [=list/size=] of |options|.{{MLConvTranspose2dOptions/padding}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Else if |options|.{{MLConvTranspose2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLConvTranspose2dOptions/strides}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
-    1. Else if the [=list/size=] of |options|.{{MLConvTranspose2dOptions/strides}} is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Else if |options|.{{MLConvTranspose2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/dilations}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
-    1. Else if the [=list/size=] of |options|.{{MLConvTranspose2dOptions/dilations}} is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Else if |options|.{{MLConvTranspose2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} does not [=map/exist=], set it to the [=/list=] « 0, 0 ».
-    1. Else if the [=list/size=] of |options|.{{MLConvTranspose2dOptions/outputPadding}} is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Else if |options|.{{MLConvTranspose2dOptions/outputPadding}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
-        1. If the [=list/size=] of |options|.{{MLConvTranspose2dOptions/outputSizes}} is not 2, then [=exception/throw=] a {{TypeError}}.
+        1. If |options|.{{MLConvTranspose2dOptions/outputSizes}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. If the elements of |options|.{{MLConvTranspose2dOptions/outputSizes}} are not smaller than the elements at the same dimension (index) for |options|.{{MLConvTranspose2dOptions/strides}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |inputSize| / |options|.{{MLConvTranspose2dOptions/groups}} is not equal to |filterSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Else if |inputSize| % |options|.{{MLConvTranspose2dOptions/groups}} is not 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -3022,7 +3022,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>gru(|input|, |weight|, |recurrentWeight|, |steps|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. If the [=rank=] of |input| or |weight| or |recurrentWeight| is not 3, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |input|'s [=rank=] or |weight| or |recurrentWeight| is not 3, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=].
         1. If |options|.{{MLGruOptions/bias}}'s [=MLOperand/shape=][1] is not equal to 3 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=].
@@ -3170,7 +3170,7 @@ partial interface MLGraphBuilder {
      The <dfn method for=MLGraphBuilder>gruCell(|input|, |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. If the [=rank=] of |input| or |weight| or |recurrentWeight| or |hiddenState| is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |input|'s [=rank=] or |weight| or |recurrentWeight| or |hiddenState| is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |weight|'s [=MLOperand/shape=][0] is not equal to 3 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |recurrentWeight|'s [=MLOperand/shape=][0] is not equal to 3 * |hiddenSize|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
@@ -3490,7 +3490,7 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
     1. [=Assert=]: If |descriptor|.{{MLOperandDescriptor/dimensions}} does not [=map/exist=], then |descriptor| defines a scalar input.
     1. If |descriptor|.{{MLOperandDescriptor/dimensions}} [=map/exists=]:
         1. If [=checking dimensions=] given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If the [=byte length=] of |descriptor| is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |descriptor|'s [=byte length=] is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
@@ -3552,9 +3552,9 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>instanceNormalization(|input|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. If the [=rank=] of |input| is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If the [=rank=] of |options|.{{MLInstanceNormalizationOptions/scale}} is not equal to 1, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If the [=rank=] of |options|.{{MLInstanceNormalizationOptions/bias}} is not equal to 1, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |input|'s [=rank=] is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLInstanceNormalizationOptions/scale}}'s [=rank=] is not equal to 1, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLInstanceNormalizationOptions/bias}}'s [=rank=] is not equal to 1, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
@@ -3653,9 +3653,9 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either equal to [=the range=] from 1 to |input|'s [=rank=], exclusive, if |input|'s [=rank=] is greater than 1, or an empty [=/list=] otherwise.
-    1. If the [=rank=] of |options|.{{MLLayerNormalizationOptions/scale}} is not equal to the [=list/size=] of |options|.{{MLLayerNormalizationOptions/axes}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If the [=rank=] of |options|.{{MLLayerNormalizationOptions/bias}} is not equal to the [=list/size=] of |options|.{{MLLayerNormalizationOptions/axes}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. [=list/For each=] |index| in [=the range=] 0 to the [=list/size=] of |options|.{{MLLayerNormalizationOptions/axes}}, exclusive:
+    1. If |options|.{{MLLayerNormalizationOptions/scale}}'s [=rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLLayerNormalizationOptions/bias}}'s [=rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. [=list/For each=] |index| in [=the range=] 0 to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], exclusive:
         1. Let |axis| be |options|.{{MLLayerNormalizationOptions/axes}}[|index|].
         1. If |axis| is greater or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         1. Let |size| be |input|'s [=MLOperand/shape=][|axis|].
@@ -3971,7 +3971,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. Let |numDirections| be 1 if |options|.{{MLLstmOptions/direction}} is {{MLRecurrentNetworkDirection/"forward"}}, or otherwise let it be 2.
-    1. If the [=rank=] of |input| or |weight| or |recurrentWeight| is not 3, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |input|'s [=rank=] or |weight| or |recurrentWeight| is not 3, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |input|'s [=MLOperand/shape=][0] is not equal to |steps|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][1].
     1. If |options|.{{MLLstmOptions/bias}} [=map/exists=]:
@@ -4166,7 +4166,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>lstmCell(|input|, |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. If the [=rank=] of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |input|'s [=rank=], |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][0].
     1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=]:
         1. If its [=rank=] is not 1, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -4434,7 +4434,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. Let |shape| be a copy of |input|'s [=MLOperand/shape=].
-    1. For |index| in [=the range=] 0 to the [=rank=] of |shape|, exclusive:
+    1. For |index| in [=the range=] 0 to |shape|'s [=rank=], exclusive:
         1. Add to |shape|[|index|] the value of |beginningPadding|[|index|].
         1. Add to |shape|[|index|] the value of |endingPadding|[|index|].
     1. Return |shape|.
@@ -4447,7 +4447,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>pad(|input|, |beginningPadding|, |endingPadding|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. If the [=list/size=] of |beginningPadding| and |endingPadding| is not equal to the [=rank=] of |input|, then then [=exception/throw=] a "{{TypeError}}".
+    1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=rank=], then [=exception/throw=] a "{{TypeError}}".
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
@@ -4625,15 +4625,15 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLPool2dOptions/windowDimensions}} [=map/exists=] and its [=list/size=] is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Otherwise, set |options|.{{MLPool2dOptions/windowDimensions}} to the height and width dimensions of the shape of |input|.
     1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} does not [=map/exist=], set |options|.{{MLPool2dOptions/padding}} to the [=/list=] « 0, 0, 0, 0 ».
-    1. If the [=list/size=] of |options|.{{MLPool2dOptions/padding}} is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLPool2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLPool2dOptions/strides}} does not [=map/exist=], set |options|.{{MLPool2dOptions/strides}} to the [=/list=] « 1, 1 ».
-    1. If the [=list/size=] of |options|.{{MLPool2dOptions/strides}} is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLPool2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any value in |options|.{{MLPool2dOptions/strides}} is not greater than 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=]:
-        1. If the [=list/size=] of |options|.{{MLPool2dOptions/outputSizes}} is not 2, then [=exception/throw=] a {{TypeError}}.
+        1. If |options|.{{MLPool2dOptions/outputSizes}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. If the elements of |options|.{{MLPool2dOptions/outputSizes}} are not smaller than the elements at the same dimension (index) for |options|.{{MLPool2dOptions/strides}}, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLPool2dOptions/dilations}} does not [=map/exist=], set |options|.{{MLPool2dOptions/dilations}} to the [=/list=] « 1, 1 ».
-    1. If the [=list/size=] of |options|.{{MLPool2dOptions/dilations}} is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLPool2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLPool2dOptions/autoPad}} is not {{MLAutoPad/"explicit"}}, set |options|.{{MLPool2dOptions/padding}} to the [=/list=] « 0, 0, 0, 0 ».
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
@@ -4802,7 +4802,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
-    1. If |options|.{{MLReduceOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to the [=rank=] of |input|, exclusive, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |options|.{{MLReduceOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=rank=], exclusive, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |outputShape| be the result of invoking the underlying implementation for calculating reduction output dimensions, given |options|.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
@@ -5040,7 +5040,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. Let |desc| be a new {{MLOperandDescriptor}} initialized to |input|.{{MLOperand/[[descriptor]]}}.
-    1. For |index| in [=the range=] 0 to the [=list/size=] of |options|.{{MLResample2dOptions/axes}}, exclusive:
+    1. For |index| in [=the range=] 0 to |options|.{{MLResample2dOptions/axes}}'s [=list/size=], exclusive:
         1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], set |desc|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] to |options|.{{MLResample2dOptions/sizes}}[|index|] and return |desc|.
         1. Otherwise, set |desc|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] to |input|'s [=MLOperand/shape=][|index|] multiplied by |options|.{{MLResample2dOptions/scales}}.
     1. Return |desc|.
@@ -5094,7 +5094,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. Let |outputShape| be an empty array of {{unsigned long}}.
-    1. If the [=list/size=] of |newShape| is 0, set |outputShape| to an empty [=/list=] for a scalar.
+    1. If |newShape|'s [=list/size=] is 0, set |outputShape| to an empty [=/list=] for a scalar.
     1. If any value in |newShape| is 0, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |inputElementCount| be the product of all elements in |input|'s [=MLOperand/shape=]. Empty dimensions yield an |inputElementCount| of 1.
     1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
@@ -5248,7 +5248,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. If |sizes|.size is 0, then [=exception/throw=] a {{TypeError}}.
-    1. If the [=list/size=] of |starts| and |sizes| is not equal to the [=rank=] of |input|, then [=exception/throw=] a {{TypeError}}.
+    1. If |starts|'s [=list/size=] and |sizes| is not equal to |input|'s [=rank=], then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
@@ -5685,8 +5685,8 @@ partial interface MLGraphBuilder {
   <div class=algorithm-steps>
     1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|'s [=MLOperand/shape=].
     1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
-        1. If the [=rank=] of |options|.{{MLTransposeOptions/permutation}} is not the same as the [=rank=] of |input|, then [=exception/throw=] a {{TypeError}}.
-        1. If the values in |options|.{{MLTransposeOptions/permutation}} are not in [=the range=] 0 and the [=rank=] of |input| exclusive, then [=exception/throw=] a {{TypeError}}.
+        1. If |options|.{{MLTransposeOptions/permutation}}'s [=rank=] is not the same as |input|'s [=rank=], then [=exception/throw=] a {{TypeError}}.
+        1. If the values in |options|.{{MLTransposeOptions/permutation}} are not in [=the range=] 0 and |input|'s [=rank=] exclusive, then [=exception/throw=] a {{TypeError}}.
         1. If the values in |options|.{{MLTransposeOptions/permutation}} contain duplicate value, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -5738,7 +5738,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>triangular(|input|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. If the [=list/size=] of |input|.{{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}} is less than 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If |input|'s [=MLOperand/rank=] is less than 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Make a request to the underlying platform to:
@@ -5954,8 +5954,8 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
     To <dfn>check dimensions</dfn> given [=/list=] |dimensions| and {{MLOperandDataType}} |type|, run the following steps:
   </summary>
   <div class=algorithm-steps>
-    1. If the [=list/size=] of |dimensions| is 0, return false.
-    1. If the [=list/size=] of |dimensions| is too large to be supported by the implementation, return false.
+    1. If |dimensions|'s [=list/size=] is 0, return false.
+    1. If |dimensions|'s [=list/size=] is too large to be supported by the implementation, return false.
     1. If any element of |dimensions| is not a positive number, or it is too large to be supported by the implementation given |type|, return false.
     1. Return true.
   </div>
@@ -6067,8 +6067,8 @@ Broadcasting refers to how operations treat tensors with different shapes, and f
 <div algorithm>
 To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broadcast the shapes</dfn> |A| and |B|, perform the following steps. |A| and |B| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
 
-1. Let |sizeA| be the [=list/size=] of |A|.
-1. Let |sizeB| be the [=list/size=] of |B|.
+1. Let |sizeA| be |A|'s [=list/size=].
+1. Let |sizeB| be |B|'s [=list/size=].
 1. If |sizeB| > |sizeA|, then return failure.
 1. Let |paddedB| be a [=list/clone=] of |B|.
 1. While |paddedB|'s [=list/size=] is less than |sizeA|, [=list/prepend=] 1 to |paddedB|.
@@ -6089,8 +6089,8 @@ To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broa
 <div algorithm>
 To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadcast the shapes</dfn> |A| and |B|, perform the following steps. |A| and |B| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
 
-1. Let |sizeA| be the [=list/size=] of |A|.
-1. Let |sizeB| be the [=list/size=] of |B|.
+1. Let |sizeA| be |A|'s [=list/size=].
+1. Let |sizeB| be |B|'s [=list/size=].
 1. Let |outputSize| be the maximum of |sizeA| and |sizeB|.
 1. Let |paddedA| be a [=list/clone=] of |A|.
 1. While |paddedA|'s [=list/size=] is less than |outputSize|, [=list/prepend=] 1 to |paddedA|.
