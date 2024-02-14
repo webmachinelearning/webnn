@@ -2892,11 +2892,13 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>gemm(|a|, |b|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. Let |shapeA| be |a|'s [=MLOperand/shape=] and |sizeA| be |a|'s [=MLOperand/rank=].
-    1. Let |shapeB| be |b|'s [=MLOperand/shape=] and |sizeB| be |b|'s [=MLOperand/rank=].
+    1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
+    1. Let |sizeA| be the [=list/size=] of |shapeA|.
+    1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=].
+    1. Let |sizeB| be the [=list/size=] of |shapeB|.
     1. If |sizeA| is not 2 or |sizeB| is not 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If |options|.{{MLGemmOptions/aTranspose}} is true, then let |shapeA| be the reverse array of |shapeA|.
-    1. If |options|.{{MLGemmOptions/bTranspose}} is true, then let |shapeB| be the reverse array of |shapeB|.
+    1. If |options|.{{MLGemmOptions/aTranspose}} is true, then reverse the order of the items in |shapeA|.
+    1. If |options|.{{MLGemmOptions/bTranspose}} is true, then reverse the order of the items in |shapeB|.
     1. If |shapeA|[1] is not equal to |shapeB|[0], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If |options|.{{MLGemmOptions/c}} [=map/exists=] and is not [=unidirectionally broadcastable=] to the shape [|shapeA|[0], |shapeB|[1]], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
         <div class="note">
@@ -4324,8 +4326,8 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first N-dimensional input tensor.
-        - *b*: an {{MLOperand}}. The second N-dimensional input tensor.
+        - *a*: an {{MLOperand}}. The first input tensor which is at least 2-D.
+        - *b*: an {{MLOperand}}. The second input tensor which is at least 2-D.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the matrix
     product of two input tensors.
@@ -4335,9 +4337,6 @@ partial interface MLGraphBuilder {
         - If both *a* and *b* are 2-dimensional, they are multiplied like conventional
             matrices and produce a 2-dimensional tensor as the output.
         - If either *a* or *b* is `N`-dimensional where `N > 2`, it is treated as a stack of matrices with dimensions corresponding to the last two indices. The matrix multiplication will be broadcasted accordingly by following the [[!numpy-broadcasting-rule]]. The output is a `N`-dimensional tensor whose rank is the maximum [=rank=] of the input tensors. For each dimension, except the last two, of the output tensor, its size is the maximum size along that dimension of the input tensors.
-        - If *a* is 1-dimensional, it is converted to a 2-dimensional tensor by prepending a 1 to its dimensions.
-        - If *b* is 1-dimensional, it is converted to a 2-dimensional tensor by appending a 1 to its dimensions.
-        - If both *a* and *b* are 1-dimensional, the operation is a vector dot-product, which produces a scalar output.
 </div>
 
 <details open algorithm>
@@ -4345,17 +4344,21 @@ partial interface MLGraphBuilder {
     To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given |a| and |b| run the following steps:
   </summary>
   <div class=algorithm-steps>
-    1. Let |shapeA| be |a|'s [=MLOperand/shape=] and |sizeA| be |a|'s [=MLOperand/rank=].
-    1. Let |shapeB| be |b|'s [=MLOperand/shape=] and |sizeB| be |b|'s [=MLOperand/rank=].
-    1. If |sizeA| and |sizeB| is 1, return the [=/list=] « 1 ».
-    1. If |sizeA| is 1 and |sizeB| is not, then insert 1 in the front of |shapeA| to become [ 1 | |shapeA| ] and let |sizeA| be 2.
-    1. If |shapeA|[0] is not equal to |shapeB|[|sizeB| - 2], then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-    1. If |sizeB| is 1 and |sizeA| is not, then append 1 to |shapeB| to become [ |shapeB| | 1 ] and let |sizeB| be 2.
-    1. If |shapeA|[|sizeA| - 1] is not equal to |shapeB|[0], then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-    1. Let |shape| be an array whose size |size| is the maximum of |sizeA| and |sizeB|.
-    1. [=list/For each=] |index| in [=the range=] 0 to |size|, exclusive:
-        1. Set |shape|[|index|] to the maximum of |shapeA|[|index|] and |shapeB|[|index|].
-    1. Return |shape|.
+    1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=]
+    1. Let |sizeA| be the [=list/size=] of |shapeA|.
+    1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=]
+    1. Let |sizeB| be the [=list/size=] of |shapeB|.
+    1. If either |sizeA| or |sizeB| is less than 2, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |colsA| be |shapeA|[|sizeA| - 1].
+    1. Let |rowsA| be |shapeA|[|sizeA| - 2].
+    1. Let |colsB| be |shapeB|[|sizeB| - 1].
+    1. Let |rowsB| be |shapeB|[|sizeB| - 2].
+    1. If |colsA| is not equal to |rowsB|, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |batchShapeA| be a [=list/clone=] of |shapeA| with the spatial dimensions (last 2 items) [=list/removed=].
+    1. Let |batchShapeB| be a [=list/clone=] of |shapeB| with the spatial dimensions (last 2 items) [=list/removed=].
+    1. Let |outputShape| be the result of [=bidirectionally broadcasting the shapes=] |batchShapeA| and |batchShapeB|. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. [=list/Append=] « |rowsA|, |colsB| » to |outputShape|.
+    1. Return |outputShape|.
   </div>
 </details>
 
