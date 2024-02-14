@@ -3,8 +3,6 @@
 TODO: Consider removing these, or fit these into the documentation below.
 
 - **enhancement** - unclear if this is about the spec text, the proposed API, etc. Prefer **feature request** etc.
-- **help wanted** - unclear what help is needed; use **needs PR** or **question** instead?
-
 
 ## Label Usage
 
@@ -51,13 +49,6 @@ WebNN has several workstreams specific to the API proposal. These labels help gr
 
 - **question** - there is outstanding discussion needed on the issue before progress can be made
 - **good first issue** - issues that do not require significant context for new contributors
-
-
-- **needs PR** - _PROPOSED_ - when an issue has enough discussion that the next step is to author a PR for review
-- **has PR** - _PROPOSED_ - the issue has a corresponding PR which should be reviewed
-
-- **needs WPT** - _PROPOSED_ - a corresponding Web Platform Test should be filed, either to capture new behavior or cover a gap
-- **has WPT** - _PROPOSED_ - test coverage exists (either merged or in review)
 
 
 ## Resolved Issues
