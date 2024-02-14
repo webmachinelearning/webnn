@@ -1,9 +1,5 @@
 # Triage Guidance for WebNN Repo
 
-TODO: Consider removing these, or fit these into the documentation below.
-
-- **enhancement** - unclear if this is about the spec text, the proposed API, etc. Prefer **feature request** etc.
-
 ## Label Usage
 
 Labels are used for:
@@ -19,7 +15,7 @@ The working group chairs and spec editors should regularly review bugs and ensur
 
 Every issue should have one of these issue types, and only rarely more than one.
 
-- **bug** - a flaw in the specification that will require a normative fix; for example, an algorithm computes an output incorrectly
+- **bug** - a gap or flaw in the specification that will require a normative fix; for example, an algorithm is missing or computes an output incorrectly
 - **conventions** - where the spec does not conform to specification best practices from Web IDL, Bikeshed, Infra, etc.
 - **use case** - a new use case for the API that should be documented or considered; may spawn other issues
 - **process** - a meta issue about how the specification is evolved; for example, a discussion of issue labels
@@ -68,8 +64,6 @@ NOTE: GitHub supports two different actions when closing an issue: "Close as com
 - **v2**- issue is not considered a blocker for Proposed Recommendation
 
 Implicitly, all issues not tagged **v2** must be resolved before the specification should advance to the next maturity level.
-
-TODO: Consider using milestones instead.
 
 
 ## Horizontal Reviews
