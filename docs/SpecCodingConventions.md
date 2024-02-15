@@ -70,6 +70,8 @@ Example:
     1. If |shape| is a [=circle=], draw it at |shape|'s [=circle/origin=].
 ```
 
+* When referencing an operator in text (e.g. sigmoid, tanh, etc), link the operator name to the `MLGraphBuilder` methods for creating the corresponding `MLOperand` or `MLActivation`, e.g. `{{MLGraphBuilder/sigmoid()}}`. This provides consistent styling, and provides a thorough overview of the operator, even if the method itself isn't being discussed.
+
 
 ### Formatting
 
