@@ -729,21 +729,11 @@ Once the {{MLGraph}} is constructed, the {{MLContext}}.{{MLContext/compute()}} m
 
 ## Device Selection ## {#programming-model-device-selection}
 
-An {{MLContext}} interface represents a global state of neural network execution. One of the important context states is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. In addition to the default method of creation with {{MLContextOptions}}, an {{MLContext}} could also be created from a specific {{GPUDevice}} that is already in use by the application, in which case the corresponding {{GPUBuffer}} resources used as graph constants, as well as the {{GPUTexture}} as graph inputs must also be created from the same device. In a multi-adapter configuration, the device used for {{MLContext}} must be created from the same adapter as the device used to allocate the resources referenced in the graph.
+An {{MLContext}} interface represents a global state of neural network execution. One of the important context states is the underlying execution device that manages the resources and facilitates the compilation and the eventual execution of the neural network graph. In addition to the default method of creation with {{MLContextOptions}}, an {{MLContext}} could also be created from a specific {{GPUDevice}} that is already in use by the application.
 
 In a situation when a GPU context executes a graph with a constant or an input in the system memory as an {{ArrayBufferView}}, the input content is automatically uploaded from the system memory to the GPU memory, and downloaded back to the system memory of an {{ArrayBufferView}} output buffer at the end of the graph execution. This data upload and download cycles will only occur whenever the execution device requires the data to be copied out of and back into the system memory, such as in the case of the GPU. It doesn't occur when the device is a CPU device. Additionally, the result of the graph execution is in a known layout format. While the execution may be optimized for a native memory access pattern in an intermediate result within the graph, the output of the last operation of the graph must convert the content back to a known layout format at the end of the graph in order to maintain the expected behavior from the caller's perspective.
 
 When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's [=power preference=] and [=device type=] specified in the {{MLPowerPreference}} and {{MLDeviceType}} options.
-
-The following table summarizes the types of resource supported by the context created through different method of creation:
-
-<div class="note">
-<table>
-  <tr><th>Creation method<th>ArrayBufferView<th>GPUBuffer<th>GPUTexture
-  <tr><td>MLContextOptions<td>Yes<td>No<td>No
-  <tr><td>GPUDevice<td>Yes<td>Yes<td>Yes
-</table>
-</div>
 
 API {#api}
 =====================
@@ -1133,13 +1123,7 @@ The {{MLGraphBuilder}} interface defines a set of operations as identified by th
 <script type=idl>
 typedef record<DOMString, MLOperand> MLNamedOperands;
 
-dictionary MLBufferResourceView {
-  required GPUBuffer resource;
-  unsigned long long offset = 0;
-  unsigned long long size;
-};
-
-typedef (ArrayBufferView or MLBufferResourceView) MLBufferView;
+typedef ArrayBufferView MLBufferView;
 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLGraphBuilder {
@@ -1165,21 +1149,6 @@ The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph buil
 
 Issue(552): Decide how to specify graph initialization.
 </div>
-
-{{MLBufferResourceView}} has the following members:
-<dl dfn-type=dict-member dfn-for=MLBufferResourceView>
-    : <dfn>resource</dfn>
-    ::
-        The GPU buffer source.
-
-    : <dfn>offset</dfn>
-    ::
-        The offset in the buffer source.
-
-    : <dfn>size</dfn>
-    ::
-        The size of the buffer view.
-</dl>
 
 <div class=internal-slots>
 {{MLGraphBuilder}} has the following internal slots:
