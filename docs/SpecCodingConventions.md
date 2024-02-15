@@ -73,6 +73,15 @@ Example:
 * When referencing an operator in text (e.g. sigmoid, tanh, etc), link the operator name to the `MLGraphBuilder` methods for creating the corresponding `MLOperand` or `MLActivation`, e.g. `{{MLGraphBuilder/sigmoid()}}`. This provides consistent styling, and provides a thorough overview of the operator, even if the method itself isn't being discussed.
 
 
+### Characters and Encoding
+
+* The spec is encoded with UTF-8.
+* For non-ASCII characters, prefer to use characters directly, rather than [character references](https://html.spec.whatwg.org/multipage/syntax.html#character-references) (a.k.a. entities), except when necessary for escaping e.g. `sequence&lt;DOMString&gt;`. These commonly occur in names in the Acknowledgements and References sections.
+* Commonly used punctuation and symbol characters include:
+    * « » (U+00AB / U+00BB Left/Right Pointing Double Angle Quotation Marks) used for [list literals](https://infra.spec.whatwg.org/#lists))
+    * → (U+2192 Rightwards Arrow) used for [map iteration](https://infra.spec.whatwg.org/#map-iterate)
+
+
 ### Formatting
 
 * Bikeshed will automatically style linked terms appropriately, for example Web IDL types show up as `code`. Try to avoid manual styling wherever possible; if you're not getting the style you expect, you may have incorrect definitions or links.
