@@ -54,7 +54,7 @@ Example:
 ```
     The <dfn>maximum size</dfn> of a collection is...
 
-    1. Let |max| be the [=maximum size=] of |collection|.
+    1. Let |max| be |collection|'s [=maximum size=].
 ```
 
 * When defining subsidiary terms, like properties of an object, members of an enum, etc, scope the definitions using `dfn-for` on the `dfn` or an ancestor.
@@ -96,6 +96,7 @@ Example:
 * Use `[=list/For each=] |index| in [=the range=] X to Y, inclusive` when iterating over a numeric range; a range is implicitly an ordered set which is a type of list. Specify _inclusive_ or _exclusive_ regarding the upper bound, for clarity.
 * Use "let" to introduce a variable and "set" to update a variable or assign to a property.
 * Use « » notation for literal lists, which helps make it clear that they are not JavaScript arrays.
+* When referring to abstract properties, use the short possessive form `|object|'s [=property=]`. Avoid the wordier `the [=property=] of |object|` form.
 
 
 ### Method Definitions
