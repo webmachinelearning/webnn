@@ -78,7 +78,7 @@ Example:
 * The spec is encoded with UTF-8.
 * For non-ASCII characters, prefer to use characters directly, rather than [character references](https://html.spec.whatwg.org/multipage/syntax.html#character-references) (a.k.a. entities), except when necessary for escaping e.g. `sequence&lt;DOMString&gt;`. These commonly occur in names in the Acknowledgements and References sections.
 * Commonly used punctuation and symbol characters include:
-    * « » (U+00AB / U+00BB Left/Right Pointing Double Angle Quotation Marks) used for [list literals](https://infra.spec.whatwg.org/#lists))
+    * « » (U+00AB / U+00BB Left/Right Pointing Double Angle Quotation Marks) used for [list literals](https://infra.spec.whatwg.org/#lists)
     * → (U+2192 Rightwards Arrow) used for [map iteration](https://infra.spec.whatwg.org/#map-iterate)
 
 
