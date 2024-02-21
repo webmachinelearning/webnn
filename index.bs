@@ -1604,8 +1604,7 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
-    1. If |descriptor|'s [=byte length=] is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If the [=checking dimensions=] given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If [=checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If [=validating buffer with descriptor=] given |bufferView| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
@@ -3318,10 +3317,7 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
     1. If |name| is empty, then [=exception/throw=] a {{TypeError}}.
-    1. [=Assert=]: If |descriptor|.{{MLOperandDescriptor/dimensions}} does not [=map/exist=], then |descriptor| defines a scalar input.
-    1. If |descriptor|.{{MLOperandDescriptor/dimensions}} [=map/exists=]:
-        1. If [=checking dimensions=] given |descriptor|.{{MLOperandDescriptor/dataType}} and |descriptor|.{{MLOperandDescriptor/dimensions}} returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. If |descriptor|'s [=byte length=] is not supported by the underlying platform, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If [=checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
@@ -5783,24 +5779,12 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
 
 <details open algorithm>
   <summary>
-    To <dfn>check dimensions</dfn> given [=/list=] |dimensions| and {{MLOperandDataType}} |type|, run the following steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. If |dimensions|'s [=list/size=] is 0, return false.
-    1. If |dimensions|'s [=list/size=] is too large to be supported by the implementation, return false.
-    1. If any element of |dimensions| is not a positive number, or it is too large to be supported by the implementation given |type|, return false.
-    1. Return true.
-  </div>
-</details>
-
-<details open algorithm>
-  <summary>
     To <dfn for="MLOperand">validate MLOperand</dfn> given {{MLOperand}} |operand| and {{MLGraphBuilder}} |builder|, run the following steps:
   </summary>
   <div class=algorithm-steps>
     1. If |builder| is not equal to |operand|.{{MLOperand/[[builder]]}}, return false.
     1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
-    1. If [=checking dimensions=] given |desc|.{{MLOperandDescriptor/dimensions}} and |desc|.{{MLOperandDescriptor/dataType}} returns false, then return false.
+    1. If [=checking dimensions=] given |desc| returns false, then return false.
     1. Return true.
   </div>
 </details>
@@ -5888,6 +5872,24 @@ dictionary MLOperandDescriptor {
     1. Return |elementLength| × |elementSize|.
   </div>
 </details>
+
+<details open algorithm>
+  <summary>
+    To <dfn for="MLOperandDescriptor">check dimensions</dfn> given {{MLOperandDescriptor}} |descriptor|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. If any element of |descriptor|.{{MLOperandDescriptor/dimensions}} is too large to be supported by the implementation, return false.
+    1. If |descriptor|.{{MLOperandDescriptor/dimensions}}'s [=list/size=] is too large to be supported by the implementation, return false.
+
+        Issue(456): The maximum number of operand dimensions is not defined, but native ML APIs usually have a maximum supported size.
+
+    1. If |descriptor|'s [=byte length=] is not supported by the implementation, then return false.
+    1. Return true.
+  </div>
+
+
+</details>
+
 
 Algorithms {#algorithms}
 =====================
