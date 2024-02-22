@@ -1556,22 +1556,24 @@ partial interface MLGraphBuilder {
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
-    1. [=Assert=]: the shape, i.e. {{MLOperandDescriptor/dimensions}} of each operand in |inputs| is the same, except on the dimension given by |axis| on which they are concatenated.
-    1. [=Assert=]: the {{MLOperandDescriptor/dataType}} of each operand in |inputs| is the same.
-    1. If any of the following steps fail, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. Let |desc| be |inputs|[0].{{MLOperand/[[descriptor]]}}.
-        1. If |axis| is greater than or equal to |desc|'s [=rank=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] to 0.
-        1. [=list/For each=] |index| in [=the range=] 0 to |inputs|'s [=rank=], exclusive:
-            1. Let |input| be |inputs|[|index|].
-            1. If [=validating MLOperand=] given |input| and [=this=] returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-            1. If |input|'s [=MLOperand/dataType=] is not equal to |inputs|[0]'s [=MLOperand/dataType=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-            1. [=list/For each=] |dim| in [=the range=] 0 to |input|'s [=rank=], exclusive:
-                <div class="note">
-                    If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
-                </div>
-                1. If |dim| is not equal to |axis| and if |input|'s [=MLOperand/shape=][|dim|] is not equal to |inputs|[0]'s [=MLOperand/shape=][|dim|], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-                1. If |dim| is equal to |axis|, add to |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] the value of |input|'s [=MLOperand/shape=][|dim|].
+    1. If |inputs| [=list/is empty=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |first| be |inputs|[0].
+    1. If |axis| is greater than or equal to |first|'s [=rank=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. Let |desc| be a new {{MLOperandDescriptor}}.
+    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |first|'s [=MLOperand/dataType=].
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to a [=list/clone=] of |first|'s [=MLOperand/shape=].
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] to |first|'s [=MLOperand/shape=][|axis|].
+    1. [=list/For each=] |index| in [=the range=] 1 to |inputs|'s [=list/size=], exclusive:
+        1. Let |input| be |inputs|[|index|].
+        1. If [=validating MLOperand=] given |input| and [=this=] returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |input|'s [=MLOperand/dataType=] is not equal to |first|'s [=MLOperand/dataType=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. If |input|'s [=MLOperand/rank=] is not equal to |first|'s [=MLOperand/rank=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+        1. [=list/For each=] |dim| in [=the range=] 0 to |input|'s [=rank=], exclusive:
+            <div class="note">
+                If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
+            </div>
+            1. If |dim| is not equal to |axis| and if |input|'s [=MLOperand/shape=][|dim|] is not equal to |first|'s [=MLOperand/shape=][|dim|], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+            1. If |dim| is equal to |axis|, add to |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] the value of |input|'s [=MLOperand/shape=][|dim|].
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Make a request to the underlying platform to:
