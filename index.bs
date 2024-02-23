@@ -1216,8 +1216,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: |op| is one of "argMin", "argMax".
-    1. If |options|.{{MLArgMinMaxOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. Let |outputShape| be the result of invoking the underlying implementation for calculating reduction output dimensions, given |options|.
+    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLArgMinMaxOptions/axes}} (if it [=map/exists=]), and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"int64"}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
@@ -1794,7 +1793,71 @@ partial interface MLGraphBuilder {
 </div>
 
 <details open algorithm>
+  <summary>
+    To <dfn for=MLGraphBuilder>calculate conv2d padding</dfn> given unsigned integers |inputSize|, |filterSize|, |stride| and |dilation| and {{MLAutoPad}} |autoPad|, perform these steps. They return a [=/list=] of 2 numbers.
+  </summary>
+  <div class=algorithm-steps>
+    1. [=Assert=]: |autoPad| is not {{MLAutoPad/"explicit"}}.
+    1. Let |outputSize| be ( |inputSize| + |stride| - 1 ) / |stride|.
+    1. Let |dilatedFilterSize| be ( |filterSize| - 1 ) * |dilation| + 1.
+    1. Let |neededInputSize| be ( |outputSize| - 1 ) * |stride| + |dilatedFilterSize|.
+    1. Let |totalPadding| be |neededInputSize| - |inputSize| if |neededInputSize| is greater than |inputSize|, or 0 otherwise.
+    1. Switch on |autoPad|:
+        <dl class=switch>
+            : {{MLAutoPad/"same-upper"}}
+            ::
+                1. Let |paddingBegin| be floor( |totalPadding| / 2 ).
+                1. Let |paddingEnd| be floor( ( |totalPadding| + 1 ) / 2 ).
+            : {{MLAutoPad/"same-lower"}}
+            ::
+                1. Let |paddingBegin| be floor( ( |totalPadding| + 1 ) / 2 ).
+                1. Let |paddingEnd| be floor( |totalPadding| / 2 ).
+        </dl>
+    1. Return « |paddingBegin|, |paddingEnd| ».
+  </div>
+</details>
 
+
+<details open algorithm>
+  <summary>
+    To <dfn for=MLGraphBuilder>calculate conv2d output size</dfn> given unsigned integers |inputSize|, |filterSize|, |beginningPadding|, |endingPadding|, |stride| and |dilation|, perform these steps. They return a number.
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |effectiveFilterSize| be ( |filterSize| - 1 ) * |dilation| + 1.
+    1. Let |outputSize| be ( |inputSize| - |effectiveFilterSize| + |beginningPadding| + |endingPadding| ) / |stride| + 1.
+    1. Return |outputSize|.
+  </div>
+</details>
+
+
+<details open algorithm>
+  <summary>
+    To <dfn for=MLGraphBuilder>calculate conv2d output sizes</dfn> given unsigned integers |inputHeight|, |inputWidth|, |filterHeight| and |filterWidth|, [=/list=] of 4 unsigned integers |padding|, [=/list=] of 2 unsigned integers |strides|, [=/list=] of 2 unsigned integers |dilations| and {{MLAutoPad}} |autoPad|, perform these steps. They return a [=/list=] of 2 numbers.
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |strideHeight| be |strides|[0].
+    1. Let |strideWidth| be |strides|[1].
+    1. Let |dilationHeight| be |dilations|[0].
+    1. Let |dilationWidth| be |dilations|[1].
+    1. If |autoPad| is not {{MLAutoPad/"explicit"}}:
+        1. Let |h| be the result of [=MLGraphBuilder/calculating conv2d padding=] given |inputHeight|, |filterHeight|, |strideHeight|, |dilationHeight|, and |autoPad|.
+        1. Let |paddingBeginningHeight| be |h|[0].
+        1. Let |paddingEndingHeight| be |h|[1].
+        1. Let |w| be the result of [=MLGraphBuilder/calculating conv2d padding=] given |inputWidth|, |filterWidth|, |strideWidth|, |dilationWidth|, and |autoPad|.
+        1. Let |paddingBeginningWidth| be |w|[0].
+        1. Let |paddingEndingWidth| be |w|[1].
+    1. Otherwise:
+        1. Let |paddingBeginningHeight| be |padding|[0].
+        1. Let |paddingEndingHeight| be |padding|[1].
+        1. Let |paddingBeginningWidth| be |padding|[2].
+        1. Let |paddingEndingWidth| be |padding|[3].
+    1. Let |outputHeight| be the result of [=MLGraphBuilder/calculating conv2d output size=] given |inputHeight|, |filterHeight|, |paddingBeginningHeight|, |paddingEndingHeight|, |strideHeight| and |dilationHeight|.
+    1. Let |outputWidth| be the result of [=MLGraphBuilder/calculating conv2d output size=] given |inputWidth|, |filterWidth|, |paddingBeginningWidth|, |paddingEndingWidth|, |strideWidth| and |dilationWidth|.
+    1. Return « |outputHeight|, |outputWidth| ».
+  </div>
+</details>
+
+<details open algorithm>
   <summary>
     The <dfn method for=MLGraphBuilder>conv2d(|input|, |filter|, |options|)</dfn> method steps are:
   </summary>
@@ -1817,7 +1880,47 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
         1. If |options|.{{MLConv2dOptions/bias}}'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLConv2dOptions/bias}}'s [=MLOperand/dataType=] is not the same as |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
+    1. *Calculate the output shape:*
+        1. Switch on |options|.{{MLConv2dOptions/inputLayout}}:
+            <dl class=switch>
+                : {{MLInputOperandLayout/"nchw"}}
+                ::
+                    1. Let |batches| be |inputShape|[0].
+                    1. Let |channels| be |inputShape|[1].
+                    1. Let |inputHeight| be |inputShape|[2].
+                    1. Let |inputWidth| be |inputShape|[3].
+                : {{MLInputOperandLayout/"nhwc"}}
+                ::
+                    1. Let |batches| be |inputShape|[0].
+                    1. Let |inputHeight| be |inputShape|[1].
+                    1. Let |inputWidth| be |inputShape|[2].
+                    1. Let |channels| be |inputShape|[3].
+            </dl>
+        1. Let |filterShape| be |filter|'s [=MLOperand/shape=].
+        1. Switch on |options|.{{MLConv2dOptions/filterLayout}}:
+            <dl class=switch>
+                : {{MLConv2dFilterOperandLayout/"hwio"}}
+                ::
+                    1. Let |filterHeight| be |filterShape|[0].
+                    1. Let |filterWidth| be |filterShape|[1].
+                : {{MLConv2dFilterOperandLayout/"ohwi"}}
+                : {{MLConv2dFilterOperandLayout/"ihwo"}}
+                ::
+                    1. Let |filterHeight| be |filterShape|[1].
+                    1. Let |filterWidth| be |filterShape|[2].
+                : {{MLConv2dFilterOperandLayout/"oihw"}}
+                ::
+                    1. Let |filterHeight| be |filterShape|[2].
+                    1. Let |filterWidth| be |filterShape|[3].
+            </dl>
+        1. Let |outputSizes| be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConv2dOptions/padding}}, |options|.{{MLConv2dOptions/strides}}, |options|.{{MLConv2dOptions/dilations}} and |options|.{{MLConv2dOptions/autoPad}}.
+        1. Switch on |options|.{{MLConv2dOptions/inputLayout}}:
+            <dl class=switch>
+                : {{MLInputOperandLayout/"nchw"}}
+                :: Let |outputShape| be « |batches|, |channels|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ) ».
+                : {{MLInputOperandLayout/"nhwc"}}
+                :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1], |channels| ) ».
+            </dl>
     1. If |outputShape| is not the same as the shape of |options|.{{MLConv2dOptions/bias}}'s [=MLOperand/shape=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
@@ -1944,6 +2047,73 @@ partial interface MLGraphBuilder {
 </div>
 
 <details open algorithm>
+  <summary>
+    To <dfn for=MLGraphBuilder>calculate convtranspose2d padding</dfn> given unsigned integers |inputSize|, |filterSize|, |stride|, |dilation|, |outputPadding|, and {{MLAutoPad}} |autoPad|, perform these steps. They return a [=/list=] of 2 numbers.
+  </summary>
+  <div class=algorithm-steps>
+    1. [=Assert=]: |autoPad| is not {{MLAutoPad/"explicit"}}.
+    1. Let |outputSize| be |inputSize| * |stride|.
+    1. Let |effectiveFilterSize| be ( |filterSize| - 1 ) * |dilation| + 1.
+    1. Let |totalPadding| be |stride| * ( |inputSize| - 1 ) + |effectiveFilterSize| + |outputPadding| - |outputSize|.
+    1. Switch on |autoPad|:
+        <dl class=switch>
+            : {{MLAutoPad/"same-upper"}}
+            ::
+                1. Let |paddingBegin| be floor( |totalPadding| / 2 ).
+                1. Let |paddingEnd| be floor( ( |totalPadding| + 1 ) / 2 ).
+            : {{MLAutoPad/"same-lower"}}
+            ::
+                1. Let |paddingBegin| be floor( ( |totalPadding| + 1 ) / 2 ).
+                1. Let |paddingEnd| be floor( |totalPadding| / 2 ).
+        </dl>
+    1. Return « |paddingBegin|, |paddingEnd| ».
+  </div>
+</details>
+
+
+<details open algorithm>
+  <summary>
+    To <dfn for=MLGraphBuilder>calculate convtranspose2d output size</dfn> given unsigned integers |inputSize|, |filterSize|, |beginningPadding|, |endingPadding|, |stride|, |dilation|, and |outputPadding|, perform these steps. They return a number.
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |effectiveFilterSize| be ( |filterSize| - 1 ) * |dilation| + 1.
+    1. Let |outputSize| be ( |inputSize| - 1 ) * |stride| + |effectiveFilterSize| - |beginningPadding| - |endingPadding| + |outputPadding|.
+    1. Return |outputSize|.
+  </div>
+</details>
+
+
+<details open algorithm>
+  <summary>
+    To <dfn for=MLGraphBuilder>calculate convtranspose2d output sizes</dfn> given unsigned integers |inputHeight|, |inputWidth|, |filterHeight| and |filterWidth|, [=/list=] of 4 unsigned integers |padding|, [=/list=] of 2 unsigned integers |strides|, [=/list=] of 2 unsigned integers |dilations|, a [=/list=] of 2 unsigned integers |outputPadding|, and {{MLAutoPad}} |autoPad|, perform these steps. They return a [=/list=] of 2 numbers.
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |strideHeight| be |strides|[0].
+    1. Let |strideWidth| be |strides|[1].
+    1. Let |dilationHeight| be |dilations|[0].
+    1. Let |dilationWidth| be |dilations|[1].
+    1. Let |outputPaddingHeight| be |outputPadding|[0].
+    1. Let |outputPaddingWidth| be |outputPadding|[1].
+    1. If |autoPad| is not {{MLAutoPad/"explicit"}}:
+        1. Let |h| be the result of [=MLGraphBuilder/calculating convtranspose2d padding=] given |inputHeight|, |filterHeight|, |strideHeight|, |dilationHeight|, |outputPaddingHeight|, and |autoPad|.
+        1. Let |paddingBeginningHeight| be |h|[0].
+        1. Let |paddingEndingHeight| be |h|[1].
+        1. Let |w| be the result of [=MLGraphBuilder/calculating convtranspose2d padding=] given |inputWidth|, |filterWidth|, |strideWidth|, |dilationWidth|, |outputPaddingWidth|, and |autoPad|.
+        1. Let |paddingBeginningWidth| be |w|[0].
+        1. Let |paddingEndingWidth| be |w|[1].
+    1. Otherwise:
+        1. Let |paddingBeginningHeight| be |padding|[0].
+        1. Let |paddingEndingHeight| be |padding|[1].
+        1. Let |paddingBeginningWidth| be |padding|[2].
+        1. Let |paddingEndingWidth| be |padding|[3].
+    1. Let |outputHeight| be the result of [=MLGraphBuilder/calculating convtranspose2d output size=] given |inputHeight|, |filterHeight|, |paddingBeginningHeight|, |paddingEndingHeight|, |strideHeight|, |dilationHeight|, and |outputPaddingHeight|.
+    1. Let |outputWidth| be the result of [=MLGraphBuilder/calculating convtranspose2d output size=] given |inputWidth|, |filterWidth|, |paddingBeginningWidth|, |paddingEndingWidth|, |strideWidth|, |dilationWidth| and |outputPaddingWidth|.
+    1. Return « |outputHeight|, |outputWidth| ».
+  </div>
+</details>
+
+
+<details open algorithm>
 
   <summary>
     The <dfn method for=MLGraphBuilder>convTranspose2d(|input|, |filter|, |options|)</dfn> method steps are:
@@ -1971,7 +2141,46 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
         1. If |options|.{{MLConvTranspose2dOptions/bias}}'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLConvTranspose2dOptions/bias}}'s [=MLOperand/dataType=] is not the same as |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be the result of invoking the underlying implementation for calculating output dimensions, given |options|.
+    1. *Calculate the output shape:*
+        1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
+            <dl class=switch>
+                : {{MLInputOperandLayout/"nchw"}}
+                ::
+                    1. Let |batches| be |inputShape|[0].
+                    1. Let |channels| be |inputShape|[1].
+                    1. Let |inputHeight| be |inputShape|[2].
+                    1. Let |inputWidth| be |inputShape|[3].
+                : {{MLInputOperandLayout/"nhwc"}}
+                ::
+                    1. Let |batches| be |inputShape|[0].
+                    1. Let |inputHeight| be |inputShape|[1].
+                    1. Let |inputWidth| be |inputShape|[2].
+                    1. Let |channels| be |inputShape|[3].
+            </dl>
+        1. Let |filterShape| be |filter|'s [=MLOperand/shape=].
+        1. Switch on |options|.{{MLConvTranspose2dOptions/filterLayout}}:
+            <dl class=switch>
+                : {{MLConvTranspose2dFilterOperandLayout/"iohw"}}
+                ::
+                    1. Let |filterHeight| be |filterShape|[2].
+                    1. Let |filterWidth| be |filterShape|[3].
+                : {{MLConvTranspose2dFilterOperandLayout/"hwoi"}}
+                ::
+                    1. Let |filterHeight| be |filterShape|[0].
+                    1. Let |filterWidth| be |filterShape|[1].
+                : {{MLConvTranspose2dFilterOperandLayout/"ohwi"}}
+                ::
+                    1. Let |filterHeight| be |filterShape|[1].
+                    1. Let |filterWidth| be |filterShape|[2].
+            </dl>
+        1. Let |outputSizes| be the result of [=MLGraphBuilder/calculating convtranspose2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConvTranspose2dOptions/padding}}, |options|.{{MLConvTranspose2dOptions/strides}}, |options|.{{MLConvTranspose2dOptions/dilations}}, |options|.{{MLConvTranspose2dOptions/outputPadding}}, and |options|.{{MLConvTranspose2dOptions/autoPad}}.
+        1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
+            <dl class=switch>
+                : {{MLInputOperandLayout/"nchw"}}
+                :: Let |outputShape| be « |batches|, |channels|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ) ».
+                : {{MLInputOperandLayout/"nhwc"}}
+                :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1], |channels| ) ».
+            </dl>
     1. If |outputShape| is not the same as the shape of |options|.{{MLConvTranspose2dOptions/bias}}'s [=MLOperand/shape=], then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
@@ -4409,6 +4618,54 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
+    To <dfn for=MLGraphBuilder>calculate pool output sizes</dfn> given {{MLInputOperandLayout}} |layout|, [=/list=] of 4 unsigned integers |inputShape|, {{MLRoundingType}} |roundingType|, [=/list=] of 2 unsigned integers |windowDimensions|, [=/list=] of 4 unsigned integers |padding|, [=/list=] of 2 unsigned integers |strides|, [=/list=] of 2 unsigned integers |dilations|, optional [=/list=] of 2 unsigned integers |outputSizes|, and {{MLAutoPad}} |autoPad|, perform these steps. They return a [=/list=] of 4 unsigned integers.
+  </summary>
+  <div class=algorithm-steps>
+    1. Switch on |layout|:
+        <dl class=switch>
+            : {{MLInputOperandLayout/"nchw"}}
+            ::
+                1. Let |batches| be |inputShape|[0].
+                1. Let |channels| be |inputShape|[1].
+                1. Let |inputHeight| be |inputShape|[2].
+                1. Let |inputWidth| be |inputShape|[3].
+            : {{MLInputOperandLayout/"nhwc"}}
+            ::
+                1. Let |batches| be |inputShape|[0].
+                1. Let |inputHeight| be |inputShape|[1].
+                1. Let |inputWidth| be |inputShape|[2].
+                1. Let |channels| be |inputShape|[3].
+        </dl>
+    1. If |outputSizes| is not given, then:
+        1. Let |outputHeight| be |outputSizes|[0].
+        1. Let |outputWidth| be |outputSizes|[1].
+    1. Otherwise:
+        1. Let |outputSizes| be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |windowDimensions|[0], |windowDimensions|[1], |padding|, |strides|, |dilations| and |autoPad|.
+        1. Let |outputHeight| be |outputSizes|[0].
+        1. Let |outputWidth| be |outputSizes|[1].
+        1. Switch on |roundingType|
+            <dl class=switch>
+                : {{MLRoundingType/"floor"}}
+                ::
+                    1. Set |outputWidth| to floor(|outputWidth|).
+                    1. Set |outputHeight| to floor(|outputHeight|).
+                : {{MLRoundingType/"ceil"}}
+                ::
+                    1. Set |outputWidth| to ceiling(|outputWidth|).
+                    1. Set |outputHeight| to ceiling(|outputHeight|).
+            </dl>
+    1. Switch on |layout|:
+        <dl class=switch>
+            : {{MLInputOperandLayout/"nchw"}}
+            :: Return « |batches|, |channels|, |outputHeight|, |outputWidth| ».
+            : {{MLInputOperandLayout/"nhwc"}}
+            :: Return « |batches|, |outputHeight|, |outputWidth|, |channels| ».
+        </dl>
+  </div>
+</details>
+
+<details open algorithm>
+  <summary>
     To <dfn for="MLGraphBuilder" data-lt="pooling-op">create pooling operation</dfn> given [=string=] |op|, {{MLOperand}} |input| and {{MLPool2dOptions}} |options|, run the following steps:
   </summary>
   <div class=algorithm-steps>
@@ -4430,7 +4687,7 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Make a request to the underlying platform to:
-            1. Calculate the output dimensions given |input| and |options|. Set |desc|.{{MLOperandDescriptor/dimensions}} to that.
+            1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating pool output sizes=] given |options|.{{MLPool2dOptions/layout}}, |input|'s [=MLOperand/shape=], |options|.{{MLPool2dOptions/roundingType}}, |options|.{{MLPool2dOptions/windowDimensions}}, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, |options|.{{MLPool2dOptions/dilations}}, |options|.{{MLPool2dOptions/outputSizes}} (if it [=map/exists=]), and |options|.{{MLPool2dOptions/autoPad}}.
             1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
             1. Let |opImpl| be [=platform operator=] for the |op| pooling operation, given |options|.
             1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
@@ -4591,12 +4848,31 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
+    To <dfn for="MLGraphBuilder">calculate reduction output sizes</dfn>, given a [=/list=] of unsigned integers |inputShape|, a optional [=/list=] of unsigned integers |axes|, and [=/boolean=] |keepDimensions|, perform the following steps. They return a new [=/list=] of unsigned integers, or failure.
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |inputSize| be |inputShape|'s [=list/size=].
+    1. If |axes| is given, then if any its [=list/items=] are not in [=the range=] 0 to |inputSize|, exclusive, return failure.
+    1. If |axes| is not given, let |axes| be [=the range=] 0 to |inputSize|, exclusive.
+    1. If |keepDimensions| is true, then:
+        1. Let |outputShape| be a [=list/clone=] of |inputShape|.
+        1. [=list/For each=] |axis| of |axes|:
+            1. Set |outputShape|[|axis|] to 1.
+    1. Otherwise:
+        1. Let |outputShape| be an empty [=/list=].
+        1. [=list/For each=] |index| in [=the range=] 0 to |inputSize|, exclusive:
+            1. If |axes| does not [=list/contain=] |index|, then [=list/append=] |inputShape|[|index|].
+    1. Return |outputShape|.
+  </div>
+</details>
+
+<details open algorithm>
+  <summary>
     To <dfn for="MLGraphBuilder" data-lt="reduce-op">create reduce operation</dfn> given [=string=] |op|, {{MLOperand}} |input| and {{MLReduceOptions}} |options|, run the following steps:
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
-    1. If |options|.{{MLReduceOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. Let |outputShape| be the result of invoking the underlying implementation for calculating reduction output dimensions, given |options|.
+    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLReduceOptions/axes}} (if it [=map/exists=]), and |options|.{{MLReduceOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
