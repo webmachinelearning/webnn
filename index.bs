@@ -1058,6 +1058,66 @@ interface MLGraph {};
   </dl>
 </div>
 
+## {{MLOperandDescriptor}} dictionary ## {#api-mloperanddescriptor}
+
+An {{MLOperandDescriptor}} describes the shape (dimensions) and data type of an operand. They are used to describe the inputs and constants for an {{MLGraph}}, and every {{MLOperand}} has an internal {{MLOperandDescriptor}}.
+
+<script type=idl>
+enum MLInputOperandLayout {
+  "nchw",
+  "nhwc"
+};
+
+enum MLOperandDataType {
+  "float32",
+  "float16",
+  "int32",
+  "uint32",
+  "int64",
+  "uint64",
+  "int8",
+  "uint8"
+};
+
+dictionary MLOperandDescriptor {
+  // The operand type.
+  required MLOperandDataType dataType;
+
+  // The dimensions field is empty for scalar operands,
+  // and non-empty for tensor operands.
+  sequence<unsigned long> dimensions = [];
+};
+</script>
+
+<details open algorithm>
+  <summary>
+    The <dfn for="MLOperandDescriptor">byte length</dfn> of an {{MLOperandDescriptor}} |desc| is the value returned by the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |elementLength| be 1.
+    1. [=list/For each=] |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
+        1. Set |elementLength| to |elementLength| × |dimension|.
+    1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility).
+    1. Return |elementLength| × |elementSize|.
+  </div>
+</details>
+
+<details open algorithm>
+  <summary>
+    To <dfn for="MLOperandDescriptor">check dimensions</dfn> given {{MLOperandDescriptor}} |descriptor|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. If any element of |descriptor|.{{MLOperandDescriptor/dimensions}} is too large to be supported by the implementation, return false.
+    1. If |descriptor|.{{MLOperandDescriptor/dimensions}}'s [=list/size=] is too large to be supported by the implementation, return false.
+
+        Issue(456): The maximum number of operand dimensions is not defined, but native ML APIs usually have a maximum supported size.
+
+    1. If |descriptor|'s [=MLOperandDescriptor/byte length=] is not supported by the implementation, then return false.
+    1. Return true.
+  </div>
+</details>
+
+
 ## {{MLOperand}} interface ## {#api-mloperand}
 
 An {{MLOperand}} represents an intermediary graph being constructed as a result of compositing parts of an operation into a fully composed operation.
@@ -1176,62 +1236,6 @@ Return a shape of the {{MLOperand}}.
     1. Return [=this=]'s [=MLOperand/shape=].
   </div>
 </details>
-
-## {{MLOperandDescriptor}} dictionary ## {#api-mloperanddescriptor}
-<script type=idl>
-enum MLInputOperandLayout {
-  "nchw",
-  "nhwc"
-};
-
-enum MLOperandDataType {
-  "float32",
-  "float16",
-  "int32",
-  "uint32",
-  "int64",
-  "uint64",
-  "int8",
-  "uint8"
-};
-
-dictionary MLOperandDescriptor {
-  // The operand type.
-  required MLOperandDataType dataType;
-
-  // The dimensions field is only required for tensor operands.
-  sequence<unsigned long> dimensions = [];
-};
-</script>
-
-<details open algorithm>
-  <summary>
-    The <dfn for="MLOperandDescriptor">byte length</dfn> of an {{MLOperandDescriptor}} |desc| is the value returned by the following steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. Let |elementLength| be 1.
-    1. [=list/For each=] |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
-        1. Set |elementLength| to |elementLength| × |dimension|.
-    1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility).
-    1. Return |elementLength| × |elementSize|.
-  </div>
-</details>
-
-<details open algorithm>
-  <summary>
-    To <dfn for="MLOperandDescriptor">check dimensions</dfn> given {{MLOperandDescriptor}} |descriptor|, run the following steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. If any element of |descriptor|.{{MLOperandDescriptor/dimensions}} is too large to be supported by the implementation, return false.
-    1. If |descriptor|.{{MLOperandDescriptor/dimensions}}'s [=list/size=] is too large to be supported by the implementation, return false.
-
-        Issue(456): The maximum number of operand dimensions is not defined, but native ML APIs usually have a maximum supported size.
-
-    1. If |descriptor|'s [=MLOperandDescriptor/byte length=] is not supported by the implementation, then return false.
-    1. Return true.
-  </div>
-</details>
-
 
 ## {{MLActivation}} interface ## {#api-mlactivation}
 
