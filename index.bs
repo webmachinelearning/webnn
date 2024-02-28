@@ -783,7 +783,33 @@ This specification defines a [=policy-controlled feature=] identified by the
 string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
 Its [=policy-controlled feature/default allowlist=] is <code>'self'</code>.
 
-### {{ML/createContext}} ### {#api-ml-createcontext}
+### {{ML/createContext()}} ### {#api-ml-createcontext}
+
+The <dfn>context type</dfn> is the type of the execution context that manages the resources and facilitates the compilation and execution of the neural network graph:
+<dl dfn-for="context type">
+<dt>"<dfn>default</dfn>"</dt>
+<dd>Context created per user preference options.</dd>
+<dt>"<dfn>webgpu</dfn>"</dt>
+<dd>Context created from WebGPU device.</dd>
+</dl>
+
+The <dfn>device type</dfn> indicates the kind of device used for the context. It is one of the following:
+<dl dfn-for="MLDeviceType">
+<dt>"<dfn enum-value>cpu</dfn>"</dt>
+<dd>Provides the broadest compatibility and usability across all client devices with varying degrees of performance.</dd>
+<dt>"<dfn enum-value>gpu</dfn>"</dt>
+<dd>Provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations.</dd>
+</dl>
+
+The <dfn>power preference</dfn> indicates preference as related to power consumption. It is one of the following:
+<dl dfn-for="MLPowerPreference">
+<dt>"<dfn enum-value>default</dfn>"</dt>
+<dd>Let the user agent select the most suitable behavior.</dd>
+<dt>"<dfn enum-value>high-performance</dfn>"</dt>
+<dd>Prioritizes execution speed over power consumption.</dd>
+<dt>"<dfn enum-value>low-power</dfn>"</dt>
+<dd>Prioritizes power consumption over other considerations such as execution speed.</dd>
+</dl>
 
 <details open algorithm>
 <summary>
@@ -830,96 +856,22 @@ Its [=policy-controlled feature/default allowlist=] is <code>'self'</code>.
 </div>
 </details>
 
-## {{MLActivation}} interface ## {#api-mlactivation}
-
-Objects implementing the {{MLActivation}} interface represent activation function types.
-
-<script type=idl>
-[SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLActivation {
-};
-</script>
-
-<div class="internal-slots">
-{{MLActivation}} has the following internal slots:
-  <dl dfn-type=attribute dfn-for="MLActivation">
-    : <dfn>\[[name]]</dfn> of type [=string=]
-    ::
-        The {{MLActivation}}'s name.
-    : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
-    ::
-        The graph builder object this {{MLActivation}} belongs to.
-    : <dfn>\[[options]]</dfn> of type [=ordered map=]
-    ::
-        A dictionary containing {{MLActivation}} options.
-    : <dfn>\[[operator]]</dfn> of type [=platform operator=]
-    ::
-        Reference to {{MLActivation}}'s corresponding [=platform operator=].
-  </dl>
-</div>
-
-<div class="note">
-These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as {{MLGraphBuilder/conv2d()}} or {{MLGraphBuilder/batchNormalization()}} during a graph construction session. Such fused activation functions can provide a significant performance improvement when supported natively by the underlying implementation. This is intended as an optimization opportunity for implementers.
-</div>
-
-### Creating {{MLActivation}} ### {#api-mlactivation-create}
-<div class="note">
-The {{MLActivation}} objects (including the ones passed as input to methods) are created by the methods of {{MLGraphBuilder}} and are identified by their name. The |options| dictionary is defined by those methods. The actual creation of the activation function e.g. a {{MLGraphBuilder/sigmoid()}} or {{MLGraphBuilder/relu()}} can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of {{MLGraphBuilder/conv2d()}} for example.
-</div>
-
-<details open algorithm>
-  <summary>
-    To <dfn>create an MLActivation</dfn> given {{MLGraphBuilder}} |builder|, [=string=] |name|, optional [=ordered map=] |options| and optional algorithm |init-steps|, run the following steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. Let |activation| be a new {{MLActivation}}.
-    1. Set |activation|.{{MLActivation/[[builder]]}} to |builder|.
-    1. Set |activation|.{{MLActivation/[[name]]}} to |name|.
-    1. If |options| is given, set |activation|.{{MLActivation/[[options]]}} to |options|.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Make a request to the underlying platform to:
-            1. Create [=platform operator=] |opImpl| for the given |name| operation.
-            1. Set |activation|.{{MLActivation/[[operator]]}} to |opImpl|.
-        1. If |init-steps| are given, run |init-steps| with |options|.
-            1. Otherwise, initialize |activation|.{{MLActivation/[[operator]]}} given |options| in an [=implementation-defined=] way for the given |name| operation.
-    1. Return |activation|.
-  </div>
-</details>
-
 ## {{MLContext}} interface ## {#api-mlcontext}
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device type=] and [=power preference=].
-
-The <dfn>context type</dfn> is the type of the execution context that manages the resources and facilitates the compilation and execution of the neural network graph:
-<dl dfn-for="context type">
-<dt>"<dfn>default</dfn>"</dt>
-<dd>Context created per user preference options.</dd>
-<dt>"<dfn>webgpu</dfn>"</dt>
-<dd>Context created from WebGPU device.</dd>
-</dl>
-
-The <dfn>device type</dfn> indicates the kind of device used for the context. It is one of the following:
-<dl dfn-for="MLDeviceType">
-<dt>"<dfn enum-value>cpu</dfn>"</dt>
-<dd>Provides the broadest compatibility and usability across all client devices with varying degrees of performance.</dd>
-<dt>"<dfn enum-value>gpu</dfn>"</dt>
-<dd>Provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations.</dd>
-</dl>
-
-The <dfn>power preference</dfn> indicates preference as related to power consumption. It is one of the following:
-<dl dfn-for="MLPowerPreference">
-<dt>"<dfn enum-value>default</dfn>"</dt>
-<dd>Let the user agent select the most suitable behavior.</dd>
-<dt>"<dfn enum-value>high-performance</dfn>"</dt>
-<dd>Prioritizes execution speed over power consumption.</dd>
-<dt>"<dfn enum-value>low-power</dfn>"</dt>
-<dd>Prioritizes power consumption over other considerations such as execution speed.</dd>
-</dl>
 
 <script type=idl>
 typedef record<DOMString, ArrayBufferView> MLNamedArrayBufferViews;
 
+dictionary MLComputeResult {
+  MLNamedArrayBufferViews inputs;
+  MLNamedArrayBufferViews outputs;
+};
+
 [SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLContext {};
+interface MLContext {
+  Promise<MLComputeResult> compute(
+      MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
+};
 </script>
 
 <div class=internal-slots>
@@ -1006,24 +958,13 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
   </div>
 </details>
 
-### Asynchronous Execution ### {#api-mlcontext-async-execution}
+### {{MLContext/compute()}}  ### {#api-mlcontext-async-execution}
 Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU timeline for the submission of GPU workload on the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it [=exception/throws=] an "{{OperationError}}" {{DOMException}}.
 
 <div class="note">
 In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the calling thread from modifying the input and output resources while the computation is ongoing, this method [=MLNamedArrayBufferViews/transfer|transfers=] the input and output {{MLNamedArrayBufferViews}} to new views that share the same backing memory allocations. The transferred views are returned to the caller via the promise fulfillment with the computation result written into the backing memory of the output views.
 </div>
 
-<script type=idl>
-dictionary MLComputeResult {
-  MLNamedArrayBufferViews inputs;
-  MLNamedArrayBufferViews outputs;
-};
-
-partial interface MLContext {
-  Promise<MLComputeResult> compute(
-      MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
-};
-</script>
 <div>
     **Arguments:**
       - *graph*: an {{MLGraph}}. The compiled graph to be executed.
@@ -1118,6 +1059,240 @@ interface MLGraph {};
   </dl>
 </div>
 
+## {{MLOperandDescriptor}} dictionary ## {#api-mloperanddescriptor}
+
+An {{MLOperandDescriptor}} describes the shape (dimensions) and data type of an operand. They are used to describe the inputs and constants for an {{MLGraph}}, and every {{MLOperand}} has an internal {{MLOperandDescriptor}}.
+
+<script type=idl>
+enum MLInputOperandLayout {
+  "nchw",
+  "nhwc"
+};
+
+enum MLOperandDataType {
+  "float32",
+  "float16",
+  "int32",
+  "uint32",
+  "int64",
+  "uint64",
+  "int8",
+  "uint8"
+};
+
+dictionary MLOperandDescriptor {
+  // The operand type.
+  required MLOperandDataType dataType;
+
+  // The dimensions field is empty for scalar operands,
+  // and non-empty for tensor operands.
+  sequence<unsigned long> dimensions = [];
+};
+</script>
+
+<details open algorithm>
+  <summary>
+    The <dfn for="MLOperandDescriptor">byte length</dfn> of an {{MLOperandDescriptor}} |desc| is the value returned by the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |elementLength| be 1.
+    1. [=list/For each=] |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
+        1. Set |elementLength| to |elementLength| × |dimension|.
+    1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility).
+    1. Return |elementLength| × |elementSize|.
+  </div>
+</details>
+
+<details open algorithm>
+  <summary>
+    To <dfn for="MLOperandDescriptor">check dimensions</dfn> given {{MLOperandDescriptor}} |descriptor|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. If any element of |descriptor|.{{MLOperandDescriptor/dimensions}} is too large to be supported by the implementation, return false.
+    1. If |descriptor|.{{MLOperandDescriptor/dimensions}}'s [=list/size=] is too large to be supported by the implementation, return false.
+
+        Issue(456): The maximum number of operand dimensions is not defined, but native ML APIs usually have a maximum supported size.
+
+    1. If |descriptor|'s [=MLOperandDescriptor/byte length=] is not supported by the implementation, then return false.
+    1. Return true.
+  </div>
+</details>
+
+
+## {{MLOperand}} interface ## {#api-mloperand}
+
+An {{MLOperand}} represents an intermediary graph being constructed as a result of compositing parts of an operation into a fully composed operation.
+
+For instance, an {{MLOperand}} may represent a constant feeding to an operation or the result from combining multiple constants together into an operation. See also [[#programming-model]].
+
+<script type=idl>
+[SecureContext, Exposed=(Window, DedicatedWorker)]
+interface MLOperand {
+  MLOperandDataType dataType();
+  sequence<unsigned long> shape();
+};
+</script>
+
+<div class=internal-slots>
+{{MLOperand}} has the following internal slots:
+  <dl dfn-type=attribute dfn-for="MLOperand">
+    : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
+    ::
+        The {{MLOperand}}'s associated builder object.
+
+    : <dfn>\[[descriptor]]</dfn> of type {{MLOperandDescriptor}}
+    ::
+        The {{MLOperand}}'s descriptor.
+
+    : <dfn>\[[name]]</dfn> of type [=string=]
+    ::
+        The {{MLOperand}}'s name (only for input operands).
+
+    : <dfn>\[[operand]]</dfn> of type [=platform operand=]
+    ::
+        Reference to {{MLOperand}}'s corresponding [=platform operand=].
+
+    : <dfn>\[[operator]]</dfn> of type [=platform operator=]
+    ::
+        Reference to {{MLOperand}}'s corresponding [=platform operator=].
+  </dl>
+</div>
+
+An {{MLOperand}}'s <dfn for=MLOperand>shape</dfn> is its {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+
+An {{MLOperand}}'s <dfn for=MLOperand>rank</dfn> is its [=MLOperand/shape=]'s [=list/size=].
+
+An {{MLOperand}}'s <dfn for=MLOperand>dataType</dfn> is its {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
+
+Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
+
+### Creating an {{MLOperand}} ### {#api-mloperand-create}
+The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, internally using the following algorithms.
+
+<details open algorithm>
+  <summary>
+    To <dfn>create an MLOperand</dfn> given {{MLGraphBuilder}} |builder| and {{MLOperandDescriptor}} |desc|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |operand| be a new {{MLOperand}}.
+    1. Set |operand|.{{MLOperand/[[builder]]}} to |builder|.
+    1. Set |operand|.{{MLOperand/[[descriptor]]}} to |desc|.
+    1. Return |operand|.
+  </div>
+</details>
+
+<details open algorithm>
+  <summary>
+    To <dfn>copy an MLOperand</dfn> given {{MLOperand}} |operand|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |result| be a new {{MLOperand}}.
+    1. Set |result|.{{MLOperand/[[builder]]}} to |operand|.{{MLOperand/[[builder]]}}.
+    1. Set |result|.{{MLOperand/[[descriptor]]}} to |operand|.{{MLOperand/[[descriptor]]}}.
+    1. If |operand|.{{MLOperand/[[name]]}} [=map/exists=], then set |result|.{{MLOperand/[[name]]}} to |operand|.{{MLOperand/[[name]]}}.
+    1. Return |result|.
+  </div>
+</details>
+
+<details open algorithm>
+  <summary>
+    To <dfn for="MLOperand">validate MLOperand</dfn> given {{MLOperand}} |operand| and {{MLGraphBuilder}} |builder|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. If |builder| is not equal to |operand|.{{MLOperand/[[builder]]}}, return false.
+    1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
+    1. If [=MLOperandDescriptor/checking dimensions=] given |desc| returns false, then return false.
+    1. Return true.
+  </div>
+</details>
+
+### {{MLOperand/dataType()}} ### {#api-mloperand-datatype}
+Return a data type of the {{MLOperand}}.
+
+<div>
+    **Returns:** an {{MLOperandDataType}}. The data type of the operand.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLOperand>dataType()</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    1. Return [=this=]'s [=MLOperand/dataType=].
+  </div>
+</details>
+
+### {{MLOperand/shape()}} ### {#api-mloperand-shape}
+Return a shape of the {{MLOperand}}.
+
+<div>
+    **Returns:** a sequence of {{unsigned long}}. The shape of the operand.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLOperand>shape()</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    1. Return [=this=]'s [=MLOperand/shape=].
+  </div>
+</details>
+
+## {{MLActivation}} interface ## {#api-mlactivation}
+
+Objects implementing the {{MLActivation}} interface represent activation function types.
+
+<script type=idl>
+[SecureContext, Exposed=(Window, DedicatedWorker)]
+interface MLActivation {};
+</script>
+
+<div class="internal-slots">
+{{MLActivation}} has the following internal slots:
+  <dl dfn-type=attribute dfn-for="MLActivation">
+    : <dfn>\[[name]]</dfn> of type [=string=]
+    ::
+        The {{MLActivation}}'s name.
+    : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
+    ::
+        The graph builder object this {{MLActivation}} belongs to.
+    : <dfn>\[[options]]</dfn> of type [=ordered map=]
+    ::
+        A dictionary containing {{MLActivation}} options.
+    : <dfn>\[[operator]]</dfn> of type [=platform operator=]
+    ::
+        Reference to {{MLActivation}}'s corresponding [=platform operator=].
+  </dl>
+</div>
+
+<div class="note">
+These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as {{MLGraphBuilder/conv2d()}} or {{MLGraphBuilder/batchNormalization()}} during a graph construction session. Such fused activation functions can provide a significant performance improvement when supported natively by the underlying implementation. This is intended as an optimization opportunity for implementers.
+</div>
+
+### Creating {{MLActivation}} ### {#api-mlactivation-create}
+<div class="note">
+The {{MLActivation}} objects (including the ones passed as input to methods) are created by the methods of {{MLGraphBuilder}} and are identified by their name. The |options| dictionary is defined by those methods. The actual creation of the activation function e.g. a {{MLGraphBuilder/sigmoid()}} or {{MLGraphBuilder/relu()}} can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of {{MLGraphBuilder/conv2d()}} for example.
+</div>
+
+<details open algorithm>
+  <summary>
+    To <dfn>create an MLActivation</dfn> given {{MLGraphBuilder}} |builder|, [=string=] |name|, optional [=ordered map=] |options| and optional algorithm |init-steps|, run the following steps:
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |activation| be a new {{MLActivation}}.
+    1. Set |activation|.{{MLActivation/[[builder]]}} to |builder|.
+    1. Set |activation|.{{MLActivation/[[name]]}} to |name|.
+    1. If |options| is given, set |activation|.{{MLActivation/[[options]]}} to |options|.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+        1. Make a request to the underlying platform to:
+            1. Create [=platform operator=] |opImpl| for the given |name| operation.
+            1. Set |activation|.{{MLActivation/[[operator]]}} to |opImpl|.
+        1. If |init-steps| are given, run |init-steps| with |options|.
+            1. Otherwise, initialize |activation|.{{MLActivation/[[operator]]}} given |options| in an [=implementation-defined=] way for the given |name| operation.
+    1. Return |activation|.
+  </div>
+</details>
+
 ## {{MLGraphBuilder}} interface ## {#api-mlgraphbuilder}
 
 The {{MLGraphBuilder}} interface defines a set of operations as identified by the [[#usecases]] that can be composed into a computational graph. It also represents the intermediate state of a graph building session.
@@ -1171,7 +1346,187 @@ Issue(552): Decide how to specify graph initialization.
   </div>
 </details>
 
-### argMin/Max ### {#api-mlgraphbuilder-argminmax}
+### input operands ### {#api-mlgraphbuilder-input}
+
+Create a named {{MLOperand}} based on a descriptor, that can be used as an input.
+
+<div>
+    **Arguments:**
+        - *name*: a [=string=] name of the input.
+        - *descriptor*: an {{MLOperandDescriptor}} object.
+    **Returns:**: an {{MLOperand}} object.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>input(|name|, |descriptor|)</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. If |name| is empty, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
+        1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
+        1. Make a request to the underlying platform to:
+            1. Create an [=implementation-defined=] platform input operand |operandImpl| given |descriptor|.
+            1. Set |operand|.{{MLOperand/[[operand]]}} to |operandImpl|.
+            1. Register |operand| as an input.
+    1. Return |operand|.
+  </div>
+</details>
+
+### constant operands ### {#api-mlgraphbuilder-constant}
+Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
+
+#### {{MLGraphBuilder/constant(descriptor, bufferView)}} #### {#api-mlgraphbuilder-constant-bufferview}
+Create a constant {{MLOperand}} of the specified data type and shape that contains the initializing data.
+
+<div>
+    **Arguments:**
+        - *descriptor*: an {{MLOperandDescriptor}}. The descriptor of the output tensor.
+        - *bufferView*: an {{ArrayBufferView}}. The view of the buffer containing the initializing data.
+    **Returns:**: an {{MLOperand}}. The constant output tensor.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>constant(|descriptor|, |bufferView|)</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
+    1. If [=validating buffer with descriptor=] given |bufferView| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
+        1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |bufferView|.
+        1. Make a request to the underlying platform to:
+            1. Create an [=platform operand=] |constantImpl| to represent a constant, given |descriptor|.
+            1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
+            1. Register |operand| as a tensor constant with |bytes| as value.
+    1. Return |operand|.
+  </div>
+</details>
+
+#### {{MLGraphBuilder/constant(value, type)}} #### {#api-mlgraphbuilder-constant-value-type}
+Create a constant {{MLOperand}} of the specified value and data type.
+
+<div class="note">
+Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a float value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
+</div>
+
+<div>
+    **Arguments:**
+        - *value*: a {{float}} number. The value of the constant.
+        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
+    **Returns:**: an {{MLOperand}}. The constant output.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>constant(|value|, |type|)</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+        1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
+        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to an empty [=/list=].
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
+        1. Make a request to the underlying platform to:
+            1. Create an [=platform operand=] |constantImpl| to represent a constant, given |descriptor|.
+            1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
+            1. Register |operand| as a scalar constant with |value| as value.
+    1. Return |operand|.
+  </div>
+</details>
+
+#### {{MLGraphBuilder/constant(start, end, step, type)}} #### {#api-mlgraphbuilder-constant-range}
+Create a constant {{MLOperand}} of the specified data type and shape that contains the data as specified by the range. 
+
+<div class="note">
+Data truncation will occur when the values in the range exceed the range of the specified output data type e.g. when a float value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
+</div>
+
+<div>
+    **Arguments:**
+        - *start*: a {{float}} scalar. The starting value of the range.
+        - *end*: a {{float}} scalar. The ending value of the range.
+        - *step*: a {{float}} scalar. The gap value between two data points in the range.
+        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
+    **Returns:**: an {{MLOperand}}. The constant 1-D output tensor of size `max(0, ceil((end - start)/step))`. 
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>constant(|start|, |end|, |step|, |type|)</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    <div class="note">
+        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
+    </div>
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+        1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
+        1. Let |size| be *max(0, ceil((end - start)/step))*.
+        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |size| ».
+    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=], |start|, |end|, |step|, and |type|.
+        1. Make a request to the underlying platform to:
+            1. Create an [=implementation-defined=] platform memory buffer the size of |size| multiplied by sizeof(|descriptor|.{{MLOperandDescriptor/dataType}}).
+            2. Store the beginning address to that memory buffer as a pointer |buffer| of the corresponding data type.
+        1. [=list/For each=] |index| in [=the range=] 0 to |size|, exclusive:
+            1. Set |buffer|[|index|] to |start| + (|index| * |step|).
+        1. Make a request to the underlying platform to:
+            1. Create an [=platform operand=] |constantImpl| to represent a constant operand, given |descriptor|.
+            1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
+            1. Register |operand| as a constant with |buffer| as value.
+    1. Return |operand|.
+  </div>
+</details>
+
+### build method ### {#api-mlgraphbuilder-build}
+Build a composed graph up to a given output operand into a computational graph asynchronously.
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>build(|outputs|)</dfn> method steps are:
+  </summary>
+  <div class=algorithm-steps>
+    1. Let |promise| be [=a new promise=].
+    1. Return |promise| and run the following steps [=in parallel=]:
+        1. If |outputs| is empty, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+        1. [=map/For each=] |name| → |operand| of |outputs|:
+            1. If |name| is empty, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+        1. If any of the following sub-steps fail, then [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
+            1. Let |graph| be a new {{MLGraph}}:
+                1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
+            1. Make a request to the underlying platform to:
+                1. Connect |graph| to a new [=implementation-defined=] graph implementation |graphImpl| given |graph|.
+                1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
+            1. Make a request to the underlying platform to initialize the graph:
+                1. [=map/For each=] |name| → |operand| of |outputs|:
+                    1. If [=MLOperand/validating MLOperand=] given |operand| and [=this=] returns false, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+                    1. If |operand| was created as an input by the underlying platform:
+                        1. If |operand|.{{MLOperand/[[name]]}} is not unique for |graphImpl|, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+                        1. Add |operand|.{{MLOperand/[[descriptor]]}} to |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}].
+                    1. If |operand| was created as a constant by the underlying platform:
+                        1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
+                    1. Register |operand|.{{MLOperand/[[operand]]}} in |graphImpl| as graph output.
+                    1. Register |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
+                
+                Issue(552): Decide how to specify graph initialization.
+        1. [=Resolve=] |promise| with |graph|.
+  </div>
+</details>
+
+
+### argMin/argMax operations ### {#api-mlgraphbuilder-argminmax}
 Return the index location of the minimum or maxmium values of all the input values along the axes.
 
 <script type=idl>
@@ -1352,42 +1707,6 @@ partial interface MLGraphBuilder {
   </details>
 </div>
 
-### build ### {#api-mlgraphbuilder-build}
-Build a composed graph up to a given output operand into a computational graph asynchronously.
-
-#### {{MLGraphBuilder/build(outputs)}} #### {#api-mlgraphbuilder-build-outputs}
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>build(|outputs|)</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    1. Let |promise| be [=a new promise=].
-    1. Return |promise| and run the following steps [=in parallel=]:
-        1. If |outputs| is empty, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-        1. [=map/For each=] |name| → |operand| of |outputs|:
-            1. If |name| is empty, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-        1. If any of the following sub-steps fail, then [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
-            1. Let |graph| be a new {{MLGraph}}:
-                1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
-            1. Make a request to the underlying platform to:
-                1. Connect |graph| to a new [=implementation-defined=] graph implementation |graphImpl| given |graph|.
-                1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
-            1. Make a request to the underlying platform to initialize the graph:
-                1. [=map/For each=] |name| → |operand| of |outputs|:
-                    1. If [=MLOperand/validating MLOperand=] given |operand| and [=this=] returns false, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-                    1. If |operand| was created as an input by the underlying platform:
-                        1. If |operand|.{{MLOperand/[[name]]}} is not unique for |graphImpl|, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-                        1. Add |operand|.{{MLOperand/[[descriptor]]}} to |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}].
-                    1. If |operand| was created as a constant by the underlying platform:
-                        1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
-                    1. Register |operand|.{{MLOperand/[[operand]]}} in |graphImpl| as graph output.
-                    1. Register |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
-                
-                Issue(552): Decide how to specify graph initialization.
-        1. [=Resolve=] |promise| with |graph|.
-  </div>
-</details>
 
 ### cast ### {#api-mlgraphbuilder-cast}
 Cast each element in the input tensor to the target data type.
@@ -1584,118 +1903,6 @@ partial interface MLGraphBuilder {
         1. Connect |inputs| as input to |concatImpl|.
         1. Connect |output|.{{MLOperand/[[operand]]}} as output to |concatImpl|.
     1. Return |output|.
-  </div>
-</details>
-
-### constant ### {#api-mlgraphbuilder-constant}
-Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
-
-#### {{MLGraphBuilder/constant(descriptor, bufferView)}} #### {#api-mlgraphbuilder-constant-bufferview}
-Create a constant {{MLOperand}} of the specified data type and shape that contains the initializing data.
-
-<div>
-    **Arguments:**
-        - *descriptor*: an {{MLOperandDescriptor}}. The descriptor of the output tensor.
-        - *bufferView*: an {{ArrayBufferView}}. The view of the buffer containing the initializing data.
-    **Returns:**: an {{MLOperand}}. The constant output tensor.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>constant(|descriptor|, |bufferView|)</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    <div class="note">
-        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
-    </div>
-    1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If [=validating buffer with descriptor=] given |bufferView| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |bufferView|.
-        1. Make a request to the underlying platform to:
-            1. Create an [=platform operand=] |constantImpl| to represent a constant, given |descriptor|.
-            1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
-            1. Register |operand| as a tensor constant with |bytes| as value.
-    1. Return |operand|.
-  </div>
-</details>
-
-#### {{MLGraphBuilder/constant(value, type)}} #### {#api-mlgraphbuilder-constant-value-type}
-Create a constant {{MLOperand}} of the specified value and data type.
-
-<div class="note">
-Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a float value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
-</div>
-
-<div>
-    **Arguments:**
-        - *value*: a {{float}} number. The value of the constant.
-        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
-    **Returns:**: an {{MLOperand}}. The constant output.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>constant(|value|, |type|)</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    <div class="note">
-        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
-    </div>
-    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-        1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
-        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to an empty [=/list=].
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Make a request to the underlying platform to:
-            1. Create an [=platform operand=] |constantImpl| to represent a constant, given |descriptor|.
-            1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
-            1. Register |operand| as a scalar constant with |value| as value.
-    1. Return |operand|.
-  </div>
-</details>
-
-#### {{MLGraphBuilder/constant(start, end, step, type)}} #### {#api-mlgraphbuilder-constant-range}
-Create a constant {{MLOperand}} of the specified data type and shape that contains the data as specified by the range. 
-
-<div class="note">
-Data truncation will occur when the values in the range exceed the range of the specified output data type e.g. when a float value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
-</div>
-
-<div>
-    **Arguments:**
-        - *start*: a {{float}} scalar. The starting value of the range.
-        - *end*: a {{float}} scalar. The ending value of the range.
-        - *step*: a {{float}} scalar. The gap value between two data points in the range.
-        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
-    **Returns:**: an {{MLOperand}}. The constant 1-D output tensor of size `max(0, ceil((end - start)/step))`. 
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>constant(|start|, |end|, |step|, |type|)</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    <div class="note">
-        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
-    </div>
-    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-        1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
-        1. Let |size| be *max(0, ceil((end - start)/step))*.
-        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |size| ».
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=], |start|, |end|, |step|, and |type|.
-        1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform memory buffer the size of |size| multiplied by sizeof(|descriptor|.{{MLOperandDescriptor/dataType}}).
-            2. Store the beginning address to that memory buffer as a pointer |buffer| of the corresponding data type.
-        1. [=list/For each=] |index| in [=the range=] 0 to |size|, exclusive:
-            1. Set |buffer|[|index|] to |start| + (|index| * |step|).
-        1. Make a request to the underlying platform to:
-            1. Create an [=platform operand=] |constantImpl| to represent a constant operand, given |descriptor|.
-            1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
-            1. Register |operand| as a constant with |buffer| as value.
-    1. Return |operand|.
   </div>
 </details>
 
@@ -3395,36 +3602,6 @@ partial interface MLGraphBuilder {
  </div>
 </details>
 
-### input ### {#api-mlgraphbuilder-input}
-Create a named {{MLOperand}} based on a descriptor, that can be used as an input.
-
-<div>
-    **Arguments:**
-        - *name*: a [=string=] name of the input.
-        - *descriptor*: an {{MLOperandDescriptor}} object.
-    **Returns:**: an {{MLOperand}} object.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>input(|name|, |descriptor|)</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    <div class="note">
-        The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
-    </div>
-    1. If |name| is empty, then [=exception/throw=] a {{TypeError}}.
-    1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a "{{DataError}}" {{DOMException}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
-        1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform input operand |operandImpl| given |descriptor|.
-            1. Set |operand|.{{MLOperand/[[operand]]}} to |operandImpl|.
-            1. Register |operand| as an input.
-    1. Return |operand|.
-  </div>
-</details>
 
 ### instanceNormalization ### {#api-mlgraphbuilder-instancenorm}
 Normalize the input using [[Instance-Normalization]]. Unlike {{MLGraphBuilder/batchNormalization()}} where the mean and variance values used in the normalization are computed across all the samples in the batch dimension while the model is trained, the mean and variance values used in the instance normalization are computed on the fly for each input feature of each individual sample in the batch.
@@ -5861,190 +6038,6 @@ partial interface MLGraphBuilder {
   </details>
 </div>
 
-## {{MLOperand}} interface ## {#api-mloperand}
-
-An {{MLOperand}} represents an intermediary graph being constructed as a result of compositing parts of an operation into a fully composed operation.
-
-For instance, an {{MLOperand}} may represent a constant feeding to an operation or the result from combining multiple constants together into an operation. See also [[#programming-model]].
-
-<script type=idl>
-[SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLOperand {};
-</script>
-
-<div class=internal-slots>
-{{MLOperand}} has the following internal slots:
-  <dl dfn-type=attribute dfn-for="MLOperand">
-    : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
-    ::
-        The {{MLOperand}}'s associated builder object.
-
-    : <dfn>\[[descriptor]]</dfn> of type {{MLOperandDescriptor}}
-    ::
-        The {{MLOperand}}'s descriptor.
-
-    : <dfn>\[[name]]</dfn> of type [=string=]
-    ::
-        The {{MLOperand}}'s name (only for input operands).
-
-    : <dfn>\[[operand]]</dfn> of type [=platform operand=]
-    ::
-        Reference to {{MLOperand}}'s corresponding [=platform operand=].
-
-    : <dfn>\[[operator]]</dfn> of type [=platform operator=]
-    ::
-        Reference to {{MLOperand}}'s corresponding [=platform operator=].
-  </dl>
-</div>
-
-An {{MLOperand}}'s <dfn for=MLOperand>shape</dfn> is its {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
-
-An {{MLOperand}}'s <dfn for=MLOperand>rank</dfn> is its [=MLOperand/shape=]'s [=list/size=].
-
-An {{MLOperand}}'s <dfn for=MLOperand>dataType</dfn> is its {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
-
-Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
-
-### Creating {{MLOperand}} ### {#api-mloperand-create}
-The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, internally using the following algorithms.
-
-<details open algorithm>
-  <summary>
-    To <dfn>create an MLOperand</dfn> given {{MLGraphBuilder}} |builder| and {{MLOperandDescriptor}} |desc|, run the following steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. Let |operand| be a new {{MLOperand}}.
-    1. Set |operand|.{{MLOperand/[[builder]]}} to |builder|.
-    1. Set |operand|.{{MLOperand/[[descriptor]]}} to |desc|.
-    1. Return |operand|.
-  </div>
-</details>
-
-<details open algorithm>
-  <summary>
-    To <dfn>copy an MLOperand</dfn> given {{MLOperand}} |operand|, run the following steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. Let |result| be a new {{MLOperand}}.
-    1. Set |result|.{{MLOperand/[[builder]]}} to |operand|.{{MLOperand/[[builder]]}}.
-    1. Set |result|.{{MLOperand/[[descriptor]]}} to |operand|.{{MLOperand/[[descriptor]]}}.
-    1. If |operand|.{{MLOperand/[[name]]}} [=map/exists=], then set |result|.{{MLOperand/[[name]]}} to |operand|.{{MLOperand/[[name]]}}.
-    1. Return |result|.
-  </div>
-</details>
-
-<details open algorithm>
-  <summary>
-    To <dfn for="MLOperand">validate MLOperand</dfn> given {{MLOperand}} |operand| and {{MLGraphBuilder}} |builder|, run the following steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. If |builder| is not equal to |operand|.{{MLOperand/[[builder]]}}, return false.
-    1. Let |desc| be |operand|.{{MLOperand/[[descriptor]]}}.
-    1. If [=MLOperandDescriptor/checking dimensions=] given |desc| returns false, then return false.
-    1. Return true.
-  </div>
-</details>
-
-### dataType ### {#api-mloperand-datatype}
-Return a data type of the {{MLOperand}}.
-
-<script type=idl>
-partial interface MLOperand {
-  MLOperandDataType dataType();
-};
-</script>
-
-<div>
-    **Returns:** an {{MLOperandDataType}}. The data type of the operand.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLOperand>dataType()</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    1. Return [=this=]'s [=MLOperand/dataType=].
-  </div>
-</details>
-
-### shape ### {#api-mloperand-shape}
-Return a shape of the {{MLOperand}}.
-
-<script type=idl>
-partial interface MLOperand {
-  sequence<unsigned long> shape();
-};
-</script>
-
-<div>
-    **Returns:** a sequence of {{unsigned long}}. The shape of the operand.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLOperand>shape()</dfn> method steps are:
-  </summary>
-  <div class=algorithm-steps>
-    1. Return [=this=]'s [=MLOperand/shape=].
-  </div>
-</details>
-
-## {{MLOperandDescriptor}} dictionary ## {#api-mloperanddescriptor}
-<script type=idl>
-enum MLInputOperandLayout {
-  "nchw",
-  "nhwc"
-};
-
-enum MLOperandDataType {
-  "float32",
-  "float16",
-  "int32",
-  "uint32",
-  "int64",
-  "uint64",
-  "int8",
-  "uint8"
-};
-
-dictionary MLOperandDescriptor {
-  // The operand type.
-  required MLOperandDataType dataType;
-
-  // The dimensions field is only required for tensor operands.
-  sequence<unsigned long> dimensions = [];
-};
-</script>
-
-<details open algorithm>
-  <summary>
-    The <dfn for="MLOperandDescriptor">byte length</dfn> of an {{MLOperandDescriptor}} |desc| is the value returned by the following steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. Let |elementLength| be 1.
-    1. [=list/For each=] |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
-        1. Set |elementLength| to |elementLength| × |dimension|.
-    1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility).
-    1. Return |elementLength| × |elementSize|.
-  </div>
-</details>
-
-<details open algorithm>
-  <summary>
-    To <dfn for="MLOperandDescriptor">check dimensions</dfn> given {{MLOperandDescriptor}} |descriptor|, run the following steps:
-  </summary>
-  <div class=algorithm-steps>
-    1. If any element of |descriptor|.{{MLOperandDescriptor/dimensions}} is too large to be supported by the implementation, return false.
-    1. If |descriptor|.{{MLOperandDescriptor/dimensions}}'s [=list/size=] is too large to be supported by the implementation, return false.
-
-        Issue(456): The maximum number of operand dimensions is not defined, but native ML APIs usually have a maximum supported size.
-
-    1. If |descriptor|'s [=MLOperandDescriptor/byte length=] is not supported by the implementation, then return false.
-    1. Return true.
-  </div>
-
-
-</details>
 
 
 Algorithms {#algorithms}
