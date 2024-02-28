@@ -1571,7 +1571,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: |op| is one of "argMin", "argMax".
-    1. If |options|.{{MLArgMinMaxOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLArgMinMaxOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{RangeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLArgMinMaxOptions/axes}} (if it [=map/exists=]), and |options|.{{MLArgMinMaxOptions/keepDimensions}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"int64"}}.
@@ -1877,7 +1877,7 @@ partial interface MLGraphBuilder {
     </div>
     1. If |inputs| [=list/is empty=], then [=exception/throw=] a {{TypeError}}.
     1. Let |first| be |inputs|[0].
-    1. If |axis| is greater than or equal to |first|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
+    1. If |axis| is greater than or equal to |first|'s [=MLOperand/rank=], then [=exception/throw=] a {{RangeError}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |first|'s [=MLOperand/dataType=].
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to a [=list/clone=] of |first|'s [=MLOperand/shape=].
@@ -2257,7 +2257,7 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLConvTranspose2dOptions/outputSizes}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. If the elements of |options|.{{MLConvTranspose2dOptions/outputSizes}} are not smaller than the elements at the same dimension (index) for |options|.{{MLConvTranspose2dOptions/strides}}, then [=exception/throw=] a {{TypeError}}.
     1. If |inputSize| / |options|.{{MLConvTranspose2dOptions/groups}} is not equal to |filterSize|, then [=exception/throw=] a {{TypeError}}.
-    1. Else if |inputSize| % |options|.{{MLConvTranspose2dOptions/groups}} is not 0, then [=exception/throw=] a {{RangeError}}.
+    1. Else if |inputSize| % |options|.{{MLConvTranspose2dOptions/groups}} is not 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
         1. If |options|.{{MLConvTranspose2dOptions/bias}}'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLConvTranspose2dOptions/bias}}'s [=MLOperand/dataType=] is not the same as |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -2877,9 +2877,9 @@ partial interface MLGraphBuilder {
     1. Let |shapeIndices| be |indices|'s [=MLOperand/shape=].
     1. Let |axis| be |options|.{{MLGatherOptions/axis}}.
     1. Let |axisSize| be |input|'s [=MLOperand/shape=][|axis|]
-    1. If |axis| is greater than or equal to |rankInput|, then [=exception/throw=] a {{TypeError}}.
+    1. If |axis| is greater than or equal to |rankInput|, then [=exception/throw=] a {{RangeError}}.
     1. [=map/For each=] |index| → |value| of |indices|:
-        1. If |index| is greater than or equal to |axisSize|, then [=exception/throw=] a {{TypeError}}.
+        1. If |index| is greater than or equal to |axisSize|, then [=exception/throw=] a {{RangeError}}.
     1. Let |dimCount| be zero.
     1. Let |rankOutput| be zero.
     1. Let |shapeOutput| be an empty list.
@@ -3758,7 +3758,7 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLLayerNormalizationOptions/bias}}'s [=MLOperand/rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a {{TypeError}}.
     1. [=list/For each=] |index| in [=the range=] 0 to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], exclusive:
         1. Let |axis| be |options|.{{MLLayerNormalizationOptions/axes}}[|index|].
-        1. If |axis| is greater or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
+        1. If |axis| is greater or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{RangeError}}.
         1. Let |size| be |input|'s [=MLOperand/shape=][|axis|].
         1. If |options|.{{MLLayerNormalizationOptions/scale}}'s [=MLOperand/shape=][|index|] is not equal to |size|, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLLayerNormalizationOptions/bias}}'s [=MLOperand/shape=][|index|] is not equal to |size|, then [=exception/throw=] a {{TypeError}}.
@@ -4767,13 +4767,13 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLPool2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLPool2dOptions/strides}} does not [=map/exist=], set |options|.{{MLPool2dOptions/strides}} to the [=/list=] « 1, 1 ».
     1. If |options|.{{MLPool2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If any value in |options|.{{MLPool2dOptions/strides}} is not greater than 0, then [=exception/throw=] a {{TypeError}}.
+    1. If any value in |options|.{{MLPool2dOptions/strides}} is not greater than 0, then [=exception/throw=] a {{RangeError}}.
     1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=]:
         1. If |options|.{{MLPool2dOptions/outputSizes}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. If the elements of |options|.{{MLPool2dOptions/outputSizes}} are not smaller than the elements at the same dimension (index) for |options|.{{MLPool2dOptions/strides}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLPool2dOptions/dilations}} does not [=map/exist=], set |options|.{{MLPool2dOptions/dilations}} to the [=/list=] « 1, 1 ».
     1. If |options|.{{MLPool2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then [=exception/throw=] a {{TypeError}}.
+    1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then [=exception/throw=] a {{RangeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
         1. Make a request to the underlying platform to:
@@ -4961,7 +4961,7 @@ partial interface MLGraphBuilder {
   </summary>
   <div class=algorithm-steps>
     1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
-    1. If |options|.{{MLReduceOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLReduceOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{RangeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLReduceOptions/axes}} (if it [=map/exists=]), and |options|.{{MLReduceOptions/keepDimensions}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
