@@ -1086,7 +1086,7 @@ dictionary MLOperandDescriptor {
 
   // The dimensions field is empty for scalar operands,
   // and non-empty for tensor operands.
-  sequence<unsigned long> dimensions = [];
+  sequence<[EnforceRange] unsigned long> dimensions = [];
 };
 </script>
 
@@ -1531,7 +1531,7 @@ Return the index location of the minimum or maxmium values of all the input valu
 
 <script type=idl>
 dictionary MLArgMinMaxOptions {
-  sequence<unsigned long> axes;
+  sequence<[EnforceRange] unsigned long> axes;
   boolean keepDimensions = false;
   boolean selectLastIndex = false;
 };
@@ -1617,7 +1617,7 @@ Normalize the values of the input tensor using [[Batch-Normalization]]. For each
 dictionary MLBatchNormalizationOptions {
   MLOperand scale;
   MLOperand bias;
-  unsigned long axis = 1;
+  [EnforceRange] unsigned long axis = 1;
   float epsilon = 1e-5;
   MLActivation activation;
 };
@@ -1851,7 +1851,7 @@ partial interface MLGraphBuilder {
 Concatenates the input tensors along a given axis.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand concat(sequence<MLOperand> inputs, unsigned long axis);
+  MLOperand concat(sequence<MLOperand> inputs, [EnforceRange] unsigned long axis);
 };
 </script>
 <div>
@@ -1917,10 +1917,10 @@ enum MLConv2dFilterOperandLayout {
 };
 
 dictionary MLConv2dOptions {
-  sequence<unsigned long> padding;
-  sequence<unsigned long> strides;
-  sequence<unsigned long> dilations;
-  unsigned long groups = 1;
+  sequence<[EnforceRange] unsigned long> padding;
+  sequence<[EnforceRange] unsigned long> strides;
+  sequence<[EnforceRange] unsigned long> dilations;
+  [EnforceRange] unsigned long groups = 1;
   MLInputOperandLayout inputLayout = "nchw";
   MLConv2dFilterOperandLayout filterLayout = "oihw";
   MLOperand bias;
@@ -2115,12 +2115,12 @@ enum MLConvTranspose2dFilterOperandLayout {
 };
 
 dictionary MLConvTranspose2dOptions {
-  sequence<unsigned long> padding;
-  sequence<unsigned long> strides;
-  sequence<unsigned long> dilations;
-  sequence<unsigned long> outputPadding;
-  sequence<unsigned long> outputSizes;
-  unsigned long groups = 1;
+  sequence<[EnforceRange] unsigned long> padding;
+  sequence<[EnforceRange] unsigned long> strides;
+  sequence<[EnforceRange] unsigned long> dilations;
+  sequence<[EnforceRange] unsigned long> outputPadding;
+  sequence<[EnforceRange] unsigned long> outputSizes;
+  [EnforceRange] unsigned long groups = 1;
   MLInputOperandLayout inputLayout = "nchw";
   MLConvTranspose2dFilterOperandLayout filterLayout = "iohw";
   MLOperand bias;
@@ -2803,7 +2803,7 @@ partial interface MLGraphBuilder {
 Expand any dimension of size 1 of the input tensor to a larger size according to the new shape. The expansion is consistent with [[!numpy-broadcasting-rule]]. The input dimensions must have the size of 1 or match the sizes of the corresponding output dimensions according to the new shape.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand expand(MLOperand input, sequence<unsigned long> newShape);
+  MLOperand expand(MLOperand input, sequence<[EnforceRange] unsigned long> newShape);
 };
 </script>
 <div>
@@ -2843,7 +2843,7 @@ partial interface MLGraphBuilder {
 Gather values of the input tensor along an axis according to the indices.
 <script type=idl>
 dictionary MLGatherOptions {
-  unsigned long axis = 0;
+  [EnforceRange] unsigned long axis = 0;
 };
 
 partial interface MLGraphBuilder {
@@ -3096,8 +3096,11 @@ dictionary MLGruOptions {
 };
 
 partial interface MLGraphBuilder {
-  sequence<MLOperand> gru(MLOperand input, MLOperand weight, MLOperand recurrentWeight,
-                          unsigned long steps, unsigned long hiddenSize,
+  sequence<MLOperand> gru(MLOperand input,
+                          MLOperand weight,
+                          MLOperand recurrentWeight,
+                          [EnforceRange] unsigned long steps,
+                          [EnforceRange] unsigned long hiddenSize,
                           optional MLGruOptions options = {});
 };
 </script>
@@ -3257,8 +3260,11 @@ dictionary MLGruCellOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand gruCell(MLOperand input, MLOperand weight, MLOperand recurrentWeight,
-                    MLOperand hiddenState, unsigned long hiddenSize,
+  MLOperand gruCell(MLOperand input,
+                    MLOperand weight,
+                    MLOperand recurrentWeight,
+                    MLOperand hiddenState,
+                    [EnforceRange] unsigned long hiddenSize,
                     optional MLGruCellOptions options = {});
 };
 </script>
@@ -3712,7 +3718,7 @@ Normalize the input using [[Layer-Normalization]]. Unlike {{MLGraphBuilder/batch
 dictionary MLLayerNormalizationOptions {
   MLOperand scale;
   MLOperand bias;
-  sequence<unsigned long> axes;
+  sequence<[EnforceRange] unsigned long> axes;
   float epsilon = 1e-5;
 };
 
@@ -4008,8 +4014,11 @@ dictionary MLLstmOptions {
 };
 
 partial interface MLGraphBuilder {
-  sequence<MLOperand> lstm(MLOperand input, MLOperand weight, MLOperand recurrentWeight,
-                           unsigned long steps, unsigned long hiddenSize,
+  sequence<MLOperand> lstm(MLOperand input,
+                           MLOperand weight,
+                           MLOperand recurrentWeight,
+                           [EnforceRange] unsigned long steps,
+                           [EnforceRange] unsigned long hiddenSize,
                            optional MLLstmOptions options = {});
 };
 </script>
@@ -4219,8 +4228,12 @@ dictionary MLLstmCellOptions {
 };
 
 partial interface MLGraphBuilder {
-  sequence<MLOperand> lstmCell(MLOperand input, MLOperand weight, MLOperand recurrentWeight,
-                               MLOperand hiddenState, MLOperand cellState, unsigned long hiddenSize,
+  sequence<MLOperand> lstmCell(MLOperand input,
+                               MLOperand weight,
+                               MLOperand recurrentWeight,
+                               MLOperand hiddenState,
+                               MLOperand cellState,
+                               [EnforceRange] unsigned long hiddenSize,
                                optional MLLstmCellOptions options = {});
 };
 </script>
@@ -4501,8 +4514,8 @@ dictionary MLPadOptions {
 
 partial interface MLGraphBuilder {
   MLOperand pad(MLOperand input,
-                sequence<unsigned long> beginningPadding,
-                sequence<unsigned long> endingPadding,
+                sequence<[EnforceRange] unsigned long> beginningPadding,
+                sequence<[EnforceRange] unsigned long> endingPadding,
                 optional MLPadOptions options = {});
 };
 </script>
@@ -4618,13 +4631,13 @@ enum MLRoundingType {
 };
 
 dictionary MLPool2dOptions {
-  sequence<unsigned long> windowDimensions;
-  sequence<unsigned long> padding;
-  sequence<unsigned long> strides;
-  sequence<unsigned long> dilations;
+  sequence<[EnforceRange] unsigned long> windowDimensions;
+  sequence<[EnforceRange] unsigned long> padding;
+  sequence<[EnforceRange] unsigned long> strides;
+  sequence<[EnforceRange] unsigned long> dilations;
   MLInputOperandLayout layout = "nchw";
   MLRoundingType roundingType = "floor";
-  sequence<unsigned long> outputSizes;
+  sequence<[EnforceRange] unsigned long> outputSizes;
 };
 
 partial interface MLGraphBuilder {
@@ -4885,7 +4898,7 @@ partial interface MLGraphBuilder {
 Reduce the input tensor along all dimensions, or along the axes specified in the {{MLReduceOptions/axes}}  array parameter. For each specified axis, the dimension with that index is reduced, i.e. the resulting tensor will not contain it, unless the {{MLReduceOptions/keepDimensions}} option is specified. The values of the resulting tensor are calculated using the specified reduction function that takes as parameters all the values across the reduced dimension.
 <script type=idl>
 dictionary MLReduceOptions {
-  sequence<unsigned long> axes;
+  sequence<[EnforceRange] unsigned long> axes;
   boolean keepDimensions = false;
 };
 
@@ -5139,8 +5152,8 @@ enum MLInterpolationMode {
 dictionary MLResample2dOptions {
   MLInterpolationMode mode = "nearest-neighbor";
   sequence<float> scales;
-  sequence<unsigned long> sizes;
-  sequence<unsigned long> axes;
+  sequence<[EnforceRange] unsigned long> sizes;
+  sequence<[EnforceRange] unsigned long> axes;
 };
 
 partial interface MLGraphBuilder {
@@ -5234,7 +5247,7 @@ partial interface MLGraphBuilder {
 Alter the shape of a tensor to a new shape. Reshape does not copy or change the content of the tensor. It just changes the tensor's logical dimensions for the subsequent operations.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand reshape(MLOperand input, sequence<unsigned long> newShape);
+  MLOperand reshape(MLOperand input, sequence<[EnforceRange] unsigned long> newShape);
 };
 </script>
 <div>
@@ -5390,7 +5403,9 @@ partial interface MLGraphBuilder {
 Produce a slice of the input tensor.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand slice(MLOperand input, sequence<unsigned long> starts, sequence<unsigned long> sizes);
+  MLOperand slice(MLOperand input,
+                  sequence<[EnforceRange] unsigned long> starts,
+                  sequence<[EnforceRange] unsigned long> sizes);
 };
 </script>
 <div>
@@ -5666,12 +5681,12 @@ partial interface MLGraphBuilder {
 Split the input tensor into a number of sub tensors along the given axis.
 <script type=idl>
 dictionary MLSplitOptions {
-  unsigned long axis = 0;
+  [EnforceRange] unsigned long axis = 0;
 };
 
 partial interface MLGraphBuilder {
   sequence<MLOperand> split(MLOperand input,
-                          (unsigned long or sequence<unsigned long>) splits,
+                          ([EnforceRange] unsigned long or sequence<[EnforceRange] unsigned long>) splits,
                           optional MLSplitOptions options = {});
 };
 </script>
@@ -5814,7 +5829,7 @@ partial interface MLGraphBuilder {
 Permute the dimensions of the input tensor according to the *permutation* argument.
 <script type=idl>
 dictionary MLTransposeOptions {
-  sequence<unsigned long> permutation;
+  sequence<[EnforceRange] unsigned long> permutation;
 };
 
 partial interface MLGraphBuilder {
@@ -5868,7 +5883,7 @@ Given a 2-D tensor (matrix), return a 2-D tensor containing either the upper or 
 <script type=idl>
 dictionary MLTriangularOptions {
   boolean upper = true;
-  long diagonal = 0;
+  [EnforceRange] long diagonal = 0;
 };
 
 partial interface MLGraphBuilder {
