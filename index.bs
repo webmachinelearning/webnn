@@ -4028,13 +4028,16 @@ partial interface MLGraphBuilder {
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |numDirections|, |batchSize|, |hiddenSize| ».
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+        1. If |options|.{{MLLstmOptions/returnSequence}} is true:
+            1. Let |desc2| be a new {{MLOperandDescriptor}}.
+            1. Set |desc2|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+            1. Set |desc2|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the LSTM operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. If |options|.{{MLLstmOptions/returnSequence}} is set to true:
-            1. Let |output2| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
+        1. If |options|.{{MLLstmOptions/returnSequence}} is true:
+            1. Let |output2| be the result of [=creating an MLOperand=] given [=this=] and |desc2|.
             1. Let |output| be the [=/list=] « |output0|, |output1|, |output2| ».
         1. Otherwise:
             1. Let |output| be the [=/list=] « |output0|, |output1| ».
