@@ -1006,13 +1006,11 @@ In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the
         1. If [=validating graph resources=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=queue an ml task=] with |global| to [=reject=] |promise| with a {{TypeError}}.
         1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs| with |realm|.
         1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs| with |realm|.
-        1. Invoke [=execute graph=] given |graph|, |transferredInputs| and |transferredOutputs|.
-        1. If that [=exception/throws=] an error, [=queue an ml task=] with |global| to [=reject=] |promise| with the error.
-        1. Otherwise, when [=execute graph=] has completed:
-            1. Let |result| be a new {{MLComputeResult}} with |realm|.
-            1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
-            1. Set |result|.{{MLComputeResult/outputs}} to |transferredOutputs|.
-            1. [=Queue an ml task=] with |global| to [=resolve=] |promise| with |result|.
+        1. Invoke [=execute graph=] given |graph|, |transferredInputs| and |transferredOutputs|. If that [=exception/throws=] an error, [=queue an ml task=] with |global| to [=reject=] |promise| with the error and abort these steps.
+        1. Let |result| be a new {{MLComputeResult}} with |realm|.
+        1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
+        1. Set |result|.{{MLComputeResult/outputs}} to |transferredOutputs|.
+        1. [=Queue an ml task=] with |global| to [=resolve=] |promise| with |result|.
     1. Return |promise|.
   </div>
 </details>
