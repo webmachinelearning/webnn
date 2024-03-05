@@ -934,7 +934,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 
 <details open algorithm>
   <summary>
-    To <dfn>execute graph</dfn>, given {{MLGraph}} |graph|, {{MLNamedArrayBufferViews}} |inputs| and {{MLNamedArrayBufferViews}} |outputs|, run the following steps:
+    To <dfn>execute graph</dfn>, given {{MLGraph}} |graph|, {{MLNamedArrayBufferViews}} |inputs| and {{MLNamedArrayBufferViews}} |outputs|, run the following steps. They return {{undefined}}, or an error.
   </summary>
   <div class=algorithm-steps>
     1. Let |inputResources| denote the input resources of |graph|.{{MLGraph/[[implementation]]}}.
@@ -947,11 +947,11 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
         1. Request the underlying implementation of |graph| to bind |inputResources|[|name|] to |inputTensor|.
     1. [=map/For each=] |name| → |outputValue| of |outputs|:
         1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |name| and |inputResources| and wait for completion.
-            1. If that returns an error, then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+            1. If that returns an error, then return an "{{OperationError}}" {{DOMException}}.
             1. Otherwise, store the result in |outputTensor|.
         1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|].
-        1. If the byte length of |outputTensor| is not equal to |outputDesc|'s [=MLOperandDescriptor/byte length=], then [=exception/throw=] a {{TypeError}}.
-        1. If |outputTensor|'s [=element type=] doesn't match |outputValue|'s [=element type=], then [=exception/throw=] a {{TypeError}}.
+        1. If the byte length of |outputTensor| is not equal to |outputDesc|'s [=MLOperandDescriptor/byte length=], then return a {{TypeError}}.
+        1. If |outputTensor|'s [=element type=] doesn't match |outputValue|'s [=element type=], then return a {{TypeError}}.
         1. Request the underlying implementation of |graph| to set the values of elements in |outputValue| to the values of elements in |outputTensor|.
     1. Return {{undefined}}.
   </div>
@@ -1000,13 +1000,13 @@ In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
     1. Run the following steps [=in parallel=]:
-        1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}.
-        1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}.
-        1. If [=validating graph resources=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}.
-        1. If [=validating graph resources=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}.
+        1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}} and abort these steps.
+        1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}} and abort these steps.
+        1. If [=validating graph resources=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}} and abort these steps.
+        1. If [=validating graph resources=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}} and abort these steps.
         1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs| with |realm|.
         1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs| with |realm|.
-        1. Invoke [=execute graph=] given |graph|, |transferredInputs| and |transferredOutputs|. If that [=exception/throws=] an error, [=queue an ML task=] with |global| to [=reject=] |promise| with the error and abort these steps.
+        1. Invoke [=execute graph=] given |graph|, |transferredInputs| and |transferredOutputs|. If that returns an error, then [=queue an ML task=] with |global| to [=reject=] |promise| with an equivalent error in |realm| and abort these steps.
         1. Let |result| be a new {{MLComputeResult}} with |realm|.
         1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
         1. Set |result|.{{MLComputeResult/outputs}} to |transferredOutputs|.
