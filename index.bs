@@ -996,16 +996,16 @@ In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the
     The <dfn method for=MLContext>compute(|graph|, |inputs|, |outputs|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. Let |promise| be [=a new promise=].
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", then return [=a new promise=] [=rejected=] with an "{{OperationError}}" {{DOMException}}.
+    1. If [=validating graph resources=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If [=validating graph resources=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs| with |realm|.
+    1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs| with |realm|.
+    1. Let |promise| be [=a new promise=].
     1. Run the following steps [=in parallel=]:
-        1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}} and abort these steps.
-        1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}} and abort these steps.
-        1. If [=validating graph resources=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}} and abort these steps.
-        1. If [=validating graph resources=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}} and abort these steps.
-        1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs| with |realm|.
-        1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs| with |realm|.
         1. Invoke [=execute graph=] given |graph|, |transferredInputs| and |transferredOutputs|. If that returns an error, then [=queue an ML task=] with |global| to [=reject=] |promise| with an equivalent error in |realm| and abort these steps.
         1. Let |result| be a new {{MLComputeResult}} with |realm|.
         1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
