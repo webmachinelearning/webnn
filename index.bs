@@ -55,6 +55,8 @@ spec:html;
 spec:webidl;
     type:dfn; text:record
     type:dfn; text:resolve
+spec:ecmascript; for:ECMAScript;
+    type:dfn; text:realm
 </pre>
 
 <style>
@@ -736,6 +738,15 @@ In a situation when a GPU context executes a graph with a constant or an input i
 
 When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's [=power preference=] and [=device type=] specified in the {{MLPowerPreference}} and {{MLDeviceType}} options.
 
+## Task Source ## {#programming-model-task-source}
+
+The <dfn>ML task source</dfn> is a [=task source=] to be used for all [=tasks=] related to asynchronous compilation and execution of {{MLGraph}}s and creation of {{MLContext}}s.
+
+<div algorithm>
+<p>To <dfn>queue an ML task</dfn> given a [=global object=] |global| and a series of steps |steps|, [=queue a global task=] on the [=ML task source=] with |global| and |steps|.
+</div>
+
+
 API {#api}
 =====================
 
@@ -813,10 +824,10 @@ The <dfn>power preference</dfn> indicates preference as related to power consump
 
 <details open algorithm>
 <summary>
-    To <dfn>create a context</dfn> given |options| (a {{GPUDevice}} or {{MLContextOptions}}), run these steps:
+    To <dfn>create a context</dfn> given [=realm=] |realm| and |options| (a {{GPUDevice}} or {{MLContextOptions}}), run these steps:
 </summary>
 <div class=algorithm-steps>
-    1. Let |context| be a new {{MLContext}} object.
+    1. Let |context| be a new {{MLContext}} object with |realm|.
     1. If |options| is a {{GPUDevice}} object,
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/webgpu=]".
         1. Set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"gpu"}}.
@@ -835,11 +846,14 @@ The <dfn>power preference</dfn> indicates preference as related to power consump
     The <dfn method for=ML>createContext(|options|)</dfn> steps are:
 </summary>
 <div class=algorithm-steps>
-    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. Let |global| be [=this=]'s [=relevant global object=].
+    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. Let |realm| be [=this=]'s [=relevant realm=].
     1. Let |promise| be [=a new promise=].
-    1. Return |promise| and run the following steps [=in parallel=].
-    1. Let |context| be the result of [=creating a context=] given |options|. If that returns failure, then [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}}.
-    1. [=Resolve=] |promise| with |context|.
+    1. Run the following steps [=in parallel=].
+        1. Let |context| be the result of [=creating a context=] given |realm| and |options|. If that returns failure, then [=queue an ML task=] with |global| to [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
+        1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |context|.
+    1. Return |promise|.
 </div>
 </details>
 
@@ -848,11 +862,14 @@ The <dfn>power preference</dfn> indicates preference as related to power consump
     The <dfn method for=ML>createContext(|gpuDevice|)</dfn> method steps are:
 </summary>
 <div class=algorithm-steps>
-    1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. Let |global| be [=this=]'s [=relevant global object=].
+    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. Let |realm| be [=this=]'s [=relevant realm=].
     1. Let |promise| be [=a new promise=].
-    1. Return |promise| and run the following steps [=in parallel=].
-    1. Let |context| be the result of [=creating a context=] given |gpuDevice|. If that returns failure, [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}}.
-    1. [=Resolve=] |promise| with |context|.
+    1. Run the following steps [=in parallel=].
+        1. Let |context| be the result of [=creating a context=] given |realm| and |gpuDevice|. If that returns failure, then [=queue an ML task=] with |global| to [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
+        1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |context|.
+    1. Return |promise|.
 </div>
 </details>
 
@@ -917,7 +934,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 
 <details open algorithm>
   <summary>
-    To <dfn>execute graph</dfn>, given {{MLGraph}} |graph|, {{MLNamedArrayBufferViews}} |inputs| and {{MLNamedArrayBufferViews}} |outputs|, run the following steps:
+    To <dfn>execute graph</dfn>, given {{MLGraph}} |graph|, {{MLNamedArrayBufferViews}} |inputs| and {{MLNamedArrayBufferViews}} |outputs|, run the following steps. They return {{undefined}}, or an error.
   </summary>
   <div class=algorithm-steps>
     1. Let |inputResources| denote the input resources of |graph|.{{MLGraph/[[implementation]]}}.
@@ -930,11 +947,11 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
         1. Request the underlying implementation of |graph| to bind |inputResources|[|name|] to |inputTensor|.
     1. [=map/For each=] |name| → |outputValue| of |outputs|:
         1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |name| and |inputResources| and wait for completion.
-            1. If that returns an error, then [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+            1. If that returns an error, then return an "{{OperationError}}" {{DOMException}}.
             1. Otherwise, store the result in |outputTensor|.
         1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|].
-        1. If the byte length of |outputTensor| is not equal to |outputDesc|'s [=MLOperandDescriptor/byte length=], then [=exception/throw=] a {{TypeError}}.
-        1. If |outputTensor|'s [=element type=] doesn't match |outputValue|'s [=element type=], then [=exception/throw=] a {{TypeError}}.
+        1. If the byte length of |outputTensor| is not equal to |outputDesc|'s [=MLOperandDescriptor/byte length=], then return a {{TypeError}}.
+        1. If |outputTensor|'s [=element type=] doesn't match |outputValue|'s [=element type=], then return a {{TypeError}}.
         1. Request the underlying implementation of |graph| to set the values of elements in |outputValue| to the values of elements in |outputTensor|.
     1. Return {{undefined}}.
   </div>
@@ -944,13 +961,13 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLNamedArrayBufferViews">transfer</dfn> an {{MLNamedArrayBufferViews}} |views|:
+    To <dfn for="MLNamedArrayBufferViews">transfer</dfn> an {{MLNamedArrayBufferViews}} |views| with [=realm=] |realm|:
   </summary>
   <div class=algorithm-steps>
     1. Let |transferredViews| be a new {{MLNamedArrayBufferViews}}.
     1. [=map/For each=] |name| → |view| of |views|:
         1. Let |transferredBuffer| be the result of [=ArrayBuffer/transfer|transferring=] |view|'s [=BufferSource/underlying buffer=].
-        1. Let |constructor| be the appropriate [=view constructor=] for the type of {{ArrayBufferView}} |view|.
+        1. Let |constructor| be the appropriate [=view constructor=] for the type of {{ArrayBufferView}} |view| from |realm|.
         1. Let |elementsNumber| be the result of |view|'s [=BufferSource/byte length=] ÷ |view|'s [=element size=].
         1. Let |transferredView| be [$Construct$](|constructor|, |transferredBuffer|, |view|.\[[ByteOffset]], |elementsNumber|).
         1. Set |transferredViews|[|name|] to |transferredView|.
@@ -979,21 +996,22 @@ In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the
     The <dfn method for=MLContext>compute(|graph|, |inputs|, |outputs|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
+    1. Let |global| be [=this=]'s [=relevant global object=].
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", then return [=a new promise=] [=rejected=] with an "{{OperationError}}" {{DOMException}}.
+    1. If [=validating graph resources=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If [=validating graph resources=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs| with |realm|.
+    1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs| with |realm|.
     1. Let |promise| be [=a new promise=].
-    1. Return |promise| and run the following steps [=in parallel=]:
-        1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then [=reject=] |promise| with a {{TypeError}}.
-        1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}.
-        1. If [=validating graph resources=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=reject=] |promise| with a {{TypeError}}.
-        1. If [=validating graph resources=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=reject=] |promise| with a {{TypeError}}.
-        1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs|.
-        1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs|.
-        1. Invoke [=execute graph=] given |graph|, |transferredInputs| and |transferredOutputs|.
-        1. If that [=exception/throws=] an error, [=reject=] |promise| with the error.
-        1. Otherwise, when [=execute graph=] has completed:
-            1. Let |result| be a new {{MLComputeResult}}.
-            1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
-            1. Set |result|.{{MLComputeResult/outputs}} to |transferredOutputs|.
-            1. [=Resolve=] |promise| with |result|.
+    1. Run the following steps [=in parallel=]:
+        1. Invoke [=execute graph=] given |graph|, |transferredInputs| and |transferredOutputs|. If that returns an error, then [=queue an ML task=] with |global| to [=reject=] |promise| with an equivalent error in |realm| and abort these steps.
+        1. Let |result| be a new {{MLComputeResult}} with |realm|.
+        1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
+        1. Set |result|.{{MLComputeResult/outputs}} to |transferredOutputs|.
+        1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |result|.
+    1. Return |promise|.
   </div>
 </details>
 
@@ -1499,21 +1517,23 @@ Build a composed graph up to a given output operand into a computational graph a
   </summary>
   <div class=algorithm-steps>
     1. Let |promise| be [=a new promise=].
-    1. Return |promise| and run the following steps [=in parallel=]:
-        1. If |outputs| is empty, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+    1. Let |global| be [=this=]'s [=relevant global object=].
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. Run the following steps [=in parallel=]:
+        1. If |outputs| is empty, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}, and abort these steps.
         1. [=map/For each=] |name| → |operand| of |outputs|:
-            1. If |name| is empty, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-        1. If any of the following sub-steps fail, then [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
-            1. Let |graph| be a new {{MLGraph}}:
+            1. If |name| is empty, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+        1. If any of the following sub-steps fail, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
+            1. Let |graph| be a new {{MLGraph}} with |realm|:
                 1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
             1. Make a request to the underlying platform to:
                 1. Connect |graph| to a new [=implementation-defined=] graph implementation |graphImpl| given |graph|.
                 1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
             1. Make a request to the underlying platform to initialize the graph:
                 1. [=map/For each=] |name| → |operand| of |outputs|:
-                    1. If [=MLOperand/validating MLOperand=] given |operand| and [=this=] returns false, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+                    1. If [=MLOperand/validating MLOperand=] given |operand| and [=this=] returns false, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}, and abort these steps.
                     1. If |operand| was created as an input by the underlying platform:
-                        1. If |operand|.{{MLOperand/[[name]]}} is not unique for |graphImpl|, then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+                        1. If |operand|.{{MLOperand/[[name]]}} is not unique for |graphImpl|, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}, and abort these steps.
                         1. Add |operand|.{{MLOperand/[[descriptor]]}} to |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}].
                     1. If |operand| was created as a constant by the underlying platform:
                         1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
@@ -1521,7 +1541,8 @@ Build a composed graph up to a given output operand into a computational graph a
                     1. Register |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
                 
                 Issue(552): Decide how to specify graph initialization.
-        1. [=Resolve=] |promise| with |graph|.
+        1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
+    1. Return |promise|.
   </div>
 </details>
 
