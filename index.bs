@@ -1675,6 +1675,8 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLBatchNormalizationOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activation functions=].
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
+        1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
   </div>
@@ -1883,7 +1885,7 @@ partial interface MLGraphBuilder {
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the concat operation, given |inputs| and |axis|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/input=] to |inputs|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
   </div>
@@ -2078,7 +2080,7 @@ partial interface MLGraphBuilder {
         1. Let |operator| be an [=operator=] for the conv2d operation, given |options| and |filter|.
         1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activations=].
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/inputs=] to |input| and |filter|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
   </div>
@@ -2288,9 +2290,9 @@ partial interface MLGraphBuilder {
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the convTranspose2d operation, given |options| and |filter|.
-        1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], add it to |operator|'s [=operator/activations=].
+        1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activations=].
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/inputs=] to |input| and |filter|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
   </div>
@@ -3003,6 +3005,7 @@ partial interface MLGraphBuilder {
         1. Let |operator| be an [=operator=] for the GEMM operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |a| and |b|.
+        1. If |options|.{{MLGemmOptions/c}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
   </div>
@@ -3130,7 +3133,10 @@ partial interface MLGraphBuilder {
 
             Issue: Populate |output|
 
-        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/inputs=] to |input|, |weight|, and |recurrentWeight|.
+        1. If |options|.{{MLGruOptions/bias=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLGruOptions/recurrentBias=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLGruOptions/initialHiddenState=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
   </div>
@@ -3616,6 +3622,8 @@ partial interface MLGraphBuilder {
         1. Let |operator| be an [=operator=] for the instance normalization operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
+        1. If |options|.{{MLInstanceNormalizationOptions/scale}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLInstanceNormalizationOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
   </div>
@@ -3719,6 +3727,8 @@ partial interface MLGraphBuilder {
         1. Let |operator| be an [=operator=] for the layer normalization operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
+        1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLayerNormalizationOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
   </div>
@@ -4063,7 +4073,12 @@ partial interface MLGraphBuilder {
         1. Otherwise:
             1. Let |output| be the [=/list=] « |output0|, |output1| ».
         1. Set |output0|.{{MLOperand/[[operator]]}}, |output1|.{{MLOperand/[[operator]]}} and |output2|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/inputs=] to |input|, |weight|, and |recurrentWeight|.
+        1. If |options|.{{MLLstmOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
   </div>
@@ -4241,7 +4256,10 @@ partial interface MLGraphBuilder {
         1. Let |output| be the [=/list=] « |output0|, |output1| ».
         1. Let |operator| be an [=operator=] for the LSTM cell operation, given |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |hiddenSize| and |options|.
         1. Set |output0|.{{MLOperand/[[operator]]}} and |output1|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/inputs=] to |input|, |weight|, |recurrentWeight|, |hiddenState|, and |cellState|.
+        1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
   </div>
@@ -4795,9 +4813,9 @@ partial interface MLGraphBuilder {
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |operator| be an [=operator=] for the PreLU operation, given |slope|.
+        1. Let |operator| be an [=operator=] for the PReLU operation, given |slope|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/inputs=] to |input| and |slope|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
   </div>
@@ -5609,15 +5627,26 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>split(|input|, |splits|, |options|)</dfn> method steps are:
   </summary>
   <div class=algorithm-steps>
-    1. If |splits| is an {{unsigned long}}, and |input|'s [=MLOperand/shape=][|options|.{{MLSplitOptions/axis}}] % |splits| is not 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |splits| is a sequence of {{unsigned long}}, and the sum of its elements is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLSplitOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
+    1. Let |axis| be |options|.{{MLSplitOptions/axis}}.
+    1. If |splits| is an {{unsigned long}}:
+        1. If |input|'s [=MLOperand/shape=][|axis|] % |splits| is not 0, then [=exception/throw=] a {{TypeError}}.
+        1. Otherwise, let |splitCount| be |splits|.
+    1. If |splits| is a sequence of {{unsigned long}}:
+        1. If the sum of its elements is not equal to |input|'s [=MLOperand/shape=][|axis|], then [=exception/throw=] a {{TypeError}}.
+        1. Otherwise, let |splitCount| be the [=list/size=] of |splits|.
     1. *Make graph connections:*
-        1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the split operation, given |splits| and |options|.
-        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Let |outputs| be a new [=/list=].
+        1. [=list/For each=] |index| in [=the range=] 0 to |splitCount|, exclusive:
+            1. Let |operand| be the result of [=copying an MLOperand=] given |input|.
+            1. If |splits| is an {{unsigned long}}, then let |newDimension| be |operand|'s [=MLOperand/shape=][|axis|] / |splits|.
+            1. Otherwise, let |newDimension| be |splits|[|index|].
+            1. Set |operand|'s [=MLOperand/shape=][|axis|] to |newDimension|.
+            1. Set |operand|.{{MLOperand/[[operator]]}} to |operator|.
+            1. [=list/Append=] |operand| to |outputs|.
         1. Set |operator|'s [=operator/input=] to |input|.
-        1. Set |operator|'s [=operator/output=] to |output|.
-    1. Return |output|.
+        1. Set |operator|'s [=operator/outputs=] to |outputs|.
+    1. Return |outputs|.
   </div>
 </details>
 
