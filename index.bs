@@ -688,7 +688,7 @@ The Working Group has started documenting ethical issues associated with using M
 # Programming Model # {#programming-model}
 ## Overview ## {#programming-model-overview}
 
-At the heart of neural networks is a computational graph of mathematical operations.
+At the heart of neural networks is a <dfn>computational graph</dfn> of mathematical operations.
 These operations are the building blocks of modern machine learning technologies in
 computer vision, natural language processing, and robotics.
 The WebNN API is a specification for constructing, compiling, and executing computational
@@ -696,9 +696,9 @@ graphs of neural networks.
 
 The {{MLGraph}} interface represents a compiled computational graph that is immutable (that is, a model).
 
-The {{MLGraphBuilder}} interface serves as a builder (factory) to construct the computational graph that is then compiled to create an {{MLGraph}}.
+The {{MLGraphBuilder}} interface serves as a builder (factory) to construct a [=computational graph=] (its <dfn for=MLGraphBuilder>graph</dfn>) that is then compiled to create an {{MLGraph}}.
 
-In WebNN, the computational graph is composed of <dfn>operators</dfn> which act on data, and are the nodes of the graph. An [=operator=]'s <dfn for=operator>input</dfn> is one or more {{MLOperand}}s representing the data flow for the computation, and are the edges of the graph. Operands include input values, constants (including trained weights), and intermediate values (often referred to as activations). An [=operator=]'s <dfn for=operator>output</dfn> is one or more {{MLOperand}}s, representing the output values of the computation. [=Operators=] have operator-specific parameters that control their behavior, which can include zero or more <dfn for=operator lt="activation|activation function">activation functions</dfn>, which are {{MLActivation}}s. The operations have functional semantics, with no side effects. Each operation invocation conceptually returns a distinct new value, without changing the value of any other {{MLOperand}}.
+In WebNN, the [=computational graph=] is composed of <dfn>operators</dfn> which act on data, and are the nodes of the graph. An [=operator=]'s <dfn for=operator>input</dfn> is one or more {{MLOperand}}s representing the data flow for the computation, and are the edges of the graph. Operands include a [=computational graph=]'s <dfn for="computational graph">input</dfn> values, <dfn for="computational graph">constants</dfn> (including trained weights), and intermediate values (often referred to as activations). An [=operator=]'s <dfn for=operator>output</dfn> is one or more {{MLOperand}}s, representing the output values of the computation. [=Operators=] have operator-specific parameters that control their behavior, which can include zero or more <dfn for=operator lt="activation|activation function">activation functions</dfn>, which are {{MLActivation}}s. The operations have functional semantics, with no side effects. Each operation invocation conceptually returns a distinct new value, without changing the value of any other {{MLOperand}}.
 
 A key part of the {{MLGraphBuilder}} interface are methods such as {{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/softmax()}} which create an operator which represents actual operation to perform on the input data when the computation is run, and return a new {{MLOperand}} or {{MLActivation}} holding the operator. Methods that create an {{MLOperand}} connect any [=operator/inputs=] and [=operator/activations=] to the operator.
 
@@ -1374,7 +1374,7 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
-        1. Register |operand| as an input.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=].
     1. Return |operand|.
   </div>
 </details>
@@ -1405,7 +1405,7 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |bufferView|.
-        1. Register |operand| as a tensor constant with |bytes| as value.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |bytes| as value.
     1. Return |operand|.
   </div>
 </details>
@@ -1437,7 +1437,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
         1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to an empty [=/list=].
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Register |operand| as a scalar constant with |value| as value.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |value| as value.
     1. Return |operand|.
   </div>
 </details>
@@ -1475,7 +1475,7 @@ Data truncation will occur when the values in the range exceed the range of the 
         1. Let |buffer| be an [=implementation-defined=] platform memory buffer the size of |size| multiplied by sizeof(|descriptor|.{{MLOperandDescriptor/dataType}}).
         1. [=list/For each=] |index| in [=the range=] 0 to |size|, exclusive:
             1. Set |buffer|[|index|] to |start| + (|index| * |step|).
-        1. Register |operand| as a constant with |buffer| as value.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |buffer| as value.
     1. Return |operand|.
   </div>
 </details>
