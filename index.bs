@@ -1233,8 +1233,6 @@ interface MLGraphBuilder {
 
 <div class="note">
 The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant(value, type)}} method as constant operands during graph construction time.
-
-Issue(552): Decide how to specify graph initialization.
 </div>
 
 <div class=internal-slots>
@@ -1385,37 +1383,44 @@ Build a composed graph up to a given output operand into a computational graph a
   <summary>
     The <dfn method for=MLGraphBuilder>build(|outputs|)</dfn> method steps are:
   </summary>
-    1. Let |promise| be [=a new promise=].
+    1. If |outputs| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. [=map/For each=] |name| → |operand| of |outputs|:
+        1. If |name| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+        1. If [=MLOperand/validating MLOperand=] given |operand| and [=this=] returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] or [=computational graph/constants=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. Let |operands| be a new empty [=/set=].
+    1. Let |queue| be a new [=queue=] containing |outputs|'s [=map/values=].
+    1. While |queue| is not [=queue/empty=]:
+        1. [=queue/Dequeue=] |operand| from |queue|.
+        1. [=set/Append=] |operand| to |operands|.
+        1. [=list/For each=] |input| of |operand|.{{MLOperand/[[operator]]}}'s [=operator/inputs=]:
+            1. [=queue/Enqueue=] |input| to |queue|.
+    1. If any {{MLOperand}}s in |operands| have the same non-empty {{MLOperand/[[name]]}}, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+
+        Issue(567): If {{MLGraphBuilder}} can't be re-used, then this can be simplified: enforce uniqueness in {{MLGraphBuilder/input()}} instead, and iteration can be done over all of the graph's inputs instead of needing this traversal.
+
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. Run the following steps [=in parallel=]:
-        1. If |outputs| is empty, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-        1. [=map/For each=] |name| → |operand| of |outputs|:
-            1. If |name| is empty, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-        1. If any of the following sub-steps fail, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
-            1. Let |graph| be a new {{MLGraph}} with |realm|:
-                1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
-            1. Make a request to the underlying platform to:
-                1. Connect |graph| to a new [=implementation-defined=] graph implementation |graphImpl| given |graph|.
-                1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
-            1. Make a request to the underlying platform to initialize the graph:
-                1. [=map/For each=] |name| → |operand| of |outputs|:
-                    1. If [=MLOperand/validating MLOperand=] given |operand| and [=this=] returns false, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-                    1. If |operand| was created as an input by the underlying platform:
-                        1. If |operand|.{{MLOperand/[[name]]}} is not unique for |graphImpl|, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-                        1. Add |operand|.{{MLOperand/[[descriptor]]}} to |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}].
-                    1. If |operand| was created as a constant by the underlying platform:
-                        1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
-                    1. Register a [=platform operand=] representing |operand| in |graphImpl| as graph output.
-                    1. Register a [=platform operator=] representing |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
+    1. Let |graph| be a new {{MLGraph}} with |realm|
+    1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
+    1. [=set/For each=] |operand| in |operands|:
+        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=], then set |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}] to |operand|.{{MLOperand/[[descriptor]]}}.
 
-                Issue(552): Decide how to specify graph initialization.
+            Issue(566): If {{MLGraphBuilder/constant(descriptor, bufferView)|constants'}} {{ArrayBuffer}}s are not [=transferred=], make copies for [=MLGraphBuilder/graph=]'s [=computational graph/constants=] here.
+
+    1. [=map/For each=] |name| → |operand| of |outputs|:
+        1. Set |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] to |operand|.{{MLOperand/[[descriptor]]}}.
+    1. Let |promise| be [=a new promise=].
+    1. Run the following steps [=in parallel=]:
+        1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
+            1. If the underlying platform does not support a requested feature, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
+
+            Issue: Reference [=platform operator=] and [=platform operand=] here, or drop those definitions?
+
+        1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
     1. Return |promise|.
 </details>
-
-Issue(448): More fully specify the behavior of {{MLGraphBuilder/build()}} in terms of traversing the graph of [=operators=] and {{MLOperand}}s, creating the corresponding [=platform operators=] and [=platform operands=], and connecting [=operator/inputs=], [=operator/outputs=], and [=operator/activations=].
-
 
 ### argMin/argMax operations ### {#api-mlgraphbuilder-argminmax}
 Return the index location of the minimum or maxmium values of all the input values along the axes.
