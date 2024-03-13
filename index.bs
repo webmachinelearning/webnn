@@ -631,7 +631,7 @@ The Working Group has started documenting ethical issues associated with using M
 # Programming Model # {#programming-model}
 ## Overview ## {#programming-model-overview}
 
-At the heart of neural networks is a computational graph of mathematical operations.
+At the heart of neural networks is a <dfn>computational graph</dfn> of mathematical operations.
 These operations are the building blocks of modern machine learning technologies in
 computer vision, natural language processing, and robotics.
 The WebNN API is a specification for constructing, compiling, and executing computational
@@ -639,28 +639,15 @@ graphs of neural networks.
 
 The {{MLGraph}} interface represents a compiled computational graph that is immutable (that is, a model).
 
-The {{MLGraphBuilder}} interface serves as a builder (factory) to create an {{MLGraph}}.
-An {{MLOperand}} is a representation of data that flows within the computational graph,
-which include input-values for inference, constants (including trained weights)
-used for inference, intermediate values (often referred to as activations) computed
-during inference, as well as the output values of inference.
-At inference time, every {{MLOperand}} will be bound to a tensor (the actual data).
+The {{MLGraphBuilder}} interface serves as a builder (factory) to construct a [=computational graph=] (its <dfn for=MLGraphBuilder>graph</dfn>) that is then compiled to create an {{MLGraph}}.
 
-The {{MLGraphBuilder}} interface enables the creation of {{MLOperand}}s.
-A key part of the {{MLGraphBuilder}} interface are the operations (such as
-{{MLGraphBuilder}}.{{MLGraphBuilder/gemm()}} and {{MLGraphBuilder}}.{{MLGraphBuilder/softmax()}}). The operations have a functional
-semantics, with no side effects.
-Each operation invocation conceptually returns a distinct new value, without
-changing the value of any other {{MLOperand}}. 
+In WebNN, a [=computational graph=] is composed of <dfn>operators</dfn> which act on data, and are the nodes of the graph. {{MLOperand}}s are a representation of data that flows within the computational graph, and are the edges of the graph. {MLOperand}}s include a [=computational graph=]'s <dfn for="computational graph">input</dfn> values for inference, <dfn for="computational graph">constants</dfn> (including trained weights) used for inference, intermediate values (often referred to as activations) computed during inference, as well as the output values of inference. An [=operator=]'s <dfn for=operator>input</dfn> is one or more {{MLOperand}}s. An [=operator=]'s <dfn for=operator>output</dfn> is one or more {{MLOperand}}s. [=Operators=] have operator-specific parameters that control their behavior, which can include zero or more <dfn for=operator lt="activation|activation function">activation functions</dfn>, which are {{MLActivation}}s.
 
-Internally, the {{MLGraphBuilder}} methods such as {{MLGraphBuilder/gemm()}} create an [=implementation-defined=] <dfn>platform operator</dfn> which is held by the {{MLOperand}} or {{MLActivation}}, which performs the actual operation on the input data when the computation is run. An {{MLOperand}} also holds an [=implementation-defined=] <dfn>platform operand</dfn>, which references the operand in the underlying computational graph, and is connected to [=platform operators=] as input and/or output.
+A key part of the {{MLGraphBuilder}} interface are methods such as {{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/softmax()}} which create an [=operator=] which represents the actual operation to perform on the input data when the computation is run, and return a new {{MLOperand}} or {{MLActivation}} holding the operator. Methods that create an {{MLOperand}} connect any [=operator/inputs=] and [=operator/activations=] to the operator. Each method invocation returns a distinct new value, without changing the value of any other {{MLOperand}}.
 
-The runtime values (of {{MLOperand}}s) are tensors, which are essentially multidimensional
-arrays. The representation of the tensors is implementation dependent, but it typically
-includes the array data stored in some buffer (memory) and some metadata describing the
-array data (such as its shape).
+At inference time, every {{MLOperand}} will be bound to a tensor (the actual data), which are essentially multidimensional arrays. The representation of the tensors is implementation dependent, but it typically includes the array data stored in some buffer (memory) and some metadata describing the array data (such as its shape).
 
-As mentioned above, the operations have functional semantics. This allows the implementation
+Operations within the computational graph have functional semantics. This allows the implementation
 to potentially share the array data between multiple tensors. For example, the implementation
 of operations such as reshape, or slice may return a view of its input tensor
 that shares the same buffer as the input tensor. (In the case of reshape,
@@ -670,6 +657,8 @@ The implementation may use views, as above, for intermediate values.
 Before the execution, the computation graph that is used to compute one or more specified outputs needs to be compiled and optimized. The key purpose of the compilation step is to enable optimizations that span two or more operations, such as operation or loop fusion.
 
 The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph in the background without blocking the calling thread, and returns a {{Promise}} that resolves to an {{MLGraph}}. The compilation step produces an {{MLGraph}} that represents a compiled graph for optimal execution.
+
+The {{MLGraph}} is composed of <dfn>platform operators</dfn> and <dfn>platform operands</dfn> which correspond to the [=operators=] and {{MLOperand}}s, but are not script-visible and may be compositions or decompositions of the graph as constructed by script.
 
 Once the {{MLGraph}} is constructed, the {{MLContext}}.{{MLContext/compute()}} method performs the execution of the graph asynchronously either on a parallel timeline in a separate worker thread for the CPU execution or on a GPU timeline in a GPU command queue. This method returns immediately without blocking the calling thread while the actual execution is offloaded to a different timeline. The caller supplies the input values using {{MLNamedArrayBufferViews}}, binding the input {{MLOperand}}s to their values. The caller then supplies pre-allocated buffers for output {{MLOperand}}s using {{MLNamedArrayBufferViews}}. The execution produces the results of the computation from all the inputs bound to the graph. The computation results will be placed at the bound outputs at the time the operation is successfully completed on the offloaded timeline at which time the calling thread is signaled. This type of execution supports both the CPU and GPU device.
 
@@ -1089,13 +1078,9 @@ interface MLOperand {
     ::
         The {{MLOperand}}'s name (only for input operands).
 
-    : <dfn>\[[operand]]</dfn> of type [=platform operand=]
+    : <dfn>\[[operator]]</dfn> of type [=operator=]
     ::
-        Reference to {{MLOperand}}'s corresponding [=platform operand=].
-
-    : <dfn>\[[operator]]</dfn> of type [=platform operator=]
-    ::
-        Reference to {{MLOperand}}'s corresponding [=platform operator=].
+        Reference to {{MLOperand}}'s corresponding [=operator=].
   </dl>
 </div>
 
@@ -1190,9 +1175,9 @@ interface MLActivation {};
     : <dfn>\[[options]]</dfn> of type [=ordered map=]
     ::
         A dictionary containing {{MLActivation}} options.
-    : <dfn>\[[operator]]</dfn> of type [=platform operator=]
+    : <dfn>\[[operator]]</dfn> of type [=operator=]
     ::
-        Reference to {{MLActivation}}'s corresponding [=platform operator=].
+        Reference to {{MLActivation}}'s corresponding [=operator=].
   </dl>
 </div>
 
@@ -1213,12 +1198,10 @@ The {{MLActivation}} objects (including the ones passed as input to methods) are
     1. Set |activation|.{{MLActivation/[[builder]]}} to |builder|.
     1. Set |activation|.{{MLActivation/[[name]]}} to |name|.
     1. If |options| is given, set |activation|.{{MLActivation/[[options]]}} to |options|.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Make a request to the underlying platform to:
-            1. Create [=platform operator=] |opImpl| for the given |name| operation.
-            1. Set |activation|.{{MLActivation/[[operator]]}} to |opImpl|.
-        1. If |init-steps| are given, run |init-steps| with |options|.
-            1. Otherwise, initialize |activation|.{{MLActivation/[[operator]]}} given |options| in an [=implementation-defined=] way for the given |name| operation.
+    1. Let |operator| be an [=operator=] for the |name| operation.
+    1. Set |activation|.{{MLActivation/[[operator]]}} to |operator|.
+    1. If |init-steps| are given, run |init-steps| with |options|.
+    1. Otherwise, initialize |activation|.{{MLActivation/[[operator]]}} given |options| in an [=implementation-defined=] way for the given |name| operation.
     1. Return |activation|.
 </details>
 
@@ -1293,13 +1276,10 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
     </div>
     1. If |name| is empty, then [=exception/throw=] a {{TypeError}}.
     1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
-        1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform input operand |operandImpl| given |descriptor|.
-            1. Set |operand|.{{MLOperand/[[operand]]}} to |operandImpl|.
-            1. Register |operand| as an input.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=].
     1. Return |operand|.
 </details>
 
@@ -1325,13 +1305,10 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     </div>
     1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |bufferView| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |bufferView|.
-        1. Make a request to the underlying platform to:
-            1. Create an [=platform operand=] |constantImpl| to represent a constant, given |descriptor|.
-            1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
-            1. Register |operand| as a tensor constant with |bytes| as value.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |bytes| as value.
     1. Return |operand|.
 </details>
 
@@ -1359,12 +1336,9 @@ Data truncation will occur when the specified value exceeds the range of the spe
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
         1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to an empty [=/list=].
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Make a request to the underlying platform to:
-            1. Create an [=platform operand=] |constantImpl| to represent a constant, given |descriptor|.
-            1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
-            1. Register |operand| as a scalar constant with |value| as value.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |value| as value.
     1. Return |operand|.
 </details>
 
@@ -1393,19 +1367,14 @@ Data truncation will occur when the values in the range exceed the range of the 
     </div>
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
-        1. Let |size| be *max(0, ceil((end - start)/step))*.
+        1. Let |size| be max(0, ceil((|end| - |start|)/|step|)).
         1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |size| ».
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=], |start|, |end|, |step|, and |type|.
-        1. Make a request to the underlying platform to:
-            1. Create an [=implementation-defined=] platform memory buffer the size of |size| multiplied by sizeof(|descriptor|.{{MLOperandDescriptor/dataType}}).
-            2. Store the beginning address to that memory buffer as a pointer |buffer| of the corresponding data type.
+    1. *Make graph connections:*
+        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
+        1. Let |buffer| be an [=implementation-defined=] platform memory buffer the size of |size| multiplied by sizeof(|descriptor|.{{MLOperandDescriptor/dataType}}).
         1. [=list/For each=] |index| in [=the range=] 0 to |size|, exclusive:
             1. Set |buffer|[|index|] to |start| + (|index| * |step|).
-        1. Make a request to the underlying platform to:
-            1. Create an [=platform operand=] |constantImpl| to represent a constant operand, given |descriptor|.
-            1. Set |operand|.{{MLOperand/[[operand]]}} to |constantImpl|.
-            1. Register |operand| as a constant with |buffer| as value.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |buffer| as value.
     1. Return |operand|.
 </details>
 
@@ -1437,13 +1406,15 @@ Build a composed graph up to a given output operand into a computational graph a
                         1. Add |operand|.{{MLOperand/[[descriptor]]}} to |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}].
                     1. If |operand| was created as a constant by the underlying platform:
                         1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
-                    1. Register |operand|.{{MLOperand/[[operand]]}} in |graphImpl| as graph output.
-                    1. Register |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
-                
+                    1. Register a [=platform operand=] representing |operand| in |graphImpl| as graph output.
+                    1. Register a [=platform operator=] representing |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
+
                 Issue(552): Decide how to specify graph initialization.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
     1. Return |promise|.
 </details>
+
+Issue(448): More fully specify the behavior of {{MLGraphBuilder/build()}} in terms of traversing the graph of [=operators=] and {{MLOperand}}s, creating the corresponding [=platform operators=] and [=platform operands=], and connecting [=operator/inputs=], [=operator/outputs=], and [=operator/activations=].
 
 
 ### argMin/argMax operations ### {#api-mlgraphbuilder-argminmax}
@@ -1495,15 +1466,12 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"int64"}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
+        1. Let |operator| be an [=operator=] for the operation |op|, given |options|.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the |op| argMin or argMax operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -1592,12 +1560,15 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=]:
         1. If its [=list/size=] is not 1, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLBatchNormalizationOptions/bias}}'s [=MLOperand/shape=][0] is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
+        1. Let |operator| be an [=operator=] for the batchNormalization operation, given |input|, |mean|, |variance| and |options|.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |input|.{{MLOperand/[[descriptor]]}}, that may use the same underlying data as |input|.
-        1. Make a request to the underlying platform to initialize the batch normalization:
-            1. Create [=platform operator=] |batchNormImpl| for this method, given |input|, |mean|, |variance| and |options|.
-            1. If |options|.{{MLBatchNormalizationOptions/activation}} [=map/exists=],register it as activation to |batchNormImpl|.
-            1. Connect |output| as output to |batchNormImpl|.
+        1. If |options|.{{MLBatchNormalizationOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activation functions=].
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -1641,16 +1612,12 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>cast(|input|, |type|)</dfn> method steps are:
   </summary>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=], |input| and |type|.
+    1. *Make graph connections:*
+        1. Let |operator| be an [=operator=] for the cast operation, given |type|.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Create [=platform operator=] |castImpl| for this method, given |type|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |castImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent an output, given |output| and |castImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |operand|.{{MLOperand/[[operand]]}} as input to |castImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |castImpl|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -1720,15 +1687,12 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>clamp(|input|, |options|)</dfn> method steps are:
   </summary>
     1. If [=checking clamp options=] given |options| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Create [=platform operator=] |clampImpl| for this method, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}}.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |clampImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent clamp output, given |output| and |clampImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |clampImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |clampImpl|.
+        1. Let |operator| be an [=operator=] for the clamp operation, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}}.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -1796,15 +1760,12 @@ partial interface MLGraphBuilder {
             </div>
             1. If |dim| is not equal to |axis| and if |input|'s [=MLOperand/shape=][|dim|] is not equal to |first|'s [=MLOperand/shape=][|dim|], then [=exception/throw=] a {{TypeError}}.
             1. If |dim| is equal to |axis|, add to |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] the value of |input|'s [=MLOperand/shape=][|dim|].
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Make a request to the underlying platform to:
-            1. Create [=platform operator=] |concatImpl| for this method, given |inputs| and |axis|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |concatImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent output,given |output| and |concatImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |inputs| as input to |concatImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |concatImpl|.
+        1. Let |operator| be an [=operator=] for the concat operation, given |inputs| and |axis|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |inputs|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -1987,16 +1948,13 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Make a request to the underlying platform to:
-            1. Create [=platform operator=] |conv2dImpl| for this method, given |options| and |filter|.
-                1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=],register it as activation to |conv2dImpl|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |conv2dImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |conv2dImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |conv2dImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |conv2dImpl|.
+        1. Let |operator| be an [=operator=] for the conv2d operation, given |options| and |filter|.
+        1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activations=].
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/inputs=] to |input| and |filter|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -2195,16 +2153,13 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Make a request to the underlying platform to:
-            1. Create [=platform operator=] |convTranspose2dImpl| for this method, given |options| and |filter|.
-                1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=],register it as activation to |convTranspose2dImpl|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |convTranspose2dImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |convTranspose2dImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |convTranspose2dImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |convTranspose2dImpl|.
+        1. Let |operator| be an [=operator=] for the convTranspose2d operation, given |options| and |filter|.
+        1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activations=].
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/inputs=] to |input| and |filter|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -2257,15 +2212,12 @@ partial interface MLGraphBuilder {
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |a|'s [=MLOperand/dataType=].
     1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the binary operation |op|, given |a| and |b|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the binary operation |op|, given |a| and |b|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/inputs=] to |a| and |b|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -2374,15 +2326,12 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"uint8"}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the binary operation |op|, given |a| and |b|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the binary operation |op|, given |a| and |b|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/inputs=] to |a| and |b|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -2484,15 +2433,12 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create element-wise unary operation</dfn> given [=string=] |op| and {{MLOperand}} |input|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "erf", "exp", "floor", "identity", "log", "neg", "reciprocal", "sin", "sqrt", "tan".
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the unary operation |op|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the unary operation |op|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -2641,15 +2587,12 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>elu(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the ELU operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the ELU operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -2697,15 +2640,12 @@ partial interface MLGraphBuilder {
     1. Set |outputDescriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
     1. Set |outputDescriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |input|'s [=MLOperand/shape=] and |newShape|.
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDescriptor|.
-        1. Make a request to the underlying platform to:
-            1. Create [=platform operator=] |expandImpl| for this method, given |input| and |newShape|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |expandImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent output,given |output| and |expandImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input| as input to |expandImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |expandImpl|.
+        1. Let |operator| be an [=operator=] for the expand operation, given |input| and |newShape|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -2770,15 +2710,12 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |shapeOutput|.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given |desc|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the Gather operation, given |input|, |indices|, and |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} and |indices|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the Gather operation, given |input|, |indices|, and |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/inputs=] to |input| and |indices|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -2905,15 +2842,13 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |shapeA|[0], |shapeB|[1] ».
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |a|'s [=MLOperand/dataType=].
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the GEMM operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the GEMM operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/inputs=] to |a| and |b|.
+        1. If |options|.{{MLGemmOptions/c}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -3031,12 +2966,17 @@ partial interface MLGraphBuilder {
         1. If its [=MLOperand/rank=] is not 3, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |steps| is not equal to |input|'s [=MLOperand/shape=][0], then [=exception/throw=] a {{TypeError}}.
-    1. Let |output| be an empty sequence of {{MLOperand}} objects.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for "gru", given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options| as parameters.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output| as output to |opImpl|.
+    1. *Make graph connections:*
+        1. Let |operator| be an [=operator=] for "gru", given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options| as parameters.
+        1. Let |output| be an empty sequence of {{MLOperand}} objects.
+
+            Issue: Populate |output|
+
+        1. Set |operator|'s [=operator/inputs=] to |input|, |weight|, and |recurrentWeight|.
+        1. If |options|.{{MLGruOptions/bias=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLGruOptions/recurrentBias=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLGruOptions/initialHiddenState=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -3181,15 +3121,12 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |input|'s [=MLOperand/shape=][0], |hiddenSize| ».
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for "gruCell", given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for "gruCell", given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -3352,15 +3289,12 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>hardSigmoid(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the hard sigmoid operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the hard sigmoid operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -3426,15 +3360,12 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>hardSwish(|input|)</dfn> method steps are:
   </summary>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the hard-swish operation.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the hard-swish operation.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -3509,15 +3440,14 @@ partial interface MLGraphBuilder {
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLInstanceNormalizationOptions/scale}}'s [=MLOperand/rank=] is not equal to 1, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLInstanceNormalizationOptions/bias}}'s [=MLOperand/rank=] is not equal to 1, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the instance normalization operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the instance normalization operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. If |options|.{{MLInstanceNormalizationOptions/scale}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLInstanceNormalizationOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -3613,15 +3543,14 @@ partial interface MLGraphBuilder {
         1. Let |size| be |input|'s [=MLOperand/shape=][|axis|].
         1. If |options|.{{MLLayerNormalizationOptions/scale}}'s [=MLOperand/shape=][|index|] is not equal to |size|, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLLayerNormalizationOptions/bias}}'s [=MLOperand/shape=][|index|] is not equal to |size|, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the instance normalization operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the layer normalization operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLayerNormalizationOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -3710,15 +3639,12 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>leakyRelu(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the Leaky RELU operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the Leaky RELU operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -3795,15 +3721,12 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>linear(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the linear operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the linear operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -3939,24 +3862,31 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLLstmOptions/initialCellState}}'s [=MLOperand/shape=][2] is not |hiddenSize|, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Calculate the output shape:*
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |numDirections|, |batchSize|, |hiddenSize| ».
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+        1. If |options|.{{MLLstmOptions/returnSequence}} is true:
+            1. Let |desc2| be a new {{MLOperandDescriptor}}.
+            1. Set |desc2|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+            1. Set |desc2|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+    1. *Make graph connections:*
+        1. Let |operator| be an [=operator=] for the LSTM operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
-        1. If |options|.{{MLLstmOptions/returnSequence}} is set to true:
-            1. Let |output2| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
+        1. If |options|.{{MLLstmOptions/returnSequence}} is true:
+            1. Let |output2| be the result of [=creating an MLOperand=] given [=this=] and |desc2|.
             1. Let |output| be the [=/list=] « |output0|, |output1|, |output2| ».
-        1. Otherwise, let |output| be the [=/list=] « |output0|, |output1| ».
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the LSTM operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
-            1. Set |output0|.{{MLOperand/[[operator]]}}, |output1|.{{MLOperand/[[operator]]}} and |output2|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output0|.{{MLOperand/[[operand]]}}, |output1|.{{MLOperand/[[operand]]}} and |output2|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output| as output to |opImpl|.
+        1. Otherwise:
+            1. Let |output| be the [=/list=] « |output0|, |output1| ».
+        1. Set |output0|.{{MLOperand/[[operator]]}}, |output1|.{{MLOperand/[[operator]]}} and |output2|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/inputs=] to |input|, |weight|, and |recurrentWeight|.
+        1. If |options|.{{MLLstmOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -4124,17 +4054,17 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |batchSize|, |hiddenSize| ».
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output| be the [=/list=] « |output0|, |output1| ».
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the LSTM cell operation, given |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |hiddenSize| and |options|.
-            1. Set |output0|.{{MLOperand/[[operator]]}} and |output1|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output0|.{{MLOperand/[[operand]]}} and |output1|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output| as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the LSTM cell operation, given |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |hiddenSize| and |options|.
+        1. Set |output0|.{{MLOperand/[[operator]]}} and |output1|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/inputs=] to |input|, |weight|, |recurrentWeight|, |hiddenState|, and |cellState|.
+        1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -4307,15 +4237,12 @@ partial interface MLGraphBuilder {
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating matmul output sizes=] given |a| and |b|.
     1. If that throws an error, re-[=exception/throw=] the error.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |a|'s [=MLOperand/dataType=].
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the matrix multiplication operation.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |a|.{{MLOperand/[[operand]]}} and |b|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the matrix multiplication operation.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/inputs=] to |a| and |b|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -4383,15 +4310,12 @@ partial interface MLGraphBuilder {
     1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a "{{TypeError}}".
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the padding operation, given |beginningPadding|, |endingPadding| and |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the padding operation, given |beginningPadding|, |endingPadding| and |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -4602,16 +4526,13 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLPool2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Make a request to the underlying platform to:
-            1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating pool2d output sizes=] given |options|.{{MLPool2dOptions/layout}}, |input|'s [=MLOperand/shape=], |options|.{{MLPool2dOptions/roundingType}}, |options|.{{MLPool2dOptions/windowDimensions}}, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, |options|.{{MLPool2dOptions/dilations}}, and |options|.{{MLPool2dOptions/outputSizes}} (if it [=map/exists=]).
-            1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-            1. Let |opImpl| be [=platform operator=] for the |op| pooling operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+    1. *Make graph connections:*
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating pool2d output sizes=] given |options|.{{MLPool2dOptions/layout}}, |input|'s [=MLOperand/shape=], |options|.{{MLPool2dOptions/roundingType}}, |options|.{{MLPool2dOptions/windowDimensions}}, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, |options|.{{MLPool2dOptions/dilations}}, and |options|.{{MLPool2dOptions/outputSizes}} (if it [=map/exists=]).
+        1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
+        1. Let |operator| be an [=operator=] for the |op| pooling operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -4675,15 +4596,12 @@ partial interface MLGraphBuilder {
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
     1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |slope|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the PreLU operation, given |slope|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the PReLU operation, given |slope|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/inputs=] to |input| and |slope|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -4784,15 +4702,12 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the |op| reduce operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the |op| reduce operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -4908,15 +4823,12 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>relu(|input|)</dfn> method steps are:
   </summary>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the ReLU operation.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the ReLU operation.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -5019,15 +4931,12 @@ partial interface MLGraphBuilder {
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If [=MLGraphBuilder/checking resample options=] given |options| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=MLGraphBuilder/calculating resample output sizes=] given |input| and |options|.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the resample 2D operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the resample 2D operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -5061,15 +4970,12 @@ partial interface MLGraphBuilder {
     1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |newShape|.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the reshape operation.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the reshape operation.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -5150,15 +5056,12 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>sigmoid(|input|)</dfn> method steps are:
   </summary>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the sigmoid operation.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the sigmoid operation.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -5204,15 +5107,12 @@ partial interface MLGraphBuilder {
   </summary>
     1. If |sizes|'s [=list/size=] is 0, then [=exception/throw=] a {{TypeError}}.
     1. If |starts|'s [=list/size=] and |sizes|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the slice operation, given |starts| and |sizes|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the slice operation, given |starts| and |sizes|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -5261,15 +5161,12 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>softmax(|input|)</dfn> method steps are:
   </summary>
     1. If |input|'s [=MLOperand/rank=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the softmax operation.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the softmax operation.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -5344,15 +5241,12 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>softplus(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the softplus operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the softplus operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -5410,15 +5304,12 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>softsign(|input|)</dfn> method steps are:
   </summary>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the softsign operation.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the softsign operation.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -5474,18 +5365,26 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>split(|input|, |splits|, |options|)</dfn> method steps are:
   </summary>
-    1. If |splits| is an {{unsigned long}}, and |input|'s [=MLOperand/shape=][|options|.{{MLSplitOptions/axis}}] % |splits| is not 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |splits| is a sequence of {{unsigned long}}, and the sum of its elements is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLSplitOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
-        1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the split operation, given |splits| and |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
-    1. Return |output|.
+    1. Let |axis| be |options|.{{MLSplitOptions/axis}}.
+    1. If |splits| is an {{unsigned long}}:
+        1. If |input|'s [=MLOperand/shape=][|axis|] % |splits| is not 0, then [=exception/throw=] a {{TypeError}}.
+        1. Otherwise, let |splitCount| be |splits|.
+    1. If |splits| is a sequence of {{unsigned long}}:
+        1. If the sum of its elements is not equal to |input|'s [=MLOperand/shape=][|axis|], then [=exception/throw=] a {{TypeError}}.
+        1. Otherwise, let |splitCount| be the [=list/size=] of |splits|.
+    1. *Make graph connections:*
+        1. Let |operator| be an [=operator=] for the split operation, given |splits| and |options|.
+        1. Let |outputs| be a new [=/list=].
+        1. [=list/For each=] |index| in [=the range=] 0 to |splitCount|, exclusive:
+            1. Let |operand| be the result of [=copying an MLOperand=] given |input|.
+            1. If |splits| is an {{unsigned long}}, then let |newDimension| be |operand|'s [=MLOperand/shape=][|axis|] / |splits|.
+            1. Otherwise, let |newDimension| be |splits|[|index|].
+            1. Set |operand|'s [=MLOperand/shape=][|axis|] to |newDimension|.
+            1. Set |operand|.{{MLOperand/[[operator]]}} to |operator|.
+            1. [=list/Append=] |operand| to |outputs|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/outputs=] to |outputs|.
+    1. Return |outputs|.
 </details>
 
 <div class="note">
@@ -5551,15 +5450,12 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>tanh(|input|)</dfn> method steps are:
   </summary>
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the hyperbolic tangent operation.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the hyperbolic tangent operation.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -5619,15 +5515,12 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLTransposeOptions/permutation}}'s [=MLOperand/rank=] is not the same as |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
         1. If the values in |options|.{{MLTransposeOptions/permutation}} are not in [=the range=] 0 and |input|'s [=MLOperand/rank=] exclusive, then [=exception/throw=] a {{TypeError}}.
         1. If the values in |options|.{{MLTransposeOptions/permutation}} contain duplicate value, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the transpose operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the transpose operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -5668,15 +5561,12 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>triangular(|input|, |options|)</dfn> method steps are:
   </summary>
     1. If |input|'s [=MLOperand/rank=] is less than 2, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the triangular operation, given |options|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |input|.{{MLOperand/[[operand]]}} as input to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the triangular operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
@@ -5773,15 +5663,12 @@ partial interface MLGraphBuilder {
     1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |input|'s [=MLOperand/shape=] and |other|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. If |condition| is not [=bidirectionally broadcastable=] to |descriptor|.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a {{TypeError}}.
-    1. If any of the following sub-steps fail, [=exception/throw=] an "{{OperationError}}" {{DOMException}}.
+    1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Make a request to the underlying platform to:
-            1. Let |opImpl| be [=platform operator=] for the where operation, given |condition|, |input| and |other|.
-            1. Set |output|.{{MLOperand/[[operator]]}} to |opImpl|.
-            1. Create an [=platform operand=] |outputImpl| to represent the output, given |output| and |opImpl|.
-            1. Set |output|.{{MLOperand/[[operand]]}} to |outputImpl|.
-        1. Connect |condition|.{{MLOperand/[[operand]]}}, |input| and |other|.{{MLOperand/[[operand]]}} as inputs to |opImpl|.
-        1. Connect |output|.{{MLOperand/[[operand]]}} as output to |opImpl|.
+        1. Let |operator| be an [=operator=] for the where operation, given |condition|, |input| and |other|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/inputs=] to |condition|, |input| and |other|.
+        1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
