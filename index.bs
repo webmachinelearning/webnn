@@ -2966,12 +2966,24 @@ partial interface MLGraphBuilder {
         1. If its [=MLOperand/rank=] is not 3, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |steps| is not equal to |input|'s [=MLOperand/shape=][0], then [=exception/throw=] a {{TypeError}}.
+    1. *Calculate the output shape:*
+        1. Let |desc0| be a new {{MLOperandDescriptor}}.
+        1. Set |desc0|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |numDirections|, |batchSize|, |hiddenSize| ».
+        1. Set |desc0|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+        1. If |options|.{{MLGruOptions/returnSequence}} is true:
+            1. Let |desc1| be a new {{MLOperandDescriptor}}.
+            1. Set |desc1|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+            1. Set |desc1|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for "gru", given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options| as parameters.
-        1. Let |output| be an empty sequence of {{MLOperand}} objects.
-
-            Issue: Populate |output|
-
+        1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc0|.
+        1. If |options|.{{MLGruOptions/returnSequence}} is true:
+            1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc1|.
+            1. Let |output| be the [=/list=] « |output0|, |output1| ».
+            1. Set |output0|.{{MLOperand/[[operator]]}} and |output1|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Otherwise:
+            1. Let |output| be the [=/list=] « |output0| ».
+            1. Set |output0|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input|, |weight|, and |recurrentWeight|.
         1. If |options|.{{MLGruOptions/bias=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLGruOptions/recurrentBias=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
@@ -3877,9 +3889,10 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLLstmOptions/returnSequence}} is true:
             1. Let |output2| be the result of [=creating an MLOperand=] given [=this=] and |desc2|.
             1. Let |output| be the [=/list=] « |output0|, |output1|, |output2| ».
+            1. Set |output0|.{{MLOperand/[[operator]]}}, |output1|.{{MLOperand/[[operator]]}} and |output2|.{{MLOperand/[[operator]]}} to |operator|.
         1. Otherwise:
             1. Let |output| be the [=/list=] « |output0|, |output1| ».
-        1. Set |output0|.{{MLOperand/[[operator]]}}, |output1|.{{MLOperand/[[operator]]}} and |output2|.{{MLOperand/[[operator]]}} to |operator|.
+            1. Set |output0|.{{MLOperand/[[operator]]}} and |output1|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input|, |weight|, and |recurrentWeight|.
         1. If |options|.{{MLLstmOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
