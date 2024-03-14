@@ -1388,14 +1388,14 @@ Build a composed graph up to a given output operand into a computational graph a
         1. If |name| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
         1. If [=MLOperand/validating MLOperand=] given |operand| and [=this=] returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
         1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] or [=computational graph/constants=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. Let |operands| be a new empty [=/set=].
+    1. Let |inputs| be a new empty [=/set=].
     1. Let |queue| be a new [=queue=] containing |outputs|'s [=map/values=].
     1. While |queue| is not [=queue/empty=]:
         1. [=queue/Dequeue=] |operand| from |queue|.
-        1. [=set/Append=] |operand| to |operands|.
+        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=], [=set/append=] |operand| to |inputs|.
         1. [=list/For each=] |input| of |operand|.{{MLOperand/[[operator]]}}'s [=operator/inputs=]:
             1. [=queue/Enqueue=] |input| to |queue|.
-    1. If any {{MLOperand}}s in |operands| have the same non-empty {{MLOperand/[[name]]}}, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If any {{MLOperand}}s in |inputs| have the same {{MLOperand/[[name]]}}, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
 
         Issue(567): If {{MLGraphBuilder}} can't be re-used, then this can be simplified: enforce uniqueness in {{MLGraphBuilder/input()}} instead, and iteration can be done over all of the graph's inputs instead of needing this traversal.
 
@@ -1403,8 +1403,8 @@ Build a composed graph up to a given output operand into a computational graph a
     1. Let |realm| be [=this=]'s [=relevant realm=].
     1. Let |graph| be a new {{MLGraph}} with |realm|.
     1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
-    1. [=set/For each=] |operand| in |operands|:
-        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=], then set |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}] to |operand|.{{MLOperand/[[descriptor]]}}.
+    1. [=set/For each=] |operand| in |inputs|:
+        1. Set |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}] to |operand|.{{MLOperand/[[descriptor]]}}.
 
             Issue(566): If {{MLGraphBuilder/constant(descriptor, bufferView)|constants'}} {{ArrayBuffer}}s are not [=transferred=], make copies for [=MLGraphBuilder/graph=]'s [=computational graph/constants=] here.
 
