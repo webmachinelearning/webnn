@@ -1388,10 +1388,14 @@ Build a composed graph up to a given output operand into a computational graph a
         1. If |name| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
         1. If [=MLOperand/validating MLOperand=] given |operand| and [=this=] returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
         1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] or [=computational graph/constants=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. Let |operands| be a new empty [=/set=].
+    1. Let |operators| be a new empty [=/set=].
     1. Let |inputs| be a new empty [=/set=].
     1. Let |queue| be a new [=queue=] containing |outputs|'s [=map/values=].
     1. While |queue| is not [=queue/empty=]:
         1. [=queue/Dequeue=] |operand| from |queue|.
+        1. [=set/Append=] |operand| to |operands|.
+        1. [=set/Append=] |operand|.{{MLOperand/[[operator]]}} to |operators|.
         1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=], [=set/append=] |operand| to |inputs|.
         1. [=list/For each=] |input| of |operand|.{{MLOperand/[[operator]]}}'s [=operator/inputs=]:
             1. [=queue/Enqueue=] |input| to |queue|.
@@ -1412,7 +1416,7 @@ Build a composed graph up to a given output operand into a computational graph a
         1. Set |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] to |operand|.{{MLOperand/[[descriptor]]}}.
     1. Let |promise| be [=a new promise=].
     1. Run the following steps [=in parallel=]:
-        1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
+        1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
             1. If the underlying platform does not support a requested feature, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
 
             Issue: Reference [=platform operator=] and [=platform operand=] here, or drop those definitions?
