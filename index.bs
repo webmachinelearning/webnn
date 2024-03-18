@@ -658,7 +658,7 @@ Before the execution, the computation graph that is used to compute one or more 
 
 The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph in the background without blocking the calling thread, and returns a {{Promise}} that resolves to an {{MLGraph}}. The compilation step produces an {{MLGraph}} that represents a compiled graph for optimal execution.
 
-The {{MLGraph}} is composed of <dfn>platform operators</dfn> and <dfn>platform operands</dfn> which correspond to the [=operators=] and {{MLOperand}}s, but are not script-visible and may be compositions or decompositions of the graph as constructed by script.
+The {{MLGraph}} underlying implementation will be composed of platform-specific representations of operators and operands which correspond to the {{MLGraphBuilder}}'s [=operators=] and {{MLOperand}}s, but which are not script-visible and may be compositions or decompositions of the graph as constructed by script.
 
 Once the {{MLGraph}} is constructed, the {{MLContext}}.{{MLContext/compute()}} method performs the execution of the graph asynchronously either on a parallel timeline in a separate worker thread for the CPU execution or on a GPU timeline in a GPU command queue. This method returns immediately without blocking the calling thread while the actual execution is offloaded to a different timeline. The caller supplies the input values using {{MLNamedArrayBufferViews}}, binding the input {{MLOperand}}s to their values. The caller then supplies pre-allocated buffers for output {{MLOperand}}s using {{MLNamedArrayBufferViews}}. The execution produces the results of the computation from all the inputs bound to the graph. The computation results will be placed at the bound outputs at the time the operation is successfully completed on the offloaded timeline at which time the calling thread is signaled. This type of execution supports both the CPU and GPU device.
 
@@ -1418,9 +1418,6 @@ Build a composed graph up to a given output operand into a computational graph a
     1. Run the following steps [=in parallel=]:
         1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
             1. If the underlying platform does not support a requested feature, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
-
-            Issue: Reference [=platform operator=] and [=platform operand=] here, or drop those definitions?
-
         1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
     1. Return |promise|.
