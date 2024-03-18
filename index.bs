@@ -1117,7 +1117,7 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
 </details>
 
 <p algorithm>
-To <dfn for="MLGraphBuilder">validate input operand</dfn> given {{MLGraphBuilder}} |builder| and {{MLOperand}} |operand|, return true if |operand|.{{MLOperand/[[builder]]}} is |builder|, and false otherwise.
+To <dfn for="MLGraphBuilder">validate operand</dfn> given {{MLGraphBuilder}} |builder| and {{MLOperand}} |operand|, return true if |operand|.{{MLOperand/[[builder]]}} is |builder|, and false otherwise.
 </p>
 
 ### {{MLOperand/dataType()}} ### {#api-mloperand-datatype}
@@ -1231,8 +1231,6 @@ interface MLGraphBuilder {
 
 <div class="note">
 The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant(value, type)}} method as constant operands during graph construction time.
-
-Issue(552): Decide how to specify graph initialization.
 </div>
 
 <div class=internal-slots>
@@ -1383,36 +1381,48 @@ Build a composed graph up to a given output operand into a computational graph a
   <summary>
     The <dfn method for=MLGraphBuilder>build(|outputs|)</dfn> method steps are:
   </summary>
-    1. Let |promise| be [=a new promise=].
+    1. If |outputs| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. [=map/For each=] |name| → |operand| of |outputs|:
+        1. If |name| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+        1. If [=MLGraphBuilder/validating operand=] given [=this=] and |operand| returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] or [=computational graph/constants=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. Let |operands| be a new empty [=/set=].
+    1. Let |operators| be a new empty [=/set=].
+    1. Let |inputs| be a new empty [=/set=].
+    1. Let |queue| be a new [=queue=] containing |outputs|'s [=map/values=].
+    1. While |queue| is not [=queue/empty=]:
+        1. [=queue/Dequeue=] |operand| from |queue|.
+        1. [=set/Append=] |operand| to |operands|.
+        1. [=set/Append=] |operand|.{{MLOperand/[[operator]]}} to |operators|.
+        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=], [=set/append=] |operand| to |inputs|.
+        1. [=list/For each=] |input| of |operand|.{{MLOperand/[[operator]]}}'s [=operator/inputs=]:
+            1. [=queue/Enqueue=] |input| to |queue|.
+    1. If any {{MLOperand}}s in |inputs| have the same {{MLOperand/[[name]]}}, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+
+        Issue(567): If {{MLGraphBuilder}} can't be re-used, then this can be simplified: enforce uniqueness in {{MLGraphBuilder/input()}} instead, and iteration can be done over all of the graph's inputs instead of needing this traversal.
+
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. Run the following steps [=in parallel=]:
-        1. If |outputs| is empty, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-        1. [=map/For each=] |name| → |operand| of |outputs|:
-            1. If |name| is empty, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-        1. If any of the following sub-steps fail, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
-            1. Let |graph| be a new {{MLGraph}} with |realm|:
-                1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
-            1. Make a request to the underlying platform to:
-                1. Connect |graph| to a new [=implementation-defined=] graph implementation |graphImpl| given |graph|.
-                1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
-            1. Make a request to the underlying platform to initialize the graph:
-                1. [=map/For each=] |name| → |operand| of |outputs|:
-                    1. If |operand| was created as an input by the underlying platform:
-                        1. If |operand|.{{MLOperand/[[name]]}} is not unique for |graphImpl|, then [=queue an ML task=] with |global| to [=reject=] |promise| with a {{TypeError}}, and abort these steps.
-                        1. Add |operand|.{{MLOperand/[[descriptor]]}} to |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}].
-                    1. If |operand| was created as a constant by the underlying platform:
-                        1. Implementations MAY preprocess and optimize the tensor data of |operand| for the underlying platform.
-                    1. Register a [=platform operand=] representing |operand| in |graphImpl| as graph output.
-                    1. Register a [=platform operator=] representing |operand|.{{MLOperand/[[operator]]}} to |graphImpl|.
+    1. Let |graph| be a new {{MLGraph}} with |realm|.
+    1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
+    1. [=set/For each=] |operand| in |inputs|:
+        1. Set |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}] to |operand|.{{MLOperand/[[descriptor]]}}.
 
-                Issue(552): Decide how to specify graph initialization.
+            Issue(566): If {{MLGraphBuilder/constant(descriptor, bufferView)|constants'}} {{ArrayBuffer}}s are not [=transferred=], make copies for [=MLGraphBuilder/graph=]'s [=computational graph/constants=] here.
+
+    1. [=map/For each=] |name| → |operand| of |outputs|:
+        1. Set |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] to |operand|.{{MLOperand/[[descriptor]]}}.
+    1. Let |promise| be [=a new promise=].
+    1. Run the following steps [=in parallel=]:
+        1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
+            1. If the underlying platform does not support a requested feature, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
+
+            Issue: Reference [=platform operator=] and [=platform operand=] here, or drop those definitions?
+
+        1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
     1. Return |promise|.
 </details>
-
-Issue(448): More fully specify the behavior of {{MLGraphBuilder/build()}} in terms of traversing the graph of [=operators=] and {{MLOperand}}s, creating the corresponding [=platform operators=] and [=platform operands=], and connecting [=operator/inputs=], [=operator/outputs=], and [=operator/activations=].
-
 
 ### argMin/argMax operations ### {#api-mlgraphbuilder-argminmax}
 Return the index location of the minimum or maxmium values of all the input values along the axes.
@@ -1458,7 +1468,7 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder" data-lt="argminmax-op">create argMin/argMax operation</dfn> given [=string=] |op|, {{MLOperand}} |input| and {{MLArgMinMaxOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "argMin", "argMax".
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLArgMinMaxOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLArgMinMaxOptions/axes}} (if it [=map/exists=]), and |options|.{{MLArgMinMaxOptions/keepDimensions}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
@@ -1547,7 +1557,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>batchNormalization(|input|, |mean|, |variance|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |input|, |mean|, |variance|, |options|.{{MLBatchNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLBatchNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |mean|, |variance|, |options|.{{MLBatchNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLBatchNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/activation}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/axis}} is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
     1. If |mean|'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
@@ -1612,7 +1622,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>cast(|input|, |type|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the cast operation, given |type|.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -1687,7 +1697,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>clamp(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If [=checking clamp options=] given |options| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -1744,7 +1754,7 @@ partial interface MLGraphBuilder {
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any [=list/item=] in |inputs| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any [=list/item=] in |inputs| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |inputs| [=list/is empty=], then [=exception/throw=] a {{TypeError}}.
     1. Let |first| be |inputs|[0].
     1. If |axis| is greater than or equal to |first|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
@@ -1887,7 +1897,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>conv2d(|input|, |filter|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConv2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConv2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and it returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |inputSize| be |input|'s [=MLOperand/rank=].
     1. Let |filterSize| be |filter|'s [=MLOperand/rank=].
@@ -2091,7 +2101,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>convTranspose2d(|input|, |filter|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConvTranspose2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConvTranspose2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and it returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |inputSize| be |input|'s [=MLOperand/rank=].
     1. Let |filterSize| be |filter|'s [=MLOperand/rank=].
@@ -2213,7 +2223,7 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder" data-lt="element-wise-binary-op">create element-wise binary operation</dfn> given [=string=] |op|, {{MLOperand}} |a| and {{MLOperand}} |b|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "add", "sub", "mul", "div", "max", "min", "pow".
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |a|'s [=MLOperand/dataType=].
@@ -2326,10 +2336,10 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
   </summary>
     1. [=Assert=]: |op| is one of "equal", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "not".
     1. If |op| is "not".
-        1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |a| returns false, then [=exception/throw=] a {{TypeError}}.
+        1. If [=MLGraphBuilder/validating operand=] with [=this=] and |a| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] isn't {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |op| is anything else but "not".
-        1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
+        1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"uint8"}}.
@@ -2442,7 +2452,7 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create element-wise unary operation</dfn> given [=string=] |op| and {{MLOperand}} |input|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "erf", "exp", "floor", "identity", "log", "neg", "reciprocal", "sin", "sqrt", "tan".
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the unary operation |op|.
@@ -2597,7 +2607,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>elu(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the ELU operation, given |options|.
@@ -2647,7 +2657,7 @@ partial interface MLGraphBuilder {
     <div class="note">
         The permissions and context validity have been checked by [[#api-mlgraphbuilder-constructor]] steps.
     </div>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputDescriptor| be a new {{MLOperandDescriptor}}.
     1. Set |outputDescriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
     1. Set |outputDescriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |input|'s [=MLOperand/shape=] and |newShape|.
@@ -2693,7 +2703,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>gather(|input|, |indices|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |input| abd |indices| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| abd |indices| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |indices|'s [=MLOperand/dataType=] is neither {{MLOperandDataType/"uint32"}} nor {{MLOperandDataType/"int64"}}, then [=exception/throw=] a {{TypeError}}.
     1. Let |shapeInput| be |input|'s [=MLOperand/shape=] and |rankInput| be |shapeInput|'s [=MLOperand/rank=].
     1. Let |shapeIndices| be |indices|'s [=MLOperand/shape=].
@@ -2840,7 +2850,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>gemm(|a|, |b|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
     1. Let |sizeA| be the [=list/size=] of |shapeA|.
     1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=].
@@ -2971,7 +2981,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>gru(|input|, |weight|, |recurrentWeight|, |steps|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLGruOptions/bias}} (if it [=map/exists=]), |options|.{{MLGruOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLGruOptions/initialHiddenState}} returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLGruOptions/bias}} (if it [=map/exists=]), |options|.{{MLGruOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLGruOptions/initialHiddenState}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] or |weight| or |recurrentWeight| is not 3, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=].
@@ -3138,7 +3148,7 @@ partial interface MLGraphBuilder {
   <summary>
      The <dfn method for=MLGraphBuilder>gruCell(|input|, |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |options|.{{MLGruCellOptions/bias}} (if it [=map/exists=]), and |options|.{{MLGruCellOptions/recurrentBias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |options|.{{MLGruCellOptions/bias}} (if it [=map/exists=]), and |options|.{{MLGruCellOptions/recurrentBias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] or |weight| or |recurrentWeight| or |hiddenState| is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |weight|'s [=MLOperand/shape=][0] is not equal to 3 * |hiddenSize|, then [=exception/throw=] a {{TypeError}}.
@@ -3319,7 +3329,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>hardSigmoid(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the hard sigmoid operation, given |options|.
@@ -3391,7 +3401,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>hardSwish(|input|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the hard-swish operation.
@@ -3469,7 +3479,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>instanceNormalization(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |input|, |options|.{{MLInstanceNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLInstanceNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLInstanceNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLInstanceNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLInstanceNormalizationOptions/scale}}'s [=MLOperand/rank=] is not equal to 1, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLInstanceNormalizationOptions/bias}}'s [=MLOperand/rank=] is not equal to 1, then [=exception/throw=] a {{TypeError}}.
@@ -3566,7 +3576,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>layerNormalization(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |input|, |options|.{{MLLayerNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLLayerNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLLayerNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLLayerNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either equal to [=the range=] from 1 to |input|'s [=MLOperand/rank=], exclusive, if |input|'s [=MLOperand/rank=] is greater than 1, or an empty [=/list=] otherwise.
     1. If |options|.{{MLLayerNormalizationOptions/scale}}'s [=MLOperand/rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLayerNormalizationOptions/bias}}'s [=MLOperand/rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a {{TypeError}}.
@@ -3672,7 +3682,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>leakyRelu(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the Leaky RELU operation, given |options|.
@@ -3755,7 +3765,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>linear(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the linear operation, given |options|.
@@ -3869,7 +3879,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>lstm(|input|, |weight|, |recurrentWeight|, |steps|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLLstmOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/recurrentBias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/peepholeWeight}} (if it [=map/exists=]), |options|.{{MLLstmOptions/initialHiddenState}} (if it [=map/exists=]), and |options|.{{MLLstmOptions/initialCellState}} returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLLstmOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/recurrentBias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/peepholeWeight}} (if it [=map/exists=]), |options|.{{MLLstmOptions/initialHiddenState}} (if it [=map/exists=]), and |options|.{{MLLstmOptions/initialCellState}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |numDirections| be 1 if |options|.{{MLLstmOptions/direction}} is {{MLRecurrentNetworkDirection/"forward"}}, or otherwise let it be 2.
     1. If |input|'s [=MLOperand/rank=] or |weight| or |recurrentWeight| is not 3, then [=exception/throw=] a {{TypeError}}.
@@ -4076,7 +4086,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>lstmCell(|input|, |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |options|.{{MLLstmCellOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmCellOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLLstmCellOptions/peepholeWeight}} returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |options|.{{MLLstmCellOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmCellOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLLstmCellOptions/peepholeWeight}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=], |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not 2, then [=exception/throw=] a {{TypeError}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][0].
@@ -4273,7 +4283,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>matmul(|a|, |b|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating matmul output sizes=] given |a| and |b|.
     1. If that throws an error, re-[=exception/throw=] the error.
@@ -4348,7 +4358,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>pad(|input|, |beginningPadding|, |endingPadding|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a "{{TypeError}}".
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
@@ -4553,7 +4563,7 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder" data-lt="pooling-op">create pooling operation</dfn> given [=string=] |op|, {{MLOperand}} |input| and {{MLPool2dOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "averagePool2d", "l2Pool2d", "maxPool2d".
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLPool2dOptions/windowDimensions}} [=map/exists=] and its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. Otherwise, set |options|.{{MLPool2dOptions/windowDimensions}} to the height and width dimensions of the shape of |input|.
@@ -4635,7 +4645,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>prelu(|input|, |slope|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
     1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |slope|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=].
@@ -4741,7 +4751,7 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder" data-lt="reduce-op">create reduce operation</dfn> given [=string=] |op|, {{MLOperand}} |input| and {{MLReduceOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLReduceOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLReduceOptions/axes}} (if it [=map/exists=]), and |options|.{{MLReduceOptions/keepDimensions}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
@@ -4868,7 +4878,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>relu(|input|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the ReLU operation.
@@ -4974,7 +4984,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>resample2d(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If [=MLGraphBuilder/checking resample options=] given |options| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=MLGraphBuilder/calculating resample output sizes=] given |input| and |options|.
@@ -5010,7 +5020,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>reshape(|input|, |newShape|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be an empty array of {{unsigned long}}.
     1. If |newShape|'s [=list/size=] is 0, set |outputShape| to an empty [=/list=] for a scalar.
     1. If any value in |newShape| is 0, then [=exception/throw=] a {{TypeError}}.
@@ -5104,7 +5114,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>sigmoid(|input|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the sigmoid operation.
@@ -5154,7 +5164,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>slice(|input|, |starts|, |sizes|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |sizes|'s [=list/size=] is 0, then [=exception/throw=] a {{TypeError}}.
     1. If |starts|'s [=list/size=] and |sizes|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -5210,7 +5220,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>softmax(|input|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -5292,7 +5302,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>softplus(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the softplus operation, given |options|.
@@ -5356,7 +5366,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>softsign(|input|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the softsign operation.
@@ -5418,7 +5428,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>split(|input|, |splits|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |axis| be |options|.{{MLSplitOptions/axis}}.
     1. If |splits| is an {{unsigned long}}:
         1. If |input|'s [=MLOperand/shape=][|axis|] % |splits| is not 0, then [=exception/throw=] a {{TypeError}}.
@@ -5504,7 +5514,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>tanh(|input|)</dfn> method steps are:
   </summary>
-    1. If [=MLGraphBuilder/validating input operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the hyperbolic tangent operation.
