@@ -1907,18 +1907,13 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLConv2dOptions/dilations}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
     1. Else if |options|.{{MLConv2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/groups}} is 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |inputSize| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterSize|, then [=exception/throw=] a {{TypeError}}.
-    1. Else if |inputSize| % |options|.{{MLConv2dOptions/groups}} is not 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
-        1. If |options|.{{MLConv2dOptions/bias}}'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
-        1. If |options|.{{MLConv2dOptions/bias}}'s [=MLOperand/dataType=] is not the same as |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. *Calculate the output shape:*
         1. Switch on |options|.{{MLConv2dOptions/inputLayout}}:
             <dl class=switch>
                 : {{MLInputOperandLayout/"nchw"}}
                 ::
                     1. Let |batches| be |inputShape|[0].
-                    1. Let |channels| be |inputShape|[1].
+                    1. Let |inputChannels| be |inputShape|[1].
                     1. Let |inputHeight| be |inputShape|[2].
                     1. Let |inputWidth| be |inputShape|[3].
                 : {{MLInputOperandLayout/"nhwc"}}
@@ -1926,7 +1921,7 @@ partial interface MLGraphBuilder {
                     1. Let |batches| be |inputShape|[0].
                     1. Let |inputHeight| be |inputShape|[1].
                     1. Let |inputWidth| be |inputShape|[2].
-                    1. Let |channels| be |inputShape|[3].
+                    1. Let |inputChannels| be |inputShape|[3].
             </dl>
         1. Let |filterShape| be |filter|'s [=MLOperand/shape=].
         1. Switch on |options|.{{MLConv2dOptions/filterLayout}}:
@@ -1935,13 +1930,24 @@ partial interface MLGraphBuilder {
                 ::
                     1. Let |filterHeight| be |filterShape|[0].
                     1. Let |filterWidth| be |filterShape|[1].
+                    1. Let |filterInputChannels| be |filterShape|[2].
+                    1. Let |outputChannels| be |filterShape|[3].
                 : {{MLConv2dFilterOperandLayout/"ohwi"}}
-                : {{MLConv2dFilterOperandLayout/"ihwo"}}
                 ::
+                    1. Let |outputChannels| be |filterShape|[0].
                     1. Let |filterHeight| be |filterShape|[1].
                     1. Let |filterWidth| be |filterShape|[2].
+                    1. Let |filterInputChannels| be |filterShape|[2].
+                : {{MLConv2dFilterOperandLayout/"ihwo"}}
+                ::
+                    1. Let |filterInputChannels| be |filterShape|[0].
+                    1. Let |filterHeight| be |filterShape|[1].
+                    1. Let |filterWidth| be |filterShape|[2].
+                    1. Let |outputChannels| be |filterShape|[3].
                 : {{MLConv2dFilterOperandLayout/"oihw"}}
                 ::
+                    1. Let |outputChannels| be |filterShape|[0].
+                    1. Let |filterInputChannels| be |filterShape|[1].
                     1. Let |filterHeight| be |filterShape|[2].
                     1. Let |filterWidth| be |filterShape|[3].
             </dl>
@@ -1949,11 +1955,16 @@ partial interface MLGraphBuilder {
         1. Switch on |options|.{{MLConv2dOptions/inputLayout}}:
             <dl class=switch>
                 : {{MLInputOperandLayout/"nchw"}}
-                :: Let |outputShape| be « |batches|, |channels|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ) ».
+                :: Let |outputShape| be « |batches|, |outputChannels|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ) ».
                 : {{MLInputOperandLayout/"nhwc"}}
-                :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ), |channels|  ».
+                :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ), |outputChannels|  ».
             </dl>
-    1. If |outputShape| is not the same as the shape of |options|.{{MLConv2dOptions/bias}}'s [=MLOperand/shape=], then [=exception/throw=] a {{TypeError}}.
+    1. If |inputChannels| % |options|.{{MLConv2dOptions/groups}} is not 0, then [=exception/throw=] a {{TypeError}}.
+    1. Else if |inputChannels| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
+        1. If |options|.{{MLConv2dOptions/bias}}'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
+        1. If |outputChannels| is not equal to |options|.{{MLConv2dOptions/bias}}'s [=MLOperand/shape=][0], then [=exception/throw=] a {{TypeError}}.
+        1. If |options|.{{MLConv2dOptions/bias}}'s [=MLOperand/dataType=] is not the same as |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
@@ -1963,6 +1974,7 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activations=].
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input| and |filter|.
+        1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -2112,19 +2124,13 @@ partial interface MLGraphBuilder {
     1. Else if |options|.{{MLConvTranspose2dOptions/outputPadding}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
         1. If |options|.{{MLConvTranspose2dOptions/outputSizes}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-        1. If the elements of |options|.{{MLConvTranspose2dOptions/outputSizes}} are not smaller than the elements at the same dimension (index) for |options|.{{MLConvTranspose2dOptions/strides}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |inputSize| / |options|.{{MLConvTranspose2dOptions/groups}} is not equal to |filterSize|, then [=exception/throw=] a {{TypeError}}.
-    1. Else if |inputSize| % |options|.{{MLConvTranspose2dOptions/groups}} is not 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
-        1. If |options|.{{MLConvTranspose2dOptions/bias}}'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
-        1. If |options|.{{MLConvTranspose2dOptions/bias}}'s [=MLOperand/dataType=] is not the same as |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. *Calculate the output shape:*
         1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
             <dl class=switch>
                 : {{MLInputOperandLayout/"nchw"}}
                 ::
                     1. Let |batches| be |inputShape|[0].
-                    1. Let |channels| be |inputShape|[1].
+                    1. Let |inputChannels| be |inputShape|[1].
                     1. Let |inputHeight| be |inputShape|[2].
                     1. Let |inputWidth| be |inputShape|[3].
                 : {{MLInputOperandLayout/"nhwc"}}
@@ -2132,33 +2138,45 @@ partial interface MLGraphBuilder {
                     1. Let |batches| be |inputShape|[0].
                     1. Let |inputHeight| be |inputShape|[1].
                     1. Let |inputWidth| be |inputShape|[2].
-                    1. Let |channels| be |inputShape|[3].
+                    1. Let |inputChannels| be |inputShape|[3].
             </dl>
         1. Let |filterShape| be |filter|'s [=MLOperand/shape=].
         1. Switch on |options|.{{MLConvTranspose2dOptions/filterLayout}}:
             <dl class=switch>
                 : {{MLConvTranspose2dFilterOperandLayout/"iohw"}}
                 ::
+                    1. Let |filterInputChannels| be |filterShape|[0].
+                    1. Let |filterOutputChannels| be |filterShape[1].
                     1. Let |filterHeight| be |filterShape|[2].
                     1. Let |filterWidth| be |filterShape|[3].
                 : {{MLConvTranspose2dFilterOperandLayout/"hwoi"}}
                 ::
                     1. Let |filterHeight| be |filterShape|[0].
                     1. Let |filterWidth| be |filterShape|[1].
+                    1. Let |filterOutputChannels| be |filterShape[2].
+                    1. Let |filterInputChannels| be |filterShape|[3].
                 : {{MLConvTranspose2dFilterOperandLayout/"ohwi"}}
                 ::
+                    1. Let |filterOutputChannels| be |filterShape[0].
                     1. Let |filterHeight| be |filterShape|[1].
                     1. Let |filterWidth| be |filterShape|[2].
+                    1. Let |filterInputChannels| be |filterShape|[3].
             </dl>
-        1. Let |outputSizes| be the result of [=MLGraphBuilder/calculating convtranspose2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConvTranspose2dOptions/padding}}, |options|.{{MLConvTranspose2dOptions/strides}}, |options|.{{MLConvTranspose2dOptions/dilations}}, and |options|.{{MLConvTranspose2dOptions/outputPadding}}.
+        1. Let |outputChannels| be |filterOutputChannels| * |options|.{{MLConvTranspose2dOptions/groups}}
+        1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=], let |outputSizes| be |options|.{{MLConvTranspose2dOptions/outputSizes}}.
+        1. Else let |outputSizes| be the result of [=MLGraphBuilder/calculating convtranspose2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConvTranspose2dOptions/padding}}, |options|.{{MLConvTranspose2dOptions/strides}}, |options|.{{MLConvTranspose2dOptions/dilations}}, and |options|.{{MLConvTranspose2dOptions/outputPadding}}.
         1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
             <dl class=switch>
                 : {{MLInputOperandLayout/"nchw"}}
-                :: Let |outputShape| be « |batches|, |channels|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ) ».
+                :: Let |outputShape| be « |batches|, |outputChannels|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ) ».
                 : {{MLInputOperandLayout/"nhwc"}}
-                :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ), |channels| ».
+                :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ), |outputChannels| ».
             </dl>
-    1. If |outputShape| is not the same as the shape of |options|.{{MLConvTranspose2dOptions/bias}}'s [=MLOperand/shape=], then [=exception/throw=] a {{TypeError}}.
+    1. If |inputChannels| is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
+        1. If |options|.{{MLConvTranspose2dOptions/bias}}'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
+        1. If |outputChannels| is not equal to |options|.{{MLConv2dOptions/bias}}'s [=MLOperand/shape=][0], then [=exception/throw=] a {{TypeError}}.
+        1. If |options|.{{MLConvTranspose2dOptions/bias}}'s [=MLOperand/dataType=] is not the same as |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
@@ -2168,6 +2186,7 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activations=].
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input| and |filter|.
+        1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
