@@ -1574,7 +1574,7 @@ partial interface MLGraphBuilder {
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |input|.{{MLOperand/[[descriptor]]}}, that may use the same underlying data as |input|.
         1. If |options|.{{MLBatchNormalizationOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activation functions=].
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/inputs=] to |input|, |mean|, and |variance|.
         1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -1773,7 +1773,7 @@ partial interface MLGraphBuilder {
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the concat operation, given |inputs| and |axis|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/input=] to |inputs|.
+        1. Set |operator|'s [=operator/inputs=] to |inputs|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -2337,9 +2337,9 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |operator| be an [=operator=] for the binary operation |op|, given |a| and |b|.
+        1. Let |operator| be an [=operator=] for the logical operation |op|, given |a| and (if |op| is not "not") |b|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/inputs=] to |a| and |b|.
+        1. Set |operator|'s [=operator/inputs=] to |a| and (if |op| is not "not") |b|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -2997,6 +2997,7 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLGruOptions/bias=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLGruOptions/recurrentBias=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLGruOptions/initialHiddenState=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. Add |options|.{{MLGruOptions/activations}} to |operator|'s [=operator/activation functions=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -3146,7 +3147,10 @@ partial interface MLGraphBuilder {
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for "gruCell", given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/inputs=] to |input|, |weight|, |recurrentWeight|, and |hiddenState|.
+        1. If |options|.{{MLGruCellOptions/bias=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLGruCellOptions/recurrentBias=] [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. Add |options|.{{MLGruCellOptions/activations}} to |operator|'s [=operator/activation functions=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
