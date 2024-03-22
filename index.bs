@@ -887,7 +887,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
     1. [=map/For each=] |name| → |view| of |views|:
         1. Let |transferredBuffer| be the result of [=ArrayBuffer/transfer|transferring=] |view|'s [=BufferSource/underlying buffer=].
         1. Let |constructor| be the appropriate [=view constructor=] for the type of {{ArrayBufferView}} |view| from |realm|.
-        1. Let |elementsNumber| be the result of |view|'s [=BufferSource/byte length=] ÷ |view|'s [=element size=].
+        1. Let |elementsNumber| be the result of |view|'s [=BufferSource/byte length=] / |view|'s [=element size=].
         1. Let |transferredView| be [$Construct$](|constructor|, |transferredBuffer|, |view|.\[[ByteOffset]], |elementsNumber|).
         1. Set |transferredViews|[|name|] to |transferredView|.
     1. Return |transferredViews|.
@@ -1030,9 +1030,9 @@ dictionary MLOperandDescriptor {
   </summary>
     1. Let |elementLength| be 1.
     1. [=list/For each=] |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
-        1. Set |elementLength| to |elementLength| × |dimension|.
+        1. Set |elementLength| to |elementLength| * |dimension|.
     1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility).
-    1. Return |elementLength| × |elementSize|.
+    1. Return |elementLength| * |elementSize|.
 </details>
 
 <details open algorithm>
@@ -1260,7 +1260,7 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
     **Arguments:**
         - *name*: a [=string=] name of the input.
         - *descriptor*: an {{MLOperandDescriptor}} object.
-    **Returns:**: an {{MLOperand}} object.
+    **Returns:** an {{MLOperand}} object.
 </div>
 
 <details open algorithm>
@@ -1289,7 +1289,7 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     **Arguments:**
         - *descriptor*: an {{MLOperandDescriptor}}. The descriptor of the output tensor.
         - *bufferView*: an {{ArrayBufferView}}. The view of the buffer containing the initializing data.
-    **Returns:**: an {{MLOperand}}. The constant output tensor.
+    **Returns:** an {{MLOperand}}. The constant output tensor.
 </div>
 
 <details open algorithm>
@@ -1319,7 +1319,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
     **Arguments:**
         - *value*: a {{float}} number. The value of the constant.
         - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
-    **Returns:**: an {{MLOperand}}. The constant output.
+    **Returns:** an {{MLOperand}}. The constant output.
 </div>
 
 <details open algorithm>
@@ -1351,7 +1351,7 @@ Data truncation will occur when the values in the range exceed the range of the 
         - *end*: a {{float}} scalar. The ending value of the range.
         - *step*: a {{float}} scalar. The gap value between two data points in the range.
         - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
-    **Returns:**: an {{MLOperand}}. The constant 1-D output tensor of size `max(0, ceil((end - start)/step))`. 
+    **Returns:** an {{MLOperand}}. The constant 1-D output tensor of size `max(0, ceil((end - start)/step))`.
 </div>
 
 <details open algorithm>
@@ -1513,7 +1513,7 @@ dictionary MLBatchNormalizationOptions {
 
 partial interface MLGraphBuilder {
   MLOperand batchNormalization(MLOperand input, MLOperand mean, MLOperand variance,
-                             optional MLBatchNormalizationOptions options = {});
+                               optional MLBatchNormalizationOptions options = {});
 };
 </script>
 
@@ -1800,7 +1800,9 @@ dictionary MLConv2dOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand conv2d(MLOperand input, MLOperand filter, optional MLConv2dOptions options = {});
+  MLOperand conv2d(MLOperand input,
+                   MLOperand filter,
+                   optional MLConv2dOptions options = {});
 };
 </script>
 
@@ -2695,7 +2697,9 @@ dictionary MLGatherOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand gather(MLOperand input, MLOperand indices, optional MLGatherOptions options = {});
+  MLOperand gather(MLOperand input,
+                   MLOperand indices,
+                   optional MLGatherOptions options = {});
 };
 </script>
 
@@ -2868,9 +2872,9 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
-    1. Let |sizeA| be the [=list/size=] of |shapeA|.
+    1. Let |sizeA| be |shapeA|'s [=list/size=].
     1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=].
-    1. Let |sizeB| be the [=list/size=] of |shapeB|.
+    1. Let |sizeB| be |shapeB|'s [=list/size=].
     1. If |sizeA| is not 2 or |sizeB| is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGemmOptions/aTranspose}} is true, then reverse the order of the items in |shapeA|.
     1. If |options|.{{MLGemmOptions/bTranspose}} is true, then reverse the order of the items in |shapeB|.
@@ -3463,7 +3467,7 @@ dictionary MLInstanceNormalizationOptions {
 
 partial interface MLGraphBuilder {
   MLOperand instanceNormalization(MLOperand input,
-                                optional MLInstanceNormalizationOptions options = {});
+                                  optional MLInstanceNormalizationOptions options = {});
 };
 </script>
 
@@ -3471,11 +3475,11 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLInstanceNormalizationOptions>
     : <dfn>scale</dfn>
     ::
-        The 1-D tensor of the scaling values whose [=list/size=] is equal to the number of channels, i.e. the size of the feature dimension of the input. For example, for an |input| tensor with `nchw` layout, the [=list/size=] is equal to |input|'s [=MLOperand/shape=][1].
+        The 1-D tensor of the scaling values whose [=list/size=] is equal to the number of channels, i.e. the size of the feature dimension of the input. For example, for an |input| tensor with {{MLInputOperandLayout/"nchw"}} layout, the [=list/size=] is equal to |input|'s [=MLOperand/shape=][1].
 
     : <dfn>bias</dfn>
     ::
-        The 1-D tensor of the bias values whose [=list/size=] is equal to the size of the feature dimension of the input. For example, for an |input| tensor with `nchw` layout, the [=list/size=] is equal to |input|'s [=MLOperand/shape=][1].
+        The 1-D tensor of the bias values whose [=list/size=] is equal to the size of the feature dimension of the input. For example, for an |input| tensor with {{MLInputOperandLayout/"nchw"}} layout, the [=list/size=] is equal to |input|'s [=MLOperand/shape=][1].
 
     : <dfn>epsilon</dfn>
     ::
@@ -3562,7 +3566,8 @@ dictionary MLLayerNormalizationOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand layerNormalization(MLOperand input, optional MLLayerNormalizationOptions options = {});
+  MLOperand layerNormalization(MLOperand input,
+                               optional MLLayerNormalizationOptions options = {});
 };
 </script>
 
@@ -3653,7 +3658,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### leakyRelu ### {#api-mlgraphbuilder-leakyrelu}
-Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Leaky_ReLU"> leaky version of rectified linear function</a> on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha ∗ min(0, x)`.
+Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Leaky_ReLU"> leaky version of rectified linear function</a> on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha * min(0, x)`.
 
 <script type=idl>
 dictionary MLLeakyReluOptions {
@@ -4283,9 +4288,9 @@ partial interface MLGraphBuilder {
     To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given |a| and |b| run the following steps:
   </summary>
     1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=]
-    1. Let |sizeA| be the [=list/size=] of |shapeA|.
+    1. Let |sizeA| be |shapeA|'s [=list/size=].
     1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=]
-    1. Let |sizeB| be the [=list/size=] of |shapeB|.
+    1. Let |sizeB| be |shapeB|'s [=list/size=].
     1. If either |sizeA| or |sizeB| is less than 2, then [=exception/throw=] a {{TypeError}}.
     1. Let |colsA| be |shapeA|[|sizeA| - 1].
     1. Let |rowsA| be |shapeA|[|sizeA| - 2].
@@ -4645,7 +4650,7 @@ Apply the L2 norm function to a region of the input feature map. The L2 norm is 
 Calculate the maximum value for patches of a feature map, and use it to create a pooled feature map. See [[#api-mlgraphbuilder-pool2d]] for more detail.
 
 ### prelu ### {#api-mlgraphbuilder-prelu}
-Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Parametric_ReLU">parametric version of rectified linear function (Parametric ReLU)</a> on the input tensor element-wise. Parametric ReLU is a type of leaky ReLU that, instead of having a scalar slope like 0.01, making the slope (coefficient of leakage) into a parameter that is learned during the model training phase of this operation. The calculation follows the expression `max(0, x) + slope ∗ min(0, x)`.
+Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Parametric_ReLU">parametric version of rectified linear function (Parametric ReLU)</a> on the input tensor element-wise. Parametric ReLU is a type of leaky ReLU that, instead of having a scalar slope like 0.01, making the slope (coefficient of leakage) into a parameter that is learned during the model training phase of this operation. The calculation follows the expression `max(0, x) + slope * min(0, x)`.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand prelu(MLOperand input, MLOperand slope);
@@ -5422,9 +5427,10 @@ dictionary MLSplitOptions {
 };
 
 partial interface MLGraphBuilder {
-  sequence<MLOperand> split(MLOperand input,
-                          ([EnforceRange] unsigned long or sequence<[EnforceRange] unsigned long>) splits,
-                          optional MLSplitOptions options = {});
+  sequence<MLOperand> split(
+      MLOperand input,
+      ([EnforceRange] unsigned long or sequence<[EnforceRange] unsigned long>) splits,
+      optional MLSplitOptions options = {});
 };
 </script>
 
@@ -5455,7 +5461,7 @@ partial interface MLGraphBuilder {
         1. Otherwise, let |splitCount| be |splits|.
     1. If |splits| is a sequence of {{unsigned long}}:
         1. If the sum of its elements is not equal to |input|'s [=MLOperand/shape=][|axis|], then [=exception/throw=] a {{TypeError}}.
-        1. Otherwise, let |splitCount| be the [=list/size=] of |splits|.
+        1. Otherwise, let |splitCount| be |splits|'s [=list/size=].
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the split operation, given |splits| and |options|.
         1. Let |outputs| be a new [=/list=].
@@ -5848,11 +5854,11 @@ const context = await navigator.ml.createContext({powerPreference: 'low-power'})
 Given the following build graph:
 <pre>
     constant1 ---+
-                +--- Add ---> intermediateOutput1 ---+
+                 +--- Add ---> intermediateOutput1 ---+
     input1    ---+                                    |
-                                                    +--- Mul---> output
+                                                      +--- Mul---> output
     constant2 ---+                                    |
-                +--- Add ---> intermediateOutput2 ---+
+                 +--- Add ---> intermediateOutput2 ---+
     input2    ---+
 </pre>
 <details open>
