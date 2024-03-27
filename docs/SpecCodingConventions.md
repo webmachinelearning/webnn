@@ -80,6 +80,9 @@ Example:
 * Commonly used punctuation and symbol characters include:
     * « » (U+00AB / U+00BB Left/Right Pointing Double Angle Quotation Marks) used for [list literals](https://infra.spec.whatwg.org/#lists)
     * → (U+2192 Rightwards Arrow) used for [map iteration](https://infra.spec.whatwg.org/#map-iterate)
+* In expressions:
+    * Use * (U+002A Asterisk) for multiplication, / (U+002F Solidus) for division, and - (U+002D Hyphen-Minux), to reduce friction for implementers. Don't use × (U+00D7 Multiplication Sign), ∗ (U+2217 Asterisk Operator), ÷ (U+00F7 Division Sign), or − (U+2212 Minus Sign).
+    * Use named functions like _floor(x)_ and _ceil()_ rather than syntax like ⌊_x_⌋ and ⌈_x_⌉.
 
 
 ### Formatting
@@ -88,6 +91,7 @@ Example:
 * Outside of examples, which should be appropriately styled automatically, literals such as numbers within spec prose are not JavaScript values and should not be styled as code.
 * Strings used internally (e.g. operator names) should not be styled as code.
 * When concisely defining a list's members or a tensor's layout, use the syntax `*[ ... ]*` (e.g. _"nchw" means the input tensor has the layout *[batches, inputChannels, height, width]*_)
+* In Web IDL `<pre class=idl>` blocks, wrap long lines to avoid horizontal scrollbars. 88 characters seems to be the magic number.
 
 
 ### Algorithms
