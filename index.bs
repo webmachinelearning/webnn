@@ -616,9 +616,9 @@ Unlike WebGPU, this API does not intrinsically support custom shader authoring; 
 
 The WebGPU API identifies <a href="https://gpuweb.github.io/gpuweb/#privacy-machine-artifacts">machine-specific artifacts</a> as a privacy consideration. Similarly, the WebNN API's compute unit scheduling may under certain circumstances introduce a fingerprint. However, similarly to WebGPU, such fingerprints are identical across most or all of the devices of each vendor, mitigating the concern. Furthermore, software implementations can be used to further eliminate such artifacts.
 
-The WebNN API defines two developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the most appropriate underlying execution device for the workload. [=Device type=] normatively indicates the kind of device and is either {{MLDeviceType/"cpu"}} or {{MLDeviceType/"gpu"}}. If this type cannot be satisfied, an "{{OperationError}}" {{DOMException}} is thrown, thus this type can in some cases add two bits of entropy to the fingerprint. [=Power preference=] indicates preference as related to the power consumption and is considered a hint only and as such does not increase entropy of the fingerprint.
+The WebNN API defines two developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the most appropriate underlying execution device for the workload. An {{MLDeviceType}} normatively indicates the kind of device and is either {{MLDeviceType/"cpu"}} or {{MLDeviceType/"gpu"}}. If this type cannot be satisfied, an "{{OperationError}}" {{DOMException}} is thrown, thus this type can in some cases add two bits of entropy to the fingerprint. An {{MLPowerPreference}} indicates preference as related to the power consumption and is considered a hint only and as such does not increase entropy of the fingerprint.
 
-If a future version of this specification introduces support for new a  [=device type=] that can only support a subset of {{MLOperandDataType}}s, that may introduce a new fingerprint.
+If a future version of this specification introduces support for a new {{MLDeviceType}} that can only support a subset of {{MLOperandDataType}}s, that may introduce a new fingerprint.
 
 In general, implementers of this API are expected to apply <a href="https://gpuweb.github.io/gpuweb/#privacy-considerations">WebGPU Privacy Considerations</a> to their implementations where applicable.
 
@@ -668,7 +668,7 @@ An {{MLContext}} interface represents a global state of neural network execution
 
 In a situation when a GPU context executes a graph with a constant or an input in the system memory as an {{ArrayBufferView}}, the input content is automatically uploaded from the system memory to the GPU memory, and downloaded back to the system memory of an {{ArrayBufferView}} output buffer at the end of the graph execution. This data upload and download cycles will only occur whenever the execution device requires the data to be copied out of and back into the system memory, such as in the case of the GPU. It doesn't occur when the device is a CPU device. Additionally, the result of the graph execution is in a known layout format. While the execution may be optimized for a native memory access pattern in an intermediate result within the graph, the output of the last operation of the graph must convert the content back to a known layout format at the end of the graph in order to maintain the expected behavior from the caller's perspective.
 
-When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's [=power preference=] and [=device type=] specified in the {{MLPowerPreference}} and {{MLDeviceType}} options.
+When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's {{MLPowerPreference}} and {{MLDeviceType}} options.
 
 ## Task Source ## {#programming-model-task-source}
 
@@ -677,6 +677,12 @@ The <dfn>ML task source</dfn> is a [=task source=] to be used for all [=tasks=] 
 <div algorithm>
 <p>To <dfn>queue an ML task</dfn> given a [=global object=] |global| and a series of steps |steps|, [=queue a global task=] on the [=ML task source=] with |global| and |steps|.
 </div>
+
+## Permissions Policy Integration ## {#permissions-policy-integration}
+
+This specification defines a [=policy-controlled feature=] identified by the
+string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
+Its [=policy-controlled feature/default allowlist=] is <code>'self'</code>.
 
 
 API {#api}
@@ -720,23 +726,9 @@ interface ML {
 };
 </script>
 
-### Permissions Policy Integration ### {#permissions-policy-integration}
+### {{MLContextOptions}} ### {#api-mlcontextoptions}
 
-This specification defines a [=policy-controlled feature=] identified by the
-string "<code><dfn data-lt="webnn-feature">webnn</dfn></code>".
-Its [=policy-controlled feature/default allowlist=] is <code>'self'</code>.
-
-### {{ML/createContext()}} ### {#api-ml-createcontext}
-
-The <dfn>context type</dfn> is the type of the execution context that manages the resources and facilitates the compilation and execution of the neural network graph:
-<dl dfn-for="context type">
-<dt>"<dfn>default</dfn>"</dt>
-<dd>Context created per user preference options.</dd>
-<dt>"<dfn>webgpu</dfn>"</dt>
-<dd>Context created from WebGPU device.</dd>
-</dl>
-
-The <dfn>device type</dfn> indicates the kind of device used for the context. It is one of the following:
+The <dfn dfn-for=MLContextOptions dfn-type=dict-member>deviceType</dfn> option is an <dfn dfn-type=enum>MLDeviceType</dfn> and indicates the application's preference for the kind of device used for the context. It is one of the following:
 <dl dfn-for="MLDeviceType">
 <dt>"<dfn enum-value>cpu</dfn>"</dt>
 <dd>Provides the broadest compatibility and usability across all client devices with varying degrees of performance.</dd>
@@ -744,7 +736,7 @@ The <dfn>device type</dfn> indicates the kind of device used for the context. It
 <dd>Provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations.</dd>
 </dl>
 
-The <dfn>power preference</dfn> indicates preference as related to power consumption. It is one of the following:
+The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> option is an <dfn dfn-type=enum>MLPowerPreference</dfn> and indicates the application's preference as related to power consumption. It is one of the following:
 <dl dfn-for="MLPowerPreference">
 <dt>"<dfn enum-value>default</dfn>"</dt>
 <dd>Let the user agent select the most suitable behavior.</dd>
@@ -753,6 +745,8 @@ The <dfn>power preference</dfn> indicates preference as related to power consump
 <dt>"<dfn enum-value>low-power</dfn>"</dt>
 <dd>Prioritizes power consumption over other considerations such as execution speed.</dd>
 </dl>
+
+### {{ML/createContext()}} ### {#api-ml-createcontext}
 
 <details open algorithm>
 <summary>
@@ -800,7 +794,7 @@ The <dfn>power preference</dfn> indicates preference as related to power consump
 </details>
 
 ## {{MLContext}} interface ## {#api-mlcontext}
-The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], [=device type=] and [=power preference=].
+The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], {{MLDeviceType}} and {{MLPowerPreference}}.
 
 <script type=idl>
 typedef record<DOMString, ArrayBufferView> MLNamedArrayBufferViews;
@@ -820,21 +814,37 @@ interface MLContext {
 <div class=internal-slots>
 {{MLContext}} has the following internal slots:
   <dl dfn-type=attribute dfn-for="MLContext">
-    : <dfn>\[[contextType]]</dfn> of type [=context type=]
+    : <dfn>\[[contextType]]</dfn> of type [=context type=].
     ::
         The {{MLContext}}'s [=context type=].
-    : <dfn>\[[deviceType]]</dfn> of type [=device type=]
+    : <dfn>\[[deviceType]]</dfn> of type {{MLDeviceType}}.
     ::
-        The {{MLContext}}'s [=device type=].
-    : <dfn>\[[powerPreference]]</dfn> of type [=power preference=]
+        The {{MLContext}}'s {{MLDeviceType}}.
+    : <dfn>\[[powerPreference]]</dfn> of type {{MLPowerPreference}}.
     ::
-        The {{MLContext}}'s [=power preference=].
+        The {{MLContext}}'s {{MLPowerPreference}}.
   </dl>
 </div>
+
+The <dfn>context type</dfn> is the type of the execution context that manages the resources and facilitates the compilation and execution of the neural network graph:
+<dl dfn-for="context type">
+<dt>"<dfn>default</dfn>"</dt>
+<dd>Context created per user preference options.</dd>
+<dt>"<dfn>webgpu</dfn>"</dt>
+<dd>Context created from WebGPU device.</dd>
+</dl>
 
 <div class="note">
 When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with the {{MLContextOptions}}.{{MLContextOptions/deviceType}} set to {{MLDeviceType/"gpu"}}, the user agent is responsible for creating an internal GPU device that operates within the context and is capable of ML workload submission on behalf of the calling application. In this setting however, only {{ArrayBufferView}} inputs and outputs are allowed in and out of the graph execution since the application has no way to know what type of internal GPU device is being created on their behalf. In this case, the user agent is responsible for automatic uploads and downloads of the inputs and outputs to and from the GPU memory using this said internal device.
 </div>
+
+<dl dfn-type=dict-member dfn-for=MLComputeResult>
+    : <dfn>inputs</dfn>
+    :: An object where the keys are the graph input names, and the values are the transferred {{ArrayBufferView}}s for the supplied input tensor values.
+
+    : <dfn>outputs</dfn>
+    :: An object where the keys are the graph output names, and the values are the transferred {{ArrayBufferView}}s for the computed output tensor values.
+</dl>
 
 <details open algorithm>
   <summary>
@@ -1015,14 +1025,18 @@ enum MLOperandDataType {
 };
 
 dictionary MLOperandDescriptor {
-  // The operand type.
   required MLOperandDataType dataType;
-
-  // The dimensions field is empty for scalar operands,
-  // and non-empty for tensor operands.
   sequence<[EnforceRange] unsigned long> dimensions = [];
 };
 </script>
+
+<dl dfn-type=dict-member dfn-for=MLOperandDescriptor>
+    : <dfn>dataType</dfn>
+    :: The operand data type.
+
+    : <dfn>dimensions</dfn>
+    :: The shape of the operand. It is empty for scalar operands, and non-empty for tensor operands.
+</dl>
 
 <details open algorithm>
   <summary>
@@ -1625,6 +1639,14 @@ partial interface MLGraphBuilder {
 };
 </script>
 
+<dl dfn-type=dict-member dfn-for=MLClampOptions>
+    : <dfn>minValue</dfn>
+    :: The minimum value of the range. When it is not specified, the clamping is not performed on the lower limit of the range.
+
+    : <dfn>maxValue</dfn>
+    :: The maximum value of the range. When it is not specified, the clamping is not performed on the upper limit of the range.
+</dl>
+
 <div class="note">
 <details open>
   <summary>
@@ -1658,6 +1680,9 @@ partial interface MLGraphBuilder {
     To <dfn>check clamp options</dfn> given {{MLClampOptions}} |options|, run the following steps:
   </summary>
     1. If |options|.{{MLClampOptions/minValue}} is greater than |options|.{{MLClampOptions/maxValue}}, then return false.
+
+        Issue(396): Not all implementations support {{MLClampOptions/minValue}} equal to {{MLClampOptions/maxValue}}.
+
     1. Return true.
 </details>
 
@@ -1666,8 +1691,6 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
-            - *minValue*: a {{float}} scalar. Specifies the minimum value of the range. When it is not specified, the clamping is not performed on the lower limit of the range.
-            - *maxValue*: a {{float}} scalar. Specifies the maximum value of the range. When it is not specified, the clamping is not performed on the upper limit of the range.
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *operand*.
 </div>
@@ -1691,8 +1714,6 @@ partial interface MLGraphBuilder {
 <div>
     **Arguments:**
         - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
-            - *minValue*: a {{float}} scalar. Specifies the minimum value of the range. When it is not specified, the clamping is not performed on the lower limit of the range.
-            - *maxValue*: a {{float}} scalar. Specifies the maximum value of the range. When it is not specified, the clamping is not performed on the upper limit of the range.
     **Returns:**
         - an {{MLActivation}}. The operator representing the clamp operation.
 </div>
@@ -2568,6 +2589,13 @@ partial interface MLGraphBuilder {
 };
 </script>
 
+{{MLEluOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLEluOptions>
+    : <dfn>alpha</dfn>
+    :: A scalar multiplier.
+</dl>
+
+
 <div class="note">
   <details open>
     <summary>
@@ -2593,7 +2621,6 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
-            - *alpha*: a {{float}} scalar multiplier, default to 1.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -2617,7 +2644,6 @@ partial interface MLGraphBuilder {
 <div>
     **Arguments:**
         - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
-            - *alpha*: a {{float}} scalar multiplier, default to 1.
 
     **Returns:**
         - an {{MLActivation}}. The activation function representing the elu operation.
