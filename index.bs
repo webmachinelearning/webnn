@@ -1897,10 +1897,8 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConv2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and it returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |inputSize| be |input|'s [=MLOperand/rank=].
-    1. Let |filterSize| be |filter|'s [=MLOperand/rank=].
-    1. If |inputSize| is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |filterSize| is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. If |filter|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not the same as |filter|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
     1. Else if |options|.{{MLConv2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -2113,10 +2111,8 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConvTranspose2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and it returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |inputSize| be |input|'s [=MLOperand/rank=].
-    1. Let |filterSize| be |filter|'s [=MLOperand/rank=].
-    1. If |inputSize| is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |filterSize| is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. If |filter|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not the same as |filter|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
     1. Else if |options|.{{MLConvTranspose2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -2872,11 +2868,9 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>gemm(|a|, |b|, |options|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If |a|'s [=MLOperand/rank=] is not 2 or |b|'s [=MLOperand/rank=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
-    1. Let |sizeA| be |shapeA|'s [=list/size=].
     1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=].
-    1. Let |sizeB| be |shapeB|'s [=list/size=].
-    1. If |sizeA| is not 2 or |sizeB| is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGemmOptions/aTranspose}} is true, then reverse the order of the items in |shapeA|.
     1. If |options|.{{MLGemmOptions/bTranspose}} is true, then reverse the order of the items in |shapeB|.
     1. If |shapeA|[1] is not equal to |shapeB|[0], then [=exception/throw=] a {{TypeError}}.
@@ -4282,17 +4276,17 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given |a| and |b| run the following steps:
+    To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given {{MLOperand}} |a| and {{MLOperand}} |b| run the following steps:
   </summary>
     1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=]
-    1. Let |sizeA| be |shapeA|'s [=list/size=].
+    1. Let |rankA| be |a|'s [=MLOperand/rank=].
     1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=]
-    1. Let |sizeB| be |shapeB|'s [=list/size=].
-    1. If either |sizeA| or |sizeB| is less than 2, then [=exception/throw=] a {{TypeError}}.
-    1. Let |colsA| be |shapeA|[|sizeA| - 1].
-    1. Let |rowsA| be |shapeA|[|sizeA| - 2].
-    1. Let |colsB| be |shapeB|[|sizeB| - 1].
-    1. Let |rowsB| be |shapeB|[|sizeB| - 2].
+    1. Let |rankB| be |b|'s [=MLOperand/rank=].
+    1. If either |rankA| or |rankB| is less than 2, then [=exception/throw=] a {{TypeError}}.
+    1. Let |colsA| be |shapeA|[|rankA| - 1].
+    1. Let |rowsA| be |shapeA|[|rankA| - 2].
+    1. Let |colsB| be |shapeB|[|rankB| - 1].
+    1. Let |rowsB| be |shapeB|[|rankB| - 2].
     1. If |colsA| is not equal to |rowsB|, then [=exception/throw=] a {{TypeError}}.
     1. Let |batchShapeA| be a [=list/clone=] of |shapeA| with the spatial dimensions (last 2 items) [=list/removed=].
     1. Let |batchShapeB| be a [=list/clone=] of |shapeB| with the spatial dimensions (last 2 items) [=list/removed=].
@@ -4755,15 +4749,15 @@ partial interface MLGraphBuilder {
   <summary>
     To <dfn for="MLGraphBuilder">calculate reduction output sizes</dfn>, given a [=/list=] of unsigned integers |inputShape|, a optional [=/list=] of unsigned integers |axes|, and [=/boolean=] |keepDimensions|, perform the following steps. They return a new [=/list=] of unsigned integers.
   </summary>
-    1. Let |inputSize| be |inputShape|'s [=list/size=].
-    1. If |axes| is not given, let |axes| be [=the range=] 0 to |inputSize|, exclusive.
+    1. Let |inputRank| be |inputShape|'s [=list/size=].
+    1. If |axes| is not given, let |axes| be [=the range=] 0 to |inputRank|, exclusive.
     1. If |keepDimensions| is true, then:
         1. Let |outputShape| be a [=list/clone=] of |inputShape|.
         1. [=list/For each=] |axis| of |axes|:
             1. Set |outputShape|[|axis|] to 1.
     1. Otherwise:
         1. Let |outputShape| be an empty [=/list=].
-        1. [=list/For each=] |index| in [=the range=] 0 to |inputSize|, exclusive:
+        1. [=list/For each=] |index| in [=the range=] 0 to |inputRank|, exclusive:
             1. If |axes| does not [=list/contain=] |index|, then [=list/append=] |inputShape|[|index|].
     1. Return |outputShape|.
 </details>

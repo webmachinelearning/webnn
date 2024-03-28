@@ -110,6 +110,7 @@ Example:
 * Use "let" to introduce a variable and "set" to update a variable or assign to a property.
 * Use « » notation for literal lists, which helps make it clear that they are not JavaScript arrays.
 * When referring to abstract properties, use the short possessive form `|object|'s [=property=]`. Avoid the wordier `the [=property=] of |object|` form.
+* Use "rank" when describing the number of dimensions of a tensor (e.g. in variable names) rather than the ambiguous "size".
 
 
 ### Method Definitions
