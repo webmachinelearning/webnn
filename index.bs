@@ -1558,10 +1558,10 @@ partial interface MLGraphBuilder {
     1. If |variance|'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
     1. If |variance|'s [=MLOperand/shape=][0] is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=]:
-        1. If its [=list/size=] is not 1, then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLBatchNormalizationOptions/scale}}'s [=MLOperand/shape=][0] is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=]:
-        1. If its [=list/size=] is not 1, then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLBatchNormalizationOptions/bias}}'s [=MLOperand/shape=][0] is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the batchNormalization operation, given |input|, |mean|, |variance| and |options|.
@@ -4720,7 +4720,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>keepDimensions</dfn>
     ::
-        If true, retains reduced dimensions with [=list/size=] 1.
+        If true, the output has the same rank as the input, setting any reduced dimensions to size 1.
 </dl>
 
 <div>
@@ -5179,7 +5179,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>slice(|input|, |starts|, |sizes|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |sizes|'s [=list/size=] is 0, then [=exception/throw=] a {{TypeError}}.
+    1. If any of |sizes|'s [=list/items=] are 0, then [=exception/throw=] a {{TypeError}}.
     1. If |starts|'s [=list/size=] and |sizes|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -5777,17 +5777,17 @@ Broadcasting refers to how operations treat tensors with different shapes, and f
 
 <details open algorithm>
 <summary>
-To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broadcast the shapes</dfn> |A| and |B|, perform the following steps. |A| and |B| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broadcast the shapes</dfn> |shapeA| and |shapeB|, perform the following steps. |shapeA| and |shapeB| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
 </summary>
 
-1. Let |sizeA| be |A|'s [=list/size=].
-1. Let |sizeB| be |B|'s [=list/size=].
+1. Let |sizeA| be |shapeA|'s [=list/size=].
+1. Let |sizeB| be |shapeB|'s [=list/size=].
 1. If |sizeB| > |sizeA|, then return failure.
-1. Let |paddedB| be a [=list/clone=] of |B|.
+1. Let |paddedB| be a [=list/clone=] of |shapeB|.
 1. While |paddedB|'s [=list/size=] is less than |sizeA|, [=list/prepend=] 1 to |paddedB|.
 1. Let |outputShape| be a new [=/list=].
 1. [=list/For each=] |index| in [=the range=] 0 to |sizeA|, exclusive:
-    1. Let |dimA| be |A|[|index|].
+    1. Let |dimA| be |shapeA|[|index|].
     1. Let |dimB| be |paddedB|[|index|].
     1. If |dimA| is not equal to |dimB| and |dimA| is not equal to 1, then return failure.
     1. [=list/Append=] |dimA| to |outputShape|.
@@ -5796,20 +5796,20 @@ To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broa
 </details>
 
 <p algorithm>
-|A| is <dfn>unidirectionally broadcastable</dfn> to |B| if [=unidirectionally broadcasting the shapes=] |A| and |B| does not result in failure.
+|shapeA| is <dfn>unidirectionally broadcastable</dfn> to |shapeB| if [=unidirectionally broadcasting the shapes=] |shapeA| and |shapeB| does not result in failure.
 </p>
 
 <details open algorithm>
 <summary>
-To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadcast the shapes</dfn> |A| and |B|, perform the following steps. |A| and |B| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadcast the shapes</dfn> |shapeA| and |shapeB|, perform the following steps. |shapeA| and |shapeB| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
 </summary>
 
-1. Let |sizeA| be |A|'s [=list/size=].
-1. Let |sizeB| be |B|'s [=list/size=].
+1. Let |sizeA| be |shapeA|'s [=list/size=].
+1. Let |sizeB| be |shapeB|'s [=list/size=].
 1. Let |outputSize| be the maximum of |sizeA| and |sizeB|.
-1. Let |paddedA| be a [=list/clone=] of |A|.
+1. Let |paddedA| be a [=list/clone=] of |shapeA|.
 1. While |paddedA|'s [=list/size=] is less than |outputSize|, [=list/prepend=] 1 to |paddedA|.
-1. Let |paddedB| be a [=list/clone=] of |B|.
+1. Let |paddedB| be a [=list/clone=] of |shapeB|.
 1. While |paddedB|'s [=list/size=] is less than |outputSize|, [=list/prepend=] 1 to |paddedB|.
 1. Let |outputShape| be a new [=/list=].
 1. [=list/For each=] |index| in [=the range=] 0 to |outputSize|, exclusive:
@@ -5822,7 +5822,7 @@ To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadc
 </details>
 
 <p algorithm>
-|A| is <dfn>bidirectionally broadcastable</dfn> to |B| if [=bidirectionally broadcasting the shapes=] |A| and |B| does not result in failure.
+|shapeA| is <dfn>bidirectionally broadcastable</dfn> to |shapeB| if [=bidirectionally broadcasting the shapes=] |shapeA| and |shapeB| does not result in failure.
 </p>
 
 Examples {#examples}
