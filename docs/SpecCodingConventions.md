@@ -111,6 +111,7 @@ Example:
 * Use « » notation for literal lists, which helps make it clear that they are not JavaScript arrays.
 * When referring to abstract properties, use the short possessive form `|object|'s [=property=]`. Avoid the wordier `the [=property=] of |object|` form.
 * Use "rank" when describing the number of dimensions of a tensor (e.g. in variable names) rather than the ambiguous "size".
+* Only use single capital letters as variable names when referring to tensors; i.e. prefer `|shapeA|` to `|A|`, but tensor `|T|` is okay.
 
 
 ### Method Definitions
