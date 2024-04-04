@@ -1562,10 +1562,10 @@ partial interface MLGraphBuilder {
     1. If |variance|'s [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
     1. If |variance|'s [=MLOperand/shape=][0] is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=]:
-        1. If its [=list/size=] is not 1, then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLBatchNormalizationOptions/scale}}'s [=MLOperand/shape=][0] is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=]:
-        1. If its [=list/size=] is not 1, then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLBatchNormalizationOptions/bias}}'s [=MLOperand/shape=][0] is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the batchNormalization operation, given |input|, |mean|, |variance| and |options|.
@@ -1901,10 +1901,8 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConv2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and it returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |inputSize| be |input|'s [=MLOperand/rank=].
-    1. Let |filterSize| be |filter|'s [=MLOperand/rank=].
-    1. If |inputSize| is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |filterSize| is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. If |filter|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not the same as |filter|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
     1. Else if |options|.{{MLConv2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -2117,10 +2115,8 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConvTranspose2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and it returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |inputSize| be |input|'s [=MLOperand/rank=].
-    1. Let |filterSize| be |filter|'s [=MLOperand/rank=].
-    1. If |inputSize| is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |filterSize| is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. If |filter|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not the same as |filter|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
     1. Else if |options|.{{MLConvTranspose2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -2876,11 +2872,9 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>gemm(|a|, |b|, |options|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If |a|'s [=MLOperand/rank=] is not 2 or |b|'s [=MLOperand/rank=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
-    1. Let |sizeA| be |shapeA|'s [=list/size=].
     1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=].
-    1. Let |sizeB| be |shapeB|'s [=list/size=].
-    1. If |sizeA| is not 2 or |sizeB| is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGemmOptions/aTranspose}} is true, then reverse the order of the items in |shapeA|.
     1. If |options|.{{MLGemmOptions/bTranspose}} is true, then reverse the order of the items in |shapeB|.
     1. If |shapeA|[1] is not equal to |shapeB|[0], then [=exception/throw=] a {{TypeError}}.
@@ -4286,17 +4280,17 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given |a| and |b| run the following steps:
+    To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given {{MLOperand}} |a| and {{MLOperand}} |b| run the following steps:
   </summary>
     1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=]
-    1. Let |sizeA| be |shapeA|'s [=list/size=].
+    1. Let |rankA| be |a|'s [=MLOperand/rank=].
     1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=]
-    1. Let |sizeB| be |shapeB|'s [=list/size=].
-    1. If either |sizeA| or |sizeB| is less than 2, then [=exception/throw=] a {{TypeError}}.
-    1. Let |colsA| be |shapeA|[|sizeA| - 1].
-    1. Let |rowsA| be |shapeA|[|sizeA| - 2].
-    1. Let |colsB| be |shapeB|[|sizeB| - 1].
-    1. Let |rowsB| be |shapeB|[|sizeB| - 2].
+    1. Let |rankB| be |b|'s [=MLOperand/rank=].
+    1. If either |rankA| or |rankB| is less than 2, then [=exception/throw=] a {{TypeError}}.
+    1. Let |colsA| be |shapeA|[|rankA| - 1].
+    1. Let |rowsA| be |shapeA|[|rankA| - 2].
+    1. Let |colsB| be |shapeB|[|rankB| - 1].
+    1. Let |rowsB| be |shapeB|[|rankB| - 2].
     1. If |colsA| is not equal to |rowsB|, then [=exception/throw=] a {{TypeError}}.
     1. Let |batchShapeA| be a [=list/clone=] of |shapeA| with the spatial dimensions (last 2 items) [=list/removed=].
     1. Let |batchShapeB| be a [=list/clone=] of |shapeB| with the spatial dimensions (last 2 items) [=list/removed=].
@@ -4730,7 +4724,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>keepDimensions</dfn>
     ::
-        If true, retains reduced dimensions with [=list/size=] 1.
+        If true, the output has the same rank as the input, setting any reduced dimensions to size 1.
 </dl>
 
 <div>
@@ -4759,15 +4753,15 @@ partial interface MLGraphBuilder {
   <summary>
     To <dfn for="MLGraphBuilder">calculate reduction output sizes</dfn>, given a [=/list=] of unsigned integers |inputShape|, a optional [=/list=] of unsigned integers |axes|, and [=/boolean=] |keepDimensions|, perform the following steps. They return a new [=/list=] of unsigned integers.
   </summary>
-    1. Let |inputSize| be |inputShape|'s [=list/size=].
-    1. If |axes| is not given, let |axes| be [=the range=] 0 to |inputSize|, exclusive.
+    1. Let |inputRank| be |inputShape|'s [=list/size=].
+    1. If |axes| is not given, let |axes| be [=the range=] 0 to |inputRank|, exclusive.
     1. If |keepDimensions| is true, then:
         1. Let |outputShape| be a [=list/clone=] of |inputShape|.
         1. [=list/For each=] |axis| of |axes|:
             1. Set |outputShape|[|axis|] to 1.
     1. Otherwise:
         1. Let |outputShape| be an empty [=/list=].
-        1. [=list/For each=] |index| in [=the range=] 0 to |inputSize|, exclusive:
+        1. [=list/For each=] |index| in [=the range=] 0 to |inputRank|, exclusive:
             1. If |axes| does not [=list/contain=] |index|, then [=list/append=] |inputShape|[|index|].
     1. Return |outputShape|.
 </details>
@@ -5189,7 +5183,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>slice(|input|, |starts|, |sizes|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |sizes|'s [=list/size=] is 0, then [=exception/throw=] a {{TypeError}}.
+    1. If any of |sizes|'s [=list/items=] are 0, then [=exception/throw=] a {{TypeError}}.
     1. If |starts|'s [=list/size=] and |sizes|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -5787,17 +5781,17 @@ Broadcasting refers to how operations treat tensors with different shapes, and f
 
 <details open algorithm>
 <summary>
-To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broadcast the shapes</dfn> |A| and |B|, perform the following steps. |A| and |B| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broadcast the shapes</dfn> |shapeA| and |shapeB|, perform the following steps. |shapeA| and |shapeB| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
 </summary>
 
-1. Let |sizeA| be |A|'s [=list/size=].
-1. Let |sizeB| be |B|'s [=list/size=].
+1. Let |sizeA| be |shapeA|'s [=list/size=].
+1. Let |sizeB| be |shapeB|'s [=list/size=].
 1. If |sizeB| > |sizeA|, then return failure.
-1. Let |paddedB| be a [=list/clone=] of |B|.
+1. Let |paddedB| be a [=list/clone=] of |shapeB|.
 1. While |paddedB|'s [=list/size=] is less than |sizeA|, [=list/prepend=] 1 to |paddedB|.
 1. Let |outputShape| be a new [=/list=].
 1. [=list/For each=] |index| in [=the range=] 0 to |sizeA|, exclusive:
-    1. Let |dimA| be |A|[|index|].
+    1. Let |dimA| be |shapeA|[|index|].
     1. Let |dimB| be |paddedB|[|index|].
     1. If |dimA| is not equal to |dimB| and |dimA| is not equal to 1, then return failure.
     1. [=list/Append=] |dimA| to |outputShape|.
@@ -5806,20 +5800,20 @@ To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broa
 </details>
 
 <p algorithm>
-|A| is <dfn>unidirectionally broadcastable</dfn> to |B| if [=unidirectionally broadcasting the shapes=] |A| and |B| does not result in failure.
+|shapeA| is <dfn>unidirectionally broadcastable</dfn> to |shapeB| if [=unidirectionally broadcasting the shapes=] |shapeA| and |shapeB| does not result in failure.
 </p>
 
 <details open algorithm>
 <summary>
-To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadcast the shapes</dfn> |A| and |B|, perform the following steps. |A| and |B| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadcast the shapes</dfn> |shapeA| and |shapeB|, perform the following steps. |shapeA| and |shapeB| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
 </summary>
 
-1. Let |sizeA| be |A|'s [=list/size=].
-1. Let |sizeB| be |B|'s [=list/size=].
+1. Let |sizeA| be |shapeA|'s [=list/size=].
+1. Let |sizeB| be |shapeB|'s [=list/size=].
 1. Let |outputSize| be the maximum of |sizeA| and |sizeB|.
-1. Let |paddedA| be a [=list/clone=] of |A|.
+1. Let |paddedA| be a [=list/clone=] of |shapeA|.
 1. While |paddedA|'s [=list/size=] is less than |outputSize|, [=list/prepend=] 1 to |paddedA|.
-1. Let |paddedB| be a [=list/clone=] of |B|.
+1. Let |paddedB| be a [=list/clone=] of |shapeB|.
 1. While |paddedB|'s [=list/size=] is less than |outputSize|, [=list/prepend=] 1 to |paddedB|.
 1. Let |outputShape| be a new [=/list=].
 1. [=list/For each=] |index| in [=the range=] 0 to |outputSize|, exclusive:
@@ -5832,7 +5826,7 @@ To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadc
 </details>
 
 <p algorithm>
-|A| is <dfn>bidirectionally broadcastable</dfn> to |B| if [=bidirectionally broadcasting the shapes=] |A| and |B| does not result in failure.
+|shapeA| is <dfn>bidirectionally broadcastable</dfn> to |shapeB| if [=bidirectionally broadcasting the shapes=] |shapeA| and |shapeB| does not result in failure.
 </p>
 
 Examples {#examples}
