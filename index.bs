@@ -2818,6 +2818,77 @@ partial interface MLGraphBuilder {
 </details>
 </div>
 
+### gelu ### {#api-mlgraphbuilder-gelu-method}
+Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Gaussian-error_linear_unit_(GELU)">gaussian error linear unit function</a> (GELU) of the input tensor. The calculation follows the expression `0.5 * x * (1 + erf(x / sqrt(2)))`.
+
+<script type=idl>
+partial interface MLGraphBuilder {
+  MLOperand gelu(MLOperand input);
+  MLActivation gelu();
+};
+</script>
+
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of this operation can be generically emulated from the usage of
+    other operations as follows. However, user agents typically have a more
+    efficient implementation for it. Therefore its usage is encouraged from the
+    performance standpoint.
+    </summary>
+    <pre highlight="js">
+    return builder.mul(
+               builder.mul(x, builder.constant(0.5)),
+               builder.add(
+                   builder.constant(1),
+                   builder.erf(
+                       builder.div(
+                           x,
+                           builder.sqrt(builder.constant(2))))));
+    </pre>
+  </details>
+</div>
+
+#### {{MLGraphBuilder/gelu(input)}} #### {#api-mlgraphbuilder-gelu-input}
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *input*.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>gelu(|input|)</dfn> method steps are:
+  </summary>
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. *Make graph connections:*
+        1. Let |output| be the result of [=copying an MLOperand=] given |input|.
+        1. Let |operator| be an [=operator=] for the gelu operation.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
+    1. Return |output|.
+</details>
+
+#### {{MLGraphBuilder/gelu()}} #### {#api-mlgraphbuilder-gelu}
+<div>
+    **Arguments:**
+        - None.
+
+    **Returns:**
+        - an {{MLActivation}}. The activation function representing the gelu operation.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder id=gelu-noargs>gelu()</dfn> method steps are:
+  </summary>
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=] and "gelu".
+    1. Return |op|.
+</details>
+
 ### gemm ### {#api-mlgraphbuilder-gemm}
 Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape [M, K] or [K, M], `B` is a 2-D tensor with shape [K, N] or [N, K], and `C` is [=unidirectionally broadcastable=] to the shape [M, N]. `A` and `B` may optionally be transposed prior to the calculation.
 
