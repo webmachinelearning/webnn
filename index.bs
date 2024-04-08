@@ -5065,8 +5065,10 @@ partial interface MLGraphBuilder {
   </summary>
     1. Let |desc| be a new {{MLOperandDescriptor}} initialized to |input|.{{MLOperand/[[descriptor]]}}.
     1. For |index| in [=the range=] 0 to |options|.{{MLResample2dOptions/axes}}'s [=list/size=], exclusive:
-        1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], set |desc|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to |options|.{{MLResample2dOptions/sizes}}[|index|].
-        1. Otherwise, set |desc|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to floor(|input|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] * |options|.{{MLResample2dOptions/scales}}[|index|]).
+        1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then let |size| be |options|.{{MLResample2dOptions/sizes}}[|index|].
+        1. Otherwise, let |size| be floor(|input|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] * |options|.{{MLResample2dOptions/scales}}[|index|]).
+        1. If |size| is not in [=the range=] of {{unsigned long}}, then return failure.
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to |size|.
     1. Return |desc|.
 </details>
 
@@ -5077,7 +5079,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If [=MLGraphBuilder/checking resample options=] given |options| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be the result of [=MLGraphBuilder/calculating resample output sizes=] given |input| and |options|.
+    1. Let |desc| be the result of [=MLGraphBuilder/calculating resample output sizes=] given |input| and |options|. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the resample 2D operation, given |options|.
