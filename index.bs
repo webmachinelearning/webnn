@@ -1074,6 +1074,8 @@ interface MLOperand {
   MLOperandDataType dataType();
   sequence<unsigned long> shape();
 };
+
+typedef (bigint or unrestricted double) MLNumber;
 </script>
 
 <div class=internal-slots>
@@ -1132,6 +1134,16 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
 <p algorithm>
 To <dfn for="MLGraphBuilder">validate operand</dfn> given {{MLGraphBuilder}} |builder| and {{MLOperand}} |operand|, return true if |operand|.{{MLOperand/[[builder]]}} is |builder|, and false otherwise.
 </p>
+
+#### {{MLNumber}} #### {#api-mlnumber-typedef}
+
+<dfn typedef>MLNumber</dfn> is used when specifying the type of a numeric option for an {{MLOperand}} which can be of any {{MLOperandDataType}}, including both 64-bit integer types ({{MLOperandDataType/"uint64"}} and {{MLOperandDataType/"int64"}}) and 32-bit floating point ({{MLOperandDataType/"float32"}}). Implementations must process the value according to the corresponding {{MLOperandDataType}}.
+
+<div class="note">
+  Specifying the option as {{double}} would lose accuracy when passing values over 2<sup>53</sup>, and specifying {{long long}} would disallow values over 2<sup>63</sup>.
+</div>
+
+Issue(whatwg/webidl#1388): Support for unions of {{bigint}} and [=numeric types=] new in [[WebIDL]], and implementation support is also limited. Prototype implementations are encouraged to provide feedback for this approach.
 
 ### {{MLOperand/dataType()}} ### {#api-mloperand-datatype}
 Return a data type of the {{MLOperand}}.
@@ -1229,7 +1241,13 @@ interface MLGraphBuilder {
   MLOperand constant(MLOperandDescriptor descriptor, ArrayBufferView bufferView);
 
   // Create a single-value operand from the specified number of the specified type.
-  MLOperand constant(double value, optional MLOperandDataType type = "float32");
+  MLOperand constant(MLNumber value, optional MLOperandDataType type = "float32");
+
+  // Create an operand for a constant 1-D tensor of the specified type and range.
+  MLOperand constant(MLNumber start,
+                     MLNumber end,
+                     MLNumber step,
+                     optional MLOperandDataType type = "float32");
 
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
@@ -1322,7 +1340,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
 
 <div>
     **Arguments:**
-        - *value*: a {{float}} number. The value of the constant.
+        - *value*: an {{MLNumber}}. The value of the constant.
         - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
     **Returns:** an {{MLOperand}}. The constant output.
 </div>
@@ -1349,9 +1367,9 @@ Data truncation will occur when the values in the range exceed the range of the 
 
 <div>
     **Arguments:**
-        - *start*: a {{float}} scalar. The starting value of the range.
-        - *end*: a {{float}} scalar. The ending value of the range.
-        - *step*: a {{float}} scalar. The gap value between two data points in the range.
+        - *start*: an {{MLNumber}}. The starting value of the range.
+        - *end*: an {{MLNumber}}. The ending value of the range.
+        - *step*: an {{MLNumber}}. The gap value between two data points in the range.
         - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
     **Returns:** an {{MLOperand}}. The constant 1-D output tensor of size `max(0, ceil((end - start)/step))`.
 </div>
@@ -1633,8 +1651,8 @@ partial interface MLGraphBuilder {
 Clamp the input tensor element-wise within a range specified by the minimum and maximum values.
 <script type=idl>
 dictionary MLClampOptions {
-  float minValue;
-  float maxValue;
+  MLNumber minValue;
+  MLNumber maxValue;
 };
 
 partial interface MLGraphBuilder {
@@ -4389,7 +4407,7 @@ enum MLPaddingMode {
 
 dictionary MLPadOptions {
   MLPaddingMode mode = "constant";
-  float value = 0;
+  MLNumber value = 0;
 };
 
 partial interface MLGraphBuilder {
