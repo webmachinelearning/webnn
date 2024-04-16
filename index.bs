@@ -1046,11 +1046,17 @@ dictionary MLOperandDescriptor {
     1. Return |elementLength| * |elementSize|.
 </details>
 
+<p>
+A <dfn>valid dimension</dfn> is an integer greater than zero in the range of {{unsigned long}}. Implementations may impose a smaller upper bound.
+</p>
+
+Issue(391): Should 0-size dimensions be supported?
+
 <details open algorithm>
   <summary>
     To <dfn for="MLOperandDescriptor">check dimensions</dfn> given {{MLOperandDescriptor}} |descriptor|, run the following steps:
   </summary>
-    1. If any element of |descriptor|.{{MLOperandDescriptor/dimensions}} is too large to be supported by the implementation, return false.
+    1. If any element of |descriptor|.{{MLOperandDescriptor/dimensions}} is not a [=valid dimension=], return false.
     1. If |descriptor|.{{MLOperandDescriptor/dimensions}}'s [=list/size=] is too large to be supported by the implementation, return false.
 
         Issue(456): The maximum number of operand dimensions is not defined, but native ML APIs usually have a maximum supported size.
@@ -1361,6 +1367,7 @@ Data truncation will occur when the values in the range exceed the range of the 
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
         1. Let |size| be max(0, ceil((|end| - |start|)/|step|)).
+        1. If |size| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |size| ».
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
@@ -1768,7 +1775,10 @@ partial interface MLGraphBuilder {
                 If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
             </div>
             1. If |dim| is not equal to |axis| and if |input|'s [=MLOperand/shape=][|dim|] is not equal to |first|'s [=MLOperand/shape=][|dim|], then [=exception/throw=] a {{TypeError}}.
-            1. If |dim| is equal to |axis|, add to |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] the value of |input|'s [=MLOperand/shape=][|dim|].
+            1. If |dim| is equal to |axis|:
+                1. Let |size| be the sum of |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] and |input|'s [=MLOperand/shape=][|dim|].
+                1. If |size| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+                1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] to |size|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the concat operation, given |inputs| and |axis|.
@@ -1967,6 +1977,7 @@ partial interface MLGraphBuilder {
                 : {{MLInputOperandLayout/"nhwc"}}
                 :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ), |outputChannels|  ».
             </dl>
+        1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
@@ -2179,6 +2190,7 @@ partial interface MLGraphBuilder {
                 : {{MLInputOperandLayout/"nhwc"}}
                 :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ), |outputChannels| ».
             </dl>
+        1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
@@ -4449,7 +4461,9 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a "{{TypeError}}".
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
+    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
+    1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the padding operation, given |beginningPadding|, |endingPadding| and |options|.
@@ -4667,8 +4681,10 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLPool2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
+    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating pool2d output sizes=] given |options|.{{MLPool2dOptions/layout}}, |input|'s [=MLOperand/shape=], |options|.{{MLPool2dOptions/roundingType}}, |options|.{{MLPool2dOptions/windowDimensions}}, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, |options|.{{MLPool2dOptions/dilations}}, and |options|.{{MLPool2dOptions/outputSizes}} (if it [=map/exists=]).
+    1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. *Make graph connections:*
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating pool2d output sizes=] given |options|.{{MLPool2dOptions/layout}}, |input|'s [=MLOperand/shape=], |options|.{{MLPool2dOptions/roundingType}}, |options|.{{MLPool2dOptions/windowDimensions}}, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, |options|.{{MLPool2dOptions/dilations}}, and |options|.{{MLPool2dOptions/outputSizes}} (if it [=map/exists=]).
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the |op| pooling operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
@@ -5083,8 +5099,10 @@ partial interface MLGraphBuilder {
   </summary>
     1. Let |desc| be a new {{MLOperandDescriptor}} initialized to |input|.{{MLOperand/[[descriptor]]}}.
     1. For |index| in [=the range=] 0 to |options|.{{MLResample2dOptions/axes}}'s [=list/size=], exclusive:
-        1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], set |desc|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to |options|.{{MLResample2dOptions/sizes}}[|index|].
-        1. Otherwise, set |desc|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to floor(|input|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] * |options|.{{MLResample2dOptions/scales}}[|index|]).
+        1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then let |size| be |options|.{{MLResample2dOptions/sizes}}[|index|].
+        1. Otherwise, let |size| be floor(|input|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] * |options|.{{MLResample2dOptions/scales}}[|index|]).
+        1. If |size| is not a [=valid dimension=], then return failure.
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to |size|.
     1. Return |desc|.
 </details>
 
@@ -5095,7 +5113,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If [=MLGraphBuilder/checking resample options=] given |options| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be the result of [=MLGraphBuilder/calculating resample output sizes=] given |input| and |options|.
+    1. Let |desc| be the result of [=MLGraphBuilder/calculating resample output sizes=] given |input| and |options|. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the resample 2D operation, given |options|.
@@ -5131,7 +5149,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be an empty array of {{unsigned long}}.
     1. If |newShape|'s [=list/size=] is 0, set |outputShape| to an empty [=/list=] for a scalar.
-    1. If any value in |newShape| is 0, then [=exception/throw=] a {{TypeError}}.
+    1. If any [=list/item=] in |newShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
     1. Let |inputElementCount| be the product of all elements in |input|'s [=MLOperand/shape=]. Empty dimensions yield an |inputElementCount| of 1.
     1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
