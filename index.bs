@@ -36,7 +36,7 @@ Status Text: <p>
   <li>it has at least two independent, interoperable implementations of every feature defined in the specification, where interoperability can be verified by passing open test suites, and two or more implementations interoperating with each other;</li>
   <li>it has an open test suite of every feature defined in the specification.</li>
   </ul>
-
+Text Macro: EMULATED generically emulated from the usage of other operations as follows, although user agents typically have a more efficient implementation. In cases where the underlying platform does not directly support an operation, this decomposition can be used as a template to guide the implementation.
 </pre>
 <pre class="anchors">
 urlPrefix: https://tc39.es/ecma262/; spec: ECMA-262
@@ -845,16 +845,6 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 
 <details open algorithm>
   <summary>
-    To <dfn>validate graph resources</dfn>, given {{MLNamedArrayBufferViews}} |resources| and [=ordered map=] |descriptors|, run the following steps:
-  </summary>
-    1. [=map/For each=] |name| → |resource| of |resources|:
-        1. If |descriptors|[|name|] does not [=map/exist=], return false.
-        1. If [=validating buffer with descriptor=] given |resource| and |descriptors|[|name|] returns false, then return false.
-    1. Return true.
-</details>
-
-<details open algorithm>
-  <summary>
     To <dfn>validate buffer with descriptor</dfn> given {{ArrayBufferView}} |bufferView| and {{MLOperandDescriptor}} |descriptor|, run the following steps:
   </summary>
     1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/dataType}}  according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility), return false.
@@ -916,6 +906,8 @@ In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the
     **Returns:** Promise<{{MLComputeResult}}>.
 </div>
 
+Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext/compute(graph, inputs, outputs)/graph}}'s inputs are not provided as {{MLContext/compute(graph, inputs, outputs)/inputs}}, or if any requested {{MLContext/compute(graph, inputs, outputs)/outputs}} do not match the {{MLContext/compute(graph, inputs, outputs)/graph}}'s outputs.
+
 <details open algorithm>
   <summary>
     The <dfn method for=MLContext>compute(|graph|, |inputs|, |outputs|)</dfn> method steps are:
@@ -924,10 +916,14 @@ In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the
     1. Let |realm| be [=this=]'s [=relevant realm=].
     1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", then return [=a new promise=] [=rejected=] with an "{{OperationError}}" {{DOMException}}.
-    1. If [=validating graph resources=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If [=validating graph resources=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs| with |realm|.
-    1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs| with |realm|.
+    1. [=map/For each=] |name| → |descriptor| of |graph|.{{MLGraph/[[inputDescriptors]]}}:
+        1. If |inputs|[|name|] does not [=map/exist=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+        1. If [=validating buffer with descriptor=] given |inputs|[|name|] and |descriptor| returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. [=map/For each=] |name| → |resource| of |outputs|:
+        1. If |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] does not [=map/exist=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+        1. If [=validating buffer with descriptor=] given |resource| and |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs| with |realm|. If that threw an exception, then return [=a new promise=] [=rejected=] with that exception.
+    1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs| with |realm|. If that threw an exception, then return [=a new promise=] [=rejected=] with that exception.
     1. Let |promise| be [=a new promise=].
     1. Run the following steps [=in parallel=]:
         1. Invoke [=execute graph=] given |graph|, |transferredInputs| and |transferredOutputs|. If that returns an error, then [=queue an ML task=] with |global| to [=reject=] |promise| with an equivalent error in |realm| and abort these steps.
@@ -1046,11 +1042,17 @@ dictionary MLOperandDescriptor {
     1. Return |elementLength| * |elementSize|.
 </details>
 
+<p>
+A <dfn>valid dimension</dfn> is an integer greater than zero in the range of {{unsigned long}}. Implementations may impose a smaller upper bound.
+</p>
+
+Issue(391): Should 0-size dimensions be supported?
+
 <details open algorithm>
   <summary>
     To <dfn for="MLOperandDescriptor">check dimensions</dfn> given {{MLOperandDescriptor}} |descriptor|, run the following steps:
   </summary>
-    1. If any element of |descriptor|.{{MLOperandDescriptor/dimensions}} is too large to be supported by the implementation, return false.
+    1. If any element of |descriptor|.{{MLOperandDescriptor/dimensions}} is not a [=valid dimension=], return false.
     1. If |descriptor|.{{MLOperandDescriptor/dimensions}}'s [=list/size=] is too large to be supported by the implementation, return false.
 
         Issue(456): The maximum number of operand dimensions is not defined, but native ML APIs usually have a maximum supported size.
@@ -1361,6 +1363,7 @@ Data truncation will occur when the values in the range exceed the range of the 
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
         1. Let |size| be max(0, ceil((|end| - |start|)/|step|)).
+        1. If |size| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |size| ».
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
@@ -1579,7 +1582,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation when the input tensor is 4-D of the {{MLInputOperandLayout/"nchw"}} layout and the activation is {{MLGraphBuilder/relu()}} can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation when the input tensor is 4-D of the {{MLInputOperandLayout/"nchw"}} layout and the activation is {{MLGraphBuilder/relu()}} can be [EMULATED]
     </summary>
     <pre highlight="js">
     const shape = [1,null,1,1];
@@ -1651,10 +1654,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
     if (options.minValue === undefined) {
@@ -1768,7 +1768,10 @@ partial interface MLGraphBuilder {
                 If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
             </div>
             1. If |dim| is not equal to |axis| and if |input|'s [=MLOperand/shape=][|dim|] is not equal to |first|'s [=MLOperand/shape=][|dim|], then [=exception/throw=] a {{TypeError}}.
-            1. If |dim| is equal to |axis|, add to |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] the value of |input|'s [=MLOperand/shape=][|dim|].
+            1. If |dim| is equal to |axis|:
+                1. Let |size| be the sum of |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] and |input|'s [=MLOperand/shape=][|dim|].
+                1. If |size| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+                1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] to |size|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the concat operation, given |inputs| and |axis|.
@@ -1967,6 +1970,7 @@ partial interface MLGraphBuilder {
                 : {{MLInputOperandLayout/"nhwc"}}
                 :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ), |outputChannels|  ».
             </dl>
+        1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
@@ -2126,6 +2130,8 @@ partial interface MLGraphBuilder {
     1. Else if |options|.{{MLConvTranspose2dOptions/outputPadding}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
         1. If |options|.{{MLConvTranspose2dOptions/outputSizes}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Otherwise:
+        1. If |options|.{{MLConvTranspose2dOptions/outputPadding}}[0] is greater than or equal to |options|.{{MLConvTranspose2dOptions/strides}}[0], or |options|.{{MLConvTranspose2dOptions/outputPadding}}[1] is greater than or equal to |options|.{{MLConvTranspose2dOptions/strides}}[1], then [=exception/throw=] a {{TypeError}}.
     1. *Calculate the output shape:*
         1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
             <dl class=switch>
@@ -2179,6 +2185,7 @@ partial interface MLGraphBuilder {
                 : {{MLInputOperandLayout/"nhwc"}}
                 :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ), |outputChannels| ».
             </dl>
+        1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
@@ -2596,10 +2603,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     return builder.add(
@@ -2829,10 +2833,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follows. However, user agents typically have a more
-    efficient implementation for it. Therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     return builder.mul(
@@ -2967,7 +2968,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
     if (options.aTranspose)
@@ -3110,7 +3111,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be generically emulated from the usage of other operations as follows. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
     function squeeze(builder, op) {
@@ -3265,7 +3266,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be generically emulated via other operations as shown below, when the weight layout is the default {{MLGruWeightLayout/"zrn"}} layout, and the activation functions of the update/reset gate and new gate are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively.
+    The behavior of this operation when the weight layout is the default {{MLGruWeightLayout/"zrn"}} layout, and the activation functions of the update/reset gate and new gate are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively can be [EMULATED]
   </summary>
   <pre highlight="js">
     const one = builder.constant(1);
@@ -3380,10 +3381,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     return builder.max(
@@ -3460,10 +3458,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
     return builder.div(
@@ -3587,9 +3582,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation when the input tensor is 4-D of the {{MLInputOperandLayout/"nchw"}} layout can be generically emulated from
-    the usage of other operations as follow. However, user agents typically have a more efficient implementation for it,
-    therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation when the input tensor is 4-D of the {{MLInputOperandLayout/"nchw"}} layout can be [EMULATED]
   </summary>
   <pre highlight="js">
     // The reduction of the mean and variance values happens over the spatial dimensions of the input
@@ -3691,9 +3684,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation when the axes parameter is set to [1,2,3] can be generically emulated from
-    the usage of other operations as follow. However, user agents typically have a more efficient implementation for it,
-    therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation when the axes parameter is set to [1,2,3] can be [EMULATED]
   </summary>
   <pre highlight="js">
     // The reduction of the mean and variance values happens over the spatial dimensions 
@@ -3740,10 +3731,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     return builder.add(builder.max(builder.constant(0), x),
@@ -3818,10 +3806,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     return builder.add(
@@ -4030,7 +4015,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
     function squeeze(builder, op) {
@@ -4210,7 +4195,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be generically emulated via other operations as shown below, when the weight layout is the default {{MLLstmWeightLayout/"iofg"}} layout, and the activation functions of the input/forget/output gate and the cell gate/the cell state's filter for the output hidden state are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively.
+    The behavior of this operation when the weight layout is the default {{MLLstmWeightLayout/"iofg"}} layout, and the activation functions of the input/forget/output gate and the cell gate/the cell state's filter for the output hidden state are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively can be [EMULATED]
   </summary>
   <pre highlight="js">
     const zero = builder.constant(0);
@@ -4450,7 +4435,9 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a "{{TypeError}}".
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
+    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
+    1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the padding operation, given |beginningPadding|, |endingPadding| and |options|.
@@ -4594,7 +4581,7 @@ partial interface MLGraphBuilder {
 </div>
 
 <div class="note">
-    A *global* pooling operation such as one for the max pooling operation is a variant of pooling where the window dimensions is the spatial dimensions (last two dimensions) of the input shape, as follow.
+    A *global* pooling operation such as one for the max pooling operation is a variant of pooling where the window dimensions is the spatial dimensions (last two dimensions) of the input shape, as follows.
     <pre highlight="js">
     // 'global' max pooling
     builder.maxPool2d(input);
@@ -4668,8 +4655,10 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLPool2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
+    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating pool2d output sizes=] given |options|.{{MLPool2dOptions/layout}}, |input|'s [=MLOperand/shape=], |options|.{{MLPool2dOptions/roundingType}}, |options|.{{MLPool2dOptions/windowDimensions}}, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, |options|.{{MLPool2dOptions/dilations}}, and |options|.{{MLPool2dOptions/outputSizes}} (if it [=map/exists=]).
+    1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. *Make graph connections:*
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating pool2d output sizes=] given |options|.{{MLPool2dOptions/layout}}, |input|'s [=MLOperand/shape=], |options|.{{MLPool2dOptions/roundingType}}, |options|.{{MLPool2dOptions/windowDimensions}}, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, |options|.{{MLPool2dOptions/dilations}}, and |options|.{{MLPool2dOptions/outputSizes}} (if it [=map/exists=]).
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the |op| pooling operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
@@ -4751,10 +4740,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     return builder.add(builder.max(builder.constant(0), x),
@@ -4930,6 +4916,27 @@ partial interface MLGraphBuilder {
     </div>
 </details>
 
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of several reduction operations can be generically emulated from the usage of
+    other operations as follows. However, user agents typically have a more
+    efficient implementation for them, therefore their usage is encouraged from the
+    performance standpoint.
+    </summary>
+    <pre highlight="js">
+    // reduceLogSum(input, options)
+    return builder.log(builder.reduceSum(input, options));
+
+    // reduceLogSumExp(input, options)
+    return builder.log(builder.reduceSum(builder.exp(input), options));
+
+    // reduceSumSquare(input, options)
+    return builder.reduceSum(builder.pow(input, 2), options);
+    </pre>
+  </details>
+</div>
+
 ### relu ### {#api-mlgraphbuilder-relu-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">rectified linear function</a> of the input tensor.
 
@@ -4943,10 +4950,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     return builder.max(builder.constant(0), x);
@@ -5063,8 +5067,10 @@ partial interface MLGraphBuilder {
   </summary>
     1. Let |desc| be a new {{MLOperandDescriptor}} initialized to |input|.{{MLOperand/[[descriptor]]}}.
     1. For |index| in [=the range=] 0 to |options|.{{MLResample2dOptions/axes}}'s [=list/size=], exclusive:
-        1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], set |desc|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to |options|.{{MLResample2dOptions/sizes}}[|index|].
-        1. Otherwise, set |desc|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to floor(|input|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] * |options|.{{MLResample2dOptions/scales}}[|index|]).
+        1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then let |size| be |options|.{{MLResample2dOptions/sizes}}[|index|].
+        1. Otherwise, let |size| be floor(|input|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] * |options|.{{MLResample2dOptions/scales}}[|index|]).
+        1. If |size| is not a [=valid dimension=], then return failure.
+        1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to |size|.
     1. Return |desc|.
 </details>
 
@@ -5075,7 +5081,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If [=MLGraphBuilder/checking resample options=] given |options| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be the result of [=MLGraphBuilder/calculating resample output sizes=] given |input| and |options|.
+    1. Let |desc| be the result of [=MLGraphBuilder/calculating resample output sizes=] given |input| and |options|. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the resample 2D operation, given |options|.
@@ -5111,7 +5117,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be an empty array of {{unsigned long}}.
     1. If |newShape|'s [=list/size=] is 0, set |outputShape| to an empty [=/list=] for a scalar.
-    1. If any value in |newShape| is 0, then [=exception/throw=] a {{TypeError}}.
+    1. If any [=list/item=] in |newShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
     1. Let |inputElementCount| be the product of all elements in |input|'s [=MLOperand/shape=]. Empty dimensions yield an |inputElementCount| of 1.
     1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
@@ -5174,10 +5180,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     return builder.div(
@@ -5276,10 +5279,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
     // This sample deploys a well-known implementation trick [1] to compute the
@@ -5351,10 +5351,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     return builder.div(
@@ -5427,10 +5424,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     return builder.div(x, builder.add(builder.constant(1), builder.abs(x)));
@@ -5539,10 +5533,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
     // This sample shows the case that the splits parameter is an array.
@@ -5573,10 +5564,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of
-    other operations as follow. However, user agents typically have a more
-    efficient implementation for it, therefore its usage is encouraged from the
-    performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     return builder.div(
@@ -5824,7 +5812,7 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation can be generically emulated from the usage of other operations as follow. However, user agents typically have a more efficient implementation for it, therefore its usage is encouraged from the performance standpoint.
+    The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
     const c = builder.clamp(condition, {'minValue': 0, 'maxValue': 1});
