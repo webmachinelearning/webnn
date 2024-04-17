@@ -3073,6 +3073,11 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLGruOptions/bias}} (if it [=map/exists=]), |options|.{{MLGruOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLGruOptions/initialHiddenState}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] or |weight| or |recurrentWeight| is not 3, then [=exception/throw=] a {{TypeError}}.
+    1. If |hiddenSize| * 6 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+        <details class=note>
+          <summary>Why |hiddenSize| * 6 ?</summary>
+          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruOptions/bias}} and {{MLGruOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| must also be a [=valid dimension=].
+        </details>
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=].
         1. If |options|.{{MLGruOptions/bias}}'s [=MLOperand/shape=][1] is not equal to 3 * |hiddenSize|, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=].
@@ -3241,6 +3246,11 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |options|.{{MLGruCellOptions/bias}} (if it [=map/exists=]), and |options|.{{MLGruCellOptions/recurrentBias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] or |weight| or |recurrentWeight| or |hiddenState| is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. If |hiddenSize| * 6 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+        <details class=note>
+          <summary>Why |hiddenSize| * 6 ?</summary>
+          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruCellOptions/bias}} and {{MLGruCellOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| must also be a [=valid dimension=].
+        </details>
     1. If |weight|'s [=MLOperand/shape=][0] is not equal to 3 * |hiddenSize|, then [=exception/throw=] a {{TypeError}}.
     1. If |recurrentWeight|'s [=MLOperand/shape=][0] is not equal to 3 * |hiddenSize|, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
@@ -3958,6 +3968,11 @@ partial interface MLGraphBuilder {
     1. Let |numDirections| be 1 if |options|.{{MLLstmOptions/direction}} is {{MLRecurrentNetworkDirection/"forward"}}, or otherwise let it be 2.
     1. If |input|'s [=MLOperand/rank=] or |weight| or |recurrentWeight| is not 3, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/shape=][0] is not equal to |steps|, then [=exception/throw=] a {{TypeError}}.
+    1. If |hiddenSize| * 8 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+        <details class=note>
+          <summary>Why |hiddenSize| * 8 ?</summary>
+          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmOptions/bias}} and {{MLLstmOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| must also be a [=valid dimension=].
+        </details>
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][1].
     1. If |options|.{{MLLstmOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/rank=] is not 2, then [=exception/throw=] a {{TypeError}}.
@@ -4163,6 +4178,11 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |options|.{{MLLstmCellOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmCellOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLLstmCellOptions/peepholeWeight}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=], |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. If |hiddenSize| * 8 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+        <details class=note>
+          <summary>Why |hiddenSize| * 8 ?</summary>
+          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmCellOptions/bias}} and {{MLLstmCellOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| must also be a [=valid dimension=].
+        </details>
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][0].
     1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
