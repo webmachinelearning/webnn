@@ -640,7 +640,7 @@ The {{MLGraphBuilder}} interface serves as a builder (factory) to construct a [=
 
 In WebNN, a [=computational graph=] is composed of <dfn>operators</dfn> which act on data, and are the nodes of the graph. {{MLOperand}}s are a representation of data that flows within the computational graph, and are the edges of the graph. {{MLOperand}}s include a [=computational graph=]'s <dfn for="computational graph">input</dfn> values for inference, <dfn for="computational graph">constants</dfn> (including trained weights) used for inference, intermediate values (often referred to as activations) computed during inference, as well as the output values of inference. An [=operator=]'s <dfn for=operator>input</dfn> is one or more {{MLOperand}}s. An [=operator=]'s <dfn for=operator>output</dfn> is one or more {{MLOperand}}s. [=Operators=] have operator-specific parameters that control their behavior, which can include zero or more <dfn for=operator lt="activation|activation function">activation functions</dfn>, which are {{MLActivation}}s.
 
-A key part of the {{MLGraphBuilder}} interface are methods such as {{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/softmax()}} which create an [=operator=] which represents the actual operation to perform on the input data when the computation is run, and return a new {{MLOperand}} or {{MLActivation}} holding the operator. Methods that create an {{MLOperand}} connect any [=operator/inputs=] and [=operator/activations=] to the operator. Each method invocation returns a distinct new value, without changing the value of any other {{MLOperand}}.
+A key part of the {{MLGraphBuilder}} interface are methods such as {{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/hardSwish()}} which create an [=operator=] which represents the actual operation to perform on the input data when the computation is run, and return a new {{MLOperand}} or {{MLActivation}} holding the operator. Methods that create an {{MLOperand}} connect any [=operator/inputs=] and [=operator/activations=] to the operator. Each method invocation returns a distinct new value, without changing the value of any other {{MLOperand}}.
 
 At inference time, every {{MLOperand}} will be bound to a tensor (the actual data), which are essentially multidimensional arrays. The representation of the tensors is implementation dependent, but it typically includes the array data stored in some buffer (memory) and some metadata describing the array data (such as its shape).
 
@@ -5274,8 +5274,8 @@ Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
 the 2-D input tensor along axis 1.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand softmax(MLOperand input);
-  MLActivation softmax();
+  MLOperand softmax(MLOperand input, unsigned long axis);
+  MLActivation softmax(unsigned long axis);
 };
 </script>
 
@@ -5290,9 +5290,9 @@ partial interface MLGraphBuilder {
     // of the input values itself, in order to increase the numerical stability of
     // the result.
     // [1]: https://cs231n.github.io/linear-classify/#softmax
-    const max_x = builder.reduceMax(x, { axes: [1], keepDimensions: true });
+    const max_x = builder.reduceMax(x, { axes: [axis], keepDimensions: true });
     const exp_x = builder.exp(builder.sub(x, max_x));
-    return builder.div(exp_x, builder.reduceSum(exp_x, { axes: [1], keepDimensions: true }));
+    return builder.div(exp_x, builder.reduceSum(exp_x, { axes: [axis], keepDimensions: true }));
   </pre>
 </details>
 </div>
@@ -5301,6 +5301,7 @@ partial interface MLGraphBuilder {
 <div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input 2-D tensor.
+        - *axis*: an {{unsigned long}} scalar. The dimension the softmax will be performed on.
 
     **Returns:**
         - an {{MLOperand}}. The output 2-D tensor that contains the softmax results, of the same shape as *input*.
@@ -5308,20 +5309,20 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>softmax(|input|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>softmax(|input|, |axis|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the softmax operation.
+        1. Let |operator| be an [=operator=] for the softmax operation, given |axis|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
-#### {{MLGraphBuilder/softmax()}} #### {#api-mlgraphbuilder-softmax}
+#### {{MLGraphBuilder/softmax(axis)}} #### {#api-mlgraphbuilder-softmax}
 <div>
     **Arguments:**
         - None.
@@ -5332,9 +5333,9 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder id=softmax-noargs>softmax()</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>softmax(|axis|)</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=] and  "softmax".
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "softmax", and «[ "axis" → |axis| ]».
     1. Return |op|.
 </details>
 
