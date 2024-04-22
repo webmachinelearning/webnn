@@ -5343,15 +5343,11 @@ partial interface MLGraphBuilder {
 </details>
 
 ### softplus ### {#api-mlgraphbuilder-softplus-method}
-Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Softplus">softplus function</a> of the input tensor. The calculation follows the expression `ln(1 + exp(steepness * x)) / steepness`.
+Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Softplus">softplus function</a> of the input tensor. The calculation follows the expression `ln(1 + exp(x))`.
 <script type=idl>
-dictionary MLSoftplusOptions {
-  float steepness = 1;
-};
-
 partial interface MLGraphBuilder {
-  MLOperand softplus(MLOperand input, optional MLSoftplusOptions options = {});
-  MLActivation softplus(optional MLSoftplusOptions options = {});
+  MLOperand softplus(MLOperand input);
+  MLActivation softplus();
 };
 </script>
 
@@ -5361,28 +5357,18 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.div(
-              builder.log(
-                builder.add(
-                  builder.exp(builder.mul(x, builder.constant(options.steepness))),
-                  builder.constant(1))),
-              builder.constant(options.steepness));
+    return builder.log(
+             builder.add(
+               builder.exp(x),
+               builder.constant(1)));
     </pre>
   </details>
 </div>
 
-{{MLSoftplusOptions}} has the following members:
-<dl dfn-type=dict-member dfn-for=MLSoftplusOptions>
-    : <dfn>steepness</dfn>
-    ::
-         A scalar parameter.
-</dl>
-
-#### {{MLGraphBuilder/softplus(input, options)}} #### {#api-mlgraphbuilder-softplus-input-options}
+#### {{MLGraphBuilder/softplus(input)}} #### {#api-mlgraphbuilder-softplus-input}
 <div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLSoftplusOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -5390,22 +5376,22 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>softplus(|input|, |options|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>softplus(|input|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the softplus operation, given |options|.
+        1. Let |operator| be an [=operator=] for the softplus operation.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
-#### {{MLGraphBuilder/softplus(options)}} #### {#api-mlgraphbuilder-softplus-options}
+#### {{MLGraphBuilder/softplus()}} #### {#api-mlgraphbuilder-softplus}
 <div>
     **Arguments:**
-        - *options*: an optional {{MLSoftplusOptions}}. The optional parameters of the operation.
+        - None.
 
     **Returns:**
         - an {{MLActivation}}. The activation function representing the softplus operation.
@@ -5413,9 +5399,9 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>softplus(|options|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilde id=softplus-noargs>softplus()</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "softplus" and |options|.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=] and "softplus".
     1. Return |op|.
 </details>
 
