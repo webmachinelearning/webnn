@@ -1189,6 +1189,8 @@ interface MLActivation {};
 These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as {{MLGraphBuilder/conv2d()}} or {{MLGraphBuilder/batchNormalization()}} during a graph construction session. Such fused activation functions can provide a significant performance improvement when supported natively by the underlying implementation. This is intended as an optimization opportunity for implementers.
 </div>
 
+Each {{MLActivation}} has associated <dfn for=MLActivation>validation steps</dfn>, which is an algorithm accepting an {{MLOperandDescriptor}} and returning a boolean. The <dfn for=MLActivation>default activation validation steps</dfn> are to return true.
+
 ### Creating {{MLActivation}} ### {#api-mlactivation-create}
 <div class="note">
 The {{MLActivation}} objects (including the ones passed as input to methods) are created by the methods of {{MLGraphBuilder}} and are identified by their name. The |options| dictionary is defined by those methods. The actual creation of the activation function e.g. a {{MLGraphBuilder/sigmoid()}} or {{MLGraphBuilder/relu()}} can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of {{MLGraphBuilder/conv2d()}} for example.
@@ -1196,13 +1198,14 @@ The {{MLActivation}} objects (including the ones passed as input to methods) are
 
 <details open algorithm>
   <summary>
-    To <dfn>create an MLActivation</dfn> given {{MLGraphBuilder}} |builder|, [=string=] |name| and optional [=ordered map=] |options|, run the following steps:
+    To <dfn>create an MLActivation</dfn> given {{MLGraphBuilder}} |builder|, [=string=] |name|, optional [=ordered map=] |options|, and optional algorithm |validation steps|, run the following steps:
   </summary>
     1. Let |activation| be a new {{MLActivation}}.
     1. Set |activation|.{{MLActivation/[[builder]]}} to |builder|.
     1. Set |activation|.{{MLActivation/[[name]]}} to |name|.
     1. Let |operator| be an [=operator=] for the |name| operation, given |options|.
     1. Set |activation|.{{MLActivation/[[operator]]}} to |operator|.
+    1. Set |activation|'s [=MLActivation/validation steps=] to |validation steps| if given, or the [=MLActivation/default activation validation steps=] otherwise.
     1. Return |activation|.
 </details>
 
@@ -1567,6 +1570,7 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=][0] is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLBatchNormalizationOptions/activation}} [=map/exists=], and running its [=MLActivation/validation steps=]] with |input|.{{MLOperand/[[descriptor]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the batchNormalization operation, given |input|, |mean|, |variance| and |options|.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |input|.{{MLOperand/[[descriptor]]}}.
@@ -1974,6 +1978,7 @@ partial interface MLGraphBuilder {
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+        1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=], and running its [=MLActivation/validation steps=]] with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the conv2d operation, given |options| and |filter|.
@@ -2189,6 +2194,7 @@ partial interface MLGraphBuilder {
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+        1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], and running its [=MLActivation/validation steps=]] with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the convTranspose2d operation, given |options| and |filter|.
@@ -3089,6 +3095,7 @@ partial interface MLGraphBuilder {
             1. Let |desc1| be a new {{MLOperandDescriptor}}.
             1. Set |desc1|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
             1. Set |desc1|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+    1. If running the [=MLActivation/validation steps=] of any [=list/item=] in |options|.{{MLGruOptions/activations}} with |desc0| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for "gru", given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options| as parameters.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc0|.
@@ -3251,6 +3258,7 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |input|'s [=MLOperand/shape=][0], |hiddenSize| ».
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+    1. If running the [=MLActivation/validation steps=] of any [=list/item=] in |options|.{{MLGruCellOptions/activations}} with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for "gruCell", given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
@@ -3997,6 +4005,7 @@ partial interface MLGraphBuilder {
             1. Let |desc2| be a new {{MLOperandDescriptor}}.
             1. Set |desc2|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
             1. Set |desc2|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+        1. If running the [=MLActivation/validation steps=] of any [=list/item=] in |options|.{{MLLstmOptions/activations}} with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the LSTM operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
@@ -4014,6 +4023,7 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. Add |options|.{{MLLstmOptions/activations}} to |operator|'s [=operator/activation functions=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -4184,7 +4194,8 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |batchSize|, |hiddenSize| ».
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. *Make graph connections:*
+    1. If running the [=MLActivation/validation steps=] of any [=list/item=] in |options|.{{MLLstmCellOptions/activations}} with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
+       1. *Make graph connections:*
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output| be the [=/list=] « |output0|, |output1| ».
@@ -4194,6 +4205,7 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. Add |options|.{{MLLstmCellOptions/activations}} to |operator|'s [=operator/activation functions=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -5339,7 +5351,10 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>softmax(|axis|)</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "softmax", and «[ "axis" → |axis| ]».
+    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
+        1. If |axis| is greater than or equal to |descriptor|.{{MLOperandDescriptor/dimensions}}'s [=list/size=], then return false;
+        1. Otherwise, return true.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "softmax", «[ "axis" → |axis| ]», and |validationSteps|.
     1. Return |op|.
 </details>
 
