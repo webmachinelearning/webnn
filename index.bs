@@ -640,7 +640,7 @@ The {{MLGraphBuilder}} interface serves as a builder (factory) to construct a [=
 
 In WebNN, a [=computational graph=] is composed of <dfn>operators</dfn> which act on data, and are the nodes of the graph. {{MLOperand}}s are a representation of data that flows within the computational graph, and are the edges of the graph. {{MLOperand}}s include a [=computational graph=]'s <dfn for="computational graph">input</dfn> values for inference, <dfn for="computational graph">constants</dfn> (including trained weights) used for inference, intermediate values (often referred to as activations) computed during inference, as well as the output values of inference. An [=operator=]'s <dfn for=operator>input</dfn> is one or more {{MLOperand}}s. An [=operator=]'s <dfn for=operator>output</dfn> is one or more {{MLOperand}}s. [=Operators=] have operator-specific parameters that control their behavior, which can include zero or more <dfn for=operator lt="activation|activation function">activation functions</dfn>, which are {{MLActivation}}s.
 
-A key part of the {{MLGraphBuilder}} interface are methods such as {{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/softmax()}} which create an [=operator=] which represents the actual operation to perform on the input data when the computation is run, and return a new {{MLOperand}} or {{MLActivation}} holding the operator. Methods that create an {{MLOperand}} connect any [=operator/inputs=] and [=operator/activations=] to the operator. Each method invocation returns a distinct new value, without changing the value of any other {{MLOperand}}.
+A key part of the {{MLGraphBuilder}} interface are methods such as {{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/softmax(axis)|softmax()}} which create an [=operator=] which represents the actual operation to perform on the input data when the computation is run, and return a new {{MLOperand}} or {{MLActivation}} holding the operator. Methods that create an {{MLOperand}} connect any [=operator/inputs=] and [=operator/activations=] to the operator. Each method invocation returns a distinct new value, without changing the value of any other {{MLOperand}}.
 
 At inference time, every {{MLOperand}} will be bound to a tensor (the actual data), which are essentially multidimensional arrays. The representation of the tensors is implementation dependent, but it typically includes the array data stored in some buffer (memory) and some metadata describing the array data (such as its shape).
 
@@ -1189,6 +1189,8 @@ interface MLActivation {};
 These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as {{MLGraphBuilder/conv2d()}} or {{MLGraphBuilder/batchNormalization()}} during a graph construction session. Such fused activation functions can provide a significant performance improvement when supported natively by the underlying implementation. This is intended as an optimization opportunity for implementers.
 </div>
 
+Each {{MLActivation}} has associated <dfn for=MLActivation>validation steps</dfn>, which is an algorithm accepting an {{MLOperandDescriptor}} and returning a boolean. The <dfn for=MLActivation>default activation validation steps</dfn> are to return true.
+
 ### Creating {{MLActivation}} ### {#api-mlactivation-create}
 <div class="note">
 The {{MLActivation}} objects (including the ones passed as input to methods) are created by the methods of {{MLGraphBuilder}} and are identified by their name. The |options| dictionary is defined by those methods. The actual creation of the activation function e.g. a {{MLGraphBuilder/sigmoid()}} or {{MLGraphBuilder/relu()}} can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of {{MLGraphBuilder/conv2d()}} for example.
@@ -1196,13 +1198,14 @@ The {{MLActivation}} objects (including the ones passed as input to methods) are
 
 <details open algorithm>
   <summary>
-    To <dfn>create an MLActivation</dfn> given {{MLGraphBuilder}} |builder|, [=string=] |name| and optional [=ordered map=] |options|, run the following steps:
+    To <dfn>create an MLActivation</dfn> given {{MLGraphBuilder}} |builder|, [=string=] |name|, optional [=ordered map=] |options|, and optional algorithm |validation steps|, run the following steps:
   </summary>
     1. Let |activation| be a new {{MLActivation}}.
     1. Set |activation|.{{MLActivation/[[builder]]}} to |builder|.
     1. Set |activation|.{{MLActivation/[[name]]}} to |name|.
     1. Let |operator| be an [=operator=] for the |name| operation, given |options|.
     1. Set |activation|.{{MLActivation/[[operator]]}} to |operator|.
+    1. Set |activation|'s [=MLActivation/validation steps=] to |validation steps| if given, or the [=MLActivation/default activation validation steps=] otherwise.
     1. Return |activation|.
 </details>
 
@@ -1567,6 +1570,7 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/rank=] is not 1, then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=][0] is not equal to |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}], then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLBatchNormalizationOptions/activation}} [=map/exists=], and running its [=MLActivation/validation steps=]] with |input|.{{MLOperand/[[descriptor]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the batchNormalization operation, given |input|, |mean|, |variance| and |options|.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |input|.{{MLOperand/[[descriptor]]}}.
@@ -1974,6 +1978,7 @@ partial interface MLGraphBuilder {
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+        1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=], and running its [=MLActivation/validation steps=]] with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the conv2d operation, given |options| and |filter|.
@@ -2189,6 +2194,7 @@ partial interface MLGraphBuilder {
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+        1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], and running its [=MLActivation/validation steps=]] with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the convTranspose2d operation, given |options| and |filter|.
@@ -3088,6 +3094,11 @@ partial interface MLGraphBuilder {
     1. If |steps| is not equal to |input|'s [=MLOperand/shape=][0], then [=exception/throw=] a {{TypeError}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][1].
     1. Let |numDirections| be 2 if |options|.{{MLGruOptions/direction}} is {{MLRecurrentNetworkDirection/"both"}}, or 1 otherwise.
+    1. If |options|.{{MLGruOptions/activations}} [=map/exists=]:
+        1. Let |gateDescriptor| be a new {{MLOperandDescriptor}}.
+        1. Set |gateDescriptor|.{{MLOperandDescriptor/dimensions}} to « |batchSize|, |hiddenSize| ».
+        1. Set |gateDescriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+        1. If running the [=MLActivation/validation steps=] of any [=list/item=] in |options|.{{MLGruOptions/activations}} with |gateDescriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Calculate the output shape:*
         1. Let |desc0| be a new {{MLOperandDescriptor}}.
         1. Set |desc0|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |numDirections|, |batchSize|, |hiddenSize| ».
@@ -3263,6 +3274,7 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |input|'s [=MLOperand/shape=][0], |hiddenSize| ».
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+    1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=], and running the [=MLActivation/validation steps=] of any [=list/item=] in it with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for "gruCell", given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
@@ -4006,6 +4018,10 @@ partial interface MLGraphBuilder {
         1. If its [=MLOperand/shape=][2] is not |hiddenSize|, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
+        1. Let |gateDescriptor| be a new {{MLOperandDescriptor}}.
+        1. Set |gateDescriptor|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |batchSize|, |hiddenSize| ».
+        1. Set |gateDescriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+        1. If running the [=MLActivation/validation steps=] of any [=list/item=] in |options|.{{MLLstmOptions/activations}} with |gateDescriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Calculate the output shape:*
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |numDirections|, |batchSize|, |hiddenSize| ».
@@ -4207,7 +4223,8 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |batchSize|, |hiddenSize| ».
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. *Make graph connections:*
+    1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=], and running the [=MLActivation/validation steps=] of any [=list/item=] in it with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
+       1. *Make graph connections:*
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output| be the [=/list=] « |output0|, |output1| ».
@@ -5299,11 +5316,11 @@ partial interface MLGraphBuilder {
 
 ### softmax ### {#api-mlgraphbuilder-softmax-method}
 Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
-the 2-D input tensor along axis 1.
+the N-D input tensor along the given axis.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand softmax(MLOperand input);
-  MLActivation softmax();
+  MLOperand softmax(MLOperand input, unsigned long axis);
+  MLActivation softmax(unsigned long axis);
 };
 </script>
 
@@ -5318,38 +5335,39 @@ partial interface MLGraphBuilder {
     // of the input values itself, in order to increase the numerical stability of
     // the result.
     // [1]: https://cs231n.github.io/linear-classify/#softmax
-    const max_x = builder.reduceMax(x, { axes: [1], keepDimensions: true });
-    const exp_x = builder.exp(builder.sub(x, max_x));
-    return builder.div(exp_x, builder.reduceSum(exp_x, { axes: [1], keepDimensions: true }));
+    const maxX = builder.reduceMax(x, { axes: [axis], keepDimensions: true });
+    const expX = builder.exp(builder.sub(x, maxX));
+    return builder.div(expX, builder.reduceSum(expX, { axes: [axis], keepDimensions: true }));
   </pre>
 </details>
 </div>
 
-#### {{MLGraphBuilder/softmax(input)}} #### {#api-mlgraphbuilder-softmax-input}
+#### {{MLGraphBuilder/softmax(input, axis)}} #### {#api-mlgraphbuilder-softmax-input-axis}
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor.
+        - *input*: an {{MLOperand}}. The input N-D tensor.
+        - *axis*: an {{unsigned long}} scalar. The dimension the reduction will be performed on.
 
     **Returns:**
-        - an {{MLOperand}}. The output 2-D tensor that contains the softmax results, of the same shape as *input*.
+        - an {{MLOperand}}. The output N-D tensor that contains the softmax results, of the same shape as *input*.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>softmax(|input|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>softmax(|input|, |axis|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/rank=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the softmax operation.
+        1. Let |operator| be an [=operator=] for the softmax operation, given |axis|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
 
-#### {{MLGraphBuilder/softmax()}} #### {#api-mlgraphbuilder-softmax}
+#### {{MLGraphBuilder/softmax(axis)}} #### {#api-mlgraphbuilder-softmax-axis}
 <div>
     **Arguments:**
         - None.
@@ -5360,9 +5378,12 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder id=softmax-noargs>softmax()</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>softmax(|axis|)</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=] and  "softmax".
+    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
+        1. If |axis| is greater than or equal to |descriptor|.{{MLOperandDescriptor/dimensions}}'s [=list/size=], then return false;
+        1. Otherwise, return true.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "softmax", «[ "axis" → |axis| ]», and |validationSteps|.
     1. Return |op|.
 </details>
 
