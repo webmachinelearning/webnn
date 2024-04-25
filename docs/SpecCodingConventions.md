@@ -78,8 +78,8 @@ Example:
 * The spec is encoded with UTF-8.
 * For non-ASCII characters, prefer to use characters directly, rather than [character references](https://html.spec.whatwg.org/multipage/syntax.html#character-references) (a.k.a. entities), except when necessary for escaping e.g. `sequence&lt;DOMString&gt;`. These commonly occur in names in the Acknowledgements and References sections.
 * Commonly used punctuation and symbol characters include:
-    * « » (U+00AB / U+00BB Left/Right Pointing Double Angle Quotation Marks) used for [list literals](https://infra.spec.whatwg.org/#lists)
-    * → (U+2192 Rightwards Arrow) used for [map iteration](https://infra.spec.whatwg.org/#map-iterate)
+    * « » (U+00AB / U+00BB Left/Right Pointing Double Angle Quotation Marks) used for [list literals](https://infra.spec.whatwg.org/#lists) and [map literals](https://infra.spec.whatwg.org/#maps).
+    * → (U+2192 Rightwards Arrow) used for [map iteration](https://infra.spec.whatwg.org/#map-iterate) and [map literals](https://infra.spec.whatwg.org/#maps).
 * In expressions:
     * Use * (U+002A Asterisk) for multiplication, / (U+002F Solidus) for division, and - (U+002D Hyphen-Minux), to reduce friction for implementers. Don't use × (U+00D7 Multiplication Sign), ∗ (U+2217 Asterisk Operator), ÷ (U+00F7 Division Sign), or − (U+2212 Minus Sign).
     * Use named functions like _floor(x)_ and _ceil()_ rather than syntax like ⌊_x_⌋ and ⌈_x_⌉.
@@ -108,7 +108,8 @@ Example:
 * Use `[=list/For each=] |item| of |list|` when iterating over a list, but use more specific terms for the item (e.g. _For each dimension of dimensions:_)
 * Use `[=list/For each=] |index| in [=the range=] X to Y, inclusive` when iterating over a numeric range; a range is implicitly an ordered set which is a type of list. Specify _inclusive_ or _exclusive_ regarding the upper bound, for clarity.
 * Use "let" to introduce a variable and "set" to update a variable or assign to a property.
-* Use « » notation for literal lists, which helps make it clear that they are not JavaScript arrays.
+* Use « » notation for literal [lists](https://infra.spec.whatwg.org/#lists), which helps make it clear that they are not JavaScript arrays.
+* Use «[ _k_ → _v_ ]» notation for literal [maps](https://infra.spec.whatwg.org/#maps).
 * When referring to abstract properties, use the short possessive form `|object|'s [=property=]`. Avoid the wordier `the [=property=] of |object|` form.
 * Use "rank" when describing the number of dimensions of a tensor (e.g. in variable names) rather than the ambiguous "size".
 * Only use single capital letters as variable names when referring to tensors; i.e. prefer `|shapeA|` to `|A|`, but tensor `|T|` is okay.
