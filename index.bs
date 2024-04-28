@@ -1248,12 +1248,6 @@ interface MLGraphBuilder {
   // Create a single-value operand from the specified number of the specified type.
   MLOperand constant(MLNumber value, optional MLOperandDataType type = "float32");
 
-  // Create an operand for a constant 1-D tensor of the specified type and range.
-  MLOperand constant(MLNumber start,
-                     MLNumber end,
-                     MLNumber step,
-                     optional MLOperandDataType type = "float32");
-
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
 };
@@ -1360,40 +1354,6 @@ Data truncation will occur when the specified value exceeds the range of the spe
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |value| as value.
-    1. Return |operand|.
-</details>
-
-#### {{MLGraphBuilder/constant(start, end, step, type)}} #### {#api-mlgraphbuilder-constant-range}
-Create a constant {{MLOperand}} of the specified data type and shape that contains the data as specified by the range. 
-
-<div class="note">
-Data truncation will occur when the values in the range exceed the range of the specified output data type e.g. when a float value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
-</div>
-
-<div>
-    **Arguments:**
-        - *start*: an {{MLNumber}}. The starting value of the range.
-        - *end*: an {{MLNumber}}. The ending value of the range.
-        - *step*: an {{MLNumber}}. The gap value between two data points in the range.
-        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
-    **Returns:** an {{MLOperand}}. The constant 1-D output tensor of size `max(0, ceil((end - start)/step))`.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>constant(|start|, |end|, |step|, |type|)</dfn> method steps are:
-  </summary>
-    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-        1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
-        1. Let |size| be max(0, ceil((|end| - |start|)/|step|)).
-        1. If |size| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |size| ».
-    1. *Make graph connections:*
-        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |buffer| be an [=implementation-defined=] platform memory buffer the size of |size| multiplied by sizeof(|descriptor|.{{MLOperandDescriptor/dataType}}).
-        1. [=list/For each=] |index| in [=the range=] 0 to |size|, exclusive:
-            1. Set |buffer|[|index|] to |start| + (|index| * |step|).
-        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |buffer| as value.
     1. Return |operand|.
 </details>
 
