@@ -3581,12 +3581,13 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLInstanceNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLInstanceNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. Let |axis| be 1 if |options|.{{MLInstanceNormalizationOptions/layout}} is {{MLInputOperandLayout/"nchw"}}, and 3 otherwise.
     1. If |options|.{{MLInstanceNormalizationOptions/scale}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/rank=] is not equal to 1, then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLInstanceNormalizationOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/rank=] is not equal to 1, then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the instance normalization operation, given |options|.
