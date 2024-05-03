@@ -7,7 +7,7 @@
   <link href="https://www.w3.org/StyleSheets/TR/2021/W3C-ED" rel="stylesheet">
   <meta content="Bikeshed version 82ce88815, updated Thu Sep 7 16:33:55 2023 -0700" name="generator">
   <link href="https://www.w3.org/TR/webnn/" rel="canonical">
-  <meta content="f849201e2f2f2f0ce95a84a30573a1ac7139c065" name="document-revision">
+  <meta content="4165154a4313699be3f50955a459a381c26ad76f" name="document-revision">
 <style>
 /* Make <dl> blocks more distinct from their surroundings. */
 main dl:not(.switch) {
@@ -2514,7 +2514,7 @@ console<c- p>.</c->log<c- p>(</c-><c- t>'Output value: '</c-> <c- o>+</c-> resul
    <div class="note" role="note">
     <details open>
      <summary> The behavior of this operation when the input tensor is 4-D of the <code class="idl"><a data-link-type="idl" href="#dom-mlinputoperandlayout-nchw" id="ref-for-dom-mlinputoperandlayout-nchw①">"nchw"</a></code> layout and the activation is <code class="idl"><a data-link-type="idl" href="#relu-noargs" id="ref-for-relu-noargs①">relu()</a></code> can be generically emulated from the usage of other operations as follows, although user agents typically have a more efficient implementation. In cases where the underlying platform does not directly support an operation, this decomposition can be used as a template to guide the implementation. </summary>
-<pre class="highlight"><c- a>const</c-> shape <c- o>=</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-><c- kc>null</c-><c- p>,</c-><c- mf>1</c-><c- p>,</c-><c- mf>1</c-><c- p>];</c->
+<pre class="highlight"><c- a>const</c-> shape <c- o>=</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> input<c- p>.</c->shape<c- p>()[</c->options<c- p>.</c->axis<c- p>],</c-> <c- mf>1</c-><c- p>,</c-> <c- mf>1</c-><c- p>];</c->
 <c- k>return</c-> builder<c- p>.</c->relu<c- p>(</c->
   builder<c- p>.</c->add<c- p>(</c->
     builder<c- p>.</c->mul<c- p>(</c->
@@ -4732,7 +4732,7 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
         currentHidden<c- p>[</c->dir<c- p>],</c-> hiddenSize<c- p>,</c-> <c- p>{</c-> bias<c- o>:</c-> currentBias<c- p>[</c->dir<c- p>],</c->
         recurrentBias<c- o>:</c-> currentRecurrentBias<c- p>[</c->dir<c- p>],</c-> resetAfter<c- o>:</c-> options<c- p>.</c->resetAfter<c- p>,</c->
         layout<c- o>:</c-> options<c- p>.</c->layout<c- p>,</c-> activations<c- o>:</c-> options<c- p>.</c->activations <c- p>}),</c->
-      <c- p>[</c-><c- mf>1</c-><c- p>,</c-> <c- kc>null</c-><c- p>,</c-> hiddenSize<c- p>]);</c->
+      <c- p>[</c-><c- mf>1</c-><c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]);</c->
 
     currentOutput <c- o>=</c-> <c- p>(</c->currentOutput <c- o>?</c-> builder<c- p>.</c->concat<c- p>([</c->currentOutput<c- p>,</c-> result<c- p>],</c-> <c- mf>0</c-><c- p>)</c-> <c- o>:</c-> result<c- p>);</c->
   <c- p>}</c->
@@ -4740,7 +4740,7 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
   hiddenState <c- o>=</c-> currentOutput<c- p>;</c->
 
   <c- k>if</c-> <c- p>(</c->options<c- p>.</c->returnSequence<c- p>)</c-> <c- p>{</c->
-    currentOutput <c- o>=</c-> builder<c- p>.</c->reshape<c- p>(</c->currentOutput<c- p>,</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> numDirections<c- p>,</c-> <c- kc>null</c-><c- p>,</c-> hiddenSize<c- p>]);</c->
+    currentOutput <c- o>=</c-> builder<c- p>.</c->reshape<c- p>(</c->currentOutput<c- p>,</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> numDirections<c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]);</c->
     sequence <c- o>=</c-> <c- p>(</c->sequence <c- o>?</c-> builder<c- p>.</c->concat<c- p>([</c->sequence<c- p>,</c-> currentOutput<c- p>],</c-> <c- mf>0</c-><c- p>)</c-> <c- o>:</c-> currentOutput<c- p>);</c->
   <c- p>}</c->
 <c- p>}</c->
@@ -5262,7 +5262,7 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
 
 <c- c1>// The scale and bias values are applied per input feature</c->
 <c- c1>// e.g. axis 1 of the input tensor.</c->
-<c- a>const</c-> shape <c- o>=</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-><c- kc>null</c-><c- p>,</c-><c- mf>1</c-><c- p>,</c-><c- mf>1</c-><c- p>];</c->
+<c- a>const</c-> shape <c- o>=</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> input<c- p>.</c->shape<c- p>()[</c-><c- mf>1</c-><c- p>],</c-> <c- mf>1</c-><c- p>,</c-> <c- mf>1</c-><c- p>];</c->
 <c- k>return</c-> builder<c- p>.</c->add<c- p>(</c->
   builder<c- p>.</c->mul<c- p>(</c->
     builder<c- p>.</c->reshape<c- p>(</c->options<c- p>.</c->scale<c- p>,</c-> shape<c- p>),</c->
@@ -5884,8 +5884,8 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
       recurrentBias<c- o>:</c-> currentRecurrentBias<c- p>[</c->dir<c- p>],</c-> peepholeWeight<c- o>:</c-> currentPeepholeWeight<c- p>[</c->dir<c- p>],</c->
       layout<c- o>:</c-> options<c- p>.</c->layout<c- p>,</c-> activations<c- o>:</c-> options<c- p>.</c->activations <c- p>});</c->
 
-    <c- a>let</c-> output <c- o>=</c-> builder<c- p>.</c->reshape<c- p>(</c->results<c- p>[</c-><c- mf>0</c-><c- p>],</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> <c- kc>null</c-><c- p>,</c-> hiddenSize<c- p>]);</c->
-    <c- a>let</c-> cell <c- o>=</c-> builder<c- p>.</c->reshape<c- p>(</c->results<c- p>[</c-><c- mf>1</c-><c- p>],</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> <c- kc>null</c-><c- p>,</c-> hiddenSize<c- p>]);</c->
+    <c- a>let</c-> output <c- o>=</c-> builder<c- p>.</c->reshape<c- p>(</c->results<c- p>[</c-><c- mf>0</c-><c- p>],</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]);</c->
+    <c- a>let</c-> cell <c- o>=</c-> builder<c- p>.</c->reshape<c- p>(</c->results<c- p>[</c-><c- mf>1</c-><c- p>],</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]);</c->
 
     nextHidden <c- o>=</c-> <c- p>(</c->nextHidden <c- o>?</c-> builder<c- p>.</c->concat<c- p>([</c->nextHidden<c- p>,</c-> output<c- p>],</c-> <c- mf>0</c-><c- p>)</c-> <c- o>:</c-> output<c- p>);</c->
     nextCell <c- o>=</c-> <c- p>(</c->nextCell <c- o>?</c-> builder<c- p>.</c->concat<c- p>([</c->nextCell<c- p>,</c-> cell<c- p>],</c-> <c- mf>0</c-><c- p>)</c-> <c- o>:</c-> cell<c- p>);</c->
@@ -5895,7 +5895,7 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
   cellState <c- o>=</c-> nextCell<c- p>;</c->
 
   <c- k>if</c-> <c- p>(</c->options<c- p>.</c->returnSequence<c- p>)</c-> <c- p>{</c->
-    nextHidden <c- o>=</c-> builder<c- p>.</c->reshape<c- p>(</c->nextHidden<c- p>,</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> numDirections<c- p>,</c-> <c- kc>null</c-><c- p>,</c-> hiddenSize<c- p>]);</c->
+    nextHidden <c- o>=</c-> builder<c- p>.</c->reshape<c- p>(</c->nextHidden<c- p>,</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> numDirections<c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]);</c->
     sequence <c- o>=</c-> <c- p>(</c->sequence <c- o>?</c-> builder<c- p>.</c->concat<c- p>([</c->sequence<c- p>,</c-> nextHidden<c- p>],</c-> <c- mf>0</c-><c- p>)</c-> <c- o>:</c-> nextHidden<c- p>);</c->
   <c- p>}</c->
 <c- p>}</c->
