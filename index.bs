@@ -855,7 +855,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
   <summary>
     To <dfn>execute graph</dfn>, given {{MLGraph}} |graph|, {{MLNamedArrayBufferViews}} |inputs| and {{MLNamedArrayBufferViews}} |outputs|, run the following steps. They return {{undefined}}, or an error.
   </summary>
-    1. Let |inputResources| denote the input resources of |graph|.{{MLGraph/[[implementation]]}}.
+    1. Let |inputResources| be the input resources of |graph|.{{MLGraph/[[implementation]]}}.
     1. [=map/For each=] |name| → |inputValue| of |inputs|:
         1. Let |inputDescriptor| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|name|].
         1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} as follows:
@@ -866,7 +866,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
     1. [=map/For each=] |name| → |outputValue| of |outputs|:
         1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |name| and |inputResources| and wait for completion.
             1. If that returns an error, then return an "{{OperationError}}" {{DOMException}}.
-            1. Otherwise, store the result in |outputTensor|.
+            1. Otherwise, let |outputTensor| be the result.
         1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|].
         1. If the byte length of |outputTensor| is not equal to |outputDesc|'s [=MLOperandDescriptor/byte length=], then return a {{TypeError}}.
         1. If |outputTensor|'s [=element type=] doesn't match |outputValue|'s [=element type=], then return a {{TypeError}}.
@@ -1558,8 +1558,9 @@ partial interface MLGraphBuilder {
     The behavior of this operation when the input tensor is 4-D of the {{MLInputOperandLayout/"nchw"}} layout and the activation is {{MLGraphBuilder/relu()}} can be [EMULATED]
     </summary>
     <pre highlight="js">
-    const shape = [1, null, 1, 1];
-    return builder.relu(builder.add(
+    const shape = [1, input.shape()[options.axis], 1, 1];
+    return builder.relu(
+      builder.add(
         builder.mul(
             builder.reshape(options.scale, shape),
             builder.div(
@@ -1881,12 +1882,12 @@ partial interface MLGraphBuilder {
     1. If |filter|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
-    1. Else if |options|.{{MLConv2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. Otherwise, if |options|.{{MLConv2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
-    1. Else if |options|.{{MLConv2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Otherwise, if |options|.{{MLConv2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/dilations}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
-    1. Else if |options|.{{MLConv2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Otherwise, if |options|.{{MLConv2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/groups}} is 0, then [=exception/throw=] a {{TypeError}}.
     1. *Calculate the output shape:*
         1. Switch on |options|.{{MLConv2dOptions/inputLayout}}:
@@ -1933,7 +1934,7 @@ partial interface MLGraphBuilder {
                     1. Let |filterWidth| be |filterShape|[3].
             </dl>
         1. If |inputChannels| % |options|.{{MLConv2dOptions/groups}} is not 0, then [=exception/throw=] a {{TypeError}}.
-        1. Else if |inputChannels| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
+        1. Otherwise, if |inputChannels| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
             1. If its [=MLOperand/shape=] is not equal to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -2097,14 +2098,14 @@ partial interface MLGraphBuilder {
     1. If |filter|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
-    1. Else if |options|.{{MLConvTranspose2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. Otherwise, if |options|.{{MLConvTranspose2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/strides}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
-    1. Else if |options|.{{MLConvTranspose2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Otherwise, if |options|.{{MLConvTranspose2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/dilations}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
-    1. Else if |options|.{{MLConvTranspose2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Otherwise, if |options|.{{MLConvTranspose2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} does not [=map/exist=], set it to the [=/list=] « 0, 0 ».
-    1. Else if |options|.{{MLConvTranspose2dOptions/outputPadding}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Otherwise, if |options|.{{MLConvTranspose2dOptions/outputPadding}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. Otherwise:
@@ -2153,7 +2154,7 @@ partial interface MLGraphBuilder {
             1. If its [=MLOperand/shape=] is not equal to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=], let |outputSizes| be |options|.{{MLConvTranspose2dOptions/outputSizes}}.
-        1. Else let |outputSizes| be the result of [=MLGraphBuilder/calculating convtranspose2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConvTranspose2dOptions/padding}}, |options|.{{MLConvTranspose2dOptions/strides}}, |options|.{{MLConvTranspose2dOptions/dilations}}, and |options|.{{MLConvTranspose2dOptions/outputPadding}}.
+        1. Otherwise, let |outputSizes| be the result of [=MLGraphBuilder/calculating convtranspose2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConvTranspose2dOptions/padding}}, |options|.{{MLConvTranspose2dOptions/strides}}, |options|.{{MLConvTranspose2dOptions/dilations}}, and |options|.{{MLConvTranspose2dOptions/outputPadding}}.
         1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
             <dl class=switch>
                 : {{MLInputOperandLayout/"nchw"}}
@@ -2333,16 +2334,17 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     To <dfn for="MLGraphBuilder" data-lt="element-wise-logical-op">create element-wise logical operation</dfn> given [=string=] |op|, {{MLOperand}} |a| and an optional {{MLOperand}} |b|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "equal", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "not".
-    1. If |op| is "not".
+    1. If |op| is "not":
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and |a| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |op| is anything else but "not".
+        1. Let |outputShape| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
+    1. Otherwise:
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. Let |outputShape| be the result of [=bidirectionally broadcasting the shapes=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"uint8"}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=].
-        1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Let |operator| be an [=operator=] for the logical operation |op|, given |a| and (if |op| is not "not") |b|.
@@ -3163,7 +3165,7 @@ partial interface MLGraphBuilder {
             currentHidden[dir], hiddenSize, { bias: currentBias[dir],
             recurrentBias: currentRecurrentBias[dir], resetAfter: options.resetAfter,
             layout: options.layout, activations: options.activations }),
-          [1, null, hiddenSize]);
+          [1, batchSize, hiddenSize]);
 
         currentOutput = (currentOutput ? builder.concat([currentOutput, result], 0) : result);
       }
@@ -3171,7 +3173,7 @@ partial interface MLGraphBuilder {
       hiddenState = currentOutput;
 
       if (options.returnSequence) {
-        currentOutput = builder.reshape(currentOutput, [1, numDirections, null, hiddenSize]);
+        currentOutput = builder.reshape(currentOutput, [1, numDirections, batchSize, hiddenSize]);
         sequence = (sequence ? builder.concat([sequence, currentOutput], 0) : currentOutput);
       }
     }
@@ -3623,7 +3625,7 @@ partial interface MLGraphBuilder {
 
     // The scale and bias values are applied per input feature
     // e.g. axis 1 of the input tensor.
-    const shape = [1, null, 1, 1];
+    const shape = [1, input.shape()[1], 1, 1];
     return builder.add(
         builder.mul(
             builder.reshape(options.scale, shape),
@@ -4117,8 +4119,8 @@ partial interface MLGraphBuilder {
           recurrentBias: currentRecurrentBias[dir], peepholeWeight: currentPeepholeWeight[dir],
           layout: options.layout, activations: options.activations });
 
-        let output = builder.reshape(results[0], [1, null, hiddenSize]);
-        let cell = builder.reshape(results[1], [1, null, hiddenSize]);
+        let output = builder.reshape(results[0], [1, batchSize, hiddenSize]);
+        let cell = builder.reshape(results[1], [1, batchSize, hiddenSize]);
 
         nextHidden = (nextHidden ? builder.concat([nextHidden, output], 0) : output);
         nextCell = (nextCell ? builder.concat([nextCell, cell], 0) : cell);
@@ -4128,7 +4130,7 @@ partial interface MLGraphBuilder {
       cellState = nextCell;
 
       if (options.returnSequence) {
-        nextHidden = builder.reshape(nextHidden, [1, numDirections, null, hiddenSize]);
+        nextHidden = builder.reshape(nextHidden, [1, numDirections, batchSize, hiddenSize]);
         sequence = (sequence ? builder.concat([sequence, nextHidden], 0) : nextHidden);
       }
     }
@@ -4479,7 +4481,7 @@ partial interface MLGraphBuilder {
     To <dfn dfn-for=MLGraphBuilder>calculate padding output sizes</dfn>, given |input|, |beginningPadding| and |endingPadding|, run the following steps:
   </summary>
     1. Let |shape| be a copy of |input|'s [=MLOperand/shape=].
-    1. For |index| in [=the range=] 0 to |shape|'s [=MLOperand/rank=], exclusive:
+    1. [=list/For each=] |index| in [=the range=] 0 to |shape|'s [=MLOperand/rank=], exclusive:
         1. Add to |shape|[|index|] the value of |beginningPadding|[|index|].
         1. Add to |shape|[|index|] the value of |endingPadding|[|index|].
     1. Return |shape|.
@@ -5131,7 +5133,7 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder">calculate resample output sizes</dfn> given {{MLOperand}} |input| and {{MLResample2dOptions}} |options|, run the following steps:
   </summary>
     1. Let |desc| be a new {{MLOperandDescriptor}} initialized to |input|.{{MLOperand/[[descriptor]]}}.
-    1. For |index| in [=the range=] 0 to |options|.{{MLResample2dOptions/axes}}'s [=list/size=], exclusive:
+    1. [=list/For each=] |index| in [=the range=] 0 to |options|.{{MLResample2dOptions/axes}}'s [=list/size=], exclusive:
         1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then let |size| be |options|.{{MLResample2dOptions/sizes}}[|index|].
         1. Otherwise, let |size| be floor(|input|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] * |options|.{{MLResample2dOptions/scales}}[|index|]).
         1. If |size| is not a [=valid dimension=], then return failure.
@@ -5713,7 +5715,7 @@ partial interface MLGraphBuilder {
   </summary>
     1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|'s [=MLOperand/shape=].
     1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
-        1. If its [=MLOperand/rank=] is not equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=list/size=] is not equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
         1. If its values are not in [=the range=] 0 to |input|'s [=MLOperand/rank=] exclusive, then [=exception/throw=] a {{TypeError}}.
         1. If it contains duplicate values, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
