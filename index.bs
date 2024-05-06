@@ -651,7 +651,7 @@ that shares the same buffer as the input tensor. (In the case of reshape,
 the entire data is shared, while in the case of slice, a part of the input data is shared.)
 The implementation may use views, as above, for intermediate values.
 
-Before the execution, the computation graph that is used to compute one or more specified outputs needs to be compiled and optimized. The key purpose of the compilation step is to enable optimizations that span two or more operations, such as operation or loop fusion.
+Before the execution, the computation graph that is used to compute one or more specified outputs needs to be converted, compiled, and optimized. The key purpose of the compilation step is to enable optimizations that span two or more operations, such as operation or loop fusion. The user agent may also perform these optimizations during graph conversion.
 
 The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph in the background without blocking the calling thread, and returns a {{Promise}} that resolves to an {{MLGraph}}. The compilation step produces an {{MLGraph}} that represents a compiled graph for optimal execution.
 
@@ -1200,14 +1200,14 @@ interface MLActivation {};
 </div>
 
 <div class="note">
-These activations function types are used to create other operations. One such use of this interface is for when an activation function is fused into another operation such as {{MLGraphBuilder/conv2d()}} or {{MLGraphBuilder/batchNormalization()}} during a graph construction session. Such fused activation functions can provide a significant performance improvement when supported natively by the underlying implementation. This is intended as an optimization opportunity for implementers.
+These activations functions are used to configure the behavior of recurrent operators such as {{MLGraphBuilder/gru()}} or {{MLGraphBuilder/lstm()}}.
 </div>
 
 Each {{MLActivation}} has associated <dfn for=MLActivation>validation steps</dfn>, which is an algorithm accepting an {{MLOperandDescriptor}} and returning a boolean. The <dfn for=MLActivation>default activation validation steps</dfn> are to return true.
 
 ### Creating {{MLActivation}} ### {#api-mlactivation-create}
 <div class="note">
-The {{MLActivation}} objects (including the ones passed as input to methods) are created by the methods of {{MLGraphBuilder}} and are identified by their name. The |options| dictionary is defined by those methods. The actual creation of the activation function e.g. a {{MLGraphBuilder/sigmoid()}} or {{MLGraphBuilder/relu()}} can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of {{MLGraphBuilder/conv2d()}} for example.
+The {{MLActivation}} objects (including the ones passed as input to methods) are created by the methods of {{MLGraphBuilder}} and are identified by their name. The |options| dictionary is defined by those methods. The actual creation of the activation function e.g. a {{MLGraphBuilder/sigmoid()}} or {{MLGraphBuilder/relu()}} can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of {{MLGraphBuilder/lstm()}} for example.
 </div>
 
 <details open algorithm>
@@ -1493,7 +1493,6 @@ dictionary MLBatchNormalizationOptions {
   MLOperand bias;
   [EnforceRange] unsigned long axis = 1;
   float epsilon = 1e-5;
-  MLActivation activation;
 };
 
 partial interface MLGraphBuilder {
@@ -1519,10 +1518,6 @@ partial interface MLGraphBuilder {
     : <dfn>epsilon</dfn>
     ::
         A small value to prevent computational error due to divide-by-zero.
-
-    : <dfn>activation</dfn>
-    ::
-        An optional activation function that immediately follows the normalization operation.
 </dl>
 
 <div>
@@ -1540,7 +1535,6 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>batchNormalization(|input|, |mean|, |variance|, |options|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |mean|, |variance|, |options|.{{MLBatchNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLBatchNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLBatchNormalizationOptions/activation}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/axis}} is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
     1. If |mean|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -1553,11 +1547,9 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLBatchNormalizationOptions/activation}} [=map/exists=], and running its [=MLActivation/validation steps=]] with |input|.{{MLOperand/[[descriptor]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the batchNormalization operation, given |input|, |mean|, |variance| and |options|.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |input|.{{MLOperand/[[descriptor]]}}.
-        1. If |options|.{{MLBatchNormalizationOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activation functions=].
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input|, |mean|, and |variance|.
         1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
@@ -1569,19 +1561,18 @@ partial interface MLGraphBuilder {
 <div class="note">
   <details open>
     <summary>
-    The behavior of this operation when the input tensor is 4-D of the {{MLInputOperandLayout/"nchw"}} layout and the activation is {{MLGraphBuilder/relu()}} can be [EMULATED]
+    The behavior of this operation when the input tensor is 4-D of the {{MLInputOperandLayout/"nchw"}} layout can be [EMULATED]
     </summary>
     <pre highlight="js">
-    const shape = [1, input.shape()[options.axis], 1, 1];
-    return builder.relu(
-      builder.add(
-        builder.mul(
-          builder.reshape(options.scale, shape),
-          builder.div(
-            builder.sub(input, builder.reshape(mean, shape)),
-            builder.sqrt(builder.add(builder.reshape(variance, shape), builder.constant(options.epsilon)))
-            )),
-        builder.reshape(options.bias, shape)));
+    const shape = [1,input.shape()[options.axis],1,1];
+    return builder.add(
+      builder.mul(
+        builder.reshape(options.scale, shape),
+        builder.div(
+          builder.sub(input, builder.reshape(mean, shape)),
+          builder.sqrt(builder.add(builder.reshape(variance, shape), builder.constant(options.epsilon)))
+          )),
+      builder.reshape(options.bias, shape));
     </pre>
   </details>
 </div>
@@ -1786,7 +1777,6 @@ dictionary MLConv2dOptions {
   MLInputOperandLayout inputLayout = "nchw";
   MLConv2dFilterOperandLayout filterLayout = "oihw";
   MLOperand bias;
-  MLActivation activation;
 };
 
 partial interface MLGraphBuilder {
@@ -1840,10 +1830,6 @@ partial interface MLGraphBuilder {
     : <dfn>bias</dfn>
     ::
           An additional 1-D tensor with the shape of *[outputChannels]* whose values are to be added to the convolution result.
-
-    : <dfn>activation</dfn>
-    ::
-          An optional activation function that immediately follows the convolution operation.
 </dl>
 
 <div>
@@ -1887,7 +1873,6 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>conv2d(|input|, |filter|, |options|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConv2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -1961,11 +1946,9 @@ partial interface MLGraphBuilder {
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
-        1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=], and running its [=MLActivation/validation steps=]] with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the conv2d operation, given |options| and |filter|.
-        1. If |options|.{{MLConv2dOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activations=].
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input| and |filter|.
         1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
@@ -1993,7 +1976,6 @@ dictionary MLConvTranspose2dOptions {
   MLInputOperandLayout inputLayout = "nchw";
   MLConvTranspose2dFilterOperandLayout filterLayout = "iohw";
   MLOperand bias;
-  MLActivation activation;
 };
 
 partial interface MLGraphBuilder {
@@ -2061,10 +2043,6 @@ partial interface MLGraphBuilder {
     : <dfn>bias</dfn>
     ::
         An additional 1-D tensor with the shape of *[outputChannels]* whose values are to be added to the convolution result.
-
-    : <dfn>activation</dfn>
-    ::
-        An optional activation function that immediately follows the convolution operation.
 </dl>
 
 <div>
@@ -2103,7 +2081,6 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>convTranspose2d(|input|, |filter|, |options|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConvTranspose2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -2177,11 +2154,9 @@ partial interface MLGraphBuilder {
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
-        1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], and running its [=MLActivation/validation steps=]] with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the convTranspose2d operation, given |options| and |filter|.
-        1. If |options|.{{MLConvTranspose2dOptions/activation}} [=map/exists=], then add it to |operator|'s [=operator/activations=].
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input| and |filter|.
         1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
