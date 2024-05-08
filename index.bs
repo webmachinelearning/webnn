@@ -44,6 +44,7 @@ urlPrefix: https://tc39.es/ecma262/; spec: ECMA-262
         text: element size; url: table-the-typedarray-constructors
         text: element type; url: table-the-typedarray-constructors
         text: view constructor; url: table-the-typedarray-constructors
+        text: equally close values; url: sec-ecmascript-language-types-number-type
 </pre>
 
 <pre class="link-defaults">
@@ -1351,6 +1352,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
   <summary>
     The <dfn method for=MLGraphBuilder>constant(|value|, |type|)</dfn> method steps are:
   </summary>
+    1. Set |value| to the result of [=casting=] |value| to |type|. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
         1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to an empty [=/list=].
@@ -1543,6 +1545,7 @@ partial interface MLGraphBuilder {
     1. If |mean|'s [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. If |variance|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |variance|'s [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLBatchNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLBatchNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
@@ -1679,6 +1682,10 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If [=checking clamp options=] given |options| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. Let |minValue| be the |options|.{{MLClampOptions/minValue}} if given, or Infinity otherwise.
+    1. Set |options|.{{MLClampOptions/minValue}} to the result of [=casting=] |minValue| to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Let |maxValue| be the |options|.{{MLClampOptions/maxValue}} if given, or -Infinity otherwise.
+    1. Set |options|.{{MLClampOptions/maxValue}} to the result of [=casting=] |maxValue| to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "clamp" operation, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}}.
@@ -1700,8 +1707,14 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>clamp(|options|)</dfn> method steps are:
   </summary>
+    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
+        1. Let |minValue| be the |options|.{{MLClampOptions/minValue}} if given, or Infinity otherwise.
+        1. If [=casting=] |minValue| to |descriptor|.{{MLOperandDescriptor/dataType}} returns failure, then return false.
+        1. Let |maxValue| be the |options|.{{MLClampOptions/maxValue}} if given, or -Infinity otherwise.
+        1. If [=casting=] |maxValue| to |descriptor|.{{MLOperandDescriptor/dataType}} returns failure, then return false.
+        1. Otherwise, return true.
     1. If [=checking clamp options=] given |options| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "clamp" and |options|.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "clamp", |options|, and |validationSteps|.
     1. Return |op|.
 </details>
 
@@ -2600,6 +2613,7 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLEluOptions/alpha}} to the result of [=casting=] |options|.{{MLEluOptions/alpha}} to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "elu" operation, given |options|.
@@ -2622,7 +2636,10 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>elu(|options|)</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "elu" and |options|.
+    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
+        1. If [=casting=] |options|.{{MLEluOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}} returns failure, then return false.
+        1. Otherwise, return true.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "elu", |options|, and |validationSteps|.
     1. Return |op|.
 </details>
 
@@ -2914,6 +2931,8 @@ partial interface MLGraphBuilder {
     1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |b|'s [=MLOperand/dataType=] is not equal to |a|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |a|'s [=MLOperand/rank=] is not 2 or |b|'s [=MLOperand/rank=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLGemmOptions/alpha}} to the result of [=casting=] |options|.{{MLGemmOptions/alpha}} to |a|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLGemmOptions/beta}} to the result of [=casting=] |options|.{{MLGemmOptions/beta}} to |a|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
     1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=].
     1. If |options|.{{MLGemmOptions/aTranspose}} is true, then reverse the order of the items in |shapeA|.
@@ -3424,6 +3443,8 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLHardSigmoidOptions/alpha}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/alpha}} to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLHardSigmoidOptions/beta}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/beta}} to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "hardSigmoid" operation, given |options|.
@@ -3446,7 +3467,11 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>hardSigmoid(|options|)</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "hardSigmoid" and |options|.
+    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
+        1. If [=casting=] |options|.{{MLHardSigmoidOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}} returns failure, then return false.
+        1. If [=casting=] |options|.{{MLHardSigmoidOptions/beta}} to |descriptor|.{{MLOperandDescriptor/dataType}} returns failure, then return false.
+        1. Otherwise, return true.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "hardSigmoid", |options|, and |validationSteps|.
     1. Return |op|.
 </details>
 
@@ -3572,6 +3597,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLInstanceNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLInstanceNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLInstanceNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLInstanceNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |axis| be 1 if |options|.{{MLInstanceNormalizationOptions/layout}} is {{MLInputOperandLayout/"nchw"}}, and 3 otherwise.
     1. If |options|.{{MLInstanceNormalizationOptions/scale}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -3674,6 +3700,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLLayerNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLLayerNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either equal to [=the range=] from 1 to |input|'s [=MLOperand/rank=], exclusive, if |input|'s [=MLOperand/rank=] is greater than 1, or an empty [=/list=] otherwise.
+    1. Set |options|.{{MLLayerNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLLayerNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a {{TypeError}}.
@@ -3781,6 +3808,7 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLLeakyReluOptions/alpha}} to the result of [=casting=] |options|.{{MLLeakyReluOptions/alpha}} to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "leakyRelu" operation, given |options|.
@@ -3803,7 +3831,10 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>leakyRelu(|options|)</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "leakyRelu" and |options|.
+    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
+        1. If [=casting=] |options|.{{MLLeakyReluOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}} returns failure, then return false.
+        1. Otherwise, return true.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "leakyRelu", |options|, and |validationSteps|.
     1. Return |op|.
 </details>
 
@@ -3861,6 +3892,8 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLLinearOptions/alpha}} to the result of [=casting=] |options|.{{MLLinearOptions/alpha}} to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLLinearOptions/beta}} to the result of [=casting=] |options|.{{MLLinearOptions/beta}} to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "linear" operation, given |options|.
@@ -3883,7 +3916,11 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>linear(|options|)</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "linear" and |options|.
+    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
+        1. If [=casting=] |options|.{{MLLinearOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}} returns failure, then return false.
+        1. If [=casting=] |options|.{{MLLinearOptions/beta}} to |descriptor|.{{MLOperandDescriptor/dataType}} returns failure, then return false.
+        1. Otherwise, return true.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "linear", |options|, and |validationSteps|.
     1. Return |op|.
 </details>
 
@@ -4482,6 +4519,7 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
     1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLPadOptions/value}} to the result of [=casting=] |options|.{{MLPadOptions/value}} to |input|'s [=MLOperand/dataType=]. If that returns failure, then [=exception/throw=] a "{{TypeError}}".
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
@@ -5932,6 +5970,101 @@ To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadc
 <p algorithm>
 |shapeA| is <dfn>bidirectionally broadcastable</dfn> to |shapeB| if [=bidirectionally broadcasting the shapes=] |shapeA| and |shapeB| does not result in failure.
 </p>
+
+## Casting ## {#algorithms-casting}
+
+<details open algorithm="cast">
+<summary>
+To <dfn>cast</dfn> a number |x| to a given {{MLOperandDataType}} |dataType|, optional boolean |restricted| (defaulting to false), optional boolean |enforceRange| (defaulting to false), and optional boolean |clamp| (defaulting to false), perform the following steps. They return a number or failure.
+</summary>
+
+1. Switch on |dataType|:
+    <dl class=switch>
+        : {{MLOperandDataType/"float32"}}
+        :: Return [=ConvertToFloat=](|x|, 32, |restricted|)
+        : {{MLOperandDataType/"float16"}}
+        :: Return [=ConvertToFloat=](|x|, 16, |restricted|)
+        : {{MLOperandDataType/"int64"}}
+        :: Return [=ConvertToInt=](|x|, 64, "signed", |enforceRange|, |clamp|).
+        : {{MLOperandDataType/"uint64"}}
+        :: Return [=ConvertToInt=](|x|, 64, "unsigned", |enforceRange|, |clamp|).
+        : {{MLOperandDataType/"int32"}}
+        :: Return [=ConvertToInt=](|x|, 32, "signed", |enforceRange|, |clamp|).
+        : {{MLOperandDataType/"uint32"}}
+        :: Return [=ConvertToInt=](|x|, 32, "signed", |enforceRange|, |clamp|).
+        : {{MLOperandDataType/"int8"}}
+        :: Return [=ConvertToInt=](|x|, 8, "signed", |enforceRange|, |clamp|).
+        : {{MLOperandDataType/"uint8"}}
+        :: Return [=ConvertToInt=](|x|, 8, "unsigned", |enforceRange|, |clamp|).
+    </dl>
+
+NOTE: The input to [=cast=] is an abstract number with unlimited range and precision, including the special values Infinity, -Infinity and NaN. The output is also an abstract number, but exactly representable as the specified type.
+
+ISSUE: Can we eliminate |restricted|, |enforceRange|, and |clamp| as parameters, if we always use the same conversions? Or if we never use |clamp|, at least combine |enforceRange| and |restricted|?
+
+<div algorithm>
+The <dfn>ConvertToFloat</dfn>(|x|, |bitLength|, |restricted|) steps are:
+
+1. If |x| is NaN, then return NaN if |restricted| is false, and failure otherwise.
+   1. Let |lowerBound| be -2<sup>|bitLength| - 1</sup>.
+   1. Let |upperBound| be 2<sup>|bitLength| - 1</sup>.
+   1. Switch on |bitLength|:
+        <dl class=switch>
+            : 32
+            :: 1. Let |S| be the set of [[IEEE-754-2019]] binary32 floating point values except -0, but with |lowerBound| and |upperBound| added.
+            : 16
+            :: 1. Let |S| be the set of [[IEEE-754-2019]] binary16 floating point values except -0, but with |lowerBound| and |upperBound| added.
+        </dl>
+1. Let |y| be the number in |S| that is closest to |x|, selecting the number with an even significand if there are two [=equally close values=]. (The two special values |lowerBound| and |upperBound| are considered to have even significands for this purpose.)
+1. If |y| is |upperBound|, then return +Infinity if |restricted| is false, or failure otherwise.
+1. If |y| is |lowerBound|, then return -Infinity if |restricted| is false, or failure otherwise.
+1. If |y| is +0 and |x| is negative, return -0.
+1. Return |y|.
+
+NOTE: This is based on a definition in [[WEBIDL]], but extended to cover 16-bit floating point values.
+
+</div>
+
+<div algorithm>
+The <dfn>ConvertToInt</dfn>(|x|, |bitLength|, |signedness|, |enforceRange|, |clamp|) steps are:
+
+1. If |signedness| is "unsigned", then:
+    1. Let |lowerBound| be 0.
+    1. Let |upperBound| be 2<sup>|bitLength|</sup> - 1.
+1. Otherwise:
+    1. Let |lowerBound| be -2<sup>|bitLength| - 1</sup>.
+    1. Let |upperBound| be 2<sup>|bitLength| - 1</sup> - 1.
+1. If |x| is -0, then set |x| to +0.
+1. If |enforceRange| is true, then:
+    1. If |x| is NaN, +Infinity, or -Infinity, then return failure.
+    1. Set |x| to [=IntegerPart=](|x|).
+    1. If |x| &lt; |lowerBound| or |x| &gt; |upperBound|, then return failure.
+    1. Return |x|.
+1. If |x| is not NaN and |clamp| is true, then:
+    1. Set |x| to min(max(|x|, |lowerBound|), |upperBound|).
+    1. Round |x| to the nearest integer, choosing the even integer if it lies halfway between two, and choosing +0 rather than -0.
+    1. Return |x|.
+1. If |x| is NaN, +0, +Infinity, or -Infinity, then return +0.
+1. Set |x| to [=IntegerPart=](|x|).
+1. Set |x| to |x| modulo 2<sup>|bitLength|</sup>.
+1. If |signedness| is "signed" and |x| >= 2<sup>|bitLength| - 1</sup>,
+    then return |x| - 2<sup>|bitLength|</sup>.
+1. Otherwise, return |x|.
+
+NOTE: This is based on a definition in [[WEBIDL]] with these differences: 64-bit integers are not treated specially, the input |x| is an abstract number, |enforceRange| and |clamp| are explicit parameters, and it returns failure rather than throwing.
+
+</div>
+
+<div algorithm>
+The <dfn>IntegerPart</dfn>(|n|) steps are:
+
+1. Let |r| be floor(abs(|n|)).
+1. If |n| &lt; 0, then return -1 * |r|.
+1. Otherwise, return |r|.
+
+</div>
+
+</details>
 
 Examples {#examples}
 =====================
