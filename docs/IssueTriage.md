@@ -39,7 +39,7 @@ WebNN has several workstreams specific to the API proposal. These labels help gr
 - https://github.com/webmachinelearning/webnn/labels/opset - discussions about the overall operator coverage of WebNN; examples include alignment with other published operator sets, use cases that require multiple new operators, compatibility with implementations, etc.
 - https://github.com/webmachinelearning/webnn/labels/operator%20specific - issues regarding the specification of a single operator or small number of operators
 - https://github.com/webmachinelearning/webnn/labels/webgpu%20interop - interop between WebNN and WebGPU, e.g. timelines, buffers, devices.
-
+- https://github.com/webmachinelearning/webnn/labels/interop - issues arising from differences between backends
 
 ## Next Steps
 
