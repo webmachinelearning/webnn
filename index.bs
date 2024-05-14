@@ -1454,8 +1454,7 @@ partial interface MLGraphBuilder {
   </summary>
     1. [=Assert=]: |op| is one of "argMin", "argMax".
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLArgMinMaxOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLArgMinMaxOptions/axes}} (if it [=map/exists=]), and |options|.{{MLArgMinMaxOptions/keepDimensions}}.
+    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLArgMinMaxOptions/axes}} (if it [=map/exists=]), and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"int64"}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
@@ -4855,10 +4854,11 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder">calculate reduction output sizes</dfn>, given a [=/list=] of unsigned integers |inputShape|, a optional [=/list=] of unsigned integers |axes|, and [=/boolean=] |keepDimensions|, perform the following steps. They return a new [=/list=] of unsigned integers.
+    To <dfn for="MLGraphBuilder">calculate reduction output sizes</dfn>, given a [=/list=] of unsigned integers |inputShape|, a optional [=/list=] of unsigned integers |axes|, and [=/boolean=] |keepDimensions|, perform the following steps. They return a new [=/list=] of unsigned integers, or failure.
   </summary>
     1. Let |inputRank| be |inputShape|'s [=list/size=].
     1. If |axes| is not given, let |axes| be [=the range=] 0 to |inputRank|, exclusive.
+    1. Otherwise, if |axes| contains duplicate values, or if any of its elements is not in [=the range=] 0 to |inputRank|, exclusive, then return failure.
     1. If |keepDimensions| is true, then:
         1. Let |outputShape| be a [=list/clone=] of |inputShape|.
         1. [=list/For each=] |axis| of |axes|:
@@ -4877,8 +4877,7 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLReduceOptions/axes}} [=map/exists=], if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLReduceOptions/axes}} (if it [=map/exists=]), and |options|.{{MLReduceOptions/keepDimensions}}.
+    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLReduceOptions/axes}} (if it [=map/exists=]), and |options|.{{MLReduceOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
