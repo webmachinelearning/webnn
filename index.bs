@@ -4466,7 +4466,8 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>pad(|input|, |beginningPadding|, |endingPadding|, |options|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a "{{TypeError}}".
+    1. If |input|'s [=MLOperand/rank=] is 0, then [=exception/throw=] a {{TypeError}}
+    1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
     1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
@@ -5299,6 +5300,13 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If any of |sizes|'s [=list/items=] are 0, then [=exception/throw=] a {{TypeError}}.
     1. If |starts|'s [=list/size=] and |sizes|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
+    1. [=list/For each=] |index| in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive:
+        1. If |sizes|[|index|] is 0, then [=exception/throw=] a {{TypeError}}.
+
+            Issue(391): If 0-size dimensions are allowed, revise these steps.
+
+        1. If |starts|[|index|] is greater than or equal to |input|'s [=MLOperand/shape=][|index|], then [=exception/throw=] a {{TypeError}}.
+        1. If |starts|[|index|] + |sizes|[|index|] is greater than |input|'s [=MLOperand/shape=][|index|], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "slice" operation, given |starts| and |sizes|.
@@ -5544,10 +5552,15 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |axis| be |options|.{{MLSplitOptions/axis}}.
+    1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |splits| is an {{unsigned long}}:
         1. If |input|'s [=MLOperand/shape=][|axis|] % |splits| is not 0, then [=exception/throw=] a {{TypeError}}.
         1. Otherwise, let |splitCount| be |splits|.
     1. If |splits| is a sequence of {{unsigned long}}:
+        1. If any of its elements is equal to 0, then [=exception/throw=] a {{TypeError}}.
+
+            Issue(391): If 0-size dimensions are allowed, revise the above step.
+
         1. If the sum of its elements is not equal to |input|'s [=MLOperand/shape=][|axis|], then [=exception/throw=] a {{TypeError}}.
         1. Otherwise, let |splitCount| be |splits|'s [=list/size=].
     1. *Make graph connections:*
