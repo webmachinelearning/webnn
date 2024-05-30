@@ -2274,7 +2274,7 @@ partial interface MLGraphBuilder {
   MLOperand greaterOrEqual(MLOperand a, MLOperand b);
   MLOperand lesser(MLOperand a, MLOperand b);
   MLOperand lesserOrEqual(MLOperand a, MLOperand b);
-  MLOperand not(MLOperand a);
+  MLOperand logicalNot(MLOperand a);
 };
 </script>
 
@@ -2292,19 +2292,19 @@ partial interface MLGraphBuilder {
         - *greaterOrEqual*: Compare if the values of the first input tensor is greater or equal, element-wise.
         - *lesser*: Compare if the values of the first input tensor is lesser, element-wise.
         - *lesserOrEqual*: Compare if the values of the first input tensor is lesser or equal, element-wise.
-        - *not*: Invert the values of the input tensor to values 0 or 1, element-wise. Specifically, when the input value is non-zero, invert it to a {{boolean}} value 0. Conversely, for a zero input value, invert it to a {{boolean}} value 1.
+        - *logicalNot*: Invert the values of the input tensor to values 0 or 1, element-wise. Specifically, when the input value is non-zero, invert it to a {{boolean}} value 0. Conversely, for a zero input value, invert it to a {{boolean}} value 1.
 </div>
 
 <div class="note">
-Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/lesserOrEqual()}} can each be implemented in terms of operations {{MLGraphBuilder/not()}}, {{MLGraphBuilder/lesser()}}, and {{MLGraphBuilder/greater()}} in other words `builder.greaterOrEqual(a, b)` is `builder.not(builder.lesser(a, b))`, they are specifically defined to handle NaN cases and for performance reason to avoid double comparisons.
+Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/lesserOrEqual()}} can each be implemented in terms of operations {{MLGraphBuilder/logicalNot()}}, {{MLGraphBuilder/lesser()}}, and {{MLGraphBuilder/greater()}} in other words `builder.greaterOrEqual(a, b)` is `builder.logicalNot(builder.lesser(a, b))`, they are specifically defined to handle NaN cases and for performance reason to avoid double comparisons.
 </div>
 
 <details open algorithm>
   <summary>
     To <dfn for="MLGraphBuilder" data-lt="element-wise-logical-op">create element-wise logical operation</dfn> given [=string=] |op|, {{MLOperand}} |a| and an optional {{MLOperand}} |b|, run the following steps:
   </summary>
-    1. [=Assert=]: |op| is one of "equal", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "not".
-    1. If |op| is "not":
+    1. [=Assert=]: |op| is one of "equal", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "logicalNot".
+    1. If |op| is "logicalNot":
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and |a| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
         1. Let |outputShape| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
@@ -2317,9 +2317,9 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |operator| be an [=operator=] for the |op| operation, given |a| and (if |op| is not "not") |b|.
+        1. Let |operator| be an [=operator=] for the |op| operation, given |a| and (if |op| is not "logicalNot") |b|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/inputs=] to |a| and (if |op| is anything other than "not") |b|.
+        1. Set |operator|'s [=operator/inputs=] to |a| and (if |op| is anything other than "logicalNot") |b|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -2364,8 +2364,8 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>not(|a|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "not" and |a|.
+    The <dfn method for=MLGraphBuilder>logicalNot(|a|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalNot" and |a|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -5866,7 +5866,7 @@ partial interface MLGraphBuilder {
         builder.cast(c, input.dataType())),
       builder.mul(
         other,
-        builder.cast(builder.not(c), other.dataType())));
+        builder.cast(builder.logicalNot(c), other.dataType())));
     </pre>
   </details>
 </div>
