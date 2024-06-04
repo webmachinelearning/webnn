@@ -945,7 +945,7 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
     const context = await navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
     // 1. Create a computational graph 'C = 0.2 * A + B'.
-    const constant = builder.constant(0.2);
+    const constant = builder.constant(operandType.dataType, 0.2);
     const A = builder.input('A', operandType);
     const B = builder.input('B', operandType);
     const C = builder.add(builder.mul(A, constant), B);
@@ -1231,8 +1231,8 @@ interface MLGraphBuilder {
   // Create an operand for a graph constant.
   MLOperand constant(MLOperandDescriptor descriptor, ArrayBufferView bufferView);
 
-  // Create a single-value operand from the specified number of the specified type.
-  MLOperand constant(double value, optional MLOperandDataType type = "float32");
+  // Create a scalar operand from the specified number of the specified type.
+  MLOperand constant(MLOperandDataType type, double value);
 
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
@@ -1240,7 +1240,7 @@ interface MLGraphBuilder {
 </script>
 
 <div class="note">
-The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|MLGraphBuilder/constant(value, type)}} method as constant operands during graph construction time.
+The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|constant()}} method as constant operands during graph construction time.
 </div>
 
 <div class=internal-slots>
@@ -1316,23 +1316,23 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     1. Return |operand|.
 </details>
 
-#### {{MLGraphBuilder/constant(value, type)}} #### {#api-mlgraphbuilder-constant-value-type}
-Create a constant {{MLOperand}} of the specified value and data type.
+#### {{MLGraphBuilder/constant(type, value)}} #### {#api-mlgraphbuilder-constant-type-value}
+Create a scalar constant {{MLOperand}} of the specified value and data type.
 
 <div class="note">
-Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a float value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
+Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a floating point value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
 </div>
 
 <div>
     **Arguments:**
-        - *value*: a {{float}} number. The value of the constant.
-        - *type*: an optional {{MLOperandDataType}}. If not specified, it is assumed to be {{MLOperandDataType/"float32"}}.
+        - *type*: an {{MLOperandDataType}}.
+        - *value*: a {{float}} number. The value of the scalar constant.
     **Returns:** an {{MLOperand}}. The constant output.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>constant(|value|, |type|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>constant(|type|, |value|)</dfn> method steps are:
   </summary>
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
@@ -1549,15 +1549,16 @@ partial interface MLGraphBuilder {
     The behavior of this operation when the input tensor is 4-D of the {{MLInputOperandLayout/"nchw"}} layout can be [EMULATED]
     </summary>
     <pre highlight="js">
-    const shape = [1,input.shape()[options.axis],1,1];
+    const shape = [1, input.shape()[options.axis], 1, 1];
     return builder.add(
-      builder.mul(
-        builder.reshape(options.scale, shape),
-        builder.div(
-          builder.sub(input, builder.reshape(mean, shape)),
-          builder.sqrt(builder.add(builder.reshape(variance, shape), builder.constant(options.epsilon)))
-          )),
-      builder.reshape(options.bias, shape));
+        builder.mul(
+            builder.reshape(options.scale, shape),
+            builder.div(
+                builder.sub(input, builder.reshape(mean, shape)),
+                builder.sqrt(builder.add(
+                    builder.reshape(variance, shape),
+                    builder.constant(input.dataType, options.epsilon))))),
+        builder.reshape(options.bias, shape));
     </pre>
   </details>
 </div>
@@ -1624,15 +1625,17 @@ partial interface MLGraphBuilder {
       if (options.maxValue === undefined) {
         return input;
       } else {
-        return builder.min(input, builder.constant(options.maxValue));
+        return builder.min(
+            input, builder.constant(input.dataType, options.maxValue));
       }
     } else {
       if (options.maxValue === undefined) {
-        return builder.max(input, builder.constant(options.minValue));
+        return builder.max(
+            input, builder.constant(input.dataType, options.minValue));
       } else {
         return builder.min(
-            builder.max(input, builder.constant(options.minValue)),
-            builder.constant(options.maxValue));
+            builder.max(input, builder.constant(input.dataType, options.minValue)),
+            builder.constant(input.dataType, options.maxValue));
       }
     }
   </pre>
@@ -2557,12 +2560,13 @@ partial interface MLGraphBuilder {
     </summary>
     <pre highlight="js">
     return builder.add(
-              builder.max(builder.constant(0), x),
-              builder.mul(
-                builder.constant(options.alpha),
-                builder.sub(
-                  builder.exp(builder.min(builder.constant(0), x)),
-                  builder.constant(1))));
+        builder.max(builder.constant(input.dataType, 0), input),
+        builder.mul(
+            builder.constant(input.dataType, options.alpha),
+            builder.sub(
+                builder.exp(
+                    builder.min(builder.constant(input.dataType, 0), input)),
+                builder.constant(input.dataType, 1))));
     </pre>
   </details>
 </div>
@@ -2788,13 +2792,11 @@ partial interface MLGraphBuilder {
     </summary>
     <pre highlight="js">
     return builder.mul(
-               builder.mul(x, builder.constant(0.5)),
-               builder.add(
-                   builder.constant(1),
-                   builder.erf(
-                       builder.div(
-                           x,
-                           builder.sqrt(builder.constant(2))))));
+        builder.mul(input, builder.constant(input.dataType, 0.5)),
+        builder.add(
+            builder.constant(input.dataType, 1),
+            builder.erf(builder.div(
+                input, builder.sqrt(builder.constant(input.dataType, 2))))));
     </pre>
   </details>
 </div>
@@ -2930,8 +2932,12 @@ partial interface MLGraphBuilder {
     if (options.bTranspose)
       b = builder.transpose(b);
 
-    let ab = builder.matmul(builder.mul(builder.constant(options.alpha), a), b);
-    return (c ? builder.add(ab, builder.mul(builder.constant(options.beta), c)) : ab);
+    let ab = builder.matmul(
+        builder.mul(builder.constant(a.dataType, options.alpha), a), b);
+    return (
+        c ? builder.add(
+                ab, builder.mul(builder.constant(a.dataType, options.beta), c)) :
+            ab);
   </pre>
 </details>
 </div>
@@ -3255,8 +3261,8 @@ partial interface MLGraphBuilder {
     The behavior of this operation when the weight layout is the default {{MLGruWeightLayout/"zrn"}} layout, and the activation functions of the update/reset gate and new gate are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively can be [EMULATED]
   </summary>
   <pre highlight="js">
-    const one = builder.constant(1);
-    const zero = builder.constant(0);
+    const one = builder.constant(input.dataType, 1);
+    const zero = builder.constant(input.dataType, 0);
 
     // update gate (z)
     let z = builder.sigmoid(
@@ -3371,12 +3377,12 @@ partial interface MLGraphBuilder {
     </summary>
     <pre highlight="js">
     return builder.max(
-               builder.min(
-                   builder.add(
-                       builder.mul(builder.constant(options.alpha), x),
-                       builder.constant(options.beta)),
-                   builder.constant(1)),
-               builder.constant(0));
+        builder.min(
+            builder.add(
+                builder.mul(builder.constant(input.dataType, options.alpha), input),
+                builder.constant(input.dataType, options.beta)),
+            builder.constant(input.dataType, 1)),
+        builder.constant(input.dataType, 0));
     </pre>
   </details>
 </div>
@@ -3449,14 +3455,14 @@ partial interface MLGraphBuilder {
   </summary>
   <pre highlight="js">
     return builder.div(
-               builder.mul(
-                   x,
-                   builder.max(
-                       builder.constant(0),
-                       builder.min(
-                           builder.constant(6),
-                           builder.add(x, builder.constant(3))))),
-               builder.constant(6));
+        builder.mul(
+            input,
+            builder.max(
+                builder.constant(input.dataType, 0),
+                builder.min(
+                    builder.constant(input.dataType, 6),
+                    builder.add(input, builder.constant(input.dataType, 3))))),
+        builder.constant(input.dataType, 6));
   </pre>
 </details>
 </div>
@@ -3579,14 +3585,17 @@ partial interface MLGraphBuilder {
     The behavior of this operation when the input tensor is 4-D of the {{MLInputOperandLayout/"nchw"}} layout can be [EMULATED]
   </summary>
   <pre highlight="js">
-    // The reduction of the mean and variance values happens over the spatial dimensions of the input
-    // e.g. axis 2 and 3 of the input tensor.
-    const reduceOptions = { axes: [2,3], keepDimensions: true };
+    // The reduction of the mean and variance values happens over the spatial
+    // dimensions of the input e.g. axis 2 and 3 of the input tensor.
+    const reduceOptions = {
+      axes: [2, 3],
+      keepDimensions: true
+    };
     const mean = builder.reduceMean(input, reduceOptions);
     const variance = builder.reduceMean(
       builder.pow(
         builder.sub(input, mean),
-        builder.constant(2)),
+        builder.constant(input.dataType, 2)),
       reduceOptions
       );
 
@@ -3689,14 +3698,18 @@ partial interface MLGraphBuilder {
     The behavior of this operation when the axes parameter is set to [1,2,3] can be [EMULATED]
   </summary>
   <pre highlight="js">
-    // The reduction of the mean and variance values happens over the spatial dimensions 
-    // across all the input features (i.e. all channels) of the input tensor.
-    const reduceOptions = { axes: [1,2,3], keepDimensions: true };
+    // The reduction of the mean and variance values happens over the spatial
+    // dimensions across all the input features (i.e. all channels) of the input
+    // tensor.
+    const reduceOptions = {
+      axes: [1, 2, 3],
+      keepDimensions: true
+    };
     const mean = builder.reduceMean(input, reduceOptions);
     const variance = builder.reduceMean(
       builder.pow(
         builder.sub(input, mean),
-        builder.constant(2)),
+        builder.constant(input.dataType, 2)),
       reduceOptions
       );
 
@@ -3736,8 +3749,11 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.add(builder.max(builder.constant(0), x),
-              builder.mul(builder.constant(options.alpha), builder.min(builder.constant(0), x)));
+    return builder.add(
+        builder.max(builder.constant(input.dataType, 0), input),
+        builder.mul(
+            builder.constant(input.dataType, options.alpha),
+            builder.min(builder.constant(input.dataType, 0), input)));
     </pre>
   </details>
 </div>
@@ -3813,8 +3829,8 @@ partial interface MLGraphBuilder {
     </summary>
     <pre highlight="js">
     return builder.add(
-              builder.mul(x, builder.constant(options.alpha)),
-              builder.constant(options.beta));
+        builder.mul(input, builder.constant(input.dataType, options.alpha)),
+        builder.constant(input.dataType, options.beta));
     </pre>
   </details>
 </div>
@@ -4225,7 +4241,7 @@ partial interface MLGraphBuilder {
     The behavior of this operation when the weight layout is the default {{MLLstmWeightLayout/"iofg"}} layout, and the activation functions of the input/forget/output gate and the cell gate/the cell state's filter for the output hidden state are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively can be [EMULATED]
   </summary>
   <pre highlight="js">
-    const zero = builder.constant(0);
+    const zero = builder.constant(input.dataType, 0);
 
     // input gate (i)
     let i = builder.sigmoid(
@@ -4776,8 +4792,10 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.add(builder.max(builder.constant(0), x),
-                       builder.mul(slope, builder.min(builder.constant(0), x)));
+    return builder.add(
+        builder.max(builder.constant(input.dataType, 0), input),
+        builder.mul(
+            slope, builder.min(builder.constant(input.dataType, 0), input)));
     </pre>
   </details>
 </div>
@@ -4988,7 +5006,7 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.max(builder.constant(0), x);
+    return builder.max(builder.constant(input.dataType, 0), input);
     </pre>
   </details>
 </div>
@@ -5221,10 +5239,9 @@ partial interface MLGraphBuilder {
     </summary>
     <pre highlight="js">
     return builder.div(
-              builder.constant(1),
-              builder.add(
-                builder.exp(builder.neg(x)),
-                builder.constant(1)));
+        builder.constant(input.dataType, 1),
+        builder.add(
+            builder.exp(builder.neg(input)), builder.constant(input.dataType, 1)));
     </pre>
   </details>
 </div>
@@ -5401,9 +5418,7 @@ partial interface MLGraphBuilder {
     </summary>
     <pre highlight="js">
     return builder.log(
-             builder.add(
-               builder.exp(x),
-               builder.constant(1)));
+        builder.add(builder.exp(x), builder.constant(input.dataType, 1)));
     </pre>
   </details>
 </div>
@@ -5464,7 +5479,9 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.div(x, builder.add(builder.constant(1), builder.abs(x)));
+    return builder.div(
+        input,
+        builder.add(builder.constant(input.dataType, 1), builder.abs(input)));
     </pre>
   </details>
 </div>
@@ -5611,8 +5628,12 @@ partial interface MLGraphBuilder {
     </summary>
     <pre highlight="js">
     return builder.div(
-              builder.sub(builder.exp(builder.mul(builder.constant(2), x)), builder.constant(1)),
-              builder.add(builder.exp(builder.mul(builder.constant(2), x)), builder.constant(1)));
+        builder.sub(
+            builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
+            builder.constant(input.dataType, 1)),
+        builder.add(
+            builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
+            builder.constant(input.dataType, 1)));
     </pre>
   </details>
 </div>
