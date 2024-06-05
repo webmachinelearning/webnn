@@ -2631,7 +2631,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputDescriptor| be a new {{MLOperandDescriptor}}.
     1. Set |outputDescriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. Set |outputDescriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |newShape| and |input|'s [=MLOperand/shape=].
+    1. Set |outputDescriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |input|'s [=MLOperand/shape=] and |newShape|.
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDescriptor|.
@@ -4759,7 +4759,7 @@ partial interface MLGraphBuilder {
     1. If |slope|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |input|'s [=MLOperand/shape=] and |slope|'s [=MLOperand/shape=].
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |slope|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
@@ -5882,18 +5882,18 @@ Broadcasting refers to how operations treat tensors with different shapes, and f
 
 <details open algorithm>
 <summary>
-To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broadcast the shapes</dfn> |shapeTo| and |shapeFrom|, perform the following steps. |shapeTo| and |shapeFrom| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broadcast the shapes</dfn> |shapeFrom| and |shapeTo|, perform the following steps. |shapeFrom| and |shapeTo| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
 </summary>
 
-1. Let |sizeTo| be |shapeTo|'s [=list/size=].
 1. Let |sizeFrom| be |shapeFrom|'s [=list/size=].
+1. Let |sizeTo| be |shapeTo|'s [=list/size=].
 1. If |sizeFrom| > |sizeTo|, then return failure.
 1. Let |paddedShapeFrom| be a [=list/clone=] of |shapeFrom|.
 1. While |paddedShapeFrom|'s [=list/size=] is less than |sizeTo|, [=list/prepend=] 1 to |paddedShapeFrom|.
 1. Let |outputShape| be a new [=/list=].
 1. [=list/For each=] |index| in [=the range=] 0 to |sizeTo|, exclusive:
-    1. Let |dimTo| be |shapeTo|[|index|].
     1. Let |dimFrom| be |paddedShapeFrom|[|index|].
+    1. Let |dimTo| be |shapeTo|[|index|].
     1. If |dimTo| is not equal to |dimFrom| and |dimFrom| is not equal to 1, then return failure.
     1. [=list/Append=] |dimTo| to |outputShape|.
 1. Return |outputShape|.
@@ -5901,7 +5901,7 @@ To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broa
 </details>
 
 <p algorithm>
-|shapeFrom| is <dfn>unidirectionally broadcastable</dfn> to |shapeTo| if [=unidirectionally broadcasting the shapes=] |shapeTo| and |shapeFrom| does not result in failure.
+|shapeFrom| is <dfn>unidirectionally broadcastable</dfn> to |shapeTo| if [=unidirectionally broadcasting the shapes=] |shapeFrom| and |shapeTo| does not result in failure.
 </p>
 
 <details open algorithm>
