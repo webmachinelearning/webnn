@@ -3380,7 +3380,7 @@ partial interface MLGraphBuilder {
         builder.min(
             builder.add(
                 builder.mul(builder.constant(input.dataType, options.alpha), input),
-                builder.constant(options.beta)),
+                builder.constant(input.dataType, options.beta)),
             builder.constant(input.dataType, 1)),
         builder.constant(input.dataType, 0));
     </pre>
@@ -3593,19 +3593,25 @@ partial interface MLGraphBuilder {
     };
     const mean = builder.reduceMean(input, reduceOptions);
     const variance = builder.reduceMean(
-        builder.pow(builder.sub(input, mean), buider.constant(input.dataType, 2)),
-        reduceOptions);
+      builder.pow(
+        builder.sub(input, mean),
+        builder.constant(input.dataType, 2)),
+      reduceOptions
+      );
 
     // The scale and bias values are applied per input feature
     // e.g. axis 1 of the input tensor.
     const shape = [1, input.shape()[1], 1, 1];
     return builder.add(
-        builder.mul(
-            builder.reshape(options.scale, shape),
-            builder.div(
-                builder.sub(input, mean),
-                buidler.sqrt(builder.add(variance, options.epsilon)))),
-        builder.reshape(options.bias, shape));
+      builder.mul(
+        builder.reshape(options.scale, shape),
+        builder.div(
+          builder.sub(input, mean),
+          builder.sqrt(builder.add(variance, options.epsilon))
+          )
+        ),
+      builder.reshape(options.bias, shape)
+      );
   </pre>
 </details>
 </div>
@@ -3701,18 +3707,24 @@ partial interface MLGraphBuilder {
     };
     const mean = builder.reduceMean(input, reduceOptions);
     const variance = builder.reduceMean(
-        builder.pow(builder.sub(input, mean), buider.constant(input.dataType, 2)),
-        reduceOptions);
-    
-    // The scale and bias tensors are of the shape of the input dimensions specified
+      builder.pow(
+        builder.sub(input, mean),
+        builder.constant(input.dataType, 2)),
+      reduceOptions
+      );
+
+    // The scale and bias tensors are of the shape of the input dimensions specified 
     // by the values in the axes parameter (i.e. [1,2,3]).
     return builder.add(
-        builder.mul(
-            options.scale,
-            builder.div(
-                builder.sub(input, mean),
-                buidler.sqrt(builder.add(variance, options.epsilon)))),
-        options.bias);
+      builder.mul(
+        options.scale,
+        builder.div(
+          builder.sub(input, mean),
+          builder.sqrt(builder.add(variance, options.epsilon))
+          )
+        ),
+      options.bias
+      );
   </pre>
 </details>
 </div>
@@ -5200,11 +5212,11 @@ partial interface MLGraphBuilder {
       return builder.reshape(input, shape);
     }
 
-    // Flattens input by reshaping it into a one-dimensional tensor. 
+    // Flattens input by reshaping it into a one-dimensional tensor.
     function flatten(input, axis) {
       if (axis > input.shape().length) return input;
-      let before = axis.slice(0, axis).reduce((a, b) => { a * b; });
-      let after = axis.slice(axis, input.shape().length).reduce((a, b) => { a * b; });
+      let before = axis.slice(0, axis).reduce((a, b) => a * b);
+      let after = axis.slice(axis, input.shape().length).reduce((a, b) => a * b);
       return builder.reshape(input, [before, after]);
     }
     </pre>
