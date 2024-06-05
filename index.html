@@ -7,7 +7,7 @@
   <link href="https://www.w3.org/StyleSheets/TR/2021/W3C-ED" rel="stylesheet">
   <meta content="Bikeshed version 82ce88815, updated Thu Sep 7 16:33:55 2023 -0700" name="generator">
   <link href="https://www.w3.org/TR/webnn/" rel="canonical">
-  <meta content="91e24076992e9db35c244d89e14f9f4dd149160e" name="document-revision">
+  <meta content="f133ff02d22389af2dc947154309fed244684327" name="document-revision">
 <style>
 /* Make <dl> blocks more distinct from their surroundings. */
 main dl:not(.switch) {
@@ -905,7 +905,7 @@ var.selected6 { background-color: #FFBCF2; box-shadow: 0 0 0 2px #FFBCF2; }
   <div class="head">
    <p data-fill-with="logo"><a class="logo" href="https://www.w3.org/"> <img alt="W3C" height="48" src="https://www.w3.org/StyleSheets/TR/2021/logos/W3C" width="72"> </a> </p>
    <h1 class="p-name no-ref" id="title">Web Neural Network API</h1>
-   <p id="w3c-state"><a href="https://www.w3.org/standards/types#ED">Editor’s Draft</a>, <time class="dt-updated" datetime="2024-06-04">4 June 2024</time></p>
+   <p id="w3c-state"><a href="https://www.w3.org/standards/types#ED">Editor’s Draft</a>, <time class="dt-updated" datetime="2024-06-05">5 June 2024</time></p>
    <details open>
     <summary>More details about this document</summary>
     <div data-fill-with="spec-metadata">
@@ -4975,7 +4975,7 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
     builder<c- p>.</c->min<c- p>(</c->
         builder<c- p>.</c->add<c- p>(</c->
             builder<c- p>.</c->mul<c- p>(</c->builder<c- p>.</c->constant<c- p>(</c->input<c- p>.</c->dataType<c- p>,</c-> options<c- p>.</c->alpha<c- p>),</c-> input<c- p>),</c->
-            builder<c- p>.</c->constant<c- p>(</c->options<c- p>.</c->beta<c- p>)),</c->
+            builder<c- p>.</c->constant<c- p>(</c->input<c- p>.</c->dataType<c- p>,</c-> options<c- p>.</c->beta<c- p>)),</c->
         builder<c- p>.</c->constant<c- p>(</c->input<c- p>.</c->dataType<c- p>,</c-> <c- mf>1</c-><c- p>)),</c->
     builder<c- p>.</c->constant<c- p>(</c->input<c- p>.</c->dataType<c- p>,</c-> <c- mf>0</c-><c- p>));</c->
 </pre>
@@ -5233,19 +5233,25 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
 <c- p>};</c->
 <c- a>const</c-> mean <c- o>=</c-> builder<c- p>.</c->reduceMean<c- p>(</c->input<c- p>,</c-> reduceOptions<c- p>);</c->
 <c- a>const</c-> variance <c- o>=</c-> builder<c- p>.</c->reduceMean<c- p>(</c->
-    builder<c- p>.</c->pow<c- p>(</c->builder<c- p>.</c->sub<c- p>(</c->input<c- p>,</c-> mean<c- p>),</c-> buider<c- p>.</c->constant<c- p>(</c->input<c- p>.</c->dataType<c- p>,</c-> <c- mf>2</c-><c- p>)),</c->
-    reduceOptions<c- p>);</c->
+  builder<c- p>.</c->pow<c- p>(</c->
+    builder<c- p>.</c->sub<c- p>(</c->input<c- p>,</c-> mean<c- p>),</c->
+    builder<c- p>.</c->constant<c- p>(</c->input<c- p>.</c->dataType<c- p>,</c-> <c- mf>2</c-><c- p>)),</c->
+  reduceOptions
+  <c- p>);</c->
 
 <c- c1>// The scale and bias values are applied per input feature</c->
 <c- c1>// e.g. axis 1 of the input tensor.</c->
 <c- a>const</c-> shape <c- o>=</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> input<c- p>.</c->shape<c- p>()[</c-><c- mf>1</c-><c- p>],</c-> <c- mf>1</c-><c- p>,</c-> <c- mf>1</c-><c- p>];</c->
 <c- k>return</c-> builder<c- p>.</c->add<c- p>(</c->
-    builder<c- p>.</c->mul<c- p>(</c->
-        builder<c- p>.</c->reshape<c- p>(</c->options<c- p>.</c->scale<c- p>,</c-> shape<c- p>),</c->
-        builder<c- p>.</c->div<c- p>(</c->
-            builder<c- p>.</c->sub<c- p>(</c->input<c- p>,</c-> mean<c- p>),</c->
-            buidler<c- p>.</c->sqrt<c- p>(</c->builder<c- p>.</c->add<c- p>(</c->variance<c- p>,</c-> options<c- p>.</c->epsilon<c- p>)))),</c->
-    builder<c- p>.</c->reshape<c- p>(</c->options<c- p>.</c->bias<c- p>,</c-> shape<c- p>));</c->
+  builder<c- p>.</c->mul<c- p>(</c->
+    builder<c- p>.</c->reshape<c- p>(</c->options<c- p>.</c->scale<c- p>,</c-> shape<c- p>),</c->
+    builder<c- p>.</c->div<c- p>(</c->
+      builder<c- p>.</c->sub<c- p>(</c->input<c- p>,</c-> mean<c- p>),</c->
+      builder<c- p>.</c->sqrt<c- p>(</c->builder<c- p>.</c->add<c- p>(</c->variance<c- p>,</c-> options<c- p>.</c->epsilon<c- p>))</c->
+      <c- p>)</c->
+    <c- p>),</c->
+  builder<c- p>.</c->reshape<c- p>(</c->options<c- p>.</c->bias<c- p>,</c-> shape<c- p>)</c->
+  <c- p>);</c->
 </pre>
     </details>
    </div>
@@ -5371,18 +5377,24 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
 <c- p>};</c->
 <c- a>const</c-> mean <c- o>=</c-> builder<c- p>.</c->reduceMean<c- p>(</c->input<c- p>,</c-> reduceOptions<c- p>);</c->
 <c- a>const</c-> variance <c- o>=</c-> builder<c- p>.</c->reduceMean<c- p>(</c->
-    builder<c- p>.</c->pow<c- p>(</c->builder<c- p>.</c->sub<c- p>(</c->input<c- p>,</c-> mean<c- p>),</c-> buider<c- p>.</c->constant<c- p>(</c->input<c- p>.</c->dataType<c- p>,</c-> <c- mf>2</c-><c- p>)),</c->
-    reduceOptions<c- p>);</c->
+  builder<c- p>.</c->pow<c- p>(</c->
+    builder<c- p>.</c->sub<c- p>(</c->input<c- p>,</c-> mean<c- p>),</c->
+    builder<c- p>.</c->constant<c- p>(</c->input<c- p>.</c->dataType<c- p>,</c-> <c- mf>2</c-><c- p>)),</c->
+  reduceOptions
+  <c- p>);</c->
 
-<c- c1>// The scale and bias tensors are of the shape of the input dimensions specified</c->
+<c- c1>// The scale and bias tensors are of the shape of the input dimensions specified </c->
 <c- c1>// by the values in the axes parameter (i.e. [1,2,3]).</c->
 <c- k>return</c-> builder<c- p>.</c->add<c- p>(</c->
-    builder<c- p>.</c->mul<c- p>(</c->
-        options<c- p>.</c->scale<c- p>,</c->
-        builder<c- p>.</c->div<c- p>(</c->
-            builder<c- p>.</c->sub<c- p>(</c->input<c- p>,</c-> mean<c- p>),</c->
-            buidler<c- p>.</c->sqrt<c- p>(</c->builder<c- p>.</c->add<c- p>(</c->variance<c- p>,</c-> options<c- p>.</c->epsilon<c- p>)))),</c->
-    options<c- p>.</c->bias<c- p>);</c->
+  builder<c- p>.</c->mul<c- p>(</c->
+    options<c- p>.</c->scale<c- p>,</c->
+    builder<c- p>.</c->div<c- p>(</c->
+      builder<c- p>.</c->sub<c- p>(</c->input<c- p>,</c-> mean<c- p>),</c->
+      builder<c- p>.</c->sqrt<c- p>(</c->builder<c- p>.</c->add<c- p>(</c->variance<c- p>,</c-> options<c- p>.</c->epsilon<c- p>))</c->
+      <c- p>)</c->
+    <c- p>),</c->
+  options<c- p>.</c->bias
+  <c- p>);</c->
 </pre>
     </details>
    </div>
@@ -7297,11 +7309,11 @@ number of elements in the input tensor.</p>
   <c- k>return</c-> builder<c- p>.</c->reshape<c- p>(</c->input<c- p>,</c-> shape<c- p>);</c->
 <c- p>}</c->
 
-<c- c1>// Flattens input by reshaping it into a one-dimensional tensor. </c->
+<c- c1>// Flattens input by reshaping it into a one-dimensional tensor.</c->
 <c- a>function</c-> flatten<c- p>(</c->input<c- p>,</c-> axis<c- p>)</c-> <c- p>{</c->
   <c- k>if</c-> <c- p>(</c->axis <c- o>></c-> input<c- p>.</c->shape<c- p>().</c->length<c- p>)</c-> <c- k>return</c-> input<c- p>;</c->
-  <c- a>let</c-> before <c- o>=</c-> axis<c- p>.</c->slice<c- p>(</c-><c- mf>0</c-><c- p>,</c-> axis<c- p>).</c->reduce<c- p>((</c->a<c- p>,</c-> b<c- p>)</c-> <c- p>=></c-> <c- p>{</c-> a <c- o>*</c-> b<c- p>;</c-> <c- p>});</c->
-  <c- a>let</c-> after <c- o>=</c-> axis<c- p>.</c->slice<c- p>(</c->axis<c- p>,</c-> input<c- p>.</c->shape<c- p>().</c->length<c- p>).</c->reduce<c- p>((</c->a<c- p>,</c-> b<c- p>)</c-> <c- p>=></c-> <c- p>{</c-> a <c- o>*</c-> b<c- p>;</c-> <c- p>});</c->
+  <c- a>let</c-> before <c- o>=</c-> axis<c- p>.</c->slice<c- p>(</c-><c- mf>0</c-><c- p>,</c-> axis<c- p>).</c->reduce<c- p>((</c->a<c- p>,</c-> b<c- p>)</c-> <c- p>=></c-> a <c- o>*</c-> b<c- p>);</c->
+  <c- a>let</c-> after <c- o>=</c-> axis<c- p>.</c->slice<c- p>(</c->axis<c- p>,</c-> input<c- p>.</c->shape<c- p>().</c->length<c- p>).</c->reduce<c- p>((</c->a<c- p>,</c-> b<c- p>)</c-> <c- p>=></c-> a <c- o>*</c-> b<c- p>);</c->
   <c- k>return</c-> builder<c- p>.</c->reshape<c- p>(</c->input<c- p>,</c-> <c- p>[</c->before<c- p>,</c-> after<c- p>]);</c->
 <c- p>}</c->
 </pre>
