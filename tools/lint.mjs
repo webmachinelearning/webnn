@@ -15,8 +15,28 @@
 import fs from 'node:fs/promises';
 import {parse} from 'node-html-parser';
 
+// --------------------------------------------------
+// Process options
+// --------------------------------------------------
+
+const options = {
+  verbose: false,
+};
+
+// First two args are interpreter and script
+globalThis.process.argv.slice(2).forEach(arg => {
+  if (arg === '--verbose' || arg === '-v') {
+    options.verbose = true;
+  } else {
+    console.error(`Unknown argment: ${arg}`);
+    globalThis.process.exit(1);
+  }
+});
+
 function log(string) {
-  // console.log(string);
+  if (options.verbose) {
+    console.log(string);
+  }
 }
 
 // --------------------------------------------------
