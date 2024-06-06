@@ -13,7 +13,7 @@ filename = os.path.join(dir, '../index.bs')
 
 def clang_format(text):
     return subprocess.run(
-        ['clang-format', '--assume-filename=.js', '--style=Chromium'],
+        ['clang-format', '--assume-filename=.js', '--style=file'],
         capture_output=True, text=True, input=text.strip()).stdout
 
 def replace(content):
