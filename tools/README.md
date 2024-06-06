@@ -12,13 +12,13 @@ Spec editors can use a flow like the following:
 $EDITOR index.bs
 
 # Reformat JS blocks:
-tools/reformat-js.py
+python3 tools/reformat-js.py
 
 # Build the spec:
 bikeshed --die-on=fatal spec index.bs
 
 # Check for common errors:
-tools/lint.mjs
+node tools/lint.mjs
 
 # If no issues were reported, commit the changes:
 git commit -a -m "made it more awesome"

@@ -4,7 +4,7 @@
 // * npm install node-html-parser
 //
 // Run script from top level of spec repo after building spec.
-// Example: bikeshed spec && tools/lint.mjs
+// Example: bikeshed spec && node tools/lint.mjs
 //
 // Note that the '.mjs' extension is necessary for Node.js to treat the file as
 // a module. There is an `--experimental-default-type=module` flag but
