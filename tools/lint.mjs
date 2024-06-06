@@ -57,10 +57,10 @@ for (const element of root.querySelectorAll('script, style')) {
 const html = root.innerHTML;
 const text = root.innerText;
 
-let exit_code = 0;
+let exitCode = 0;
 function error(message) {
   console.error(message);
-  exit_code = 1;
+  exitCode = 1;
 }
 
 
@@ -234,4 +234,4 @@ for (const pre of root.querySelectorAll('pre.highlight:not(.idl)')) {
   }
 }
 
-globalThis.process.exit(exit_code);
+globalThis.process.exit(exitCode);
