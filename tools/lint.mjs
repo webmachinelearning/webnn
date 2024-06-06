@@ -223,7 +223,10 @@ for (const algorithm of root.querySelectorAll('.algorithm')) {
   }
 }
 
-// Prevent accidental normative references to other specs
+// Prevent accidental normative references to other specs. This reports an error
+// if there is a normative reference to any spec *other* than these ones. This
+// helps avoid a autolink like [=object=] adding an unexpected reference to
+// [FILEAPI]. Add to this list if a new normative reference is intended.
 const NORMATIVE_REFERENCES = new Set([
   '[ECMASCRIPT]',
   '[HTML]',
