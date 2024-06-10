@@ -2,6 +2,8 @@
 
 This document captures the WebNN spec repo conventions. The intended audience is editors and contributors to the specification.
 
+When updating these conventions, consider whether an automated check can be added to the [lint tool](../tools/lint.mjs) to help catch issues.
+
 ## Resources
 
 * [Writing Procedural Specs](https://garykac.github.io/procspec/)
