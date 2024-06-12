@@ -5217,47 +5217,6 @@ partial interface MLGraphBuilder {
     1. Return |output|.
 </details>
 
-<div class="note">
-  <details open>
-    <summary>
-    Many shape-related operations such as [squeeze](https://pytorch.org/docs/stable/generated/torch.squeeze.html), [unsqueeze](https://pytorch.org/docs/stable/generated/torch.unsqueeze.html), and [flatten](https://pytorch.org/docs/stable/generated/torch.flatten.html) can be generically implemented using the {{MLGraphBuilder/reshape()}} operation as follows:
-    </summary>
-    <pre highlight="js">
-    // Returns a tensor with all specified dimensions of input of size 1 removed.
-    function squeeze(input, axes) {
-      if (!axes)
-        axes = [];
-      if (!axes.length)
-        input.shape().forEach((item, i) => {
-          axes.push(i);
-        });
-      shape = Array.from(input.shape());
-      for (let axis in axes.sort().reverse())
-        if (axis < shape.length && shape[axis] == 1)
-          shape.splice(axis, 1);
-      return builder.reshape(input, shape);
-    }
-
-    // Returns a new tensor with a dimension of size one inserted at the specified
-    // position.
-    function unsqueeze(input, axes) {
-      shape = Array.from(input.shape());
-      for (let axis in axes.sort())
-        shape.splice(axis, 0, 1);
-      return builder.reshape(input, shape);
-    }
-
-    // Flattens input by reshaping it into a one-dimensional tensor.
-    function flatten(input, axis) {
-      if (axis > input.shape().length)
-        return input;
-      let before = axis.slice(0, axis).reduce((a, b) => a * b);
-      let after = axis.slice(axis, input.shape().length).reduce((a, b) => a * b);
-      return builder.reshape(input, [before, after]);
-    }
-    </pre>
-  </details>
-</div>
 
 ### sigmoid ### {#api-mlgraphbuilder-sigmoid-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Sigmoid_function">sigmoid function</a> of the input tensor. The calculation follows the expression `1 / (exp(-x) + 1)`.
@@ -6062,6 +6021,77 @@ Compile the graph up to the output operand.
   </pre>
 </details>
 </div>
+
+Operator Emulation {#emulation}
+===============================
+
+*This section is non-normative.*
+
+Operations present in other neural network inference APIs can often be emulated using operations present in WebNN.
+
+
+## squeeze ## {#emulation-squeeze}
+
+<div class="note">
+  <details open>
+    <summary>
+    The [squeeze](https://pytorch.org/docs/stable/generated/torch.squeeze.html) operation returns a tensor with all specified dimensions of input of size 1 removed. It can be generically implemented using the {{MLGraphBuilder/reshape()}} operation as follows:
+    </summary>
+    <pre highlight="js">
+    function squeeze(input, axes) {
+      if (!axes)
+        axes = [];
+      if (!axes.length)
+        input.shape().forEach((item, i) => {
+          axes.push(i);
+        });
+      const shape = Array.from(input.shape());
+      for (let axis in axes.sort().reverse())
+        if (axis < shape.length && shape[axis] == 1)
+          shape.splice(axis, 1);
+      return builder.reshape(input, shape);
+    }
+    </pre>
+  </details>
+</div>
+
+## unsqueeze ## {#emulation-unsqueeze}
+
+<div class="note">
+  <details open>
+    <summary>
+    The [unsqueeze](https://pytorch.org/docs/stable/generated/torch.unsqueeze.html) operation returns a new tensor with a dimension of size one inserted at the specified position. It can be generically implemented using the {{MLGraphBuilder/reshape()}} operation as follows:
+    </summary>
+    <pre highlight="js">
+    function unsqueeze(input, axes) {
+      const shape = Array.from(input.shape());
+      for (let axis in axes.sort())
+        shape.splice(axis, 0, 1);
+      return builder.reshape(input, shape);
+    }
+    </pre>
+  </details>
+</div>
+
+## flatten ## {#emulation-flatten}
+
+<div class="note">
+  <details open>
+    <summary>
+    The [flatten](https://pytorch.org/docs/stable/generated/torch.flatten.html) operation reshapes the input into a one-dimensional tensor. It can be generically implemented using the {{MLGraphBuilder/reshape()}} operation as follows:
+    </summary>
+    <pre highlight="js">
+    function flatten(input, axis) {
+      if (axis > input.shape().length)
+        return input;
+      const before = axis.slice(0, axis).reduce((a, b) => a * b);
+      const after = axis.slice(axis, input.shape().length).reduce((a, b) => a * b);
+      return builder.reshape(input, [before, after]);
+    }
+    </pre>
+  </details>
+</div>
+
 
 # Appendices # {#appendices}
 
