@@ -257,4 +257,20 @@ for (const pre of root.querySelectorAll('pre.highlight:not(.idl)')) {
   }
 }
 
+// Ensure algorithm steps end in '.' or ':'.
+for (const match of source.matchAll(/^ *\d+\. .*$/mg)) {
+  let str = match[0].trim();
+
+  // Strip asterisks from things like "1. *Make graph connections.*"
+  const match2 = str.match(/^(\d+\. )\*(.*)\*$/);
+  if (match2) {
+    str = match2[1] + match2[2];
+  }
+
+  const match3 = str.match(/[^.:]$/);
+  if (match3) {
+    error(`Algorithm steps should end with '.' or ':': ${format(match3)}`);
+  }
+}
+
 globalThis.process.exit(exitCode);
