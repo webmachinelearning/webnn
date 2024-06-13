@@ -750,11 +750,11 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
     To <dfn>create a context</dfn> given [=realm=] |realm| and |options| (a {{GPUDevice}} or {{MLContextOptions}}), run these steps:
 </summary>
     1. Let |context| be a new {{MLContext}} object with |realm|.
-    1. If |options| is a {{GPUDevice}} object,
+    1. If |options| is a {{GPUDevice}} object:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/webgpu=]".
         1. Set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"gpu"}}.
         1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
-    1. Otherwise,
+    1. Otherwise:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/default=]".
         1. If |options|["{{MLContextOptions/deviceType}}"] [=map/exists=], then set |context|.{{MLContext/[[deviceType]]}} to |options|["{{MLContextOptions/deviceType}}"]. Otherwise, set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"cpu"}}.
         1. If |options|["{{MLContextOptions/powerPreference}}"] [=map/exists=], then set |context|.{{MLContext/[[powerPreference]]}} to |options|["{{MLContextOptions/powerPreference}}"]. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
@@ -1908,6 +1908,7 @@ partial interface MLGraphBuilder {
     1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/dilations}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
     1. Otherwise, if |options|.{{MLConv2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. If any element in |options|.{{MLConv2dOptions/dilations}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/groups}} is 0, then [=exception/throw=] a {{TypeError}}.
     1. *Calculate the output shape:*
         1. Let |inputShape| be |input|'s [=MLOperand/shape=].
@@ -2139,12 +2140,14 @@ partial interface MLGraphBuilder {
     1. If any element in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/dilations}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. If any element in |options|.{{MLConvTranspose2dOptions/dilations}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} does not [=map/exist=], set it to the [=/list=] « 0, 0 ».
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/outputPadding}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. Otherwise:
         1. If |options|.{{MLConvTranspose2dOptions/outputPadding}}[0] is greater than or equal to |options|.{{MLConvTranspose2dOptions/strides}}[0], or |options|.{{MLConvTranspose2dOptions/outputPadding}}[1] is greater than or equal to |options|.{{MLConvTranspose2dOptions/strides}}[1], then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLConvTranspose2dOptions/groups}} is 0, then [=exception/throw=] a {{TypeError}}.
     1. *Calculate the output shape:*
         1. Let |inputShape| be |input|'s [=MLOperand/shape=].
         1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
@@ -2185,7 +2188,7 @@ partial interface MLGraphBuilder {
                     1. Let |filterInputChannels| be |filterShape|[3].
             </dl>
         1. If |inputChannels| is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
-        1. Let |outputChannels| be |filterOutputChannels| * |options|.{{MLConvTranspose2dOptions/groups}}
+        1. Let |outputChannels| be |filterOutputChannels| * |options|.{{MLConvTranspose2dOptions/groups}}.
         1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
             1. If its [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/shape=] is not equal to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
@@ -3443,8 +3446,8 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |input|, |weight|, |recurrentWeight|, or |hiddenState| is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/rank=] of any of |input|, |weight|, |recurrentWeight| or |hiddenState| is not its [=allowed ranks=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |batchSize| be |input|'s [=MLOperand/shape=][0];
-    1. Let |inputSize| be |input|'s [=MLOperand/shape=][1];
+    1. Let |batchSize| be |input|'s [=MLOperand/shape=][0].
+    1. Let |inputSize| be |input|'s [=MLOperand/shape=][1].
     1. If |weight|'s [=MLOperand/shape=] is not equal to « 3 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |recurrentWeight|'s [=MLOperand/shape=] is not equal to « 3 * |hiddenSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |hiddenState|'s [=MLOperand/shape=] is not equal to « |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
@@ -4816,9 +4819,9 @@ partial interface MLGraphBuilder {
   <summary>
     To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given {{MLOperand}} |a| and {{MLOperand}} |b| run the following steps:
   </summary>
-    1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=]
+    1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
     1. Let |rankA| be |a|'s [=MLOperand/rank=].
-    1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=]
+    1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=].
     1. Let |rankB| be |b|'s [=MLOperand/rank=].
     1. If either |rankA| or |rankB| is less than 2, then [=exception/throw=] a {{TypeError}}.
     1. Let |colsA| be |shapeA|[|rankA| - 1].
@@ -4914,7 +4917,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>pad(|input|, |beginningPadding|, |endingPadding|, |options|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/rank=] is 0, then [=exception/throw=] a {{TypeError}}
+    1. If |input|'s [=MLOperand/rank=] is 0, then [=exception/throw=] a {{TypeError}}.
     1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
@@ -5097,7 +5100,7 @@ partial interface MLGraphBuilder {
         1. Let |outputSizes| be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |windowDimensions|[0], |windowDimensions|[1], |padding|, |strides|, and |dilations|.
         1. Let |outputHeight| be |outputSizes|[0].
         1. Let |outputWidth| be |outputSizes|[1].
-        1. Switch on |roundingType|
+        1. Switch on |roundingType|:
             <dl class=switch>
                 : {{MLRoundingType/"floor"}}
                 ::
@@ -5383,7 +5386,7 @@ partial interface MLGraphBuilder {
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceMean(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceMean", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} »
+        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceMean", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
