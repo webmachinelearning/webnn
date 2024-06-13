@@ -273,4 +273,9 @@ for (const match of source.matchAll(/^ *\d+\. .*$/mg)) {
   }
 }
 
+// Avoid incorrect links to list/empty.
+for (const match of source.matchAll(/is( not)? \[=(list\/|stack\/|queue\/|)empty=\]/g)) {
+  error(`Link to 'is empty' (noun) not 'empty' (verb): ${format(match)}`);
+}
+
 globalThis.process.exit(exitCode);
