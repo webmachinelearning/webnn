@@ -2,6 +2,8 @@
 
 This document captures the WebNN spec repo conventions. The intended audience is editors and contributors to the specification.
 
+When updating these conventions, consider whether an automated check can be added to the [lint tool](../tools/lint.mjs) to help catch issues.
+
 ## Resources
 
 * [Writing Procedural Specs](https://garykac.github.io/procspec/)
@@ -54,7 +56,7 @@ Example:
 ```
     The <dfn>maximum size</dfn> of a collection is...
 
-    1. Let |max| be the [=maximum size=] of |collection|.
+    1. Let |max| be |collection|'s [=maximum size=].
 ```
 
 * When defining subsidiary terms, like properties of an object, members of an enum, etc, scope the definitions using `dfn-for` on the `dfn` or an ancestor.
@@ -70,6 +72,20 @@ Example:
     1. If |shape| is a [=circle=], draw it at |shape|'s [=circle/origin=].
 ```
 
+* When referencing an operator in text (e.g. sigmoid, tanh, etc), link the operator name to the `MLGraphBuilder` methods for creating the corresponding `MLOperand` or `MLActivation`, e.g. `{{MLGraphBuilder/sigmoid()}}`. This provides consistent styling, and provides a thorough overview of the operator, even if the method itself isn't being discussed.
+
+
+### Characters and Encoding
+
+* The spec is encoded with UTF-8.
+* For non-ASCII characters, prefer to use characters directly, rather than [character references](https://html.spec.whatwg.org/multipage/syntax.html#character-references) (a.k.a. entities), except when necessary for escaping e.g. `sequence&lt;DOMString&gt;`. These commonly occur in names in the Acknowledgements and References sections.
+* Commonly used punctuation and symbol characters include:
+    * « » (U+00AB / U+00BB Left/Right Pointing Double Angle Quotation Marks) used for [list literals](https://infra.spec.whatwg.org/#lists) and [map literals](https://infra.spec.whatwg.org/#maps).
+    * → (U+2192 Rightwards Arrow) used for [map iteration](https://infra.spec.whatwg.org/#map-iterate) and [map literals](https://infra.spec.whatwg.org/#maps).
+* In expressions:
+    * Use * (U+002A Asterisk) for multiplication, / (U+002F Solidus) for division, and - (U+002D Hyphen-Minux), to reduce friction for implementers. Don't use × (U+00D7 Multiplication Sign), ∗ (U+2217 Asterisk Operator), ÷ (U+00F7 Division Sign), or − (U+2212 Minus Sign).
+    * Use named functions like _floor(x)_ and _ceil()_ rather than syntax like ⌊_x_⌋ and ⌈_x_⌉.
+
 
 ### Formatting
 
@@ -77,6 +93,7 @@ Example:
 * Outside of examples, which should be appropriately styled automatically, literals such as numbers within spec prose are not JavaScript values and should not be styled as code.
 * Strings used internally (e.g. operator names) should not be styled as code.
 * When concisely defining a list's members or a tensor's layout, use the syntax `*[ ... ]*` (e.g. _"nchw" means the input tensor has the layout *[batches, inputChannels, height, width]*_)
+* In Web IDL `<pre class=idl>` blocks, wrap long lines to avoid horizontal scrollbars. 88 characters seems to be the magic number.
 
 
 ### Algorithms
@@ -93,7 +110,11 @@ Example:
 * Use `[=list/For each=] |item| of |list|` when iterating over a list, but use more specific terms for the item (e.g. _For each dimension of dimensions:_)
 * Use `[=list/For each=] |index| in [=the range=] X to Y, inclusive` when iterating over a numeric range; a range is implicitly an ordered set which is a type of list. Specify _inclusive_ or _exclusive_ regarding the upper bound, for clarity.
 * Use "let" to introduce a variable and "set" to update a variable or assign to a property.
-* Use « » notation for literal lists, which helps make it clear that they are not JavaScript arrays.
+* Use « » notation for literal [lists](https://infra.spec.whatwg.org/#lists), which helps make it clear that they are not JavaScript arrays.
+* Use «[ _k_ → _v_ ]» notation for literal [maps](https://infra.spec.whatwg.org/#maps).
+* When referring to abstract properties, use the short possessive form `|object|'s [=property=]`. Avoid the wordier `the [=property=] of |object|` form.
+* Use "rank" when describing the number of dimensions of a tensor (e.g. in variable names) rather than the ambiguous "size".
+* Only use single capital letters as variable names when referring to tensors; i.e. prefer `|shapeA|` to `|A|`, but tensor `|T|` is okay.
 
 
 ### Method Definitions
@@ -122,5 +143,4 @@ Example:
 
 * Dictionary members are referenced using dotted property syntax. e.g. _options.padding_
    * Note that this is contrary to Web IDL + Infra; formally, a JavaScript object has been mapped to a Web IDL [dictionary](https://webidl.spec.whatwg.org/#idl-dictionaries) and then processed into an Infra [map](ordered) by the time a spec is using it. So formally the syntax _options["padding"]_ should be used.
-
-
+* Dictionary members should be given definitions somewhere in the text. This is usually done with a `<dl dfn-type=dict-member dfn-for=...>` for the dictionary as a whole, containing a `<dfn>` for each member.

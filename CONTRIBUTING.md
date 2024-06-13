@@ -23,10 +23,11 @@ Wording change does not require opening a GitHub Issue, as the change in the pul
 
 Similarly, a stylistic change does not necessarily require opening a GitHub Issue. It does, however, require buy-ins from the Working Group to proceed. The best way to propose this type of change is to attend one of the bi-weekly Web Machine Learning Working Group teleconference calls. A practical way to reach out to the Working Group to get invited to the teleconference call is to post a GitHub Issue giving a rough explanation of the proposed change and ask to be invited.
 
-Follow the guidance in [SpecCodingConventions.md](SpecCodingConventions.md) for your change to ensure it aligns with best practices and existing conventions.
+Follow the guidance in [SpecCodingConventions.md](docs/SpecCodingConventions.md) for your change to ensure it aligns with best practices and existing conventions.
 
 Bug fixes and new content changes should proceed as follows:
-1. **Open an issue in GitHub Issues** with a brief description of the problem and a potential solution if it's not already obvious. A proposal or suggestion for improvement may need a bit more explanation with possible references to related information. An active issue is the best way to get attention. Members of the Working Group scan active issues constantly.
+1. **Open an issue in GitHub Issues** with a brief description of the problem and a potential solution if it's not already obvious. A proposal or suggestion for improvement may need a bit more explanation with possible references to related information. An active issue is the best way to get attention. Members of the Working Group scan active issues constantly and should apply labels to help categorize them, following the guidance in [IssueTriage.md](docs/IssueTriage.md). If you're a member of the Working Group, please apply appropriate labels to the new issue.
+
 2. **Prepare the change in a pull request** and put a reference to the active issue(s) the change is addressing in the description. We prefer that a pull request is represented by a single type of change as outlined in the previous section for a speedy review and approval. Conversely, a specific change should also be captured by a single and not multiple pull requests. This helps to reduce the dependency between pull requests and the chance for the specification to be left in a transient state between multiple pull requests. Exceptions to this should be discussed and approved by the Working Group in one of our bi-weekly calls.
 
 3. **Close the issue** once the pull request is reviewed and merged. Make sure to resolve any error that arises during the merge and check the post-merged published result. The Bikeshed document format isn't very good for an automatic merge, you may need to intervene and manually correct the merge's mistakes if any. You also want to make sure all the GitHub Actions that are put in place to catch document issues are all clean before merging the change into the main branch.
@@ -42,6 +43,9 @@ Because ML operations are critical parts of this specification, proposing a new 
 - *Cross-platform implementability*. Is the operation implementable in more than one platform? What are they?
 
 Follow the [security guidelines for new operations](https://www.w3.org/TR/webnn/#security-new-ops) to ensure proper considerations are given to the design. For an additional background context, this [discussion thread](https://www.w3.org/2021/11/18-webmachinelearning-minutes.html#t02) summarizes the design intent of the API and clarifies the way an operation should be defined and implemented.
+
+## Updating an existing operation
+The definition of an existing operation may need to be updated, such as for supporting new data types or attributes. The process is largely similar to [proposing and adding a new operation](#proposing-and-adding-a-new-operation).
 
 ## Licensing and Working Group participation guidelines
 Contributions to this repository are intended to become part of Recommendation-track documents governed by the [W3C Patent Policy](https://www.w3.org/Consortium/Patent-Policy/) and [Software and Document License](https://www.w3.org/Consortium/Legal/copyright-software).

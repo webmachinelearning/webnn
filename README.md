@@ -1,4 +1,4 @@
-[![build](https://github.com/webmachinelearning/webnn/workflows/build/badge.svg)](https://github.com/webmachinelearning/webnn/actions)
+[![build](https://github.com/webmachinelearning/webnn/actions/workflows/auto-publish.yml/badge.svg)](https://github.com/webmachinelearning/webnn/actions)
 
 # Web Neural Network API
 

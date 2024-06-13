@@ -35,7 +35,7 @@ const operandType = {dataType: 'float32', dimensions: [2, 2]};
 const context = await navigator.ml.createContext();
 const builder = new MLGraphBuilder(context);
 // 1. Create a computational graph 'C = 0.2 * A + B'.
-const constant = builder.constant(0.2);
+const constant = builder.constant('float32', 0.2);
 const A = builder.input('A', operandType);
 const B = builder.input('B', operandType);
 const C = builder.add(builder.mul(A, constant), B);
@@ -94,7 +94,7 @@ The specification includes an [example](https://www.w3.org/TR/webnn/#examples) t
 
 ## Key scenarios
 
-There are many important [application use cases](https://www.w3.org/TR/webnn/#usecases-application) for high-performance neural network inference. One such use case is deep-learning noise suppression (DNS) in web-based video conferencing. The following sample shows how the [NSNet2](https://github.com/microsoft/DNS-Challenge/tree/master/NSNet2-baseline) baseline implementation of deep learning-based noise suppression model may be implemented using the WebNN API.
+There are many important [application use cases](https://www.w3.org/TR/webnn/#usecases-application) for high-performance neural network inference. One such use case is deep-learning noise suppression (DNS) in web-based video conferencing. The following sample shows how the [NSNet2](https://github.com/microsoft/DNS-Challenge/tree/a052ad5a7714bcc6069b515666e837bf973099de/NSNet2-baseline) baseline implementation of deep learning-based noise suppression model may be implemented using the WebNN API.
 
 ```JavaScript
 // Noise Suppression Net 2 (NSNet2) Baseline Model for Deep Noise Suppression Challenge (DNS) 2021.
