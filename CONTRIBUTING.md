@@ -44,6 +44,9 @@ Because ML operations are critical parts of this specification, proposing a new 
 
 Follow the [security guidelines for new operations](https://www.w3.org/TR/webnn/#security-new-ops) to ensure proper considerations are given to the design. For an additional background context, this [discussion thread](https://www.w3.org/2021/11/18-webmachinelearning-minutes.html#t02) summarizes the design intent of the API and clarifies the way an operation should be defined and implemented.
 
+## Updating an existing operation
+The definition of an existing operation may need to be updated, such as for supporting new data types or attributes. The process is largely similar to [proposing and adding a new operation](#proposing-and-adding-a-new-operation).
+
 ## Licensing and Working Group participation guidelines
 Contributions to this repository are intended to become part of Recommendation-track documents governed by the [W3C Patent Policy](https://www.w3.org/Consortium/Patent-Policy/) and [Software and Document License](https://www.w3.org/Consortium/Legal/copyright-software).
 
