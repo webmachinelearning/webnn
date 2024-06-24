@@ -955,7 +955,7 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
     const context = await navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
     // 1. Create a computational graph 'C = 0.2 * A + B'.
-    const constant = builder.constant(operandType.dataType, 0.2);
+    const constant = builder.constant(operandType.dataType(), 0.2);
     const A = builder.input('A', operandType);
     const B = builder.input('B', operandType);
     const C = builder.add(builder.mul(A, constant), B);
@@ -1573,7 +1573,7 @@ partial interface MLGraphBuilder {
             builder.sub(input, builder.reshape(mean, shape)),
             builder.sqrt(builder.add(
               builder.reshape(variance, shape),
-              builder.constant(input.dataType, options.epsilon))))),
+              builder.constant(input.dataType(), options.epsilon))))),
         builder.reshape(options.bias, shape));
     }
     </pre>
@@ -1643,16 +1643,17 @@ partial interface MLGraphBuilder {
           return input;
         } else {
           return builder.min(
-            input, builder.constant(input.dataType, options.maxValue));
+            input, builder.constant(input.dataType(), options.maxValue));
         }
       } else {
         if (options.maxValue === undefined) {
           return builder.max(
-            input, builder.constant(input.dataType, options.minValue));
+            input, builder.constant(input.dataType(), options.minValue));
         } else {
           return builder.min(
-            builder.max(input, builder.constant(input.dataType, options.minValue)),
-            builder.constant(input.dataType, options.maxValue));
+            builder.max(
+              input, builder.constant(input.dataType(), options.minValue)),
+            builder.constant(input.dataType(), options.maxValue));
         }
       }
     }
@@ -2557,12 +2558,12 @@ partial interface MLGraphBuilder {
     <pre highlight="js">
     function elu(builder, input, options) {
       return builder.add(
-        builder.max(builder.constant(input.dataType, 0), input),
+        builder.max(builder.constant(input.dataType(), 0), input),
         builder.mul(
-          builder.constant(input.dataType, options.alpha),
+          builder.constant(input.dataType(), options.alpha),
           builder.sub(
-            builder.exp(builder.min(builder.constant(input.dataType, 0), input)),
-            builder.constant(input.dataType, 1))));
+            builder.exp(builder.min(builder.constant(input.dataType(), 0), input)),
+            builder.constant(input.dataType(), 1))));
     }
     </pre>
   </details>
@@ -2791,11 +2792,11 @@ partial interface MLGraphBuilder {
     <pre highlight="js">
     function gelu(builder, input) {
       return builder.mul(
-        builder.mul(input, builder.constant(input.dataType, 0.5)),
+        builder.mul(input, builder.constant(input.dataType(), 0.5)),
         builder.add(
-          builder.constant(input.dataType, 1),
+          builder.constant(input.dataType(), 1),
           builder.erf(builder.div(
-            input, builder.sqrt(builder.constant(input.dataType, 2))))));
+            input, builder.sqrt(builder.constant(input.dataType(), 2))))));
     }
     </pre>
   </details>
@@ -2934,12 +2935,12 @@ partial interface MLGraphBuilder {
         b = builder.transpose(b);
 
       let ab = builder.matmul(
-        builder.mul(builder.constant(a.dataType, options.alpha), a), b);
+        builder.mul(builder.constant(a.dataType(), options.alpha), a), b);
       return (
         options.c ?
           builder.add(
             ab,
-            builder.mul(builder.constant(a.dataType, options.beta), options.c)) :
+            builder.mul(builder.constant(a.dataType(), options.beta), options.c)) :
           ab);
     }
   </pre>
@@ -3307,8 +3308,8 @@ partial interface MLGraphBuilder {
   <pre highlight="js">
     function gruCell(
       builder, input, weight, recurrentWeight, hiddenState, hiddenSize, options) {
-      const one = builder.constant(input.dataType, 1);
-      const zero = builder.constant(input.dataType, 0);
+      const one = builder.constant(input.dataType(), 1);
+      const zero = builder.constant(input.dataType(), 0);
 
       const inputSize = input.shape()[1];
 
@@ -3427,10 +3428,10 @@ partial interface MLGraphBuilder {
       return builder.max(
         builder.min(
           builder.add(
-            builder.mul(builder.constant(input.dataType, options.alpha), input),
-            builder.constant(input.dataType, options.beta)),
-          builder.constant(input.dataType, 1)),
-        builder.constant(input.dataType, 0));
+            builder.mul(builder.constant(input.dataType(), options.alpha), input),
+            builder.constant(input.dataType(), options.beta)),
+          builder.constant(input.dataType(), 1)),
+        builder.constant(input.dataType(), 0));
     }
     </pre>
   </details>
@@ -3508,11 +3509,11 @@ partial interface MLGraphBuilder {
         builder.mul(
           input,
           builder.max(
-            builder.constant(input.dataType, 0),
+            builder.constant(input.dataType(), 0),
             builder.min(
-              builder.constant(input.dataType, 6),
-              builder.add(input, builder.constant(input.dataType, 3))))),
-        builder.constant(input.dataType, 6));
+              builder.constant(input.dataType(), 6),
+              builder.add(input, builder.constant(input.dataType(), 3))))),
+        builder.constant(input.dataType(), 6));
     }
   </pre>
 </details>
@@ -3642,7 +3643,8 @@ partial interface MLGraphBuilder {
       const reduceOptions = {axes: [2, 3], keepDimensions: true};
       const mean = builder.reduceMean(input, reduceOptions);
       const variance = builder.reduceMean(
-        builder.pow(builder.sub(input, mean), builder.constant(input.dataType, 2)),
+        builder.pow(
+          builder.sub(input, mean), builder.constant(input.dataType(), 2)),
         reduceOptions);
 
       // The scale and bias values are applied per input feature
@@ -3749,7 +3751,8 @@ partial interface MLGraphBuilder {
       const reduceOptions = {axes: [1, 2, 3], keepDimensions: true};
       const mean = builder.reduceMean(input, reduceOptions);
       const variance = builder.reduceMean(
-        builder.pow(builder.sub(input, mean), builder.constant(input.dataType, 2)),
+        builder.pow(
+          builder.sub(input, mean), builder.constant(input.dataType(), 2)),
         reduceOptions);
 
       // The scale and bias tensors are of the shape of the input dimensions
@@ -3788,10 +3791,10 @@ partial interface MLGraphBuilder {
     <pre highlight="js">
     function leakyRelu(builder, input, options) {
       return builder.add(
-        builder.max(builder.constant(input.dataType, 0), input),
+        builder.max(builder.constant(input.dataType(), 0), input),
         builder.mul(
-          builder.constant(input.dataType, options.alpha),
-          builder.min(builder.constant(input.dataType, 0), input)));
+          builder.constant(input.dataType(), options.alpha),
+          builder.min(builder.constant(input.dataType(), 0), input)));
     }
     </pre>
   </details>
@@ -3869,8 +3872,8 @@ partial interface MLGraphBuilder {
     <pre highlight="js">
     function linear(builder, input, options) {
       return builder.add(
-        builder.mul(input, builder.constant(input.dataType, options.alpha)),
-        builder.constant(input.dataType, options.beta));
+        builder.mul(input, builder.constant(input.dataType(), options.alpha)),
+        builder.constant(input.dataType(), options.beta));
     }
     </pre>
   </details>
@@ -4342,7 +4345,7 @@ partial interface MLGraphBuilder {
       cellState,
       hiddenSize,
       options) {
-      const zero = builder.constant(input.dataType, 0);
+      const zero = builder.constant(input.dataType(), 0);
 
       const inputSize = input.shape()[1];
 
@@ -4896,9 +4899,9 @@ partial interface MLGraphBuilder {
     <pre highlight="js">
     function prelu(builder, input, slope) {
       return builder.add(
-        builder.max(builder.constant(input.dataType, 0), input),
+        builder.max(builder.constant(input.dataType(), 0), input),
         builder.mul(
-          slope, builder.min(builder.constant(input.dataType, 0), input)));
+          slope, builder.min(builder.constant(input.dataType(), 0), input)));
     }
     </pre>
   </details>
@@ -5114,7 +5117,7 @@ partial interface MLGraphBuilder {
     </summary>
     <pre highlight="js">
     function relu(builder, input) {
-      return builder.max(builder.constant(input.dataType, 0), input);
+      return builder.max(builder.constant(input.dataType(), 0), input);
     }
     </pre>
   </details>
@@ -5313,9 +5316,9 @@ partial interface MLGraphBuilder {
     <pre highlight="js">
     function sigmoid(builder, input) {
       return builder.div(
-        builder.constant(input.dataType, 1),
+        builder.constant(input.dataType(), 1),
         builder.add(
-          builder.exp(builder.neg(input)), builder.constant(input.dataType, 1)));
+          builder.exp(builder.neg(input)), builder.constant(input.dataType(), 1)));
     }
     </pre>
   </details>
@@ -5476,7 +5479,7 @@ partial interface MLGraphBuilder {
     <pre highlight="js">
     function softplus(builder, input) {
       return builder.log(
-        builder.add(builder.exp(input), builder.constant(input.dataType, 1)));
+        builder.add(builder.exp(input), builder.constant(input.dataType(), 1)));
     }
     </pre>
   </details>
@@ -5541,7 +5544,7 @@ partial interface MLGraphBuilder {
     function softsign(builder, input) {
       return builder.div(
         input,
-        builder.add(builder.constant(input.dataType, 1), builder.abs(input)));
+        builder.add(builder.constant(input.dataType(), 1), builder.abs(input)));
     }
     </pre>
   </details>
@@ -5695,11 +5698,11 @@ partial interface MLGraphBuilder {
     function tanh(builder, input) {
       return builder.div(
         builder.sub(
-          builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
-          builder.constant(input.dataType, 1)),
+          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
+          builder.constant(input.dataType(), 1)),
         builder.add(
-          builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
-          builder.constant(input.dataType, 1)));
+          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
+          builder.constant(input.dataType(), 1)));
     }
     </pre>
   </details>
@@ -5950,8 +5953,9 @@ partial interface MLGraphBuilder {
     function where(builder, condition, input, other) {
       const c = builder.clamp(condition, {'minValue': 0, 'maxValue': 1});
       builder.add(
-        builder.mul(input, builder.cast(c, input.dataType())),
-        builder.mul(other, builder.cast(builder.logicalNot(c), other.dataType())));
+        builder.mul(input, builder.cast(c, input.dataType()())),
+        builder.mul(
+          other, builder.cast(builder.logicalNot(c), other.dataType()())));
     }
     </pre>
   </details>
