@@ -955,7 +955,7 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
     const context = await navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
     // 1. Create a computational graph 'C = 0.2 * A + B'.
-    const constant = builder.constant(operandType.dataType, 0.2);
+    const constant = builder.constant(operandType.dataType(), 0.2);
     const A = builder.input('A', operandType);
     const B = builder.input('B', operandType);
     const C = builder.add(builder.mul(A, constant), B);
@@ -1564,16 +1564,18 @@ partial interface MLGraphBuilder {
     The behavior of this operation when the input tensor is 4-D of the {{MLInputOperandLayout/"nchw"}} layout can be [EMULATED]
     </summary>
     <pre highlight="js">
-    const shape = [1, input.shape()[options.axis], 1, 1];
-    return builder.add(
-      builder.mul(
-        builder.reshape(options.scale, shape),
-        builder.div(
-          builder.sub(input, builder.reshape(mean, shape)),
-          builder.sqrt(builder.add(
-            builder.reshape(variance, shape),
-            builder.constant(input.dataType, options.epsilon))))),
-      builder.reshape(options.bias, shape));
+    function batchNormalization(builder, input, mean, variance, options) {
+      const shape = [1, input.shape()[options.axis], 1, 1];
+      return builder.add(
+        builder.mul(
+          builder.reshape(options.scale, shape),
+          builder.div(
+            builder.sub(input, builder.reshape(mean, shape)),
+            builder.sqrt(builder.add(
+              builder.reshape(variance, shape),
+              builder.constant(input.dataType(), options.epsilon))))),
+        builder.reshape(options.bias, shape));
+    }
     </pre>
   </details>
 </div>
@@ -1635,21 +1637,24 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
-    if (options.minValue === undefined) {
-      if (options.maxValue === undefined) {
-        return input;
+    function clamp(builder, input, options) {
+      if (options.minValue === undefined) {
+        if (options.maxValue === undefined) {
+          return input;
+        } else {
+          return builder.min(
+            input, builder.constant(input.dataType(), options.maxValue));
+        }
       } else {
-        return builder.min(
-          input, builder.constant(input.dataType, options.maxValue));
-      }
-    } else {
-      if (options.maxValue === undefined) {
-        return builder.max(
-          input, builder.constant(input.dataType, options.minValue));
-      } else {
-        return builder.min(
-          builder.max(input, builder.constant(input.dataType, options.minValue)),
-          builder.constant(input.dataType, options.maxValue));
+        if (options.maxValue === undefined) {
+          return builder.max(
+            input, builder.constant(input.dataType(), options.minValue));
+        } else {
+          return builder.min(
+            builder.max(
+              input, builder.constant(input.dataType(), options.minValue)),
+            builder.constant(input.dataType(), options.maxValue));
+        }
       }
     }
   </pre>
@@ -2551,13 +2556,15 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.add(
-      builder.max(builder.constant(input.dataType, 0), input),
-      builder.mul(
-        builder.constant(input.dataType, options.alpha),
-        builder.sub(
-          builder.exp(builder.min(builder.constant(input.dataType, 0), input)),
-          builder.constant(input.dataType, 1))));
+    function elu(builder, input, options) {
+      return builder.add(
+        builder.max(builder.constant(input.dataType(), 0), input),
+        builder.mul(
+          builder.constant(input.dataType(), options.alpha),
+          builder.sub(
+            builder.exp(builder.min(builder.constant(input.dataType(), 0), input)),
+            builder.constant(input.dataType(), 1))));
+    }
     </pre>
   </details>
 </div>
@@ -2783,12 +2790,14 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.mul(
-      builder.mul(input, builder.constant(input.dataType, 0.5)),
-      builder.add(
-        builder.constant(input.dataType, 1),
-        builder.erf(
-          builder.div(input, builder.sqrt(builder.constant(input.dataType, 2))))));
+    function gelu(builder, input) {
+      return builder.mul(
+        builder.mul(input, builder.constant(input.dataType(), 0.5)),
+        builder.add(
+          builder.constant(input.dataType(), 1),
+          builder.erf(builder.div(
+            input, builder.sqrt(builder.constant(input.dataType(), 2))))));
+    }
     </pre>
   </details>
 </div>
@@ -2918,18 +2927,22 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
-    if (options.aTranspose)
-      a = builder.transpose(a);
+    function gemm(builder, a, b, options) {
+      if (options.aTranspose)
+        a = builder.transpose(a);
 
-    if (options.bTranspose)
-      b = builder.transpose(b);
+      if (options.bTranspose)
+        b = builder.transpose(b);
 
-    let ab = builder.matmul(
-      builder.mul(builder.constant(a.dataType, options.alpha), a), b);
-    return (
-      c ? builder.add(
-            ab, builder.mul(builder.constant(a.dataType, options.beta), c)) :
+      let ab = builder.matmul(
+        builder.mul(builder.constant(a.dataType(), options.alpha), a), b);
+      return (
+        options.c ?
+          builder.add(
+            ab,
+            builder.mul(builder.constant(a.dataType(), options.beta), options.c)) :
           ab);
+    }
   </pre>
 </details>
 </div>
@@ -3082,99 +3095,104 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be [EMULATED]
+    Using a [[#emulation-squeeze|squeeze()]] helper, the behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
-    function squeeze(builder, op) {
-      return builder.reshape(op, op.shape().remove(0));
-    }
+    function gru(
+      builder, input, weight, recurrentWeight, steps, hiddenSize, options) {
+      const batchSize = input.shape()[1];
+      const inputSize = input.shape()[2];
+      const numDirections = (options.direction == 'both' ? 2 : 1);
+      let hiddenState = options.initialHiddenState;
 
-    const numDirections = (options.direction == 'both' ? 2 : 1);
-    let hiddenState = options.initialHiddenState;
+      if (!hiddenState) {
+        const desc = {
+          dataType: 'float32',
+          dimensions: [numDirections, 1, hiddenSize]
+        };
+        const totalSize = numDirections * hiddenSize;
+        hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
+      }
 
-    if (!hiddenState) {
-      const desc = {
-        dataType: 'float32',
-        dimensions: [numDirections, 1, hiddenSize]
-      };
-      const totalSize = numDirections * hiddenSize;
-      hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
-    }
-
-    let sequence = null;
-    let currentWeight = [];
-    let currentRecurrentWeight = [];
-    let currentBias = [];
-    let currentRecurrentBias = [];
-
-    for (let dir = 0; dir < numDirections; ++dir) {
-      currentWeight.push(squeeze(
-        builder,
-        builder.slice(weight, [dir, 0, 0], [1, 3 * hiddenSize, inputSize])));
-      currentRecurrentWeight.push(squeeze(
-        builder,
-        builder.slice(
-          recurrentWeight, [dir, 0, 0], [1, 3 * hiddenSize, hiddenSize])));
-      currentBias.push(
-        options.bias ?
-          (squeeze(
-            builder, builder.slice(options.bias, [dir, 0], [1, 3 * hiddenSize]))) :
-          null);
-      currentRecurrentBias.push(
-        options.recurrentBias ?
-          (squeeze(
-            builder,
-            builder.slice(options.recurrentBias, [dir, 0], [1, 3 * hiddenSize]))) :
-          null);
-    }
-
-    for (let step = 0; step < steps; ++step) {
-      let currentHidden = [];
-      let currentOutput = null;
+      let sequence = null;
+      let currentWeight = [];
+      let currentRecurrentWeight = [];
+      let currentBias = [];
+      let currentRecurrentBias = [];
 
       for (let dir = 0; dir < numDirections; ++dir) {
-        currentHidden.push(squeeze(
+        currentWeight.push(squeeze(
           builder,
-          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize])));
+          builder.slice(weight, [dir, 0, 0], [1, 3 * hiddenSize, inputSize])));
+        currentRecurrentWeight.push(squeeze(
+          builder,
+          builder.slice(
+            recurrentWeight, [dir, 0, 0], [1, 3 * hiddenSize, hiddenSize])));
+        currentBias.push(
+          options.bias ?
+            (squeeze(
+              builder,
+              builder.slice(options.bias, [dir, 0], [1, 3 * hiddenSize]))) :
+            null);
+        currentRecurrentBias.push(
+          options.recurrentBias ?
+            (squeeze(
+              builder,
+              builder.slice(
+                options.recurrentBias, [dir, 0], [1, 3 * hiddenSize]))) :
+            null);
       }
 
-      for (let dir = 0; dir < numDirections; ++dir) {
-        let slice =
-          (dir == 1 || options.direction == 'backward' ? steps - step - 1 : step);
-        let currentInput = squeeze(
-          builder, builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]));
+      for (let step = 0; step < steps; ++step) {
+        let currentHidden = [];
+        let currentOutput = null;
 
-        let result = builder.reshape(
-          builder.gruCell(
-            currentInput,
-            currentWeight[dir],
-            currentRecurrentWeight[dir],
-            currentHidden[dir],
-            hiddenSize,
-            {
-              bias: currentBias[dir],
-              recurrentBias: currentRecurrentBias[dir],
-              resetAfter: options.resetAfter,
-              layout: options.layout,
-              activations: options.activations
-            }),
-          [1, batchSize, hiddenSize]);
+        for (let dir = 0; dir < numDirections; ++dir) {
+          currentHidden.push(squeeze(
+            builder,
+            builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize])));
+        }
 
-        currentOutput =
-          (currentOutput ? builder.concat([currentOutput, result], 0) : result);
+        for (let dir = 0; dir < numDirections; ++dir) {
+          let slice =
+            (dir == 1 || options.direction == 'backward' ? steps - step - 1 : step);
+          let currentInput = squeeze(
+            builder,
+            builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]));
+
+          let result = builder.reshape(
+            builder.gruCell(
+              currentInput,
+              currentWeight[dir],
+              currentRecurrentWeight[dir],
+              currentHidden[dir],
+              hiddenSize,
+              {
+                bias: currentBias[dir],
+                recurrentBias: currentRecurrentBias[dir],
+                resetAfter: options.resetAfter,
+                layout: options.layout,
+                activations: options.activations
+              }),
+            [1, batchSize, hiddenSize]);
+
+          currentOutput =
+            (currentOutput ? builder.concat([currentOutput, result], 0) : result);
+        }
+
+        hiddenState = currentOutput;
+
+        if (options.returnSequence) {
+          currentOutput = builder.reshape(
+            currentOutput, [1, numDirections, batchSize, hiddenSize]);
+          sequence =
+            (sequence ? builder.concat([sequence, currentOutput], 0) :
+                        currentOutput);
+        }
       }
 
-      hiddenState = currentOutput;
-
-      if (options.returnSequence) {
-        currentOutput =
-          builder.reshape(currentOutput, [1, numDirections, batchSize, hiddenSize]);
-        sequence =
-          (sequence ? builder.concat([sequence, currentOutput], 0) : currentOutput);
-      }
+      return (sequence ? [hiddenState, sequence] : [hiddenState]);
     }
-
-    return (sequence ? [hiddenState, sequence] : [hiddenState]);
   </pre>
 </details>
 </div>
@@ -3284,92 +3302,100 @@ partial interface MLGraphBuilder {
     The behavior of this operation when the weight layout is the default {{MLGruWeightLayout/"zrn"}} layout, and the activation functions of the update/reset gate and new gate are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively can be [EMULATED]
   </summary>
   <pre highlight="js">
-    const one = builder.constant(input.dataType, 1);
-    const zero = builder.constant(input.dataType, 0);
+    function gruCell(
+      builder, input, weight, recurrentWeight, hiddenState, hiddenSize, options) {
+      const one = builder.constant(input.dataType(), 1);
+      const zero = builder.constant(input.dataType(), 0);
 
-    // update gate (z)
-    let z = builder.sigmoid(builder.add(
-      builder.add(
-        (options.bias ? builder.slice(options.bias, [0], [hiddenSize]) : zero),
-        (options.recurrentBias ?
-           builder.slice(options.recurrentBias, [0], [hiddenSize]) :
-           zero)),
-      builder.add(
-        builder.matmul(
-          input,
-          builder.transpose(
-            builder.slice(weight, [0, 0], [hiddenSize, inputSize]))),
-        builder.matmul(
-          hiddenState,
-          builder.transpose(
-            builder.slice(recurrentWeight, [0, 0], [hiddenSize, hiddenSize]))))));
+      const inputSize = input.shape()[1];
 
-    // reset gate (r)
-    let r = builder.sigmoid(builder.add(
-      builder.add(
-        (options.bias ? builder.slice(options.bias, [hiddenSize], [hiddenSize]) :
-                        zero),
-        (options.recurrentBias ?
-           builder.slice(options.recurrentBias, [hiddenSize], [hiddenSize]) :
-           zero)),
-      builder.add(
-        builder.matmul(
-          input,
-          builder.transpose(
-            builder.slice(weight, [hiddenSize, 0], [hiddenSize, inputSize]))),
-        builder.matmul(
-          hiddenState,
-          builder.transpose(builder.slice(
-            recurrentWeight, [hiddenSize, 0], [hiddenSize, hiddenSize]))))));
-
-    // new gate (n)
-    let n;
-    if (resetAfter) {
-      n = builder.tanh(builder.add(
-        (options.bias ?
-           builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) :
-           zero),
+      // update gate (z)
+      let z = builder.sigmoid(builder.add(
         builder.add(
-          builder.matmul(
-            input,
-            builder.transpose(
-              builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, inputSize]))),
-          builder.mul(
-            r,
-            builder.add(
-              (options.recurrentBias ?
-                 builder.slice(
-                   options.recurrentBias, [2 * hiddenSize], [hiddenSize]) :
-                 zero),
-              builder.matmul(
-                hiddenState,
-                builder.transpose(builder.slice(
-                  recurrentWeight,
-                  [2 * hiddenSize, 0],
-                  [hiddenSize, hiddenSize]))))))));
-    } else {
-      n = builder.tanh(builder.add(
-        builder.add(
-          (options.bias ?
-             builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) :
-             zero),
+          (options.bias ? builder.slice(options.bias, [0], [hiddenSize]) : zero),
           (options.recurrentBias ?
-             builder.slice(options.recurrentBias, [2 * hiddenSize], [hiddenSize]) :
+             builder.slice(options.recurrentBias, [0], [hiddenSize]) :
              zero)),
         builder.add(
           builder.matmul(
             input,
             builder.transpose(
-              builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, inputSize]))),
+              builder.slice(weight, [0, 0], [hiddenSize, inputSize]))),
           builder.matmul(
-            builder.mul(r, hiddenState),
-            builder.transpose(builder.slice(
-              recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, hiddenSize]))))));
-    }
+            hiddenState,
+            builder.transpose(
+              builder.slice(recurrentWeight, [0, 0], [hiddenSize, hiddenSize]))))));
 
-    // compute the new hidden state
-    return builder.add(
-      builder.mul(z, hiddenState), builder.mul(n, builder.sub(one, z)));
+      // reset gate (r)
+      let r = builder.sigmoid(builder.add(
+        builder.add(
+          (options.bias ? builder.slice(options.bias, [hiddenSize], [hiddenSize]) :
+                          zero),
+          (options.recurrentBias ?
+             builder.slice(options.recurrentBias, [hiddenSize], [hiddenSize]) :
+             zero)),
+        builder.add(
+          builder.matmul(
+            input,
+            builder.transpose(
+              builder.slice(weight, [hiddenSize, 0], [hiddenSize, inputSize]))),
+          builder.matmul(
+            hiddenState,
+            builder.transpose(builder.slice(
+              recurrentWeight, [hiddenSize, 0], [hiddenSize, hiddenSize]))))));
+
+      // new gate (n)
+      let n;
+      if (options.resetAfter) {
+        n = builder.tanh(builder.add(
+          (options.bias ?
+             builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) :
+             zero),
+          builder.add(
+            builder.matmul(
+              input,
+              builder.transpose(builder.slice(
+                weight, [2 * hiddenSize, 0], [hiddenSize, inputSize]))),
+            builder.mul(
+              r,
+              builder.add(
+                (options.recurrentBias ?
+                   builder.slice(
+                     options.recurrentBias, [2 * hiddenSize], [hiddenSize]) :
+                   zero),
+                builder.matmul(
+                  hiddenState,
+                  builder.transpose(builder.slice(
+                    recurrentWeight,
+                    [2 * hiddenSize, 0],
+                    [hiddenSize, hiddenSize]))))))));
+      } else {
+        n = builder.tanh(builder.add(
+          builder.add(
+            (options.bias ?
+               builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) :
+               zero),
+            (options.recurrentBias ?
+               builder.slice(
+                 options.recurrentBias, [2 * hiddenSize], [hiddenSize]) :
+               zero)),
+          builder.add(
+            builder.matmul(
+              input,
+              builder.transpose(builder.slice(
+                weight, [2 * hiddenSize, 0], [hiddenSize, inputSize]))),
+            builder.matmul(
+              builder.mul(r, hiddenState),
+              builder.transpose(builder.slice(
+                recurrentWeight,
+                [2 * hiddenSize, 0],
+                [hiddenSize, hiddenSize]))))));
+      }
+
+      // compute the new hidden state
+      return builder.add(
+        builder.mul(z, hiddenState), builder.mul(n, builder.sub(one, z)));
+    }
   </pre>
 </details>
 </div>
@@ -3394,13 +3420,15 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.max(
-      builder.min(
-        builder.add(
-          builder.mul(builder.constant(input.dataType, options.alpha), input),
-          builder.constant(input.dataType, options.beta)),
-        builder.constant(input.dataType, 1)),
-      builder.constant(input.dataType, 0));
+    function hardSigmoid(builder, input, options) {
+      return builder.max(
+        builder.min(
+          builder.add(
+            builder.mul(builder.constant(input.dataType(), options.alpha), input),
+            builder.constant(input.dataType(), options.beta)),
+          builder.constant(input.dataType(), 1)),
+        builder.constant(input.dataType(), 0));
+    }
     </pre>
   </details>
 </div>
@@ -3472,15 +3500,17 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
-    return builder.div(
-      builder.mul(
-        input,
-        builder.max(
-          builder.constant(input.dataType, 0),
-          builder.min(
-            builder.constant(input.dataType, 6),
-            builder.add(input, builder.constant(input.dataType, 3))))),
-      builder.constant(input.dataType, 6));
+    function hardSwish(builder, input, options) {
+      return builder.div(
+        builder.mul(
+          input,
+          builder.max(
+            builder.constant(input.dataType(), 0),
+            builder.min(
+              builder.constant(input.dataType(), 6),
+              builder.add(input, builder.constant(input.dataType(), 3))))),
+        builder.constant(input.dataType(), 6));
+    }
   </pre>
 </details>
 </div>
@@ -3603,27 +3633,27 @@ partial interface MLGraphBuilder {
     The behavior of this operation when the input tensor is 4-D of the {{MLInputOperandLayout/"nchw"}} layout can be [EMULATED]
   </summary>
   <pre highlight="js">
-    // The reduction of the mean and variance values happens over the spatial
-    // dimensions of the input e.g. axis 2 and 3 of the input tensor.
-    const reduceOptions = {
-      axes: [2, 3],
-      keepDimensions: true
-    };
-    const mean = builder.reduceMean(input, reduceOptions);
-    const variance = builder.reduceMean(
-      builder.pow(builder.sub(input, mean), builder.constant(input.dataType, 2)),
-      reduceOptions);
+    function instanceNormalization(builder, input, options) {
+      // The reduction of the mean and variance values happens over the spatial
+      // dimensions of the input e.g. axis 2 and 3 of the input tensor.
+      const reduceOptions = {axes: [2, 3], keepDimensions: true};
+      const mean = builder.reduceMean(input, reduceOptions);
+      const variance = builder.reduceMean(
+        builder.pow(
+          builder.sub(input, mean), builder.constant(input.dataType(), 2)),
+        reduceOptions);
 
-    // The scale and bias values are applied per input feature
-    // e.g. axis 1 of the input tensor.
-    const shape = [1, input.shape()[1], 1, 1];
-    return builder.add(
-      builder.mul(
-        builder.reshape(options.scale, shape),
-        builder.div(
-          builder.sub(input, mean),
-          builder.sqrt(builder.add(variance, options.epsilon)))),
-      builder.reshape(options.bias, shape));
+      // The scale and bias values are applied per input feature
+      // e.g. axis 1 of the input tensor.
+      const shape = [1, input.shape()[1], 1, 1];
+      return builder.add(
+        builder.mul(
+          builder.reshape(options.scale, shape),
+          builder.div(
+            builder.sub(input, mean),
+            builder.sqrt(builder.add(variance, options.epsilon)))),
+        builder.reshape(options.bias, shape));
+    }
   </pre>
 </details>
 </div>
@@ -3710,27 +3740,27 @@ partial interface MLGraphBuilder {
     The behavior of this operation when the axes parameter is set to [1,2,3] can be [EMULATED]
   </summary>
   <pre highlight="js">
-    // The reduction of the mean and variance values happens over the spatial
-    // dimensions across all the input features (i.e. all channels) of the input
-    // tensor.
-    const reduceOptions = {
-      axes: [1, 2, 3],
-      keepDimensions: true
-    };
-    const mean = builder.reduceMean(input, reduceOptions);
-    const variance = builder.reduceMean(
-      builder.pow(builder.sub(input, mean), builder.constant(input.dataType, 2)),
-      reduceOptions);
+    function layerNormalization(builder, input, options) {
+      // The reduction of the mean and variance values happens over the spatial
+      // dimensions across all the input features (i.e. all channels) of the input
+      // tensor.
+      const reduceOptions = {axes: [1, 2, 3], keepDimensions: true};
+      const mean = builder.reduceMean(input, reduceOptions);
+      const variance = builder.reduceMean(
+        builder.pow(
+          builder.sub(input, mean), builder.constant(input.dataType(), 2)),
+        reduceOptions);
 
-    // The scale and bias tensors are of the shape of the input dimensions specified
-    // by the values in the axes parameter (i.e. [1,2,3]).
-    return builder.add(
-      builder.mul(
-        options.scale,
-        builder.div(
-          builder.sub(input, mean),
-          builder.sqrt(builder.add(variance, options.epsilon)))),
-      options.bias);
+      // The scale and bias tensors are of the shape of the input dimensions
+      // specified by the values in the axes parameter (i.e. [1,2,3]).
+      return builder.add(
+        builder.mul(
+          options.scale,
+          builder.div(
+            builder.sub(input, mean),
+            builder.sqrt(builder.add(variance, options.epsilon)))),
+        options.bias);
+    }
   </pre>
 </details>
 </div>
@@ -3755,11 +3785,13 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.add(
-      builder.max(builder.constant(input.dataType, 0), input),
-      builder.mul(
-        builder.constant(input.dataType, options.alpha),
-        builder.min(builder.constant(input.dataType, 0), input)));
+    function leakyRelu(builder, input, options) {
+      return builder.add(
+        builder.max(builder.constant(input.dataType(), 0), input),
+        builder.mul(
+          builder.constant(input.dataType(), options.alpha),
+          builder.min(builder.constant(input.dataType(), 0), input)));
+    }
     </pre>
   </details>
 </div>
@@ -3834,9 +3866,11 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.add(
-      builder.mul(input, builder.constant(input.dataType, options.alpha)),
-      builder.constant(input.dataType, options.beta));
+    function linear(builder, input, options) {
+      return builder.add(
+        builder.mul(input, builder.constant(input.dataType(), options.alpha)),
+        builder.constant(input.dataType(), options.beta));
+    }
     </pre>
   </details>
 </div>
@@ -4050,126 +4084,131 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation can be [EMULATED]
+    Using a [[#emulation-squeeze|squeeze()]] helper, the behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
-    function squeeze(builder, op) {
-      return builder.reshape(op, op.shape().remove(0));
-    }
+    function lstm(
+      builder, input, weight, recurrentWeight, steps, hiddenSize, options) {
+      const batchSize = input.shape()[1];
+      const inputSize = input.shape()[2];
+      const numDirections = (options.direction == 'both' ? 2 : 1);
+      let hiddenState = options.initialHiddenState;
+      let cellState = options.initialCellState;
 
-    const numDirections = (options.direction == 'both' ? 2 : 1);
-    let hiddenState = options.initialHiddenState;
-    let cellState = options.initialCellState;
+      if (!hiddenState) {
+        const desc = {
+          dataType: 'float32',
+          dimensions: [numDirections, 1, hiddenSize]
+        };
+        const totalSize = numDirections * hiddenSize;
+        hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
+      }
 
-    if (!hiddenState) {
-      const desc = {
-        dataType: 'float32',
-        dimensions: [numDirections, 1, hiddenSize]
-      };
-      const totalSize = numDirections * hiddenSize;
-      hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
-    }
+      if (!cellState) {
+        const desc = {
+          dataType: 'float32',
+          dimensions: [numDirections, 1, hiddenSize]
+        };
+        const totalSize = numDirections * hiddenSize;
+        cellState = builder.constant(desc, new Float32Array(totalSize).fill(0));
+      }
 
-    if (!cellState) {
-      const desc = {
-        dataType: 'float32',
-        dimensions: [numDirections, 1, hiddenSize]
-      };
-      const totalSize = numDirections * hiddenSize;
-      cellState = builder.constant(desc, new Float32Array(totalSize).fill(0));
-    }
-
-    let sequence = null;
-    let currentWeight = [];
-    let currentRecurrentWeight = [];
-    let currentBias = [];
-    let currentRecurrentBias = [];
-    let currentPeepholeWeight = [];
-
-    for (let dir = 0; dir < numDirections; ++dir) {
-      currentWeight.push(squeeze(
-        builder,
-        builder.slice(weight, [dir, 0, 0], [1, 4 * hiddenSize, inputSize])));
-      currentRecurrentWeight.push(squeeze(
-        builder,
-        builder.slice(
-          recurrentWeight, [dir, 0, 0], [1, 4 * hiddenSize, hiddenSize])));
-      currentBias.push(
-        options.bias ?
-          (squeeze(
-            builder, builder.slice(options.bias, [dir, 0], [1, 4 * hiddenSize]))) :
-          null);
-      currentRecurrentBias.push(
-        options.recurrentBias ?
-          (squeeze(
-            builder,
-            builder.slice(options.recurrentBias, [dir, 0], [1, 4 * hiddenSize]))) :
-          null);
-      currentPeepholeWeight.push(
-        options.peepholeWeight ?
-          (squeeze(
-            builder,
-            builder.slice(options.peepholeWeight, [dir, 0], [1, 3 * hiddenSize]))) :
-          null);
-    }
-
-    for (let step = 0; step < steps; ++step) {
-      let currentHidden = [];
-      let currentCell = [];
-      let nextHidden = null;
-      let nextCell = null;
+      let sequence = null;
+      let currentWeight = [];
+      let currentRecurrentWeight = [];
+      let currentBias = [];
+      let currentRecurrentBias = [];
+      let currentPeepholeWeight = [];
 
       for (let dir = 0; dir < numDirections; ++dir) {
-        currentHidden.push(squeeze(
+        currentWeight.push(squeeze(
           builder,
-          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize])));
-        currentCell.push(squeeze(
+          builder.slice(weight, [dir, 0, 0], [1, 4 * hiddenSize, inputSize])));
+        currentRecurrentWeight.push(squeeze(
           builder,
-          builder.slice(cellState, [dir, 0, 0], [1, batchSize, hiddenSize])));
+          builder.slice(
+            recurrentWeight, [dir, 0, 0], [1, 4 * hiddenSize, hiddenSize])));
+        currentBias.push(
+          options.bias ?
+            (squeeze(
+              builder,
+              builder.slice(options.bias, [dir, 0], [1, 4 * hiddenSize]))) :
+            null);
+        currentRecurrentBias.push(
+          options.recurrentBias ?
+            (squeeze(
+              builder,
+              builder.slice(
+                options.recurrentBias, [dir, 0], [1, 4 * hiddenSize]))) :
+            null);
+        currentPeepholeWeight.push(
+          options.peepholeWeight ?
+            (squeeze(
+              builder,
+              builder.slice(
+                options.peepholeWeight, [dir, 0], [1, 3 * hiddenSize]))) :
+            null);
       }
 
-      for (let dir = 0; dir < numDirections; ++dir) {
-        let slice =
-          (dir == 1 || options.direction == 'backward' ? steps - step - 1 : step);
-        let currentInput = squeeze(
-          builder, builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]));
+      for (let step = 0; step < steps; ++step) {
+        let currentHidden = [];
+        let currentCell = [];
+        let nextHidden = null;
+        let nextCell = null;
 
-        let results = builder.lstmCell(
-          currentInput,
-          currentWeight[dir],
-          currentRecurrentWeight[dir],
-          currentHidden[dir],
-          currentCell[dir],
-          hiddenSize,
-          {
-            bias: currentBias[dir],
-            recurrentBias: currentRecurrentBias[dir],
-            peepholeWeight: currentPeepholeWeight[dir],
-            layout: options.layout,
-            activations: options.activations
-          });
+        for (let dir = 0; dir < numDirections; ++dir) {
+          currentHidden.push(squeeze(
+            builder,
+            builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize])));
+          currentCell.push(squeeze(
+            builder,
+            builder.slice(cellState, [dir, 0, 0], [1, batchSize, hiddenSize])));
+        }
 
-        let output = builder.reshape(results[0], [1, batchSize, hiddenSize]);
-        let cell = builder.reshape(results[1], [1, batchSize, hiddenSize]);
+        for (let dir = 0; dir < numDirections; ++dir) {
+          let slice =
+            (dir == 1 || options.direction == 'backward' ? steps - step - 1 : step);
+          let currentInput = squeeze(
+            builder,
+            builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]));
 
-        nextHidden =
-          (nextHidden ? builder.concat([nextHidden, output], 0) : output);
-        nextCell = (nextCell ? builder.concat([nextCell, cell], 0) : cell);
+          let results = builder.lstmCell(
+            currentInput,
+            currentWeight[dir],
+            currentRecurrentWeight[dir],
+            currentHidden[dir],
+            currentCell[dir],
+            hiddenSize,
+            {
+              bias: currentBias[dir],
+              recurrentBias: currentRecurrentBias[dir],
+              peepholeWeight: currentPeepholeWeight[dir],
+              layout: options.layout,
+              activations: options.activations
+            });
+
+          let output = builder.reshape(results[0], [1, batchSize, hiddenSize]);
+          let cell = builder.reshape(results[1], [1, batchSize, hiddenSize]);
+
+          nextHidden =
+            (nextHidden ? builder.concat([nextHidden, output], 0) : output);
+          nextCell = (nextCell ? builder.concat([nextCell, cell], 0) : cell);
+        }
+
+        hiddenState = nextHidden;
+        cellState = nextCell;
+
+        if (options.returnSequence) {
+          nextHidden =
+            builder.reshape(nextHidden, [1, numDirections, batchSize, hiddenSize]);
+          sequence =
+            (sequence ? builder.concat([sequence, nextHidden], 0) : nextHidden);
+        }
       }
 
-      hiddenState = nextHidden;
-      cellState = nextCell;
-
-      if (options.returnSequence) {
-        nextHidden =
-          builder.reshape(nextHidden, [1, numDirections, batchSize, hiddenSize]);
-        sequence =
-          (sequence ? builder.concat([sequence, nextHidden], 0) : nextHidden);
-      }
+      return (
+        sequence ? [hiddenState, cellState, sequence] : [hiddenState, cellState]);
     }
-
-    return (
-      sequence ? [hiddenState, cellState, sequence] : [hiddenState, cellState]);
   </pre>
 </details>
 </div>
@@ -4289,106 +4328,122 @@ partial interface MLGraphBuilder {
     The behavior of this operation when the weight layout is the default {{MLLstmWeightLayout/"iofg"}} layout, and the activation functions of the input/forget/output gate and the cell gate/the cell state's filter for the output hidden state are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively can be [EMULATED]
   </summary>
   <pre highlight="js">
-    const zero = builder.constant(input.dataType, 0);
+    function lstmCell(
+      builder,
+      input,
+      weight,
+      recurrentWeight,
+      hiddenState,
+      cellState,
+      hiddenSize,
+      options) {
+      const zero = builder.constant(input.dataType(), 0);
 
-    // input gate (i)
-    let i = builder.sigmoid(builder.add(
-      builder.mul(
-        cellState,
-        (options.peepholeWeight ?
-           builder.slice(options.peepholeWeight, [0], [hiddenSize]) :
-           zero)),
-      builder.add(
-        builder.add(
-          (options.bias ? builder.slice(options.bias, [0], [hiddenSize]) : zero),
-          (options.recurrentBias ?
-             builder.slice(options.recurrentBias, [0], [hiddenSize]) :
+      const inputSize = input.shape()[1];
+
+      // input gate (i)
+      let i = builder.sigmoid(builder.add(
+        builder.mul(
+          cellState,
+          (options.peepholeWeight ?
+             builder.slice(options.peepholeWeight, [0], [hiddenSize]) :
              zero)),
         builder.add(
-          builder.matmul(
-            input,
-            builder.transpose(
-              builder.slice(weight, [0, 0], [hiddenSize, inputSize]))),
-          builder.matmul(
-            hiddenState,
-            builder.transpose(builder.slice(
-              recurrentWeight, [0, 0], [hiddenSize, hiddenSize])))))));
+          builder.add(
+            (options.bias ? builder.slice(options.bias, [0], [hiddenSize]) : zero),
+            (options.recurrentBias ?
+               builder.slice(options.recurrentBias, [0], [hiddenSize]) :
+               zero)),
+          builder.add(
+            builder.matmul(
+              input,
+              builder.transpose(
+                builder.slice(weight, [0, 0], [hiddenSize, inputSize]))),
+            builder.matmul(
+              hiddenState,
+              builder.transpose(builder.slice(
+                recurrentWeight, [0, 0], [hiddenSize, hiddenSize])))))));
 
-    // forget gate (f)
-    let f = builder.sigmoid(builder.add(
-      builder.mul(
-        cellState,
-        (options.peepholeWeight ?
-           builder.slice(options.peepholeWeight, [2 * hiddenSize], [hiddenSize]) :
-           zero)),
-      builder.add(
+      // forget gate (f)
+      let f = builder.sigmoid(builder.add(
+        builder.mul(
+          cellState,
+          (options.peepholeWeight ?
+             builder.slice(options.peepholeWeight, [2 * hiddenSize], [hiddenSize]) :
+             zero)),
+        builder.add(
+          builder.add(
+            (options.bias ?
+               builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) :
+               zero),
+            (options.recurrentBias ?
+               builder.slice(
+                 options.recurrentBias, [2 * hiddenSize], [hiddenSize]) :
+               zero)),
+          builder.add(
+            builder.matmul(
+              input,
+              builder.transpose(builder.slice(
+                weight, [2 * hiddenSize, 0], [hiddenSize, inputSize]))),
+            builder.matmul(
+              hiddenState,
+              builder.transpose(builder.slice(
+                recurrentWeight,
+                [2 * hiddenSize, 0],
+                [hiddenSize, hiddenSize])))))));
+
+      // cell gate (g)
+      let g = builder.tanh(builder.add(
         builder.add(
           (options.bias ?
-             builder.slice(options.bias, [2 * hiddenSize], [hiddenSize]) :
+             builder.slice(options.bias, [3 * hiddenSize], [hiddenSize]) :
              zero),
           (options.recurrentBias ?
-             builder.slice(options.recurrentBias, [2 * hiddenSize], [hiddenSize]) :
+             builder.slice(options.recurrentBias, [3 * hiddenSize], [hiddenSize]) :
              zero)),
         builder.add(
           builder.matmul(
             input,
             builder.transpose(
-              builder.slice(weight, [2 * hiddenSize, 0], [hiddenSize, inputSize]))),
+              builder.slice(weight, [3 * hiddenSize, 0], [hiddenSize, inputSize]))),
           builder.matmul(
             hiddenState,
             builder.transpose(builder.slice(
-              recurrentWeight, [2 * hiddenSize, 0], [hiddenSize, hiddenSize])))))));
+              recurrentWeight, [3 * hiddenSize, 0], [hiddenSize, hiddenSize]))))));
 
-    // cell gate (g)
-    let g = builder.tanh(builder.add(
-      builder.add(
-        (options.bias ?
-           builder.slice(options.bias, [3 * hiddenSize], [hiddenSize]) :
-           zero),
-        (options.recurrentBias ?
-           builder.slice(options.recurrentBias, [3 * hiddenSize], [hiddenSize]) :
-           zero)),
-      builder.add(
-        builder.matmul(
-          input,
-          builder.transpose(
-            builder.slice(weight, [3 * hiddenSize, 0], [hiddenSize, inputSize]))),
-        builder.matmul(
-          hiddenState,
-          builder.transpose(builder.slice(
-            recurrentWeight, [3 * hiddenSize, 0], [hiddenSize, hiddenSize]))))));
-
-    // output gate (o)
-    let o = builder.sigmoid(builder.add(
-      builder.mul(
-        cellState,
-        (options.peepholeWeight ?
-           builder.slice(options.peepholeWeight, [hiddenSize], [hiddenSize]) :
-           zero)),
-      builder.add(
-        builder.add(
-          (options.bias ? builder.slice(options.bias, [hiddenSize], [hiddenSize]) :
-                          zero),
-          (options.recurrentBias ?
-             builder.slice(options.recurrentBias, [hiddenSize], [hiddenSize]) :
+      // output gate (o)
+      let o = builder.sigmoid(builder.add(
+        builder.mul(
+          cellState,
+          (options.peepholeWeight ?
+             builder.slice(options.peepholeWeight, [hiddenSize], [hiddenSize]) :
              zero)),
         builder.add(
-          builder.matmul(
-            input,
-            builder.transpose(
-              builder.slice(weight, [hiddenSize, 0], [hiddenSize, inputSize]))),
-          builder.matmul(
-            hiddenState,
-            builder.transpose(builder.slice(
-              recurrentWeight, [hiddenSize, 0], [hiddenSize, hiddenSize])))))));
+          builder.add(
+            (options.bias ?
+               builder.slice(options.bias, [hiddenSize], [hiddenSize]) :
+               zero),
+            (options.recurrentBias ?
+               builder.slice(options.recurrentBias, [hiddenSize], [hiddenSize]) :
+               zero)),
+          builder.add(
+            builder.matmul(
+              input,
+              builder.transpose(
+                builder.slice(weight, [hiddenSize, 0], [hiddenSize, inputSize]))),
+            builder.matmul(
+              hiddenState,
+              builder.transpose(builder.slice(
+                recurrentWeight, [hiddenSize, 0], [hiddenSize, hiddenSize])))))));
 
-    // output cell state (ct)
-    let ct = builder.add(builder.mul(f, cellState), builder.mul(i, g));
+      // output cell state (ct)
+      let ct = builder.add(builder.mul(f, cellState), builder.mul(i, g));
 
-    // output hidden state (ht)
-    let ht = builder.mul(o, builder.tanh(ct));
+      // output hidden state (ht)
+      let ht = builder.mul(o, builder.tanh(ct));
 
-    return [ht, ct];
+      return [ht, ct];
+    }
   </pre>
 </details>
 </div>
@@ -4834,9 +4889,12 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.add(
-      builder.max(builder.constant(input.dataType, 0), input),
-      builder.mul(slope, builder.min(builder.constant(input.dataType, 0), input)));
+    function prelu(builder, input, slope) {
+      return builder.add(
+        builder.max(builder.constant(input.dataType(), 0), input),
+        builder.mul(
+          slope, builder.min(builder.constant(input.dataType(), 0), input)));
+    }
     </pre>
   </details>
 </div>
@@ -5015,14 +5073,17 @@ partial interface MLGraphBuilder {
     The behavior of several reduction operations can be [EMULATED]
     </summary>
     <pre highlight="js">
-    // reduceLogSum(input, options)
-    return builder.log(builder.reduceSum(input, options));
+    function reduceLogSum(builder, input, options) {
+      return builder.log(builder.reduceSum(input, options));
+    }
 
-    // reduceLogSumExp(input, options)
-    return builder.log(builder.reduceSum(builder.exp(input), options));
+    function reduceLogSumExp(builder, input, options) {
+      return builder.log(builder.reduceSum(builder.exp(input), options));
+    }
 
-    // reduceSumSquare(input, options)
-    return builder.reduceSum(builder.pow(input, 2), options);
+    function reduceSumSquare(builder, input, options) {
+      return builder.reduceSum(builder.pow(input, 2), options);
+    }
     </pre>
   </details>
 </div>
@@ -5047,7 +5108,9 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.max(builder.constant(input.dataType, 0), input);
+    function relu(builder, input) {
+      return builder.max(builder.constant(input.dataType(), 0), input);
+    }
     </pre>
   </details>
 </div>
@@ -5243,10 +5306,12 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.div(
-      builder.constant(input.dataType, 1),
-      builder.add(
-        builder.exp(builder.neg(input)), builder.constant(input.dataType, 1)));
+    function sigmoid(builder, input) {
+      return builder.div(
+        builder.constant(input.dataType(), 1),
+        builder.add(
+          builder.exp(builder.neg(input)), builder.constant(input.dataType(), 1)));
+    }
     </pre>
   </details>
 </div>
@@ -5348,15 +5413,17 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
-    // This sample deploys a well-known implementation trick [1] to compute the
-    // exponentials of the distances to the max value, instead of the exponentials
-    // of the input values itself, in order to increase the numerical stability of
-    // the result.
-    // [1]: https://cs231n.github.io/linear-classify/#softmax
-    const maxX = builder.reduceMax(x, {axes: [axis], keepDimensions: true});
-    const expX = builder.exp(builder.sub(x, maxX));
-    return builder.div(
-      expX, builder.reduceSum(expX, {axes: [axis], keepDimensions: true}));
+    function softmax(builder, input, axis) {
+      // This sample deploys a well-known implementation trick [1] to compute the
+      // exponentials of the distances to the max value, instead of the exponentials
+      // of the input values itself, in order to increase the numerical stability of
+      // the result.
+      // [1]: https://cs231n.github.io/linear-classify/#softmax
+      const maxX = builder.reduceMax(input, {axes: [axis], keepDimensions: true});
+      const expX = builder.exp(builder.sub(input, maxX));
+      return builder.div(
+        expX, builder.reduceSum(expX, {axes: [axis], keepDimensions: true}));
+    }
   </pre>
 </details>
 </div>
@@ -5402,8 +5469,10 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.log(
-      builder.add(builder.exp(x), builder.constant(input.dataType, 1)));
+    function softplus(builder, input) {
+      return builder.log(
+        builder.add(builder.exp(input), builder.constant(input.dataType(), 1)));
+    }
     </pre>
   </details>
 </div>
@@ -5464,8 +5533,11 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.div(
-      input, builder.add(builder.constant(input.dataType, 1), builder.abs(input)));
+    function softsign(builder, input) {
+      return builder.div(
+        input,
+        builder.add(builder.constant(input.dataType(), 1), builder.abs(input)));
+    }
     </pre>
   </details>
 </div>
@@ -5580,18 +5652,22 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
   </summary>
   <pre highlight="js">
-    // This sample shows the case that the splits parameter is an array.
-    const outputs = [];
-    let starts = Array(input_rank).fill(0);
-    let sizes = input_shape;
-    let start = 0;
-    for (const size of splits) {
-      starts[options.axis] = start;
-      sizes[options.axis] = size;
-      outputs.push(builder.slice(input, starts, sizes));
-      start += size;
+    function split(builder, input, splits, options) {
+      // This sample shows the case that the splits parameter is an array.
+      const outputs = [];
+      const inputShape = input.shape();
+      const inputRank = inputShape.length;
+      let starts = Array(inputRank).fill(0);
+      let sizes = inputShape;
+      let start = 0;
+      for (const size of splits) {
+        starts[options.axis] = start;
+        sizes[options.axis] = size;
+        outputs.push(builder.slice(input, starts, sizes));
+        start += size;
+      }
+      return outputs;
     }
-    return outputs;
   </pre>
 </details>
 </div>
@@ -5611,13 +5687,15 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    return builder.div(
-      builder.sub(
-        builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
-        builder.constant(input.dataType, 1)),
-      builder.add(
-        builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
-        builder.constant(input.dataType, 1)));
+    function tanh(builder, input) {
+      return builder.div(
+        builder.sub(
+          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
+          builder.constant(input.dataType(), 1)),
+        builder.add(
+          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
+          builder.constant(input.dataType(), 1)));
+    }
     </pre>
   </details>
 </div>
@@ -5864,10 +5942,13 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    const c = builder.clamp(condition, {'minValue': 0, 'maxValue': 1});
-    builder.add(
-      builder.mul(input, builder.cast(c, input.dataType())),
-      builder.mul(other, builder.cast(builder.logicalNot(c), other.dataType())));
+    function where(builder, condition, input, other) {
+      const c = builder.clamp(condition, {'minValue': 0, 'maxValue': 1});
+      builder.add(
+        builder.mul(input, builder.cast(c, input.dataType())),
+        builder.mul(
+          other, builder.cast(builder.logicalNot(c), other.dataType())));
+    }
     </pre>
   </details>
 </div>
@@ -6048,7 +6129,7 @@ Operations present in other neural network inference APIs can often be emulated 
     The [squeeze](https://pytorch.org/docs/stable/generated/torch.squeeze.html) operation returns a tensor with all specified dimensions of input of size 1 removed. It can be generically implemented using the {{MLGraphBuilder/reshape()}} operation as follows:
     </summary>
     <pre highlight="js">
-    function squeeze(input, axes) {
+    function squeeze(builder, input, axes) {
       if (!axes)
         axes = [];
       if (!axes.length)
@@ -6073,7 +6154,7 @@ Operations present in other neural network inference APIs can often be emulated 
     The [unsqueeze](https://pytorch.org/docs/stable/generated/torch.unsqueeze.html) operation returns a new tensor with a dimension of size one inserted at the specified position. It can be generically implemented using the {{MLGraphBuilder/reshape()}} operation as follows:
     </summary>
     <pre highlight="js">
-    function unsqueeze(input, axes) {
+    function unsqueeze(builder, input, axes) {
       const shape = Array.from(input.shape());
       for (let axis in axes.sort())
         shape.splice(axis, 0, 1);
@@ -6091,7 +6172,7 @@ Operations present in other neural network inference APIs can often be emulated 
     The [flatten](https://pytorch.org/docs/stable/generated/torch.flatten.html) operation reshapes the input into a one-dimensional tensor. It can be generically implemented using the {{MLGraphBuilder/reshape()}} operation as follows:
     </summary>
     <pre highlight="js">
-    function flatten(input, axis) {
+    function flatten(builder, input, axis) {
       if (axis > input.shape().length)
         return input;
       const before = axis.slice(0, axis).reduce((a, b) => a * b);
