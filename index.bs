@@ -1623,6 +1623,7 @@ partial interface MLGraphBuilder {
 };
 </script>
 
+{{MLClampOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLClampOptions>
     : <dfn>minValue</dfn>
     :: The minimum value of the range. When it is not specified, the clamping is not performed on the lower limit of the range.
@@ -1630,6 +1631,29 @@ partial interface MLGraphBuilder {
     : <dfn>maxValue</dfn>
     :: The maximum value of the range. When it is not specified, the clamping is not performed on the upper limit of the range.
 </dl>
+
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *operand*.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>clamp(|input|, |options|)</dfn> method steps are:
+  </summary>
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLClampOptions/minValue}} is greater than |options|.{{MLClampOptions/maxValue}}, then [=exception/throw=] a {{TypeError}}.
+    1. *Make graph connections:*
+        1. Let |output| be the result of [=copying an MLOperand=] given |input|.
+        1. Let |operator| be an [=operator=] for the "clamp" operation, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}}.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
+    1. Return |output|.
+</details>
 
 <div class="note">
 <details open>
@@ -1660,30 +1684,6 @@ partial interface MLGraphBuilder {
   </pre>
 </details>
 </div>
-
-#### {{MLGraphBuilder/clamp(input, options)}} #### {#api-mlgraphbuilder-clamp-operand-options}
-<div>
-    **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *operand*.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>clamp(|input|, |options|)</dfn> method steps are:
-  </summary>
-    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLClampOptions/minValue}} is greater than |options|.{{MLClampOptions/maxValue}}, then [=exception/throw=] a {{TypeError}}.
-    1. *Make graph connections:*
-        1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "clamp" operation, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}}.
-        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/input=] to |input|.
-        1. Set |operator|'s [=operator/output=] to |output|.
-    1. Return |output|.
-</details>
 
 ### concat ### {#api-mlgraphbuilder-concat}
 Concatenates the input tensors along a given axis.
@@ -5407,28 +5407,6 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div class="note">
-<details open>
-  <summary>
-    The behavior of this operation can be [EMULATED]
-  </summary>
-  <pre highlight="js">
-    function softmax(builder, input, axis) {
-      // This sample deploys a well-known implementation trick [1] to compute the
-      // exponentials of the distances to the max value, instead of the exponentials
-      // of the input values itself, in order to increase the numerical stability of
-      // the result.
-      // [1]: https://cs231n.github.io/linear-classify/#softmax
-      const maxX = builder.reduceMax(input, {axes: [axis], keepDimensions: true});
-      const expX = builder.exp(builder.sub(input, maxX));
-      return builder.div(
-        expX, builder.reduceSum(expX, {axes: [axis], keepDimensions: true}));
-    }
-  </pre>
-</details>
-</div>
-
-#### {{MLGraphBuilder/softmax(input, axis)}} #### {#api-mlgraphbuilder-softmax-input-axis}
 <div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input N-D tensor.
@@ -5453,6 +5431,28 @@ partial interface MLGraphBuilder {
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
+
+<div class="note">
+<details open>
+  <summary>
+    The behavior of this operation can be [EMULATED]
+  </summary>
+  <pre highlight="js">
+    function softmax(builder, input, axis) {
+      // This sample deploys a well-known implementation trick [1] to compute the
+      // exponentials of the distances to the max value, instead of the exponentials
+      // of the input values itself, in order to increase the numerical stability of
+      // the result.
+      // [1]: https://cs231n.github.io/linear-classify/#softmax
+      const maxX = builder.reduceMax(input, {axes: [axis], keepDimensions: true});
+      const expX = builder.exp(builder.sub(input, maxX));
+      return builder.div(
+        expX, builder.reduceSum(expX, {axes: [axis], keepDimensions: true}));
+    }
+  </pre>
+</details>
+</div>
+
 
 ### softplus ### {#api-mlgraphbuilder-softplus-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Softplus">softplus function</a> of the input tensor. The calculation follows the expression `ln(1 + exp(x))`.
