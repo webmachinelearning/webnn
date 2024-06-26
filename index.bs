@@ -1658,6 +1658,7 @@ partial interface MLGraphBuilder {
 };
 </script>
 
+{{MLClampOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLClampOptions>
     : <dfn>minValue</dfn>
     :: The minimum value of the range. When it is not specified, the clamping is not performed on the lower limit of the range.
@@ -1665,6 +1666,29 @@ partial interface MLGraphBuilder {
     : <dfn>maxValue</dfn>
     :: The maximum value of the range. When it is not specified, the clamping is not performed on the upper limit of the range.
 </dl>
+
+<div>
+    **Arguments:**
+        - *input*: an {{MLOperand}}. The input tensor.
+        - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *operand*.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>clamp(|input|, |options|)</dfn> method steps are:
+  </summary>
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLClampOptions/minValue}} is greater than |options|.{{MLClampOptions/maxValue}}, then [=exception/throw=] a {{TypeError}}.
+    1. *Make graph connections:*
+        1. Let |output| be the result of [=copying an MLOperand=] given |input|.
+        1. Let |operator| be an [=operator=] for the "clamp" operation, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}}.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
+    1. Return |output|.
+</details>
 
 <div class="note">
 <details open>
@@ -1695,30 +1719,6 @@ partial interface MLGraphBuilder {
   </pre>
 </details>
 </div>
-
-#### {{MLGraphBuilder/clamp(input, options)}} #### {#api-mlgraphbuilder-clamp-operand-options}
-<div>
-    **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
-    **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *operand*.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>clamp(|input|, |options|)</dfn> method steps are:
-  </summary>
-    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLClampOptions/minValue}} is greater than |options|.{{MLClampOptions/maxValue}}, then [=exception/throw=] a {{TypeError}}.
-    1. *Make graph connections:*
-        1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "clamp" operation, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}}.
-        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/input=] to |input|.
-        1. Set |operator|'s [=operator/output=] to |output|.
-    1. Return |output|.
-</details>
 
 ### concat ### {#api-mlgraphbuilder-concat}
 Concatenates the input tensors along a given axis.
@@ -2629,25 +2629,6 @@ partial interface MLGraphBuilder {
 </dl>
 
 
-<div class="note">
-  <details open>
-    <summary>
-    The behavior of this operation can be [EMULATED]
-    </summary>
-    <pre highlight="js">
-    function elu(builder, input, options) {
-      return builder.add(
-        builder.max(builder.constant(input.dataType(), 0), input),
-        builder.mul(
-          builder.constant(input.dataType(), options.alpha),
-          builder.sub(
-            builder.exp(builder.min(builder.constant(input.dataType(), 0), input)),
-            builder.constant(input.dataType(), 1))));
-    }
-    </pre>
-  </details>
-</div>
-
 #### {{MLGraphBuilder/elu(input, options)}} #### {#api-mlgraphbuilder-elu-input-options}
 <div>
     **Arguments:**
@@ -2686,6 +2667,25 @@ partial interface MLGraphBuilder {
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
+
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of this operation can be [EMULATED]
+    </summary>
+    <pre highlight="js">
+    function elu(builder, input, options) {
+      return builder.add(
+        builder.max(builder.constant(input.dataType(), 0), input),
+        builder.mul(
+          builder.constant(input.dataType(), options.alpha),
+          builder.sub(
+            builder.exp(builder.min(builder.constant(input.dataType(), 0), input)),
+            builder.constant(input.dataType(), 1))));
+    }
+    </pre>
+  </details>
+</div>
 
 #### {{MLGraphBuilder/elu(options)}} #### {#api-mlgraphbuilder-elu-options}
 <div>
@@ -2895,24 +2895,6 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div class="note">
-  <details open>
-    <summary>
-    The behavior of this operation can be [EMULATED]
-    </summary>
-    <pre highlight="js">
-    function gelu(builder, input) {
-      return builder.mul(
-        builder.mul(input, builder.constant(input.dataType(), 0.5)),
-        builder.add(
-          builder.constant(input.dataType(), 1),
-          builder.erf(builder.div(
-            input, builder.sqrt(builder.constant(input.dataType(), 2))))));
-    }
-    </pre>
-  </details>
-</div>
-
 #### {{MLGraphBuilder/gelu(input)}} #### {#api-mlgraphbuilder-gelu-input}
 <div>
     **Arguments:**
@@ -2950,6 +2932,24 @@ partial interface MLGraphBuilder {
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
+
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of this operation can be [EMULATED]
+    </summary>
+    <pre highlight="js">
+    function gelu(builder, input) {
+      return builder.mul(
+        builder.mul(input, builder.constant(input.dataType(), 0.5)),
+        builder.add(
+          builder.constant(input.dataType(), 1),
+          builder.erf(builder.div(
+            input, builder.sqrt(builder.constant(input.dataType(), 2))))));
+    }
+    </pre>
+  </details>
+</div>
 
 #### {{MLGraphBuilder/gelu()}} #### {#api-mlgraphbuilder-gelu}
 <div>
@@ -3622,25 +3622,6 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div class="note">
-  <details open>
-    <summary>
-    The behavior of this operation can be [EMULATED]
-    </summary>
-    <pre highlight="js">
-    function hardSigmoid(builder, input, options) {
-      return builder.max(
-        builder.min(
-          builder.add(
-            builder.mul(builder.constant(input.dataType(), options.alpha), input),
-            builder.constant(input.dataType(), options.beta)),
-          builder.constant(input.dataType(), 1)),
-        builder.constant(input.dataType(), 0));
-    }
-    </pre>
-  </details>
-</div>
-
 {{MLHardSigmoidOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLHardSigmoidOptions>
     : <dfn>alpha</dfn>
@@ -3690,6 +3671,25 @@ partial interface MLGraphBuilder {
     1. Return |output|.
 </details>
 
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of this operation can be [EMULATED]
+    </summary>
+    <pre highlight="js">
+    function hardSigmoid(builder, input, options) {
+      return builder.max(
+        builder.min(
+          builder.add(
+            builder.mul(builder.constant(input.dataType(), options.alpha), input),
+            builder.constant(input.dataType(), options.beta)),
+          builder.constant(input.dataType(), 1)),
+        builder.constant(input.dataType(), 0));
+    }
+    </pre>
+  </details>
+</div>
+
 #### {{MLGraphBuilder/hardSigmoid(options)}} #### {#api-mlgraphbuilder-hardsigmoid-options}
 <div>
     **Arguments:**
@@ -3715,27 +3715,6 @@ partial interface MLGraphBuilder {
   MLActivation hardSwish();
 };
 </script>
-
-<div class="note">
-<details open>
-  <summary>
-    The behavior of this operation can be [EMULATED]
-  </summary>
-  <pre highlight="js">
-    function hardSwish(builder, input, options) {
-      return builder.div(
-        builder.mul(
-          input,
-          builder.max(
-            builder.constant(input.dataType(), 0),
-            builder.min(
-              builder.constant(input.dataType(), 6),
-              builder.add(input, builder.constant(input.dataType(), 3))))),
-        builder.constant(input.dataType(), 6));
-    }
-  </pre>
-</details>
-</div>
 
 #### {{MLGraphBuilder/hardSwish(input)}} #### {#api-mlgraphbuilder-hardswish-input}
 <div>
@@ -3774,6 +3753,27 @@ partial interface MLGraphBuilder {
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
+
+<div class="note">
+<details open>
+  <summary>
+    The behavior of this operation can be [EMULATED]
+  </summary>
+  <pre highlight="js">
+    function hardSwish(builder, input, options) {
+      return builder.div(
+        builder.mul(
+          input,
+          builder.max(
+            builder.constant(input.dataType(), 0),
+            builder.min(
+              builder.constant(input.dataType(), 6),
+              builder.add(input, builder.constant(input.dataType(), 3))))),
+        builder.constant(input.dataType(), 6));
+    }
+  </pre>
+</details>
+</div>
 
 #### {{MLGraphBuilder/hardSwish()}} #### {#api-mlgraphbuilder-hardswish}
 <div>
@@ -4059,23 +4059,6 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div class="note">
-  <details open>
-    <summary>
-    The behavior of this operation can be [EMULATED]
-    </summary>
-    <pre highlight="js">
-    function leakyRelu(builder, input, options) {
-      return builder.add(
-        builder.max(builder.constant(input.dataType(), 0), input),
-        builder.mul(
-          builder.constant(input.dataType(), options.alpha),
-          builder.min(builder.constant(input.dataType(), 0), input)));
-    }
-    </pre>
-  </details>
-</div>
-
 {{MLLeakyReluOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLeakyReluOptions>
     : <dfn>alpha</dfn>
@@ -4122,6 +4105,23 @@ partial interface MLGraphBuilder {
     1. Return |output|.
 </details>
 
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of this operation can be [EMULATED]
+    </summary>
+    <pre highlight="js">
+    function leakyRelu(builder, input, options) {
+      return builder.add(
+        builder.max(builder.constant(input.dataType(), 0), input),
+        builder.mul(
+          builder.constant(input.dataType(), options.alpha),
+          builder.min(builder.constant(input.dataType(), 0), input)));
+    }
+    </pre>
+  </details>
+</div>
+
 #### {{MLGraphBuilder/leakyRelu(options)}} #### {#api-mlgraphbuilder-leaky-relu-options}
 <div>
     **Arguments:**
@@ -4153,21 +4153,6 @@ partial interface MLGraphBuilder {
   MLActivation linear(optional MLLinearOptions options = {});
 };
 </script>
-
-<div class="note">
-  <details open>
-    <summary>
-    The behavior of this operation can be [EMULATED]
-    </summary>
-    <pre highlight="js">
-    function linear(builder, input, options) {
-      return builder.add(
-        builder.mul(input, builder.constant(input.dataType(), options.alpha)),
-        builder.constant(input.dataType(), options.beta));
-    }
-    </pre>
-  </details>
-</div>
 
 {{MLLinearOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLinearOptions>
@@ -4216,6 +4201,21 @@ partial interface MLGraphBuilder {
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
+
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of this operation can be [EMULATED]
+    </summary>
+    <pre highlight="js">
+    function linear(builder, input, options) {
+      return builder.add(
+        builder.mul(input, builder.constant(input.dataType(), options.alpha)),
+        builder.constant(input.dataType(), options.beta));
+    }
+    </pre>
+  </details>
+</div>
 
 #### {{MLGraphBuilder/linear(options)}} #### {#api-mlgraphbuilder-linear-options}
 <div>
@@ -5520,19 +5520,6 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div class="note">
-  <details open>
-    <summary>
-    The behavior of this operation can be [EMULATED]
-    </summary>
-    <pre highlight="js">
-    function relu(builder, input) {
-      return builder.max(builder.constant(input.dataType(), 0), input);
-    }
-    </pre>
-  </details>
-</div>
-
 #### {{MLGraphBuilder/relu(input)}} #### {#api-mlgraphbuilder-relu-input}
 <div>
     **Arguments:**
@@ -5570,6 +5557,19 @@ partial interface MLGraphBuilder {
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
+
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of this operation can be [EMULATED]
+    </summary>
+    <pre highlight="js">
+    function relu(builder, input) {
+      return builder.max(builder.constant(input.dataType(), 0), input);
+    }
+    </pre>
+  </details>
+</div>
 
 #### {{MLGraphBuilder/relu()}} #### {#api-mlgraphbuilder-relu}
 <div>
@@ -5746,22 +5746,6 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div class="note">
-  <details open>
-    <summary>
-    The behavior of this operation can be [EMULATED]
-    </summary>
-    <pre highlight="js">
-    function sigmoid(builder, input) {
-      return builder.div(
-        builder.constant(input.dataType(), 1),
-        builder.add(
-          builder.exp(builder.neg(input)), builder.constant(input.dataType(), 1)));
-    }
-    </pre>
-  </details>
-</div>
-
 #### {{MLGraphBuilder/sigmoid(input)}} #### {#api-mlgraphbuilder-sigmoid-input}
 <div>
     **Arguments:**
@@ -5799,6 +5783,22 @@ partial interface MLGraphBuilder {
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
+
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of this operation can be [EMULATED]
+    </summary>
+    <pre highlight="js">
+    function sigmoid(builder, input) {
+      return builder.div(
+        builder.constant(input.dataType(), 1),
+        builder.add(
+          builder.exp(builder.neg(input)), builder.constant(input.dataType(), 1)));
+    }
+    </pre>
+  </details>
+</div>
 
 #### {{MLGraphBuilder/sigmoid()}} #### {#api-mlgraphbuilder-sigmoid}
 <div>
@@ -5867,28 +5867,6 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div class="note">
-<details open>
-  <summary>
-    The behavior of this operation can be [EMULATED]
-  </summary>
-  <pre highlight="js">
-    function softmax(builder, input, axis) {
-      // This sample deploys a well-known implementation trick [1] to compute the
-      // exponentials of the distances to the max value, instead of the exponentials
-      // of the input values itself, in order to increase the numerical stability of
-      // the result.
-      // [1]: https://cs231n.github.io/linear-classify/#softmax
-      const maxX = builder.reduceMax(input, {axes: [axis], keepDimensions: true});
-      const expX = builder.exp(builder.sub(input, maxX));
-      return builder.div(
-        expX, builder.reduceSum(expX, {axes: [axis], keepDimensions: true}));
-    }
-  </pre>
-</details>
-</div>
-
-#### {{MLGraphBuilder/softmax(input, axis)}} #### {#api-mlgraphbuilder-softmax-input-axis}
 <div>
     **Arguments:**
         - *input*: an {{MLOperand}}. The input N-D tensor.
@@ -5928,6 +5906,28 @@ partial interface MLGraphBuilder {
     1. Return |output|.
 </details>
 
+<div class="note">
+<details open>
+  <summary>
+    The behavior of this operation can be [EMULATED]
+  </summary>
+  <pre highlight="js">
+    function softmax(builder, input, axis) {
+      // This sample deploys a well-known implementation trick [1] to compute the
+      // exponentials of the distances to the max value, instead of the exponentials
+      // of the input values itself, in order to increase the numerical stability of
+      // the result.
+      // [1]: https://cs231n.github.io/linear-classify/#softmax
+      const maxX = builder.reduceMax(input, {axes: [axis], keepDimensions: true});
+      const expX = builder.exp(builder.sub(input, maxX));
+      return builder.div(
+        expX, builder.reduceSum(expX, {axes: [axis], keepDimensions: true}));
+    }
+  </pre>
+</details>
+</div>
+
+
 ### softplus ### {#api-mlgraphbuilder-softplus-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Softplus">softplus function</a> of the input tensor. The calculation follows the expression `ln(1 + exp(x))`.
 <script type=idl>
@@ -5936,20 +5936,6 @@ partial interface MLGraphBuilder {
   MLActivation softplus();
 };
 </script>
-
-<div class="note">
-  <details open>
-    <summary>
-    The behavior of this operation can be [EMULATED]
-    </summary>
-    <pre highlight="js">
-    function softplus(builder, input) {
-      return builder.log(
-        builder.add(builder.exp(input), builder.constant(input.dataType(), 1)));
-    }
-    </pre>
-  </details>
-</div>
 
 #### {{MLGraphBuilder/softplus(input)}} #### {#api-mlgraphbuilder-softplus-input}
 <div>
@@ -5988,6 +5974,20 @@ partial interface MLGraphBuilder {
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
+
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of this operation can be [EMULATED]
+    </summary>
+    <pre highlight="js">
+    function softplus(builder, input) {
+      return builder.log(
+        builder.add(builder.exp(input), builder.constant(input.dataType(), 1)));
+    }
+    </pre>
+  </details>
+</div>
 
 #### {{MLGraphBuilder/softplus()}} #### {#api-mlgraphbuilder-softplus}
 <div>
@@ -6183,25 +6183,6 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div class="note">
-  <details open>
-    <summary>
-    The behavior of this operation can be [EMULATED]
-    </summary>
-    <pre highlight="js">
-    function tanh(builder, input) {
-      return builder.div(
-        builder.sub(
-          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
-          builder.constant(input.dataType(), 1)),
-        builder.add(
-          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
-          builder.constant(input.dataType(), 1)));
-    }
-    </pre>
-  </details>
-</div>
-
 #### {{MLGraphBuilder/tanh(input)}} #### {#api-mlgraphbuilder-tanh-input}
 <div>
     **Arguments:**
@@ -6239,6 +6220,25 @@ partial interface MLGraphBuilder {
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
+
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of this operation can be [EMULATED]
+    </summary>
+    <pre highlight="js">
+    function tanh(builder, input) {
+      return builder.div(
+        builder.sub(
+          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
+          builder.constant(input.dataType(), 1)),
+        builder.add(
+          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
+          builder.constant(input.dataType(), 1)));
+    }
+    </pre>
+  </details>
+</div>
 
 #### {{MLGraphBuilder/tanh()}} #### {#api-mlgraphbuilder-tanh}
 <div>
