@@ -1854,9 +1854,9 @@ partial interface MLGraphBuilder {
             interpreted according to the value of *options*.{{MLConv2dOptions/filterLayout}} and *options*.{{MLConv2dOptions/groups}}.
         - *options*: an {{MLConv2dOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options*.{{MLConv2dOptions/inputLayout}} value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follow:
+    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options*.{{MLConv2dOptions/inputLayout}} value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follows:
 
-    *outputSize = 1 + (inputSize - (filterSize - 1) ** *dilation - 1 + beginningPadding + endingPadding) / stride*
+    `outputSize = 1 + (inputSize - (filterSize - 1) * dilation - 1 + beginningPadding + endingPadding) / stride`
 </div>
 
 <table class='data' link-for="MLGraphBuilder/conv2d(input, filter, options)">
@@ -1882,8 +1882,8 @@ partial interface MLGraphBuilder {
 
 
 <div class="note">
-    A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options.groups* = inputChannels = outputChannels and the shape of filter tensor is [options.groups, 1, height, width]
-    for {{MLConv2dFilterOperandLayout/"oihw"}} layout, [height, width, 1, options.groups] for {{MLConv2dFilterOperandLayout/"hwio"}} layout, [options.groups, height, width, 1] for {{MLConv2dFilterOperandLayout/"ohwi"}} layout and [1, height, width, options.groups] for {{MLConv2dFilterOperandLayout/"ihwo"}} layout.
+    A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options.groups* = inputChannels = outputChannels and the shape of filter tensor is *[options.groups, 1, height, width]*
+    for {{MLConv2dFilterOperandLayout/"oihw"}} layout, *[height, width, 1, options.groups]* for {{MLConv2dFilterOperandLayout/"hwio"}} layout, *[options.groups, height, width, 1]* for {{MLConv2dFilterOperandLayout/"ohwi"}} layout and *[1, height, width, options.groups]* for {{MLConv2dFilterOperandLayout/"ihwo"}} layout.
 </div>
 
 <details open algorithm>
@@ -2073,7 +2073,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>filterLayout</dfn>
     ::
-        Specifies the layout format of the filter tensor as follow:
+        Specifies the layout format of the filter tensor as follows:
             - {{MLConvTranspose2dFilterOperandLayout/"iohw"}}: *[inputChannels, outputChannels/groups, height, width]*
             - {{MLConvTranspose2dFilterOperandLayout/"hwoi"}}: *[height, width, outputChannels/groups, inputChannels]*
             - {{MLConvTranspose2dFilterOperandLayout/"ohwi"}}: *[outputChannels/groups, height, width, inputChannels]*
@@ -2091,9 +2091,9 @@ partial interface MLGraphBuilder {
             interpreted according to the value of *options*.{{MLConvTranspose2dOptions/filterLayout}} and {{MLConvTranspose2dOptions/groups}}.
         - *options*: an optional {{MLConvTranspose2dOptions}}.
 
-    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options*.{{MLConvTranspose2dOptions/inputLayout}} value. More specifically, unless the *options*.{{MLConvTranspose2dOptions/outputSizes}} values are explicitly specified, the *options*.{{MLConvTranspose2dOptions/outputPadding}} may be needed to compute the spatial dimension values of the output tensor as follow:
+    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options*.{{MLConvTranspose2dOptions/inputLayout}} value. More specifically, unless the *options*.{{MLConvTranspose2dOptions/outputSizes}} values are explicitly specified, the *options*.{{MLConvTranspose2dOptions/outputPadding}} may be needed to compute the spatial dimension values of the output tensor as follows:
 
-    *outputSize = (inputSize - 1) ** *stride + (filterSize - 1) ** *dilation + 1 - beginningPadding - endingPadding + outputPadding*
+    `outputSize = (inputSize - 1) * stride + (filterSize - 1) * dilation + 1 - beginningPadding - endingPadding + outputPadding`
 </div>
 
 <table class='data' link-for="MLGraphBuilder/convTranspose2d(input, filter, options)">
@@ -2969,7 +2969,7 @@ partial interface MLGraphBuilder {
 </details>
 
 ### gemm ### {#api-mlgraphbuilder-gemm}
-Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape [M, K] or [K, M], `B` is a 2-D tensor with shape [K, N] or [N, K], and `C` is [=unidirectionally broadcastable=] to the shape [M, N]. `A` and `B` may optionally be transposed prior to the calculation.
+Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape *[M, K]* or *[K, M]*, `B` is a 2-D tensor with shape *[K, N]* or *[N, K]*, and `C` is [=unidirectionally broadcastable=] to the shape *[M, N]*. `A` and `B` may optionally be transposed prior to the calculation.
 
 <script type=idl>
 dictionary MLGemmOptions {
@@ -2989,7 +2989,7 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLGemmOptions>
     : <dfn>c</dfn>
     ::
-        The third input tensor. It is either a scalar, or of the shape that is [=unidirectionally broadcastable=] to the shape [M, N]. When it is not specified, the computation is done as if *c* is a scalar 0.0.
+        The third input tensor. It is either a scalar, or of the shape that is [=unidirectionally broadcastable=] to the shape *[M, N]*. When it is not specified, the computation is done as if *c* is a scalar 0.0.
 
     : <dfn>alpha</dfn>
     ::
@@ -3010,11 +3010,11 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input 2-D tensor with shape [M, K] if *aTranspose* is false, or [K, M] if *aTranspose* is true.
-        - *b*: an {{MLOperand}}. The second input 2-D tensor with shape [K, N] if *bTranspose* is false, or [N, K] if *bTranspose* is true.
+        - *a*: an {{MLOperand}}. The first input 2-D tensor with shape *[M, K]* if *aTranspose* is false, or *[K, M]* if *aTranspose* is true.
+        - *b*: an {{MLOperand}}. The second input 2-D tensor with shape *[K, N]* if *bTranspose* is false, or *[N, K]* if *bTranspose* is true.
         - *options*: an optional {{MLGemmOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output 2-D tensor of shape [M, N] that contains the calculated product of all the inputs.
+    **Returns:** an {{MLOperand}}. The output 2-D tensor of shape *[M, N]* that contains the calculated product of all the inputs.
 </div>
 
 <table class='data' link-for="MLGraphBuilder/gemm(a, b, options)">
@@ -3166,14 +3166,14 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batchSize, inputSize].
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [numDirections, 3 * hiddenSize, inputSize]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [numDirections, 3 * hiddenSize, hiddenSize]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
+        - *input*: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
+        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
         - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [numDirections, batchSize, hiddenSize], the cell output from the last time step of the network. Additionally, if |options|.{{MLGruOptions/returnSequence}} is set to true, the second element is the 4-D output tensor of shape [steps, numDirections, batchSize, hiddenSize] containing every cell outputs from each time step in the temporal sequence.
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the cell output from the last time step of the network. Additionally, if |options|.{{MLGruOptions/returnSequence}} is set to true, the second element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every cell outputs from each time step in the temporal sequence.
 </div>
 
 <table class='data' link-for="MLGraphBuilder/gru(input, weight, recurrentWeight, steps, hiddenSize, options)">
@@ -3402,11 +3402,11 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLGruCellOptions>
     : <dfn>bias</dfn>
     ::
-        The 1-D input bias tensor of shape [3 * hiddenSize]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
+        The 1-D input bias tensor of shape *[3 * hiddenSize]*. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
 
     : <dfn>recurrentBias</dfn>
     ::
-        The 1-D recurrent bias tensor of shape [3 * hiddenSize]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
+        The 1-D recurrent bias tensor of shape *[3 * hiddenSize]*. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to the {{MLGruOptions/layout}} argument.
 
     : <dfn>resetAfter</dfn>
     ::
@@ -3423,14 +3423,14 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batchSize, inputSize].
-        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [3 * hiddenSize, inputSize]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape [3 * hiddenSize, hiddenSize]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape [batchSize, hiddenSize].
+        - *input*: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
+        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape *[3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLGruCellOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The 2-D tensor of shape [batchSize, hiddenSize], the cell output hidden state of a single time step of the recurrent network.
+    **Returns:** an {{MLOperand}}. The 2-D tensor of shape *[batchSize, hiddenSize]*, the cell output hidden state of a single time step of the recurrent network.
 </div>
 
 <table class='data' link-for="MLGraphBuilder/gruCell(input, weight, recurrentWeight, hiddenState, hiddenSize, options)">
@@ -4269,23 +4269,23 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLLstmOptions>
     : <dfn>bias</dfn>
     ::
-        The 2-D input bias tensor of shape [numDirections, 4 * hiddenSize]. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
+        The 2-D input bias tensor of shape *[numDirections, 4 * hiddenSize]*. The ordering of the bias vectors in the second dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
 
     : <dfn>recurrentBias</dfn>
     ::
-        The 2-D recurrent bias tensor of shape [numDirections, 4 * hiddenSize]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
+        The 2-D recurrent bias tensor of shape *[numDirections, 4 * hiddenSize]*. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to {{MLLstmOptions/layout}}.
 
     : <dfn>peepholeWeight</dfn>
     ::
-        The 2-D weight tensor for peepholes of shape [numDirections, 3 * hiddenSize]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
+        The 2-D weight tensor for peepholes of shape *[numDirections, 3 * hiddenSize]*. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
 
     : <dfn>initialHiddenState</dfn>
     ::
-        The 3-D initial hidden state tensor of shape [numDirections, batchSize, hiddenSize]. When not specified, implementations SHOULD use a tensor filled with zero.
+        The 3-D initial hidden state tensor of shape *[numDirections, batchSize, hiddenSize]*. When not specified, implementations SHOULD use a tensor filled with zero.
 
     : <dfn>initialCellState</dfn>
     ::
-        The 3-D initial hidden state tensor of shape [numDirections, batchSize, hiddenSize]. When not specified, implementations SHOULD use a tensor filled with zero.
+        The 3-D initial hidden state tensor of shape *[numDirections, batchSize, hiddenSize]*. When not specified, implementations SHOULD use a tensor filled with zero.
 
     : <dfn>returnSequence</dfn>
     ::
@@ -4306,14 +4306,14 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 3-D tensor of shape [steps, batchSize, inputSize].
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape [numDirections, 4 * hiddenSize, inputSize]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape [numDirections, 4 * hiddenSize, hiddenSize]. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
+        - *input*: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
+        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
+        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
         - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLLstmOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape [numDirections, batchSize, hiddenSize], the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape [numDirections, batchSize, hiddenSize], the output cell state from the last time step of the network. Additionally, if |options|.{{MLLstmOptions/returnSequence}} is set to true, the third element is the 4-D output tensor of shape [steps, numDirections, batchSize, hiddenSize] containing every output from each time step in the temporal sequence.
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output cell state from the last time step of the network. Additionally, if |options|.{{MLLstmOptions/returnSequence}} is set to true, the third element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every output from each time step in the temporal sequence.
 </div>
 
 <table class='data' link-for="MLGraphBuilder/lstm(input, weight, recurrentWeight, steps, hiddenSize, options)">
@@ -4587,15 +4587,15 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLLstmCellOptions>
     : <dfn>bias</dfn>
     ::
-        The 1-D input bias tensor of shape [4 * hiddenSize]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
+        The 1-D input bias tensor of shape *[4 * hiddenSize]*. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
 
     : <dfn>recurrentBias</dfn>
     ::
-        The 1-D recurrent bias tensor of shape [4 * hiddenSize]. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
+        The 1-D recurrent bias tensor of shape *[4 * hiddenSize]*. The ordering of the bias vectors in the first dimension of the tensor shape is specified according to the {{MLLstmCellOptions/layout}} argument.
 
     : <dfn>peepholeWeight</dfn>
     ::
-        The 1-D weight tensor for peepholes of shape [3 * hiddenSize]. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
+        The 1-D weight tensor for peepholes of shape *[3 * hiddenSize]*. The pack ordering of the weight vectors is for the `input (i)`, `output (o)`, and `forget (f)` gate, respectively.
 
     : <dfn>layout</dfn>
     ::
@@ -4608,15 +4608,15 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor of shape [batchSize, inputSize].
-        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape [4 * hiddenSize, inputSize]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape [4 * hiddenSize, hiddenSize]. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape [batchSize, hiddenSize].
-        - *cellState*: an {{MLOperand}}. The 2-D input cell state tensor of shape [batchSize, hiddenSize].
+        - *input*: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
+        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape *[4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
+        - *cellState*: an {{MLOperand}}. The 2-D input cell state tensor of shape *[batchSize, hiddenSize]*.
         - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - *options*: an optional {{MLLstmCellOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape [batchSize, hiddenSize].
+    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape *[batchSize, hiddenSize]*.
 </div>
 
 <table class='data' link-for="MLGraphBuilder/lstmCell(input, weight, recurrentWeight, hiddenState, cellState, hiddenSize, options)">
@@ -4958,9 +4958,9 @@ partial interface MLGraphBuilder {
         - *endingPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the ending of each input dimension, of length *N* where *N* is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *endingPadding[d]* indicates how many values to add after the content in that dimension.
         - *options*: an optional {{MLPadOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The padded output tensor. Each dimension of the output tensor can be calculated as follow:
+    **Returns:** an {{MLOperand}}. The padded output tensor. Each dimension of the output tensor can be calculated as follows:
 
-    *output size = beginning padding + input size + ending padding*
+    `output size = beginning padding + input size + ending padding`
 </div>
 
 <details open algorithm>
@@ -5119,13 +5119,13 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
-    value of *layout*. More specifically, if the *options.roundingType* is {{MLRoundingType/"floor"}}, the spatial dimensions of the output tensor can be calculated as follow:
+    value of *layout*. More specifically, if the *options.roundingType* is {{MLRoundingType/"floor"}}, the spatial dimensions of the output tensor can be calculated as follows:
 
-    *output size = floor(1 + (input size - filter size + beginning padding + ending padding) / stride)*
+    `output size = floor(1 + (input size - filter size + beginning padding + ending padding) / stride)`
 
     or if *options.roundingType* is {{MLRoundingType/"ceil"}}:
 
-    *output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)*
+    `output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)`
 </div>
 
 <div class="note">
@@ -5253,6 +5253,7 @@ Calculate the maximum value for patches of a feature map, and use it to create a
 
 ### prelu ### {#api-mlgraphbuilder-prelu}
 Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Parametric_ReLU">parametric version of rectified linear function (Parametric ReLU)</a> on the input tensor element-wise. Parametric ReLU is a type of leaky ReLU that, instead of having a scalar slope like 0.01, making the slope (coefficient of leakage) into a parameter that is learned during the model training phase of this operation. The calculation follows the expression `max(0, x) + slope * min(0, x)`.
+
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand prelu(MLOperand input, MLOperand slope);
@@ -5830,7 +5831,7 @@ partial interface MLGraphBuilder {
     **Arguments:**
         - *input*: an {{MLOperand}}. The input tensor.
         - *starts*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the starting index to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *starts[d]* indicates the starting index to slice in that dimension. The starting index must be in the range [0, input size - 1] in that dimension.
-        - *sizes*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of elements to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *sizes[d]* indicates the number of elements to slice in that dimension. The size must not be 0 and must satisfy the constraint *starting index + size <= input size* in that dimension.
+        - *sizes*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of elements to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *sizes[d]* indicates the number of elements to slice in that dimension. The size must not be 0 and must satisfy the constraint `starting index + size <= input size` in that dimension.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
@@ -5930,6 +5931,7 @@ partial interface MLGraphBuilder {
 
 ### softplus ### {#api-mlgraphbuilder-softplus-method}
 Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Softplus">softplus function</a> of the input tensor. The calculation follows the expression `ln(1 + exp(x))`.
+
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand softplus(MLOperand input);
