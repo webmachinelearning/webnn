@@ -92,7 +92,8 @@ Example:
 * Bikeshed will automatically style linked terms appropriately, for example Web IDL types show up as `code`. Try to avoid manual styling wherever possible; if you're not getting the style you expect, you may have incorrect definitions or links.
 * Outside of examples, which should be appropriately styled automatically, literals such as numbers within spec prose are not JavaScript values and should not be styled as code.
 * Strings used internally (e.g. operator names) should not be styled as code.
-* When concisely defining a list's members or a tensor's layout, use the syntax `*[ ... ]*` (e.g. _"nchw" means the input tensor has the layout *[batches, inputChannels, height, width]*_)
+* When concisely defining a tensor's layout, use the syntax `*[ ... ]*` (e.g. _"nchw" means the input tensor has the layout *[batches, inputChannels, height, width]*_)
+* Format explanatory expressions using backticks, e.g. `` `max(0, x) + alpha * (exp(min(0, x)) - 1)` ``
 * In Web IDL `<pre class=idl>` blocks, wrap long lines to avoid horizontal scrollbars. 88 characters seems to be the magic number.
 
 
