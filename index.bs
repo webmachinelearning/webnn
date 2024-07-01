@@ -1154,9 +1154,7 @@ To <dfn for="MLGraphBuilder">validate operand</dfn> given {{MLGraphBuilder}} |bu
 
 #### {{MLNumber}} #### {#api-mlnumber-typedef}
 
-<dfn typedef>MLNumber</dfn> is used when specifying the type of a numeric option for an {{MLOperand}} which can be of any {{MLOperandDataType}}, including both 64-bit integer types ({{MLOperandDataType/"uint64"}} and {{MLOperandDataType/"int64"}}) and 32-bit floating point ({{MLOperandDataType/"float32"}}). Implementations must process the value according to the corresponding {{MLOperandDataType}}. For example, if {{MLGraphBuilder/clamp(input, options)}} is called with an {{MLOperand}} with [=MLOperand/dataType=] {{MLOperandDataType/"uint32"}}, the {{MLNumber}} parameters must be processed as if the method accepted {{unsigned long}} parameters.
-
-When used with an {{MLActivation}}, the data type is not known until the activation function is fused into a specific operation. Implementations must process the value according to the corresponding {{MLOperandDataType}} of the output of the fused operation. For example, if an {{MLActivation}} created using {{MLGraphBuilder/sigmoid()}} is passed to a method along with an {{MLOperand}} with [=MLOperand/dataType=] {{MLOperandDataType/"float32"}}, the {{MLActivation}}'s {{MLNumber}} parameters must be processed as if the method accepted {{float}} parameters.
+<dfn typedef>MLNumber</dfn> is used when specifying the type of a numeric option for an {{MLOperand}} which can be of any {{MLOperandDataType}}, including both 64-bit integer types ({{MLOperandDataType/"uint64"}} and {{MLOperandDataType/"int64"}}) and 32-bit floating point ({{MLOperandDataType/"float32"}}). Implementations process the value according to the corresponding {{MLOperandDataType}}. For example, if {{MLGraphBuilder/clamp(input, options)}} is called with an {{MLOperand}} with [=MLOperand/dataType=] {{MLOperandDataType/"uint32"}}, the {{MLNumber}} parameters are explicitly [=cast=] to {{unsigned long}}.
 
 <div class="note">
   Specifying the option as {{double}} would lose accuracy when passing values over 2<sup>53</sup>, and specifying {{long long}} would disallow values over 2<sup>63</sup>.
@@ -6064,6 +6062,8 @@ To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadc
 </p>
 
 ## Casting ## {#algorithms-casting}
+
+Explicit numeric casting is used in algorithms where parameters passed as {{MLNumber}}, {{MLFiniteNumber}}, or {{double}} need to be converted to match the {{MLOperandDataType}} of input or output {{MLOperand}}s.
 
 <details open algorithm="cast">
 <summary>
