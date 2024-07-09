@@ -5942,42 +5942,42 @@ partial interface MLGraphBuilder {
 </div>
 
 ### where ### {#api-mlgraphbuilder-where}
-Select the values from the input or the other tensor depending on the corresponding {{boolean}} values of the condition tensor. The condition tensor is often the output of one of the element-wise logical operations.
+Select the values from the trueValue or the falseValue tensor depending on the corresponding {{boolean}} values of the condition tensor. The condition tensor is often the output of one of the element-wise logical operations.
 
 The input tensors will be broadcasted according to [[!numpy-broadcasting-rule]] to the final output shape. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors.
 For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand where(MLOperand condition, MLOperand input, MLOperand other);
+  MLOperand where(MLOperand condition, MLOperand trueValue, MLOperand falseValue);
 };
 </script>
 
 <div>
     **Arguments:**
         - *condition*: an {{MLOperand}}. The condition tensor.
-        - *input*: an {{MLOperand}}. The input tensor from which the value is selected when the condition of the corresponding element is set to true.
-        - *other*: an {{MLOperand}}. The other tensor from which the value is selected when the condition of the corresponding element is set to false.
+        - *trueValue*: an {{MLOperand}}. The trueValue tensor from which the value is selected when the condition of the corresponding element is set to true.
+        - *falseValue*: an {{MLOperand}}. The falseValue tensor from which the value is selected when the condition of the corresponding element is set to false.
 
-    **Returns:** an {{MLOperand}}. The output tensor that contains the values selected element-wise from either the input or the other tensor.
+    **Returns:** an {{MLOperand}}. The output tensor that contains the values selected element-wise from either the trueValue or the falseValue tensor.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>where(|condition|, |input|, |other|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>where(|condition|, |trueValue|, |falseValue|)</dfn> method steps are:
   </summary>
     1. If |condition|'s [=MLOperand/dataType=] is not equal to {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not equal to |other|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+    1. If |trueValue|'s [=MLOperand/dataType=] is not equal to |falseValue|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |input|'s [=MLOperand/shape=] and |other|'s [=MLOperand/shape=].
+    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |trueValue|'s [=MLOperand/dataType=].
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |trueValue|'s [=MLOperand/shape=] and |falseValue|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. If |condition| is not [=bidirectionally broadcastable=] to |descriptor|.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |operator| be an [=operator=] for the "where" operation, given |condition|, |input| and |other|.
+        1. Let |operator| be an [=operator=] for the "where" operation, given |condition|, |trueValue| and |falseValue|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/inputs=] to |condition|, |input| and |other|.
+        1. Set |operator|'s [=operator/inputs=] to |condition|, |trueValue| and |falseValue|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -5988,12 +5988,12 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    function where(builder, condition, input, other) {
+    function where(builder, condition, trueValue, falseValue) {
       const c = builder.clamp(condition, {'minValue': 0, 'maxValue': 1});
       builder.add(
-        builder.mul(input, builder.cast(c, input.dataType())),
+        builder.mul(trueValue, builder.cast(c, trueValue.dataType())),
         builder.mul(
-          other, builder.cast(builder.logicalNot(c), other.dataType())));
+          falseValue, builder.cast(builder.logicalNot(c), falseValue.dataType())));
     }
     </pre>
   </details>
