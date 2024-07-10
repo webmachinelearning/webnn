@@ -44,6 +44,7 @@ urlPrefix: https://tc39.es/ecma262/; spec: ECMA-262
         text: element size; url: table-the-typedarray-constructors
         text: element type; url: table-the-typedarray-constructors
         text: view constructor; url: table-the-typedarray-constructors
+        text: equally close values; url: sec-ecmascript-language-types-number-type
 </pre>
 
 <pre class="link-defaults">
@@ -801,7 +802,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], {{MLDeviceType}} and {{MLPowerPreference}}.
 
 <script type=idl>
-typedef record<DOMString, ArrayBufferView> MLNamedArrayBufferViews;
+typedef record<USVString, ArrayBufferView> MLNamedArrayBufferViews;
 
 dictionary MLComputeResult {
   MLNamedArrayBufferViews inputs;
@@ -997,11 +998,11 @@ interface MLGraph {};
     ::
         The context of type {{MLContext}} associated with this {{MLGraph}}.
 
-    : <dfn>\[[inputDescriptors]]</dfn> of type [=record=]&lt;{{DOMString}}, {{MLOperandDescriptor}}&gt;
+    : <dfn>\[[inputDescriptors]]</dfn> of type [=record=]&lt;{{USVString}}, {{MLOperandDescriptor}}&gt;
     ::
         Maps the name of an input {{MLOperand}} to its {{MLOperandDescriptor}} for all input {{MLOperand}}s of this {{MLGraph}}.
 
-    : <dfn>\[[outputDescriptors]]</dfn> of type [=record=]&lt;{{DOMString}}, {{MLOperandDescriptor}}&gt;
+    : <dfn>\[[outputDescriptors]]</dfn> of type [=record=]&lt;{{USVString}}, {{MLOperandDescriptor}}&gt;
     ::
         Maps the name of an output {{MLOperand}} to its {{MLOperandDescriptor}} for all output {{MLOperand}}s of this {{MLGraph}}.
 
@@ -1089,6 +1090,8 @@ interface MLOperand {
   MLOperandDataType dataType();
   sequence<unsigned long> shape();
 };
+
+typedef (bigint or unrestricted double) MLNumber;
 </script>
 
 <div class=internal-slots>
@@ -1152,6 +1155,16 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
 <p algorithm>
 To <dfn for="MLGraphBuilder">validate operand</dfn> given {{MLGraphBuilder}} |builder| and {{MLOperand}} |operand|, return true if |operand|.{{MLOperand/[[builder]]}} is |builder|, and false otherwise.
 </p>
+
+#### {{MLNumber}} #### {#api-mlnumber-typedef}
+
+<dfn typedef>MLNumber</dfn> is used when specifying the type of a numeric option for an {{MLOperand}} which can be of any {{MLOperandDataType}}, including both 64-bit integer types ({{MLOperandDataType/"uint64"}} and {{MLOperandDataType/"int64"}}) and 32-bit floating point ({{MLOperandDataType/"float32"}}). Implementations process the value according to the corresponding {{MLOperandDataType}}. For example, if {{MLGraphBuilder/clamp(input, options)}} is called with an {{MLOperand}} with [=MLOperand/dataType=] {{MLOperandDataType/"uint32"}}, the {{MLNumber}} parameters are explicitly [=cast=] to {{unsigned long}}.
+
+<div class="note">
+  Specifying the option as {{double}} would lose accuracy when passing values over 2<sup>53</sup>, and specifying {{long long}} would disallow values over 2<sup>63</sup>.
+</div>
+
+Issue(whatwg/webidl#1388): Support for unions of {{bigint}} and [=numeric types=] new in [[WEBIDL]], and implementation support is also limited. Prototype implementations are encouraged to provide feedback for this approach.
 
 ### {{MLOperand/dataType()}} ### {#api-mloperand-datatype}
 Return a data type of the {{MLOperand}}.
@@ -1238,7 +1251,7 @@ To <dfn for="MLGraphBuilder">validate activation</dfn> given {{MLGraphBuilder}} 
 The {{MLGraphBuilder}} interface defines a set of operations as identified by the [[#usecases]] that can be composed into a computational graph. It also represents the intermediate state of a graph building session.
 
 <script type=idl>
-typedef record<DOMString, MLOperand> MLNamedOperands;
+typedef record<USVString, MLOperand> MLNamedOperands;
 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLGraphBuilder {
@@ -1246,13 +1259,13 @@ interface MLGraphBuilder {
   constructor(MLContext context);
 
   // Create an operand for a graph input.
-  MLOperand input(DOMString name, MLOperandDescriptor descriptor);
+  MLOperand input(USVString name, MLOperandDescriptor descriptor);
 
   // Create an operand for a graph constant.
   MLOperand constant(MLOperandDescriptor descriptor, ArrayBufferView bufferView);
 
   // Create a scalar operand from the specified number of the specified type.
-  MLOperand constant(MLOperandDataType type, double value);
+  MLOperand constant(MLOperandDataType type, MLNumber value);
 
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
@@ -1346,7 +1359,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
 <div>
     **Arguments:**
         - *type*: an {{MLOperandDataType}}.
-        - *value*: a {{float}} number. The value of the scalar constant.
+        - *value*: an {{MLNumber}}. The value of the constant.
     **Returns:** an {{MLOperand}}. The constant output.
 </div>
 
@@ -1354,6 +1367,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
   <summary>
     The <dfn method for=MLGraphBuilder>constant(|type|, |value|)</dfn> method steps are:
   </summary>
+    1. Set |value| to the result of [=casting=] |value| to |type|.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
         1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to an empty [=/list=].
@@ -1497,7 +1511,7 @@ dictionary MLBatchNormalizationOptions {
   MLOperand scale;
   MLOperand bias;
   [EnforceRange] unsigned long axis = 1;
-  float epsilon = 1e-5;
+  double epsilon = 1e-5;
 };
 
 partial interface MLGraphBuilder {
@@ -1576,6 +1590,7 @@ partial interface MLGraphBuilder {
     1. If |mean|'s [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. If |variance|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. If |variance|'s [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLBatchNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLBatchNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
     1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
@@ -1649,8 +1664,8 @@ partial interface MLGraphBuilder {
 Clamp the input tensor element-wise within a range specified by the minimum and maximum values.
 <script type=idl>
 dictionary MLClampOptions {
-  float minValue;
-  float maxValue;
+  MLNumber minValue;
+  MLNumber maxValue;
 };
 
 partial interface MLGraphBuilder {
@@ -1680,6 +1695,10 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>clamp(|input|, |options|)</dfn> method steps are:
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. Let |minValue| be the |options|.{{MLClampOptions/minValue}} if given, or Infinity otherwise.
+    1. Set |options|.{{MLClampOptions/minValue}} to the result of [=casting=] |minValue| to |input|'s [=MLOperand/dataType=].
+    1. Let |maxValue| be the |options|.{{MLClampOptions/maxValue}} if given, or -Infinity otherwise.
+    1. Set |options|.{{MLClampOptions/maxValue}} to the result of [=casting=] |maxValue| to |input|'s [=MLOperand/dataType=].
     1. If |options|.{{MLClampOptions/minValue}} is greater than |options|.{{MLClampOptions/maxValue}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -2341,7 +2360,7 @@ partial interface MLGraphBuilder {
 </details>
 
 ### Element-wise logical operations ### {#api-mlgraphbuilder-logical}
-Compare input tensors element-wise and return a uint8 tensor of values 0 or 1 for the comparisons. For single-operand operations, return the logical results of the operation. 
+Compare input tensors element-wise and return a uint8 tensor of values 0 or 1 for the comparisons. For single-operand operations, return the logical results of the operation.
 
 The input tensor will be broadcasted according to [[!numpy-broadcasting-rule]]. The [=MLOperand/rank=] of the output tensor is the maximum
 [=MLOperand/rank=] of the input tensors.
@@ -2613,7 +2632,7 @@ Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)
 
 <script type=idl>
 dictionary MLEluOptions {
-  float alpha = 1;
+  double alpha = 1;
 };
 
 partial interface MLGraphBuilder {
@@ -2659,6 +2678,7 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLEluOptions/alpha}} to the result of [=casting=] |options|.{{MLEluOptions/alpha}} to |input|'s [=MLOperand/dataType=].
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "elu" operation, given |options|.
@@ -2700,7 +2720,10 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>elu(|options|)</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "elu" and |options|.
+    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
+        1. Set |options|.{{MLEluOptions/alpha}} to the result of [=casting=] |options|.{{MLEluOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
+        1. Return true.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "elu", |options|, and |validationSteps|.
     1. Return |op|.
 </details>
 
@@ -2974,8 +2997,8 @@ Calculate the [general matrix multiplication of the Basic Linear Algebra Subprog
 <script type=idl>
 dictionary MLGemmOptions {
   MLOperand c;
-  float alpha = 1.0;
-  float beta = 1.0;
+  double alpha = 1.0;
+  double beta = 1.0;
   boolean aTranspose = false;
   boolean bTranspose = false;
 };
@@ -3046,6 +3069,8 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |a| or |b| is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/rank=] of any of |a| or |b| is not its [=allowed rank=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLGemmOptions/alpha}} to the result of [=casting=] |options|.{{MLGemmOptions/alpha}} to |a|'s [=MLOperand/dataType=].
+    1. Set |options|.{{MLGemmOptions/beta}} to the result of [=casting=] |options|.{{MLGemmOptions/beta}} to |a|'s [=MLOperand/dataType=].
     1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
     1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=].
     1. If |options|.{{MLGemmOptions/aTranspose}} is true, then reverse the order of the items in |shapeA|.
@@ -3612,8 +3637,8 @@ partial interface MLGraphBuilder {
 Calculate the non-smooth <a href="https://en.wikipedia.org/wiki/Hard_sigmoid">hard sigmoid function</a> on the input tensor, used instead of the sigmoid function for faster computation.
 <script type=idl>
 dictionary MLHardSigmoidOptions {
-  float alpha = 0.2;
-  float beta = 0.5;
+  double alpha = 0.2;
+  double beta = 0.5;
 };
 
 partial interface MLGraphBuilder {
@@ -3662,6 +3687,8 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLHardSigmoidOptions/alpha}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/alpha}} to |input|'s [=MLOperand/dataType=].
+    1. Set |options|.{{MLHardSigmoidOptions/beta}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/beta}} to |input|'s [=MLOperand/dataType=].
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "hardSigmoid" operation, given |options|.
@@ -3703,7 +3730,11 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>hardSigmoid(|options|)</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "hardSigmoid" and |options|.
+    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
+        1. Set |options|.{{MLHardSigmoidOptions/alpha}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
+        1. Set |options|.{{MLHardSigmoidOptions/beta}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/beta}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
+        1. Return true.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "hardSigmoid", |options|, and |validationSteps|.
     1. Return |op|.
 </details>
 
@@ -3800,7 +3831,7 @@ Normalize the input using [[Instance-Normalization]]. Unlike {{MLGraphBuilder/ba
 dictionary MLInstanceNormalizationOptions {
   MLOperand scale;
   MLOperand bias;
-  float epsilon = 1e-5;
+  double epsilon = 1e-5;
   MLInputOperandLayout layout = "nchw";
 };
 
@@ -3867,6 +3898,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLInstanceNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLInstanceNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not its [=allowed rank=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLInstanceNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLInstanceNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
     1. Let |axis| be 1 if |options|.{{MLInstanceNormalizationOptions/layout}} is {{MLInputOperandLayout/"nchw"}}, and 3 otherwise.
     1. If |options|.{{MLInstanceNormalizationOptions/scale}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
@@ -3924,7 +3956,7 @@ dictionary MLLayerNormalizationOptions {
   MLOperand scale;
   MLOperand bias;
   sequence<[EnforceRange] unsigned long> axes;
-  float epsilon = 1e-5;
+  double epsilon = 1e-5;
 };
 
 partial interface MLGraphBuilder {
@@ -3944,7 +3976,7 @@ partial interface MLGraphBuilder {
         The N-D tensor of the bias values whose shape is determined by the |axes| member in that each value in |axes| indicates the dimension of the input tensor with bias values. For example, for an |axes| values of [1,2,3], the shape of this tensor is the list of the corresponding sizes of the input dimension 1, 2 and 3. When this member is not present, the bias value is assumed to be 0.
 
     : <dfn>axes</dfn>
-    ::  
+    ::
         The indices to the input dimensions to reduce. When this member is not present, it is treated as if all dimensions except the first were given (e.g. for a 4-D input tensor, axes = [1,2,3]). That is, the reduction for the mean and variance values are calculated across all the input features for each independent batch. If empty, no dimensions are reduced.
     : <dfn>epsilon</dfn>
     ::
@@ -3989,6 +4021,7 @@ partial interface MLGraphBuilder {
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either equal to [=the range=] from 1 to |input|'s [=MLOperand/rank=], exclusive, if |input|'s [=MLOperand/rank=] is greater than 1, or an empty [=/list=] otherwise.
     1. Otherwise, if |options|.{{MLLayerNormalizationOptions/axes}} contains duplicate values, or if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then return failure.
+    1. Set |options|.{{MLLayerNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLLayerNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
     1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a {{TypeError}}.
@@ -4050,7 +4083,7 @@ Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)
 
 <script type=idl>
 dictionary MLLeakyReluOptions {
-  float alpha = 0.01;
+  double alpha = 0.01;
 };
 
 partial interface MLGraphBuilder {
@@ -4096,6 +4129,7 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLLeakyReluOptions/alpha}} to the result of [=casting=] |options|.{{MLLeakyReluOptions/alpha}} to |input|'s [=MLOperand/dataType=].
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "leakyRelu" operation, given |options|.
@@ -4135,7 +4169,10 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>leakyRelu(|options|)</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "leakyRelu" and |options|.
+    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
+        1. Set |options|.{{MLLeakyReluOptions/alpha}} to the result of [=casting=] |options|.{{MLLeakyReluOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
+        1. Return true.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "leakyRelu", |options|, and |validationSteps|.
     1. Return |op|.
 </details>
 
@@ -4144,8 +4181,8 @@ Calculate a linear function `y = alpha * x + beta` on the input tensor.
 
 <script type=idl>
 dictionary MLLinearOptions {
-  float alpha = 1;
-  float beta = 0;
+  double alpha = 1;
+  double beta = 0;
 };
 
 partial interface MLGraphBuilder {
@@ -4193,6 +4230,8 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLLinearOptions/alpha}} to the result of [=casting=] |options|.{{MLLinearOptions/alpha}} to |input|'s [=MLOperand/dataType=].
+    1. Set |options|.{{MLLinearOptions/beta}} to the result of [=casting=] |options|.{{MLLinearOptions/beta}} to |input|'s [=MLOperand/dataType=].
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "linear" operation, given |options|.
@@ -4230,7 +4269,11 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>linear(|options|)</dfn> method steps are:
   </summary>
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "linear" and |options|.
+    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
+        1. Set |options|.{{MLLinearOptions/alpha}} to the result of [=casting=] |options|.{{MLLinearOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
+        1. Set |options|.{{MLLinearOptions/beta}} to the result of [=casting=] |options|.{{MLLinearOptions/beta}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
+        1. Return true.
+    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "linear", |options|, and |validationSteps|.
     1. Return |op|.
 </details>
 
@@ -4929,7 +4972,7 @@ enum MLPaddingMode {
 
 dictionary MLPadOptions {
   MLPaddingMode mode = "constant";
-  float value = 0;
+  MLNumber value = 0;
 };
 
 partial interface MLGraphBuilder {
@@ -4984,6 +5027,7 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
     1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+    1. Set |options|.{{MLPadOptions/value}} to the result of [=casting=] |options|.{{MLPadOptions/value}} to |input|'s [=MLOperand/dataType=].
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
@@ -6564,6 +6608,85 @@ To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadc
 <p algorithm>
 |shapeA| is <dfn>bidirectionally broadcastable</dfn> to |shapeB| if [=bidirectionally broadcasting the shapes=] |shapeA| and |shapeB| does not result in failure.
 </p>
+
+## Casting ## {#algorithms-casting}
+
+Explicit numeric casting is used in algorithms where parameters passed as {{MLNumber}} or {{double}} need to be converted to match the {{MLOperandDataType}} of input or output {{MLOperand}}s.
+
+<details open algorithm="cast">
+<summary>
+To <dfn>cast</dfn> a number |x| to a given {{MLOperandDataType}} |dataType|, perform the following steps. They return a number.
+</summary>
+
+1. Switch on |dataType|:
+    <dl class=switch>
+        : {{MLOperandDataType/"float32"}}
+        :: Return [=ConvertToFloat=](|x|, 32).
+        : {{MLOperandDataType/"float16"}}
+        :: Return [=ConvertToFloat=](|x|, 16).
+        : {{MLOperandDataType/"int64"}}
+        :: Return [=ConvertToInt=](|x|, 64, "signed").
+        : {{MLOperandDataType/"uint64"}}
+        :: Return [=ConvertToInt=](|x|, 64, "unsigned").
+        : {{MLOperandDataType/"int32"}}
+        :: Return [=ConvertToInt=](|x|, 32, "signed").
+        : {{MLOperandDataType/"uint32"}}
+        :: Return [=ConvertToInt=](|x|, 32, "signed").
+        : {{MLOperandDataType/"int8"}}
+        :: Return [=ConvertToInt=](|x|, 8, "signed").
+        : {{MLOperandDataType/"uint8"}}
+        :: Return [=ConvertToInt=](|x|, 8, "unsigned").
+    </dl>
+
+NOTE: The input to [=cast=] is an abstract number with unlimited range and precision, including the special values Infinity, -Infinity and NaN. The output is also an abstract number, but exactly representable as the specified type.
+
+<div algorithm>
+The <dfn>ConvertToFloat</dfn>(|x|, |bitLength|) steps are:
+
+1. If |x| is NaN, then return NaN.
+1. Switch on |bitLength|:
+    <dl class=switch>
+        : 32
+        ::
+            1. Let |upperBound| be 2<sup>128</sup>.
+            1. Let |lowerBound| be -2<sup>128</sup>.
+            1. Let |S| be the set of [[IEEE-754-2019]] binary32 floating point values except -0, but with the special values |upperBound| and |lowerBound| added.
+        : 16
+        ::
+            1. Let |upperBound| be 2<sup>16</sup>.
+            1. Let |lowerBound| be -2<sup>16</sup>.
+            1. Let |S| be the set of [[IEEE-754-2019]] binary16 floating point values except -0, but with the special values |upperBound| and |lowerBound| added.
+    </dl>
+1. Let |y| be the number in |S| that is closest to |x|, selecting the number with an even significand if there are two [=equally close values=]. The two special values |lowerBound| and |upperBound| are considered to have even significands for this purpose.
+1. If |y| is |upperBound|, then return +Infinity.
+1. If |y| is |lowerBound|, then return -Infinity.
+1. If |y| is +0 and |x| is negative, return -0.
+1. Return |y|.
+
+NOTE: This is based on a definition in [[WEBIDL]], but extended to cover 16-bit floating point values.
+
+</div>
+
+<div algorithm>
+The <dfn>ConvertToInt</dfn>(|x|, |bitLength|, |signedness|) steps are:
+
+1. If |signedness| is "unsigned", then:
+    1. Let |lowerBound| be 0.
+    1. Let |upperBound| be 2<sup>|bitLength|</sup> - 1.
+1. Otherwise:
+    1. Let |lowerBound| be -(2<sup>|bitLength| - 1</sup>).
+    1. Let |upperBound| be 2<sup>|bitLength| - 1</sup> - 1.
+1. If |x| is -0, then set |x| to +0.
+1. If |x| is NaN, then return +0.
+1. Set |x| to min(max(|x|, |lowerBound|), |upperBound|).
+1. Round |x| to the nearest integer, choosing the even integer if it lies halfway between two, and choosing +0 rather than -0.
+1. Return |x|.
+
+NOTE: This is based on a definition in [[WEBIDL]] with these differences: 64-bit integers are not treated specially, the input |x| is an abstract number, and clamping is always performed.
+
+</div>
+
+</details>
 
 Examples {#examples}
 =====================
