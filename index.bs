@@ -656,7 +656,7 @@ The implementation may use views, as above, for intermediate values.
 
 Before the execution, the computation graph that is used to compute one or more specified outputs needs to be converted, compiled, and optimized. The key purpose of the compilation step is to enable optimizations that span two or more operations, such as operation or loop fusion. The user agent may also perform these optimizations during graph conversion.
 
-The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph in the background without blocking the calling thread, and returns a {{Promise}} that resolves to an {{MLGraph}}. {{MLGraphBuilder/build()}} may be called at most once per {{MLGraphBuilder}}.
+The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph in the background without blocking the calling thread, and returns a {{Promise}} that resolves to an {{MLGraph}}. Each {{MLGraphBuilder}} can build at most one {{MLGraph}}.
 
 The {{MLGraph}} underlying implementation will be composed of platform-specific representations of operators and operands which correspond to the {{MLGraphBuilder}}'s [=operators=] and {{MLOperand}}s, but which are not script-visible and may be compositions or decompositions of the graph as constructed by script.
 
@@ -1311,8 +1311,8 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If |name| is empty, then [=exception/throw=] a {{TypeError}}.
+    1. If any {{MLOperand}}s in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] have a {{MLOperand/[[name]]}} equal to |name|, then [=exception/throw=] a {{TypeError}}.
     1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If any {{MLOperand}}s in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] have the same {{MLOperand/[[name]]}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Set |operand|.{{MLOperand/[[name]]}} to |name|.
