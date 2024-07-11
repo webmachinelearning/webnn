@@ -300,5 +300,7 @@ for (const dfn of root.querySelectorAll('dfn[data-dfn-type=argument]')) {
   const dfnFor = dfn.getAttribute('data-dfn-for');
   if (!dfnFor.split(/\b/).includes(dfn.innerText)) {
     error(`Argument definition '${dfn.innerText}' doesn't appear in '${dfnFor}'`);
+  }
+}
 
 globalThis.process.exit(exitCode);
