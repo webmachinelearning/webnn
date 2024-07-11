@@ -278,6 +278,16 @@ for (const match of source.matchAll(/is( not)? \[=(list\/|stack\/|queue\/|)empty
   error(`Link to 'is empty' (adjective) not 'empty' (verb): ${format(match)}`);
 }
 
+// Ensure every method dfn is correctly associated with an interface.
+const interfaces = new Set(
+  root.querySelectorAll('dfn[data-dfn-type=interface]').map(e => e.innerText));
+for (const dfn of root.querySelectorAll('dfn[data-dfn-type=method]')) {
+  const dfnFor = dfn.getAttribute('data-dfn-for');
+  if (!dfnFor || !interfaces.has(dfnFor)) {
+    error(`Method definition '${dfn.innerText}' for undefined '${dfnFor}'`);
+  }
+}
+
 // Ensure every IDL argument is linked to a definition.
 for (const dfn of root.querySelectorAll('pre.idl dfn[data-dfn-type=argument]')) {
   const dfnFor = dfn.getAttribute('data-dfn-for');
@@ -290,7 +300,5 @@ for (const dfn of root.querySelectorAll('dfn[data-dfn-type=argument]')) {
   const dfnFor = dfn.getAttribute('data-dfn-for');
   if (!dfnFor.split(/\b/).includes(dfn.innerText)) {
     error(`Argument definition '${dfn.innerText}' doesn't appear in '${dfnFor}'`);
-  }
-}
 
 globalThis.process.exit(exitCode);
