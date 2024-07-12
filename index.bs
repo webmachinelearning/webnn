@@ -845,7 +845,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 
 <dl dfn-type=dict-member dfn-for=MLComputeResult>
     : <dfn>inputs</dfn>
-    :: An object where the keys are the graph input names, and the values are the transferred {{ArrayBufferView}}s for the supplied input tensor values.
+    :: An object where the keys are the graph input names, and the values are the copied {{ArrayBufferView}}s for the supplied input tensor values.
 
     : <dfn>outputs</dfn>
     :: An object where the keys are the graph output names, and the values are the transferred {{ArrayBufferView}}s for the computed output tensor values.
@@ -882,6 +882,22 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
     1. Return {{undefined}}.
 </details>
 
+### {{MLNamedArrayBufferViews}} copy algorithm ### {#mlnamedarraybufferviews-copy-alg}
+
+<details open algorithm>
+  <summary>
+    To <dfn for="MLNamedArrayBufferViews">copy</dfn> an {{MLNamedArrayBufferViews}} |views| with [=realm=] |realm|:
+  </summary>
+    1. Let |copiedViews| be a new {{MLNamedArrayBufferViews}}.
+    1. [=map/For each=] |name| → |view| of |views|:
+        1. Let |copiedBuffer| be the result of [=getting a copy of the bytes held by the buffer source=] of |view|.
+        1. Let |constructor| be the appropriate [=view constructor=] for the type of {{ArrayBufferView}} |view| from |realm|.
+        1. Let |elementsNumber| be the result of |view|'s [=BufferSource/byte length=] / |view|'s [=element size=].
+        1. Let |copiedView| be [$Construct$](|constructor|, |copiedBuffer|, |view|.\[[ByteOffset]], |elementsNumber|).
+        1. Set |copiedViews|[|name|] to |copiedView|.
+    1. Return |copiedViews|.
+</details>
+
 ### {{MLNamedArrayBufferViews}} transfer algorithm ### {#mlnamedarraybufferviews-transfer-alg}
 
 <details open algorithm>
@@ -902,13 +918,13 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU/NPU timeline for submitting a workload onto the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it [=exception/throws=] an "{{OperationError}}" {{DOMException}}.
 
 <div class="note">
-In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the calling thread from modifying the input and output resources while the computation is ongoing, this method [=MLNamedArrayBufferViews/transfer|transfers=] the input and output {{MLNamedArrayBufferViews}} to new views that share the same backing memory allocations. The transferred views are returned to the caller via the promise fulfillment with the computation result written into the backing memory of the output views.
+In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the calling thread from modifying the input and output resources while the computation is ongoing, this method [=MLNamedArrayBufferViews/copy|copies=] the input {{MLNamedArrayBufferViews}} and [=MLNamedArrayBufferViews/transfer|transfers=] the output. The views are returned to the caller via the promise fulfillment with the computation result written into the backing memory of the output views.
 </div>
 
 <div>
     **Arguments:**
       - *graph*: an {{MLGraph}}. The compiled graph to be executed.
-      - *inputs*: an {{MLNamedArrayBufferViews}}. The resources of inputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
+      - *inputs*: an {{MLNamedArrayBufferViews}}. The resources of inputs. Will be [=MLNamedArrayBufferViews/copy|copied=] if there are no validation errors.
       - *outputs*: an {{MLNamedArrayBufferViews}}. The pre-allocated resources of required outputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
 
     **Returns:** Promise<{{MLComputeResult}}>.
@@ -930,13 +946,13 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
     1. [=map/For each=] |name| → |resource| of |outputs|:
         1. If |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] does not [=map/exist=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
         1. If [=validating buffer with descriptor=] given |resource| and |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs| with |realm|. If that threw an exception, then return [=a new promise=] [=rejected=] with that exception.
+    1. Let |copiedInputs| be the result of [=MLNamedArrayBufferViews/copy|copying=] {{MLNamedArrayBufferViews}} |inputs| with |realm|. If that threw an exception, then return [=a new promise=] [=rejected=] with that exception.
     1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs| with |realm|. If that threw an exception, then return [=a new promise=] [=rejected=] with that exception.
     1. Let |promise| be [=a new promise=].
     1. Run the following steps [=in parallel=]:
-        1. Invoke [=execute graph=] given |graph|, |transferredInputs| and |transferredOutputs|. If that returns an error, then [=queue an ML task=] with |global| to [=reject=] |promise| with an equivalent error in |realm| and abort these steps.
+        1. Invoke [=execute graph=] given |graph|, |copiedInputs| and |transferredOutputs|. If that returns an error, then [=queue an ML task=] with |global| to [=reject=] |promise| with an equivalent error in |realm| and abort these steps.
         1. Let |result| be a new {{MLComputeResult}} with |realm|.
-        1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
+        1. Set |result|.{{MLComputeResult/inputs}} to |copiedInputs|.
         1. Set |result|.{{MLComputeResult/outputs}} to |transferredOutputs|.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |result|.
     1. Return |promise|.
