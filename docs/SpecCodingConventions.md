@@ -125,6 +125,8 @@ Example:
 * Do not include assertions about argument types. This is redundant with Web IDL declaration.
 * Do not include steps that test argument types if those types are guaranteed by WebIDL.
 * Do not refer to JavaScript or WebIDL types in method steps. Per the spec processing model, by the time a spec algorithm is invoked, JavaScript types (e.g. Numbers, Arrays) have been mapped to WebIDL types (e.g. unsigned longs, sequences) and those have been mapped to Infra types or general concepts (e.g. numbers, lists).
+    * In particular, avoid using "sequence" in prose, as recurrent operators deal with temporal sequences. Just use "list" in algorithms, or "array" in developer-facing examples.
+    * There is an exception to this rule: Referring to WebIDL types is necessary when dealing with unions. In this case, refer to the full WebIDL type, e.g. _If splits is an `unsigned long` ... Otherwise, if splits is a `sequence<unsigned long>` ..._
 * Do not repeat detaults provided by the WebIDL declaration.
 * For types like lists that can't be defaulted in WebIDL, define the default when missing as an explicit step. Example: _If options.padding does not exist, set options.padding to « 0, 0, 0, 0 »._
 
