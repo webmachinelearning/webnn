@@ -70,6 +70,11 @@ p, ul, ol, dl {
     margin: 1em 0;
 }
 
+/* Override rule making <code> smaller than surrounding text. */
+dfn code {
+    font-size: 100%;
+}
+
 /* Style <details>, for clarity of presentation of these blocks. */
 details {
     padding: .5em;
@@ -753,6 +758,13 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 
 ### {{ML/createContext()}} ### {#api-ml-createcontext}
 
+<div dfn-for="ML/createContext(options), ML/createContext(gpuDevice)" dfn-type=argument>
+    **Arguments:**
+        - <dfn>options</dfn>: an {{MLContextOptions}}. Provides the application's preferences for the context.
+        - <dfn>gpuDevice</dfn>: a {{GPUDevice}}. A specific device to use with the context.
+    **Returns:** an {{MLContext}}.
+</div>
+
 <details open algorithm>
 <summary>
     To <dfn>create a context</dfn> given [=realm=] |realm| and |options| (a {{GPUDevice}} or {{MLContextOptions}}), run these steps:
@@ -905,11 +917,11 @@ Asynchronously carries out the computational workload of a compiled graph {{MLGr
 In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the calling thread from modifying the input and output resources while the computation is ongoing, this method [=MLNamedArrayBufferViews/transfer|transfers=] the input and output {{MLNamedArrayBufferViews}} to new views that share the same backing memory allocations. The transferred views are returned to the caller via the promise fulfillment with the computation result written into the backing memory of the output views.
 </div>
 
-<div>
+<div dfn-for="MLContext/compute(graph, inputs, outputs)" dfn-type=argument>
     **Arguments:**
-      - *graph*: an {{MLGraph}}. The compiled graph to be executed.
-      - *inputs*: an {{MLNamedArrayBufferViews}}. The resources of inputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
-      - *outputs*: an {{MLNamedArrayBufferViews}}. The pre-allocated resources of required outputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
+      - <dfn>graph</dfn>: an {{MLGraph}}. The compiled graph to be executed.
+      - <dfn>inputs</dfn>: an {{MLNamedArrayBufferViews}}. The resources of inputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
+      - <dfn>outputs</dfn>: an {{MLNamedArrayBufferViews}}. The pre-allocated resources of required outputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
 
     **Returns:** Promise<{{MLComputeResult}}>.
 </div>
@@ -1287,6 +1299,11 @@ The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph buil
 
 ### {{MLGraphBuilder}} constructor ### {#api-mlgraphbuilder-constructor}
 
+<div dfn-for="MLGraphBuilder/constructor(context)" dfn-type=argument>
+    **Arguments:**
+      - <dfn>context</dfn>: an {{MLContext}}. The context to associate with the {{MLGraphBuilder}}.
+</div>
+
 <details open algorithm>
   <summary>
     The [=new=] <dfn constructor for=MLGraphBuilder lt="MLGraphBuilder(context)">MLGraphBuilder(|context|)</dfn> constructor steps are:
@@ -1299,10 +1316,10 @@ The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph buil
 
 Create a named {{MLOperand}} based on a descriptor, that can be used as an input.
 
-<div>
+<div dfn-for="MLGraphBuilder/input(name, descriptor)" dfn-type=argument>
     **Arguments:**
-        - *name*: a [=string=] name of the input.
-        - *descriptor*: an {{MLOperandDescriptor}} object.
+        - <dfn>name</dfn>: a [=string=] name of the input.
+        - <dfn>descriptor</dfn>: an {{MLOperandDescriptor}} object.
     **Returns:** an {{MLOperand}} object.
 </div>
 
@@ -1329,10 +1346,10 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
 #### {{MLGraphBuilder/constant(descriptor, bufferView)}} #### {#api-mlgraphbuilder-constant-bufferview}
 Create a constant {{MLOperand}} of the specified data type and shape that contains the initializing data.
 
-<div>
+<div dfn-for="MLGraphBuilder/constant(descriptor, bufferView)" dfn-type=argument>
     **Arguments:**
-        - *descriptor*: an {{MLOperandDescriptor}}. The descriptor of the output tensor.
-        - *bufferView*: an {{ArrayBufferView}}. The view of the buffer containing the initializing data.
+        - <dfn>descriptor</dfn>: an {{MLOperandDescriptor}}. The descriptor of the output tensor.
+        - <dfn>bufferView</dfn>: an {{ArrayBufferView}}. The view of the buffer containing the initializing data.
     **Returns:** an {{MLOperand}}. The constant output tensor.
 </div>
 
@@ -1356,10 +1373,10 @@ Create a scalar constant {{MLOperand}} of the specified value and data type.
 Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a floating point value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
 </div>
 
-<div>
+<div dfn-for="MLGraphBuilder/constant(type, value)" dfn-type=argument>
     **Arguments:**
-        - *type*: an {{MLOperandDataType}}.
-        - *value*: an {{MLNumber}}. The value of the constant.
+        - <dfn>type</dfn>: an {{MLOperandDataType}}.
+        - <dfn>value</dfn>: an {{MLNumber}}. The value of the constant.
     **Returns:** an {{MLOperand}}. The constant output.
 </div>
 
@@ -1379,6 +1396,12 @@ Data truncation will occur when the specified value exceeds the range of the spe
 
 ### build method ### {#api-mlgraphbuilder-build}
 Build a composed graph up to a given output operand into a computational graph asynchronously.
+
+<div dfn-for="MLGraphBuilder/build(outputs)" dfn-type=argument>
+    **Arguments:**
+        - <dfn>outputs</dfn>: an {{MLNamedOperands}}. Identifies the {{MLOperand}}s that will be the outputs of the graph.
+    **Returns:** Promise<{{MLGraph}}>.
+</div>
 
 <details open algorithm>
   <summary>
@@ -1452,10 +1475,10 @@ partial interface MLGraphBuilder {
         If true, retains reduced dimensions with [=list/size=] 1.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/argMin(input, options), MLGraphBuilder/argMax(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *options*: an optional {{MLArgMinMaxOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>options</dfn>: an optional {{MLArgMinMaxOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type {{MLOperandDataType/"int64"}} in the range [0, N-1] where N is the corresponding size of each of the input dimensions specified by options.axes.
 </div>
@@ -1534,12 +1557,12 @@ partial interface MLGraphBuilder {
         A small value to prevent computational error due to divide-by-zero.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/batchNormalization(input, mean, variance, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *mean*: an {{MLOperand}}. Specifies the 1-D tensor of the mean values of the input features across the batch. Its [=list/size=] is equal to the size of the input dimension denoted by  {{MLBatchNormalizationOptions/axis}}.
-        - *variance*: an {{MLOperand}}. The 1-D tensor of the variance values of the input features across the batch whose [=list/size=] is equal to the size of the input dimension denoted by {{MLBatchNormalizationOptions/axis}}.
-        - *options*: an optional {{MLBatchNormalizationOptions}}. Specifies the optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>mean</dfn>: an {{MLOperand}}. Specifies the 1-D tensor of the mean values of the input features across the batch. Its [=list/size=] is equal to the size of the input dimension denoted by  {{MLBatchNormalizationOptions/axis}}.
+        - <dfn>variance</dfn>: an {{MLOperand}}. The 1-D tensor of the variance values of the input features across the batch whose [=list/size=] is equal to the size of the input dimension denoted by {{MLBatchNormalizationOptions/axis}}.
+        - <dfn>options</dfn>: an optional {{MLBatchNormalizationOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The batch-normalized N-D tensor of the same shape as *input*.
 </div>
@@ -1633,10 +1656,10 @@ partial interface MLGraphBuilder {
   MLOperand cast(MLOperand input, MLOperandDataType type);
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/cast(input, type)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *type*: an {{MLOperandDataType}}. The target data type.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>type</dfn>: an {{MLOperandDataType}}. The target data type.
 
     **Returns:** an {{MLOperand}}. The N-D tensor of the same shape as *input* with each element casted to the target data type.
 </div>
@@ -1677,10 +1700,10 @@ partial interface MLGraphBuilder {
     :: The maximum value of the range. When it is not specified, the clamping is not performed on the upper limit of the range.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/clamp(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLClampOptions}}. The optional parameters of the operation.
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *operand*.
 </div>
@@ -1741,11 +1764,11 @@ partial interface MLGraphBuilder {
   MLOperand concat(sequence<MLOperand> inputs, [EnforceRange] unsigned long axis);
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/concat(inputs, axis)" dfn-type=argument>
     **Arguments:**
-        - *inputs*: a sequence of {{MLOperand}}. All input tensors must have the
+        - <dfn>inputs</dfn>: a sequence of {{MLOperand}}. All input tensors must have the
             same shape, except for the size of the dimension to concatenate on.
-        - *axis*: an {{unsigned long}} scalar. The axis that the inputs concatenate along. Its value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensors.
+        - <dfn>axis</dfn>: an {{unsigned long}} scalar. The axis that the inputs concatenate along. Its value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensors.
 
     **Returns:** an {{MLOperand}}. The concatenated tensor of all the inputs along
     the *axis*. The output tensor has the same shape except on the dimension
@@ -1860,13 +1883,13 @@ partial interface MLGraphBuilder {
           An additional 1-D tensor with the shape of *[outputChannels]* whose values are to be added to the convolution result.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/conv2d(input, filter, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *options*.{{MLConv2dOptions/inputLayout}}.
-        - *filter*: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
+        - <dfn>filter</dfn>: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
             interpreted according to the value of *options*.{{MLConv2dOptions/filterLayout}} and *options*.{{MLConv2dOptions/groups}}.
-        - *options*: an {{MLConv2dOptions}}. The optional parameters of the operation.
+        - <dfn>options</dfn>: an {{MLConv2dOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options*.{{MLConv2dOptions/inputLayout}} value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follows:
 
@@ -2097,13 +2120,13 @@ partial interface MLGraphBuilder {
         An additional 1-D tensor with the shape of *[outputChannels]* whose values are to be added to the convolution result.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/convTranspose2d(input, filter, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *options*.{{MLConvTranspose2dOptions/inputLayout}}.
-        - *filter*: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
+        - <dfn>filter</dfn>: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
             interpreted according to the value of *options*.{{MLConvTranspose2dOptions/filterLayout}} and {{MLConvTranspose2dOptions/groups}}.
-        - *options*: an optional {{MLConvTranspose2dOptions}}.
+        - <dfn>options</dfn>: an optional {{MLConvTranspose2dOptions}}.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options*.{{MLConvTranspose2dOptions/inputLayout}} value. More specifically, unless the *options*.{{MLConvTranspose2dOptions/outputSizes}} values are explicitly specified, the *options*.{{MLConvTranspose2dOptions/outputPadding}} may be needed to compute the spatial dimension values of the output tensor as follows:
 
@@ -2261,10 +2284,10 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/add(a, b), MLGraphBuilder/sub(a, b), MLGraphBuilder/mul(a, b), MLGraphBuilder/div(a, b), MLGraphBuilder/max(a, b), MLGraphBuilder/min(a, b), MLGraphBuilder/pow(a, b)" dfn-type=argument>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input tensor.
-        - *b*: an {{MLOperand}}. The second input tensor.
+        - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor.
+        - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise binary operation of the two input tensors.
@@ -2371,10 +2394,10 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/equal(a, b), MLGraphBuilder/greater(a, b), MLGraphBuilder/greaterOrEqual(a, b), MLGraphBuilder/lesser(a, b), MLGraphBuilder/lesserOrEqual(a, b), MLGraphBuilder/logicalNot(a)" dfn-type=argument>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input tensor.
-        - *b*: an {{MLOperand}}. The second input tensor when specified.
+        - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor.
+        - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor when specified.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of element-wise comparison of the two input tensors.
 </div>
@@ -2484,9 +2507,9 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/abs(input), MLGraphBuilder/ceil(input), MLGraphBuilder/cos(input), MLGraphBuilder/erf(input), MLGraphBuilder/exp(input), MLGraphBuilder/floor(input), MLGraphBuilder/identity(input), MLGraphBuilder/log(input), MLGraphBuilder/neg(input), MLGraphBuilder/reciprocal(input), MLGraphBuilder/sin(input), MLGraphBuilder/sqrt(input), MLGraphBuilder/tan(input)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise unary operation of the input tensor. The shape of the output
@@ -2644,10 +2667,10 @@ partial interface MLGraphBuilder {
 
 
 #### {{MLGraphBuilder/elu(input, options)}} #### {#api-mlgraphbuilder-elu-input-options}
-<div>
+<div dfn-for="MLGraphBuilder/elu(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLEluOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -2703,9 +2726,9 @@ partial interface MLGraphBuilder {
 </div>
 
 #### {{MLGraphBuilder/elu(options)}} #### {#api-mlgraphbuilder-elu-options}
-<div>
+<div dfn-for="MLGraphBuilder/elu(options)" dfn-type=argument>
     **Arguments:**
-        - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
+        - <dfn>options</dfn>: an optional {{MLEluOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLActivation}}. The activation function representing the elu operation.
@@ -2729,10 +2752,10 @@ partial interface MLGraphBuilder {
   MLOperand expand(MLOperand input, sequence<[EnforceRange] unsigned long> newShape);
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/expand(input, newShape)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. An input tensor
-        - *newShape*: a sequence of {{unsigned long}}. The new shape the input tensor is expanded to.
+        - <dfn>input</dfn>: an {{MLOperand}}. An input tensor
+        - <dfn>newShape</dfn>: a sequence of {{unsigned long}}. The new shape the input tensor is expanded to.
 
     **Returns:** an {{MLOperand}}. The tensor with expanded size dimensions.
 </div>
@@ -2776,11 +2799,11 @@ partial interface MLGraphBuilder {
         The axis along which the gathered values are obtained. Its value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/gather(input, indices, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor from which the values are gathered.
-        - *indices*: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
-        - *options*: an optional {{MLGatherOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor from which the values are gathered.
+        - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
+        - <dfn>options</dfn>: an optional {{MLGatherOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input* + the [=MLOperand/rank=] of *indices* - 1.
 </div>
@@ -2914,9 +2937,9 @@ partial interface MLGraphBuilder {
 </script>
 
 #### {{MLGraphBuilder/gelu(input)}} #### {#api-mlgraphbuilder-gelu-input}
-<div>
+<div dfn-for="MLGraphBuilder/gelu(input)" dfn-type="argument">
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -3026,11 +3049,11 @@ partial interface MLGraphBuilder {
         Indicates if the second input should be transposed prior to calculating the output.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/gemm(a, b, options)" dfn-type=argument>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input 2-D tensor with shape *[M, K]* if *aTranspose* is false, or *[K, M]* if *aTranspose* is true.
-        - *b*: an {{MLOperand}}. The second input 2-D tensor with shape *[K, N]* if *bTranspose* is false, or *[N, K]* if *bTranspose* is true.
-        - *options*: an optional {{MLGemmOptions}}. The optional parameters of the operation.
+        - <dfn>a</dfn>: an {{MLOperand}}. The first input 2-D tensor with shape *[M, K]* if *aTranspose* is false, or *[K, M]* if *aTranspose* is true.
+        - <dfn>b</dfn>: an {{MLOperand}}. The second input 2-D tensor with shape *[K, N]* if *bTranspose* is false, or *[N, K]* if *bTranspose* is true.
+        - <dfn>options</dfn>: an optional {{MLGemmOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output 2-D tensor of shape *[M, N]* that contains the calculated product of all the inputs.
 </div>
@@ -3184,14 +3207,14 @@ partial interface MLGraphBuilder {
         Specifies a pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, implementations SHOULD use the pair of sigmoid ("sigmoid") and the hyperbolic tangent ("tanh") functions, respectively.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/gru(input, weight, recurrentWeight, steps, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
-        - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
-        - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
+        - <dfn>weight</dfn>: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
+        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
+        - <dfn>steps</dfn>: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
+        - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
+        - <dfn>options</dfn>: an optional {{MLGruOptions}}. The optional parameters of the operation.
 
     **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the cell output from the last time step of the network. Additionally, if |options|.{{MLGruOptions/returnSequence}} is set to true, the second element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every cell outputs from each time step in the temporal sequence.
 </div>
@@ -3441,14 +3464,14 @@ partial interface MLGraphBuilder {
         Specifies a pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, implementations SHOULD use the pair of sigmoid ("sigmoid") and the hyperbolic tangent ("tanh") functions, respectively.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/gruCell(input, weight, recurrentWeight, hiddenState, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
-        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape *[3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
-        - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{MLGruCellOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
+        - <dfn>weight</dfn>: an {{MLOperand}}. The 2-D input weight tensor of shape *[3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>hiddenState</dfn>: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
+        - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
+        - <dfn>options</dfn>: an optional {{MLGruCellOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The 2-D tensor of shape *[batchSize, hiddenSize]*, the cell output hidden state of a single time step of the recurrent network.
 </div>
@@ -3653,10 +3676,10 @@ partial interface MLGraphBuilder {
 </dl>
 
 #### {{MLGraphBuilder/hardSigmoid(input, options)}} #### {#api-mlgraphbuilder-hardsigmoid-input-options}
-<div>
+<div dfn-for="MLGraphBuilder/hardSigmoid(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLHardSigmoidOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLHardSigmoidOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -3713,9 +3736,9 @@ partial interface MLGraphBuilder {
 </div>
 
 #### {{MLGraphBuilder/hardSigmoid(options)}} #### {#api-mlgraphbuilder-hardsigmoid-options}
-<div>
+<div dfn-for="MLGraphBuilder/hardSigmoid(options)" dfn-type=argument>
     **Arguments:**
-        - *options*: an optional {{MLHardSigmoidOptions}}. The optional parameters of the operation.
+        - <dfn>options</dfn>: an optional {{MLHardSigmoidOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLActivation}}. The activation function representing the hard sigmoid operation.
@@ -3743,9 +3766,9 @@ partial interface MLGraphBuilder {
 </script>
 
 #### {{MLGraphBuilder/hardSwish(input)}} #### {#api-mlgraphbuilder-hardswish-input}
-<div>
+<div dfn-for="MLGraphBuilder/hardSwish(input)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -3802,7 +3825,7 @@ partial interface MLGraphBuilder {
 </div>
 
 #### {{MLGraphBuilder/hardSwish()}} #### {#api-mlgraphbuilder-hardswish}
-<div>
+<div dfn-for="MLGraphBuilder/hardSwish()" dfn-type=argument>
     **Arguments:**
         - None.
 
@@ -3856,10 +3879,10 @@ partial interface MLGraphBuilder {
 
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/instanceNormalization(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 4-D tensor.
-        - *options*: an optional {{MLInstanceNormalizationOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 4-D tensor.
+        - <dfn>options</dfn>: an optional {{MLInstanceNormalizationOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The instance-normalized 4-D tensor of the same shape as *input*.
 </div>
@@ -3978,10 +4001,10 @@ partial interface MLGraphBuilder {
         A small value to prevent computational error due to divide-by-zero.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/layerNormalization(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *options*: an optional {{MLLayerNormalizationOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>options</dfn>: an optional {{MLLayerNormalizationOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The layer-normalized N-D tensor of the same shape as *input*.
 </div>
@@ -4095,10 +4118,10 @@ partial interface MLGraphBuilder {
 </dl>
 
 #### {{MLGraphBuilder/leakyRelu(input, options)}} #### {#api-mlgraphbuilder-leaky-relu-input-options}
-<div>
+<div dfn-for="MLGraphBuilder/leakyRelu(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -4152,9 +4175,9 @@ partial interface MLGraphBuilder {
 </div>
 
 #### {{MLGraphBuilder/leakyRelu(options)}} #### {#api-mlgraphbuilder-leaky-relu-options}
-<div>
+<div dfn-for="MLGraphBuilder/leakyRelu(options)" dfn-type=argument>
     **Arguments:**
-        - *options*: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
+        - <dfn>options</dfn>: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLActivation}}. The activation function representing the leaky relu operation.
@@ -4197,10 +4220,10 @@ partial interface MLGraphBuilder {
 </dl>
 
 #### {{MLGraphBuilder/linear(input, options)}} #### {#api-mlgraphbuilder-linear-input-options}
-<div>
+<div dfn-for="MLGraphBuilder/linear(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLLinearOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -4252,9 +4275,9 @@ partial interface MLGraphBuilder {
 </div>
 
 #### {{MLGraphBuilder/linear(options)}} #### {#api-mlgraphbuilder-linear-options}
-<div>
+<div dfn-for="MLGraphBuilder/linear(options)" dfn-type=argument>
     **Arguments:**
-        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
+        - <dfn>options</dfn>: an optional {{MLLinearOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLActivation}}. The activation function representing the linear operation.
@@ -4342,14 +4365,14 @@ partial interface MLGraphBuilder {
         A list of three activation functions, the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, implementations SHOULD use the sequence of the sigmoid function ("sigmoid") followed by two hyperbolic tangent functions ("tanh") respectively.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/lstm(input, weight, recurrentWeight, steps, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
-        - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
-        - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{MLLstmOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
+        - <dfn>weight</dfn>: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
+        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
+        - <dfn>steps</dfn>: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
+        - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
+        - <dfn>options</dfn>: an optional {{MLLstmOptions}}. The optional parameters of the operation.
 
     **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output cell state from the last time step of the network. Additionally, if |options|.{{MLLstmOptions/returnSequence}} is set to true, the third element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every output from each time step in the temporal sequence.
 </div>
@@ -4644,15 +4667,15 @@ partial interface MLGraphBuilder {
         A list of three activation functions, the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, they are assumed to be of the sigmoid function ("sigmoid") followed by two hyperbolic tangent functions ("tanh") respectively.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/lstmCell(input, weight, recurrentWeight, hiddenState, cellState, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
-        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape *[4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
-        - *cellState*: an {{MLOperand}}. The 2-D input cell state tensor of shape *[batchSize, hiddenSize]*.
-        - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{MLLstmCellOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
+        - <dfn>weight</dfn>: an {{MLOperand}}. The 2-D input weight tensor of shape *[4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>hiddenState</dfn>: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
+        - <dfn>cellState</dfn>: an {{MLOperand}}. The 2-D input cell state tensor of shape *[batchSize, hiddenSize]*.
+        - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
+        - <dfn>options</dfn>: an optional {{MLLstmCellOptions}}. The optional parameters of the operation.
 
     **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape *[batchSize, hiddenSize]*.
 </div>
@@ -4882,10 +4905,10 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/matmul(a, b)" dfn-type=argument>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input tensor which is at least 2-D.
-        - *b*: an {{MLOperand}}. The second input tensor which is at least 2-D.
+        - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor which is at least 2-D.
+        - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor which is at least 2-D.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the matrix
     product of two input tensors.
@@ -4989,12 +5012,12 @@ partial interface MLGraphBuilder {
         The padding value when {{MLPadOptions/mode}} is set to {{MLPaddingMode/"constant"}}.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/pad(input, beginningPadding, endingPadding, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *beginningPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the beginning of each input dimension, of length *N* where *N* is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *beginningPadding[d]* indicates how many values to add before the content in that dimension.
-        - *endingPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the ending of each input dimension, of length *N* where *N* is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *endingPadding[d]* indicates how many values to add after the content in that dimension.
-        - *options*: an optional {{MLPadOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>beginningPadding</dfn>: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the beginning of each input dimension, of length *N* where *N* is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *beginningPadding[d]* indicates how many values to add before the content in that dimension.
+        - <dfn>endingPadding</dfn>: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the ending of each input dimension, of length *N* where *N* is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *endingPadding[d]* indicates how many values to add after the content in that dimension.
+        - <dfn>options</dfn>: an optional {{MLPadOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The padded output tensor. Each dimension of the output tensor can be calculated as follows:
 
@@ -5150,11 +5173,11 @@ partial interface MLGraphBuilder {
         If not specified, the output sizes are automatically computed.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/averagePool2d(input, options), MLGraphBuilder/l2Pool2d(input, options), MLGraphBuilder/maxPool2d(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *options.layout*.
-        - *options*: an optional {{MLPool2dOptions}}. The optional parameters of the operation.
+        - <dfn>options</dfn>: an optional {{MLPool2dOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
@@ -5299,10 +5322,10 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/prelu(input, slope)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *slope*: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or [=unidirectionally broadcastable=] to the shape of input tensor *input*.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>slope</dfn>: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or [=unidirectionally broadcastable=] to the shape of input tensor *input*.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -5390,10 +5413,10 @@ partial interface MLGraphBuilder {
         If true, the output has the same rank as the input, setting any reduced dimensions to size 1.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/reduceL1(input, options), MLGraphBuilder/reduceL2(input, options), MLGraphBuilder/reduceLogSum(input, options), MLGraphBuilder/reduceLogSumExp(input, options), MLGraphBuilder/reduceMax(input, options), MLGraphBuilder/reduceMean(input, options), MLGraphBuilder/reduceMin(input, options), MLGraphBuilder/reduceProduct(input, options), MLGraphBuilder/reduceSum(input, options), MLGraphBuilder/reduceSumSquare(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLReduceOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLReduceOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The reduced output tensor.
 </div>
@@ -5561,9 +5584,9 @@ partial interface MLGraphBuilder {
 </script>
 
 #### {{MLGraphBuilder/relu(input)}} #### {#api-mlgraphbuilder-relu-input}
-<div>
+<div dfn-for="MLGraphBuilder/relu(input)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -5612,7 +5635,7 @@ partial interface MLGraphBuilder {
 </div>
 
 #### {{MLGraphBuilder/relu()}} #### {#api-mlgraphbuilder-relu}
-<div>
+<div dfn-for="MLGraphBuilder/relu()" dfn-type=argument>
     **Arguments:**
         - None.
 
@@ -5647,10 +5670,10 @@ partial interface MLGraphBuilder {
   MLOperand resample2d(MLOperand input, optional MLResample2dOptions options = {});
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/resample2d(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 4-D tensor.
-        - *options*: an optional {{MLResample2dOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 4-D tensor.
+        - <dfn>options</dfn>: an optional {{MLResample2dOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor.
 </div>
@@ -5743,10 +5766,10 @@ partial interface MLGraphBuilder {
   MLOperand reshape(MLOperand input, sequence<[EnforceRange] unsigned long> newShape);
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/reshape(input, newShape)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *newShape*: a sequence of {{unsigned long}}. The shape of the output tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>newShape</dfn>: a sequence of {{unsigned long}}. The shape of the output tensor.
             The number of elements implied by *newShape* must be the same as the
             number of elements in the input tensor.
 
@@ -5787,9 +5810,9 @@ partial interface MLGraphBuilder {
 </script>
 
 #### {{MLGraphBuilder/sigmoid(input)}} #### {#api-mlgraphbuilder-sigmoid-input}
-<div>
+<div dfn-for="MLGraphBuilder/sigmoid(input)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -5841,7 +5864,7 @@ partial interface MLGraphBuilder {
 </div>
 
 #### {{MLGraphBuilder/sigmoid()}} #### {#api-mlgraphbuilder-sigmoid}
-<div>
+<div dfn-for="MLGraphBuilder/sigmoid()" dfn-type=argument>
     **Arguments:**
         - None.
 
@@ -5866,11 +5889,11 @@ partial interface MLGraphBuilder {
                   sequence<[EnforceRange] unsigned long> sizes);
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/slice(input, starts, sizes)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *starts*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the starting index to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *starts[d]* indicates the starting index to slice in that dimension. The starting index must be in the range [0, input size - 1] in that dimension.
-        - *sizes*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of elements to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *sizes[d]* indicates the number of elements to slice in that dimension. The size must not be 0 and must satisfy the constraint `starting index + size <= input size` in that dimension.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>starts</dfn>: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the starting index to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *starts[d]* indicates the starting index to slice in that dimension. The starting index must be in the range [0, input size - 1] in that dimension.
+        - <dfn>sizes</dfn>: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of elements to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *sizes[d]* indicates the number of elements to slice in that dimension. The size must not be 0 and must satisfy the constraint `starting index + size <= input size` in that dimension.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
@@ -5907,10 +5930,10 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/softmax(input, axis)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *axis*: an {{unsigned long}} scalar. The dimension the reduction will be performed on.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>axis</dfn>: an {{unsigned long}} scalar. The dimension the reduction will be performed on.
 
     **Returns:**
         - an {{MLOperand}}. The output N-D tensor that contains the softmax results, of the same shape as *input*.
@@ -5979,9 +6002,9 @@ partial interface MLGraphBuilder {
 </script>
 
 #### {{MLGraphBuilder/softplus(input)}} #### {#api-mlgraphbuilder-softplus-input}
-<div>
+<div dfn-for="MLGraphBuilder/softplus(input)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -6031,7 +6054,7 @@ partial interface MLGraphBuilder {
 </div>
 
 #### {{MLGraphBuilder/softplus()}} #### {#api-mlgraphbuilder-softplus}
-<div>
+<div dfn-for="MLGraphBuilder/softplus(options)" dfn-type=argument>
     **Arguments:**
         - None.
 
@@ -6072,9 +6095,9 @@ partial interface MLGraphBuilder {
 </div>
 
 #### {{MLGraphBuilder/softsign(input)}} #### {#api-mlgraphbuilder-softsign-input}
-<div>
+<div dfn-for="MLGraphBuilder/softsign(input)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -6110,7 +6133,7 @@ partial interface MLGraphBuilder {
 </details>
 
 #### {{MLGraphBuilder/softsign()}} #### {#api-mlgraphbuilder-softsign}
-<div>
+<div dfn-for="MLGraphBuilder/softsign()" dfn-type=argument>
     **Arguments:**
         - None.
 
@@ -6141,11 +6164,11 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/split(input, splits, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *splits*: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
-        - *options*: an optional {{MLSplitOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>splits</dfn>: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
+        - <dfn>options</dfn>: an optional {{MLSplitOptions}}. The optional parameters of the operation.
 
     **Returns:** a sequence of {{MLOperand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the [=list/size=] of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the [=list/size=] of the output sequence equals to the [=list/size=] of *splits*. The shape of the i-th output tensor is the same as *input* except along *axis* where the dimension size is *splits[i]*.
 </div>
@@ -6225,9 +6248,9 @@ partial interface MLGraphBuilder {
 </script>
 
 #### {{MLGraphBuilder/tanh(input)}} #### {#api-mlgraphbuilder-tanh-input}
-<div>
+<div dfn-for="MLGraphBuilder/tanh(input)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -6282,7 +6305,7 @@ partial interface MLGraphBuilder {
 </div>
 
 #### {{MLGraphBuilder/tanh()}} #### {#api-mlgraphbuilder-tanh}
-<div>
+<div dfn-for="MLGraphBuilder/tanh()" dfn-type=argument>
     **Arguments:**
         - None.
 
@@ -6319,10 +6342,10 @@ partial interface MLGraphBuilder {
         These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the [=MLOperand/rank=] of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/transpose(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *options*: an optional {{MLTransposeOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>options</dfn>: an optional {{MLTransposeOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor.
 </div>
@@ -6369,10 +6392,10 @@ partial interface MLGraphBuilder {
         Specifies how many diagonals above or below the main diagonals of the input matrix are retained or excluded. A value of 0 means no diagonals other than the main diagonals are affected.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/triangular(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor which is at least 2-D.
-        - *options*: an optional {{MLTriangularOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor which is at least 2-D.
+        - <dfn>options</dfn>: an optional {{MLTriangularOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output tensor representing a triangular matrix, or batch of matrices which is the same shape as the input.
 </div>
@@ -6478,11 +6501,11 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/where(condition, trueValue, falseValue)" dfn-type=argument>
     **Arguments:**
-        - *condition*: an {{MLOperand}}. The condition tensor.
-        - *trueValue*: an {{MLOperand}}. The trueValue tensor from which the value is selected when the condition of the corresponding element is set to true.
-        - *falseValue*: an {{MLOperand}}. The falseValue tensor from which the value is selected when the condition of the corresponding element is set to false.
+        - <dfn>condition</dfn>: an {{MLOperand}}. The condition tensor.
+        - <dfn>trueValue</dfn>: an {{MLOperand}}. The tensor from which the value is selected when the condition of the corresponding element is set to true.
+        - <dfn>falseValue</dfn>: an {{MLOperand}}. The tensor from which the value is selected when the condition of the corresponding element is set to false.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the values selected element-wise from either the trueValue or the falseValue tensor.
 </div>

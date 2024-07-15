@@ -288,4 +288,19 @@ for (const dfn of root.querySelectorAll('dfn[data-dfn-type=method]')) {
   }
 }
 
+// Ensure every IDL argument is linked to a definition.
+for (const dfn of root.querySelectorAll('pre.idl dfn[data-dfn-type=argument]')) {
+  const dfnFor = dfn.getAttribute('data-dfn-for');
+  error(`Missing <dfn argument for="${dfnFor}">${dfn.innerText}</dfn> (or equivalent)`);
+}
+
+// Ensure every argument dfn is correctly associated with a method.
+// This tries to catch extraneous definitions, e.g. after an arg is removed.
+for (const dfn of root.querySelectorAll('dfn[data-dfn-type=argument]')) {
+  const dfnFor = dfn.getAttribute('data-dfn-for');
+  if (!dfnFor.split(/\b/).includes(dfn.innerText)) {
+    error(`Argument definition '${dfn.innerText}' doesn't appear in '${dfnFor}'`);
+  }
+}
+
 globalThis.process.exit(exitCode);
