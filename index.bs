@@ -898,11 +898,31 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 
 <details open algorithm>
   <summary>
+    A [=buffer source type=] instance |bufferSource| is
+    <dfn for="BufferSource">detachable</dfn> if the following steps return true:
+  </summary>
+    1.  Let |jsArrayBuffer| be the result of [=converted to a JavaScript value|converting=]
+        |bufferSource| to a JavaScript value.
+    1.  If |jsArrayBuffer| has a \[[ViewedArrayBuffer]] internal slot, then set |jsArrayBuffer| to
+        |jsArrayBuffer|.\[[ViewedArrayBuffer]].
+    1.  If [$IsSharedArrayBuffer$](|jsArrayBuffer|) is true, then return false.
+    1.  If [$IsDetachedBuffer$](|jsArrayBuffer|) is true, return false.
+    1.  If |jsArrayBuffer|.\[[ArrayBufferDetachKey]] is not undefined, return false.
+    1.  Return true.
+</details>
+
+Issue(351): Move the above algorithm into [[WEBIDL]].
+
+<details open algorithm>
+  <summary>
     To <dfn for="MLNamedArrayBufferViews">transfer</dfn> an {{MLNamedArrayBufferViews}} |views| with [=realm=] |realm|:
   </summary>
+    1. [=map/For each=] |name| → |view| of |views|:
+        1. If |view| is not [=BufferSource/detachable=], then throw a {{TypeError}}.
     1. Let |transferredViews| be a new {{MLNamedArrayBufferViews}}.
     1. [=map/For each=] |name| → |view| of |views|:
         1. Let |transferredBuffer| be the result of [=ArrayBuffer/transfer|transferring=] |view|'s [=BufferSource/underlying buffer=].
+        1. [=Assert=]: The above step never throws an exception.
         1. Let |constructor| be the appropriate [=view constructor=] for the type of {{ArrayBufferView}} |view| from |realm|.
         1. Let |elementsNumber| be the result of |view|'s [=BufferSource/byte length=] / |view|'s [=element size=].
         1. Let |transferredView| be [$Construct$](|constructor|, |transferredBuffer|, |view|.\[[ByteOffset]], |elementsNumber|).
