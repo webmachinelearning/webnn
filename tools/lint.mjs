@@ -258,18 +258,15 @@ for (const pre of root.querySelectorAll('pre.highlight:not(.idl)')) {
 }
 
 // Ensure algorithm steps end in '.' or ':'.
-for (const match of source.matchAll(/^ *\d+\. .*$/mg)) {
-  let str = match[0].trim();
+for (const p of root.querySelectorAll('.algorithm li > p')) {
+  let str = p.innerText;
 
-  // Strip asterisks from things like "1. *Make graph connections.*"
-  const match2 = str.match(/^(\d+\. )\*(.*)\*$/);
-  if (match2) {
-    str = match2[1] + match2[2];
-  }
+  // Strip "[Issue #123]" suffix.
+  str = str.replace(/\s+\[Issue #\d+\]/, '');
 
-  const match3 = str.match(/[^.:]$/);
-  if (match3) {
-    error(`Algorithm steps should end with '.' or ':': ${format(match3)}`);
+  const match = str.match(/[^.:]$/);
+  if (match) {
+    error(`Algorithm steps should end with '.' or ':': ${format(match)}`);
   }
 }
 
