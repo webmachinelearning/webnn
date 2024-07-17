@@ -574,6 +574,8 @@ Once the graph is fully constructed and compiled, the input shapes into each of 
 
 Issue: Document operations susceptible to out-of-bounds access as a guidance to implementers.
 
+Implementations must defend against control-flow attacks based on changes to data considered to be constant. For example, optimizations in the underlying platform may assume that a weight remains unchanged throughout a computation. If the API allowed the contents of buffers holding weights to change during a computation then those optimization assumptions would be invalidated, causing undefined behavior in the underlying platform. The API mitigates this category of attacks from script by always copying or transferring buffers, but implementations should consider additional defenses such as process isolation of data assumed to be constant.
+
 As a future-proofing measure, the API design allows certain operations that can be generically emulated to be deprecated for security, performance, or other reasons without breaking compatibility. This is made possible by high-level functions that are defined in terms of smaller primitive operations defined in this specifications. This enables a native implementation of a high-level function to be replaced with a polyfill implementation.
 
 Issue: Investigate side channel attack feasibility considering the current state where CPU is shared between processes running renderers.
@@ -6618,7 +6620,7 @@ partial interface MLGraphBuilder {
     The <dfn method for=MLGraphBuilder>where(|condition|, |trueValue|, |falseValue|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |condition|, |input|, and |other| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |condition|, |trueValue|, and |falseValue| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |condition|, |trueValue|, or |falseValue| is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |trueValue|'s [=MLOperand/dataType=].
