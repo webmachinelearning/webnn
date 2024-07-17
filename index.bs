@@ -200,9 +200,48 @@ th {
 
 th, td {
   border-bottom: 1px solid black;
-  border-collapse: collapse;
+  border-collapse: collapse; /* BUG: This property only applies to TABLE. */
   padding-left: 5px;
   padding-right: 5px;
+}
+
+/*
+ * Grid table format.
+ */
+table.grid {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+
+table.grid td, table.grid th {
+  border: 1px solid black;
+}
+
+table.grid th {
+  text-align: center;
+}
+
+/* For a table header cell that is split diagonally */
+th.split {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' preserveAspectRatio='none' viewBox='0 0 1 1'><line x1='0' y1='0' x2='1' y2='1' stroke='black' vector-effect='non-scaling-stroke'/></svg>");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  position: relative;
+}
+
+th.split .bottom-left {
+    display: block;
+    position: absolute;
+    bottom: 1px;
+    left: 5px;
+}
+
+th.split .top-right {
+    display: block;
+    position: absolute;
+    top: 1px;
+    right: 5px;
 }
 
 /*
@@ -1658,6 +1697,71 @@ partial interface MLGraphBuilder {
 
     **Returns:** an {{MLOperand}}. The N-D tensor of the same shape as *input* with each element casted to the target data type.
 </div>
+
+
+Casting between {{MLOperandDataType}}s is specified for some cases and [=implementation-defined=] in other cases, according to the following table:
+
+<table class=grid>
+  <caption>
+    Behavior of the {{MLGraphBuilder/cast()}} operation given the {{MLGraphBuilder/cast(input, type)/input}}'s [=MLOperand/dataType=] (rows) and target {{MLGraphBuilder/cast(input, type)/type}} (columns).
+  </caption>
+  <tr>
+    <th class=split>
+      <span class=top-right>Target type</span>
+      <span class=bottom-left>Input type</span>
+    </th>
+    <th>
+      {{MLOperandDataType/"float32"}},
+      {{MLOperandDataType/"float16"}}
+    </th>
+    <th>
+      {{MLOperandDataType/"int32"}},
+      {{MLOperandDataType/"uint32"}},
+      {{MLOperandDataType/"int64"}},
+      {{MLOperandDataType/"uint64"}},
+      {{MLOperandDataType/"int8"}},
+      {{MLOperandDataType/"uint8"}}
+    </th>
+  </tr>
+  <tr>
+    <th>
+      {{MLOperandDataType/"float32"}},
+      {{MLOperandDataType/"float16"}}
+    </th>
+    <td>
+      If in range, nearest representable value.
+
+      If out of range, +/-Infinity.
+    </td>
+    <td>
+      If in range, truncated.
+
+      If out of range, [=implementation-defined=].
+    </td>
+  </tr>
+  <tr>
+    <th>
+      {{MLOperandDataType/"int32"}},
+      {{MLOperandDataType/"uint32"}},
+      {{MLOperandDataType/"int64"}},
+      {{MLOperandDataType/"uint64"}},
+      {{MLOperandDataType/"int8"}},
+      {{MLOperandDataType/"uint8"}}
+    </th>
+    <td>
+      If in range, nearest representable value.
+
+      If out of range, +/-Infinity.
+    </td>
+    <td>
+      If in range, same value.
+
+      If out of range, lowest N bits reinterpreted as target type, assuming two's complement for signed types.
+    </td>
+  </tr>
+</table>
+
+NOTE: For example, casting -1 from {{MLOperandDataType/"int8"}} to {{MLOperandDataType/"uint8"}} is specified to yield 255. But casting -1 from {{MLOperandDataType/"float32"}} to {{MLOperandDataType/"uint8"}} is [=implementation-defined=].
 
 <details open algorithm>
   <summary>
