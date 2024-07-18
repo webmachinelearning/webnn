@@ -1517,6 +1517,7 @@ Return the index location of the minimum or maxmium values of all the input valu
 <script type=idl>
 dictionary MLArgMinMaxOptions {
   boolean keepDimensions = false;
+  MLOperandDataType outputDataType = "int32";
 };
 
 partial interface MLGraphBuilder {
@@ -1532,6 +1533,10 @@ partial interface MLGraphBuilder {
     : <dfn>keepDimensions</dfn>
     ::
         If true, retains reduced dimensions with [=list/size=] 1.
+    
+    : <dfn>outputDataType</dfn>
+    ::
+        An {{MLOperandDataType}}. The output data type.
 </dl>
 
 <div dfn-for="MLGraphBuilder/argMin(input, axis, options), MLGraphBuilder/argMax(input, axis, options)" dfn-type=argument>
@@ -1552,7 +1557,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], « |axis| », and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"int64"}}.
+    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |options|.{{MLArgMinMaxOptions/outputDataType}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the |op| operation, given |options|.
