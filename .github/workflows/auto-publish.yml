@@ -23,3 +23,21 @@ jobs:
           W3C_BUILD_OVERRIDE: |
             TR: https://www.w3.org/TR/webnn/
             status: CRD
+      - name: WebNN - Lint Bikeshed Source and Generated HTML
+        id: webnn-lint
+        shell: bash
+        env:
+          BIKESHED_SOURCE: "index.bs"
+          GENERATED_HTML: "index.bs.built.html"
+        run: |
+          echo "::group::Install Lint Tool Dependencies"
+          cd tools
+          npm install
+          cd ..
+          echo "::endgroup::"
+          echo "::group::Generate Static HTML"
+          bikeshed --die-on=warning spec $BIKESHED_SOURCE $GENERATED_HTML
+          echo "::endgroup::"
+          echo "::group::Run Lint Tool"
+          node tools/lint.mjs --verbose --bikeshed $BIKESHED_SOURCE --html $GENERATED_HTML
+          echo "::endgroup::"
