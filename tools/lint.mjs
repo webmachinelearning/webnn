@@ -9,7 +9,11 @@
 // Note that the '.mjs' extension is necessary for Node.js to treat the file as
 // a module. There is an `--experimental-default-type=module` flag but
 // specifying that in the #! line requires trickery that confuses some editors.
-
+//
+// Options:
+//   --verbose                    Log progress.
+//   --bikeshed PATH_TO_BS_FILE   Bikeshed source path. (default: "index.bs")
+//   --html PATH_TO_HTML_FILE     Generated HTML path. (default: "index.html")
 
 'use strict';
 import fs from 'node:fs/promises';
@@ -21,14 +25,20 @@ import {parse} from 'node-html-parser';
 
 const options = {
   verbose: false,
+  bikeshed: 'index.bs',
+  html: 'index.html',
 };
 
 // First two args are interpreter and script
-globalThis.process.argv.slice(2).forEach(arg => {
+globalThis.process.argv.slice(2).forEach((arg, index, array) => {
   if (arg === '--verbose' || arg === '-v') {
     options.verbose = true;
+  } else if (arg === '--bikeshed' && array.length > index + 1) {
+    options.bikeshed = array.splice(index + 1, 1)[0];
+  } else if (arg === '--html' && array.length > index + 1) {
+    options.html = array.splice(index + 1, 1)[0];
   } else {
-    console.error(`Unknown argment: ${arg}`);
+    console.error(`Unknown or incomplete argument: ${arg}`);
     globalThis.process.exit(1);
   }
 });
@@ -43,9 +53,11 @@ function log(string) {
 // Load and parse file
 // --------------------------------------------------
 
-log('loading files...');
-const source = await fs.readFile('index.bs', 'utf8');
-let file = await fs.readFile('index.html', 'utf8');
+log(`loading Bikeshed source "${options.bikeshed}"...`);
+const source = await fs.readFile(options.bikeshed, 'utf8');
+
+log(`loading generated HTML "${options.html}"...`);
+let file = await fs.readFile(options.html, 'utf8');
 
 log('massaging HTML...');
 // node-html-parser doesn't understand that DT and DD are mutually self-closing;
