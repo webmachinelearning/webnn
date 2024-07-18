@@ -1512,47 +1512,45 @@ Build a composed graph up to a given output operand into a computational graph a
 NOTE: Specifying an [=computational graph/input=] operand or [=computational graph/constant=] operand as a graph {{MLGraphBuilder/build(outputs)/outputs|output}} results in an error, as this is usually an incorrect usage of the API. Callers can work around this by introducing an {{MLGraphBuilder/identity()}} operator.
 
 ### argMin/argMax operations ### {#api-mlgraphbuilder-argminmax}
-Return the index location of the minimum or maxmium values of all the input values along the axes. In case of ties, the identity of the return value is implementation dependent.
+Return the index location of the minimum or maxmium values of all the input values along the axis. In case of ties, the identity of the return value is implementation dependent.
 
 <script type=idl>
 dictionary MLArgMinMaxOptions {
-  sequence<[EnforceRange] unsigned long> axes;
   boolean keepDimensions = false;
 };
 
 partial interface MLGraphBuilder {
-  MLOperand argMin(MLOperand input, optional MLArgMinMaxOptions options = {});
-  MLOperand argMax(MLOperand input, optional MLArgMinMaxOptions options = {});
+  MLOperand argMin(MLOperand input, [EnforceRange] unsigned long axis,
+                   optional MLArgMinMaxOptions options = {});
+  MLOperand argMax(MLOperand input, [EnforceRange] unsigned long axis,
+                   optional MLArgMinMaxOptions options = {});
 };
 </script>
 
 {{MLArgMinMaxOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLArgMinMaxOptions>
-    : <dfn>axes</dfn>
-    ::
-        The dimensions to reduce. The values must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor. If not present, all dimensions are reduced. If empty, no dimensions are reduced, and the shape of the output tensor is the same as the shape of the input tensor.
-
     : <dfn>keepDimensions</dfn>
     ::
         If true, retains reduced dimensions with [=list/size=] 1.
 </dl>
 
-<div dfn-for="MLGraphBuilder/argMin(input, options), MLGraphBuilder/argMax(input, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/argMin(input, axis, options), MLGraphBuilder/argMax(input, axis, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>axis</dfn>: The dimension to reduce. The value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor.
         - <dfn>options</dfn>: an optional {{MLArgMinMaxOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type {{MLOperandDataType/"int64"}} in the range [0, N-1] where N is the corresponding size of each of the input dimensions specified by options.axes.
+    **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type {{MLOperandDataType/"int64"}} in the range [0, N-1] where N is the size of the input dimension specified by axis.
 </div>
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder" data-lt="argminmax-op">create argMin/argMax operation</dfn> given [=string=] |op|, {{MLOperand}} |input| and {{MLArgMinMaxOptions}} |options|, run the following steps:
+    To <dfn for="MLGraphBuilder" data-lt="argminmax-op">create argMin/argMax operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{unsigned long}} |axis|, and {{MLArgMinMaxOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "argMin", "argMax".
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLArgMinMaxOptions/axes}} (if it [=map/exists=]), and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], « |axis| », and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"int64"}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
@@ -1570,15 +1568,15 @@ partial interface MLGraphBuilder {
     The following argMin/argMax algorithms are supported.
   </summary>
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>argMin(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMin", |input| and |options|.
+    The <dfn method for=MLGraphBuilder>argMin(|input|, |axis|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMin", |input|, |axis| and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>argMax(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMax", |input| and |options|.
+    The <dfn method for=MLGraphBuilder>argMax(|input|, |axis|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMax", |input|, |axis| and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
