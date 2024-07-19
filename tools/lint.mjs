@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
-// Requires Node.js and:
-// * npm install node-html-parser
+// Requires Node.js; to install dependencies, run these steps:
+//   cd tools
+//   npm install
+//   cd ..
 //
-// Run script from top level of spec repo after building spec.
-// Example: bikeshed spec && node tools/lint.mjs
+// Run this script from top level of spec repo after building the spec:
+//   bikeshed --die-on=warning spec
+//   node tools/lint.mjs
 //
 // Note that the '.mjs' extension is necessary for Node.js to treat the file as
 // a module. There is an `--experimental-default-type=module` flag but
@@ -116,6 +119,8 @@ const AsyncFunction = async function() {}.constructor;
 
 log('running checks...');
 
+const ALGORITHM_STEP_SELECTOR = '.algorithm li > p:not(.issue)';
+
 // Checks can operate on:
 // * `source` - raw Bikeshed markdown source
 // * `html` - HTML source, with style/script removed
@@ -123,7 +128,7 @@ log('running checks...');
 // * `root.querySelectorAll()` - operate on DOM-like nodes
 
 // Look for merge markers
-for (const match of text.matchAll(/[<=>]{7}/g)) {
+for (const match of source.matchAll(/<{7}|>{7}|^={7}$/mg)) {
   error(`Merge conflict marker: ${format(match)}`);
 }
 
@@ -181,8 +186,8 @@ for (const element of root.querySelectorAll('.idl dfn[data-dfn-type=dict-member]
   error(`Dictionary member missing dfn: ${element.innerText}`);
 }
 
-// Look for [] used in algorithm for anything but issues, indexing, slots, and refs
-for (const element of root.querySelectorAll('.algorithm li p:not(.issue)')) {
+// Look for [] used in algorithm steps for anything but indexing, slots, and refs
+for (const element of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   // Exclude \w[ for indexing (e.g. shape[n])
   // Exclude [[ for inner slots (e.g. [[name]])
   // Exclude [A for references (e.g. [WEBIDL])
@@ -270,13 +275,8 @@ for (const pre of root.querySelectorAll('pre.highlight:not(.idl)')) {
 }
 
 // Ensure algorithm steps end in '.' or ':'.
-for (const p of root.querySelectorAll('.algorithm li > p')) {
-  let str = p.innerText;
-
-  // Strip "[Issue #123]" suffix.
-  str = str.replace(/\s+\[Issue #\d+\]/, '');
-
-  const match = str.match(/[^.:]$/);
+for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
+  const match = p.innerText.match(/[^.:]$/);
   if (match) {
     error(`Algorithm steps should end with '.' or ':': ${format(match)}`);
   }
