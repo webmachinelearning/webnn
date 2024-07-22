@@ -687,9 +687,9 @@ The {{MLGraph}} interface represents a compiled computational graph that is immu
 
 The {{MLGraphBuilder}} interface serves as a builder (factory) to construct a [=computational graph=] (its <dfn for=MLGraphBuilder>graph</dfn>) that is then compiled to create an {{MLGraph}}.
 
-In WebNN, a [=computational graph=] is composed of <dfn>operators</dfn> which act on data, and are the nodes of the graph. {{MLOperand}}s are a representation of data that flows within the computational graph, and are the edges of the graph. {{MLOperand}}s include a [=computational graph=]'s <dfn for="computational graph">input</dfn> values for inference, <dfn for="computational graph">constants</dfn> (including trained weights) used for inference, intermediate values (often referred to as activations) computed during inference, as well as the output values of inference. An [=operator=]'s <dfn for=operator>input</dfn> is one or more {{MLOperand}}s. An [=operator=]'s <dfn for=operator>output</dfn> is one or more {{MLOperand}}s. [=Operators=] have operator-specific parameters that control their behavior, which can include zero or more <dfn for=operator lt="activation|activation function">activation functions</dfn>, which are {{MLActivation}}s.
+In WebNN, a [=computational graph=] is composed of <dfn>operators</dfn> which act on data, and are the nodes of the graph. {{MLOperand}}s are a representation of data that flows within the computational graph, and are the edges of the graph. {{MLOperand}}s include a [=computational graph=]'s <dfn for="computational graph">input</dfn> values for inference, <dfn for="computational graph">constants</dfn> (including trained weights) used for inference, intermediate values (often referred to as activations) computed during inference, as well as the output values of inference. An [=operator=]'s <dfn for=operator>input</dfn> is one or more {{MLOperand}}s. An [=operator=]'s <dfn for=operator>output</dfn> is one or more {{MLOperand}}s. [=Operators=] have operator-specific parameters that control their behavior, which can include zero or more <dfn for=operator lt="activation|activation function">activation functions</dfn>.
 
-A key part of the {{MLGraphBuilder}} interface are methods such as {{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/relu()}} which create an [=operator=] which represents the actual operation to perform on the input data when the computation is run, and return a new {{MLOperand}} or {{MLActivation}} holding the operator. Methods that create an {{MLOperand}} connect any [=operator/inputs=] and [=operator/activations=] to the operator. Each method invocation returns a distinct new value, without changing the value of any other {{MLOperand}}.
+A key part of the {{MLGraphBuilder}} interface are methods such as {{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/relu()}} which create an [=operator=] which represents the actual operation to perform on the input data when the computation is run, and return a new {{MLOperand}} holding the operator. Methods that create an {{MLOperand}} connect any [=operator/inputs=] and [=operator/activations=] to the operator. Each method invocation returns a distinct new value, without changing the value of any other {{MLOperand}}.
 
 At inference time, every {{MLOperand}} will be bound to a tensor (the actual data), which are essentially multidimensional arrays. The representation of the tensors is implementation dependent, but it typically includes the array data stored in some buffer (memory) and some metadata describing the array data (such as its shape).
 
@@ -1249,58 +1249,6 @@ Returns the shape of the {{MLOperand}}.
   </summary>
     1. Return [=this=]'s [=MLOperand/shape=].
 </details>
-
-## {{MLActivation}} interface ## {#api-mlactivation}
-
-Objects implementing the {{MLActivation}} interface represent activation function types.
-
-<script type=idl>
-[SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLActivation {};
-</script>
-
-<div class="internal-slots">
-{{MLActivation}} has the following internal slots:
-  <dl dfn-type=attribute dfn-for="MLActivation">
-    : <dfn>\[[name]]</dfn> of type [=string=]
-    ::
-        The {{MLActivation}}'s name.
-    : <dfn>\[[builder]]</dfn> of type {{MLGraphBuilder}}
-    ::
-        A dictionary containing {{MLActivation}} options.
-    : <dfn>\[[operator]]</dfn> of type [=operator=]
-    ::
-        Reference to {{MLActivation}}'s corresponding [=operator=].
-  </dl>
-</div>
-
-<div class="note">
-These activations functions are used to configure the behavior of recurrent operators such as {{MLGraphBuilder/gru()}} or {{MLGraphBuilder/lstm()}}.
-</div>
-
-Each {{MLActivation}} has associated <dfn for=MLActivation>validation steps</dfn>, which is an algorithm accepting an {{MLOperandDescriptor}} and returning a boolean. The <dfn for=MLActivation>default activation validation steps</dfn> are to return true.
-
-### Creating {{MLActivation}} ### {#api-mlactivation-create}
-<div class="note">
-The {{MLActivation}} objects (including the ones passed as input to methods) are created by the methods of {{MLGraphBuilder}} and are identified by their name. The |options| dictionary is defined by those methods. The actual creation of the activation function e.g. a {{MLGraphBuilder/sigmoid()}} or {{MLGraphBuilder/relu()}} can then be deferred until when the rest of the graph is ready to connect with it such as during the construction of {{MLGraphBuilder/lstm()}} for example.
-</div>
-
-<details open algorithm>
-  <summary>
-    To <dfn>create an MLActivation</dfn> given {{MLGraphBuilder}} |builder|, [=string=] |name|, optional [=ordered map=] |options|, and optional algorithm |validation steps|, run the following steps:
-  </summary>
-    1. Let |activation| be a new {{MLActivation}}.
-    1. Set |activation|.{{MLActivation/[[builder]]}} to |builder|.
-    1. Set |activation|.{{MLActivation/[[name]]}} to |name|.
-    1. Let |operator| be an [=operator=] for the |name| operation, given |options|.
-    1. Set |activation|.{{MLActivation/[[operator]]}} to |operator|.
-    1. Set |activation|'s [=MLActivation/validation steps=] to |validation steps| if given, or the [=MLActivation/default activation validation steps=] otherwise.
-    1. Return |activation|.
-</details>
-
-<p algorithm>
-To <dfn for="MLGraphBuilder">validate activation</dfn> given {{MLGraphBuilder}} |builder| and {{MLActivation}} |activation|, return true if |activation|.{{MLOperand/[[builder]]}} is |builder|, and false otherwise.
-</p>
 
 ## {{MLGraphBuilder}} interface ## {#api-mlgraphbuilder}
 
@@ -2792,7 +2740,6 @@ dictionary MLEluOptions {
 
 partial interface MLGraphBuilder {
   MLOperand elu(MLOperand input, optional MLEluOptions options = {});
-  MLActivation elu(optional MLEluOptions options = {});
 };
 </script>
 
@@ -2802,8 +2749,6 @@ partial interface MLGraphBuilder {
     :: A scalar multiplier.
 </dl>
 
-
-#### {{MLGraphBuilder/elu(input, options)}} #### {#api-mlgraphbuilder-elu-input-options}
 <div dfn-for="MLGraphBuilder/elu(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
@@ -2864,27 +2809,6 @@ partial interface MLGraphBuilder {
     </pre>
   </details>
 </div>
-
-#### {{MLGraphBuilder/elu(options)}} #### {#api-mlgraphbuilder-elu-options}
-<div dfn-for="MLGraphBuilder/elu(options)" dfn-type=argument>
-    **Arguments:**
-        - <dfn>options</dfn>: an optional {{MLEluOptions}}. The optional parameters of the operation.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the elu operation.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>elu(|options|)</dfn> method steps are:
-  </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
-        1. Set |options|.{{MLEluOptions/alpha}} to the result of [=casting=] |options|.{{MLEluOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
-        1. Return true.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "elu", |options|, and |validationSteps|.
-    1. Return |op|.
-</details>
 
 ### expand ### {#api-mlgraphbuilder-expand}
 Expand any dimension of size 1 of the input tensor to a larger size according to the new shape. The expansion is consistent with [[!numpy-broadcasting-rule]]. The input dimensions must have the size of 1 or match the sizes of the corresponding output dimensions according to the new shape.
@@ -3078,11 +3002,9 @@ Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#G
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand gelu(MLOperand input);
-  MLActivation gelu();
 };
 </script>
 
-#### {{MLGraphBuilder/gelu(input)}} #### {#api-mlgraphbuilder-gelu-input}
 <div dfn-for="MLGraphBuilder/gelu(input)" dfn-type="argument">
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
@@ -3140,24 +3062,6 @@ partial interface MLGraphBuilder {
     </pre>
   </details>
 </div>
-
-#### {{MLGraphBuilder/gelu()}} #### {#api-mlgraphbuilder-gelu}
-<div>
-    **Arguments:**
-        - None.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the gelu operation.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder id=gelu-noargs>gelu()</dfn> method steps are:
-  </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=] and "gelu".
-    1. Return |op|.
-</details>
 
 ### gemm ### {#api-mlgraphbuilder-gemm}
 Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape *[M, K]* or *[K, M]*, `B` is a 2-D tensor with shape *[K, N]* or *[N, K]*, and `C` is [=unidirectionally broadcastable=] to the shape *[M, N]*. `A` and `B` may optionally be transposed prior to the calculation.
@@ -3299,6 +3203,12 @@ enum MLGruWeightLayout {
   "rzn"   // reset-update-new gate ordering
 };
 
+enum MLRecurrentNetworkActivation {
+  "relu",
+  "sigmoid",
+  "tanh"
+};
+
 enum MLRecurrentNetworkDirection {
   "forward",
   "backward",
@@ -3313,7 +3223,7 @@ dictionary MLGruOptions {
   boolean returnSequence = false;
   MLRecurrentNetworkDirection direction = "forward";
   MLGruWeightLayout layout = "zrn";
-  sequence<MLActivation> activations;
+  sequence<MLRecurrentNetworkActivation> activations;
 };
 
 partial interface MLGraphBuilder {
@@ -3359,7 +3269,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>activations</dfn>
     ::
-        Specifies a pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, implementations SHOULD use the pair of sigmoid ("sigmoid") and the hyperbolic tangent ("tanh") functions, respectively.
+        Specifies a pair of [=operator/activation functions=] with the first function used for the update and reset gate, and the second used for the new gate. When not specified, defaults to the {{MLRecurrentNetworkActivation/"sigmoid"}} and {{MLRecurrentNetworkActivation/"tanh"}} functions, respectively.
 </dl>
 
 <div dfn-for="MLGraphBuilder/gru(input, weight, recurrentWeight, steps, hiddenSize, options)" dfn-type=argument>
@@ -3421,7 +3331,6 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLGruOptions/bias}} (if it [=map/exists=]), |options|.{{MLGruOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLGruOptions/initialHiddenState}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |input|, |weight| or |recurrentWeight| is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/rank=] of any of |input|, |weight| or |recurrentWeight| is not its [=allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/shape=][0] is not equal to |steps|, then [=exception/throw=] a {{TypeError}}.
@@ -3444,12 +3353,11 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=]:
-        1. Let |gateDescriptor| be a new {{MLOperandDescriptor}}.
-        1. Set |gateDescriptor|.{{MLOperandDescriptor/dimensions}} to « |batchSize|, |hiddenSize| ».
-        1. Set |gateDescriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-        1. If running the [=MLActivation/validation steps=] of any [=list/item=] in |options|.{{MLGruOptions/activations}} with |gateDescriptor| returns false, then [=exception/throw=] a {{TypeError}}.
+        1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+        1. Let |activations| be a [=list/clone=] of |options|.{{MLGruOptions/activations}}.
+    1. Otherwise:
+        1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
         1. Let |desc0| be a new {{MLOperandDescriptor}}.
         1. Set |desc0|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |numDirections|, |batchSize|, |hiddenSize| ».
@@ -3472,7 +3380,7 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLGruOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
-        1. If |options|.{{MLGruOptions/activations}} [=map/exists=], then add its [=list/items=] to |operator|'s [=operator/activation functions=].
+        1. Set |operator|'s [=operator/activation functions=] to a [=list/clone=] of |activations|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -3591,7 +3499,7 @@ dictionary MLGruCellOptions {
   MLOperand recurrentBias;
   boolean resetAfter = true;
   MLGruWeightLayout layout = "zrn";
-  sequence<MLActivation> activations;
+  sequence<MLRecurrentNetworkActivation> activations;
 };
 
 partial interface MLGraphBuilder {
@@ -3624,7 +3532,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>activations</dfn>
     ::
-        Specifies a pair of activation functions with the first function used for the update and reset gate, and the second used for the new gate. When not specified, implementations SHOULD use the pair of sigmoid ("sigmoid") and the hyperbolic tangent ("tanh") functions, respectively.
+        Specifies a pair of [=operator/activation functions=] with the first function used for the update and reset gate, and the second used for the new gate. When not specified, defaults to the {{MLRecurrentNetworkActivation/"sigmoid"}} and {{MLRecurrentNetworkActivation/"tanh"}} functions, respectively.
 </dl>
 
 <div dfn-for="MLGraphBuilder/gruCell(input, weight, recurrentWeight, hiddenState, hiddenSize, options)" dfn-type=argument>
@@ -3681,7 +3589,6 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |options|.{{MLGruCellOptions/bias}} (if it [=map/exists=]), and |options|.{{MLGruCellOptions/recurrentBias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |input|, |weight|, |recurrentWeight|, or |hiddenState| is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/rank=] of any of |input|, |weight|, |recurrentWeight| or |hiddenState| is not its [=allowed ranks=], then [=exception/throw=] a {{TypeError}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][0].
@@ -3694,17 +3601,20 @@ partial interface MLGraphBuilder {
           <summary>Why |hiddenSize| * 6 ?</summary>
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruCellOptions/bias}} and {{MLGruCellOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| must also be a [=valid dimension=].
         </details>
-    1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLGruCellOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=]:
+    1. If |options|.{{MLGruCellOptions/recurrentBias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruOptions/activations}} [=map/exists=] and its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=]:
+        1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+        1. Let |activations| be a [=list/clone=] of |options|.{{MLGruCellOptions/activations}}.
+    1. Otherwise:
+        1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |batchSize|, |hiddenSize| ».
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=], and running the [=MLActivation/validation steps=] of any [=list/item=] in it with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "gruCell" operation, given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
@@ -3712,7 +3622,7 @@ partial interface MLGraphBuilder {
         1. Set |operator|'s [=operator/inputs=] to |input|, |weight|, |recurrentWeight|, and |hiddenState|.
         1. If |options|.{{MLGruCellOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLGruCellOptions/recurrentBias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
-        1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=], then add its [=list/items=] to |operator|'s [=operator/activation functions=].
+        1. Set |operator|'s [=operator/activation functions=] to a [=list/clone=] of |activations|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -3720,7 +3630,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation when the weight layout is the default {{MLGruWeightLayout/"zrn"}} layout, and the activation functions of the update/reset gate and new gate are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively can be [EMULATED]
+    The behavior of this operation when the weight layout is the default {{MLGruWeightLayout/"zrn"}} layout, and the [=operator/activation functions=] of the update/reset gate and new gate are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively can be [EMULATED]
   </summary>
   <pre highlight="js">
     function gruCell(
@@ -3831,7 +3741,6 @@ dictionary MLHardSigmoidOptions {
 
 partial interface MLGraphBuilder {
   MLOperand hardSigmoid(MLOperand input, optional MLHardSigmoidOptions options = {});
-  MLActivation hardSigmoid(optional MLHardSigmoidOptions options = {});
 };
 </script>
 
@@ -3845,7 +3754,6 @@ partial interface MLGraphBuilder {
          A scalar addition.
 </dl>
 
-#### {{MLGraphBuilder/hardSigmoid(input, options)}} #### {#api-mlgraphbuilder-hardsigmoid-input-options}
 <div dfn-for="MLGraphBuilder/hardSigmoid(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
@@ -3908,38 +3816,14 @@ partial interface MLGraphBuilder {
   </details>
 </div>
 
-#### {{MLGraphBuilder/hardSigmoid(options)}} #### {#api-mlgraphbuilder-hardsigmoid-options}
-<div dfn-for="MLGraphBuilder/hardSigmoid(options)" dfn-type=argument>
-    **Arguments:**
-        - <dfn>options</dfn>: an optional {{MLHardSigmoidOptions}}. The optional parameters of the operation.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the hard sigmoid operation.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>hardSigmoid(|options|)</dfn> method steps are:
-  </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
-        1. Set |options|.{{MLHardSigmoidOptions/alpha}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
-        1. Set |options|.{{MLHardSigmoidOptions/beta}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/beta}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
-        1. Return true.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "hardSigmoid", |options|, and |validationSteps|.
-    1. Return |op|.
-</details>
-
 ### hardSwish ### {#api-mlgraphbuilder-hard-swish}
 Computes the nonlinear function `y = x * max(0, min(6, (x + 3))) / 6` that is introduced by [[MobileNetV3]] on the input tensor element-wise.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand hardSwish(MLOperand input);
-  MLActivation hardSwish();
 };
 </script>
 
-#### {{MLGraphBuilder/hardSwish(input)}} #### {#api-mlgraphbuilder-hardswish-input}
 <div dfn-for="MLGraphBuilder/hardSwish(input)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
@@ -4000,25 +3884,6 @@ partial interface MLGraphBuilder {
   </pre>
 </details>
 </div>
-
-#### {{MLGraphBuilder/hardSwish()}} #### {#api-mlgraphbuilder-hardswish}
-<div dfn-for="MLGraphBuilder/hardSwish()" dfn-type=argument>
-    **Arguments:**
-        - None.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the hard-swish operation.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder id=hardswish-noargs>hardSwish()</dfn> method steps are:
-  </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=] and "hardSwish".
-    1. Return |op|.
-</details>
-
 
 ### instanceNormalization ### {#api-mlgraphbuilder-instancenorm}
 Normalize the input using [[Instance-Normalization]]. Unlike {{MLGraphBuilder/batchNormalization()}} where the mean and variance values used in the normalization are computed across all the samples in the batch dimension while the model is trained, the mean and variance values used in the instance normalization are computed on the fly for each input feature of each individual sample in the batch.
@@ -4294,7 +4159,6 @@ dictionary MLLeakyReluOptions {
 
 partial interface MLGraphBuilder {
   MLOperand leakyRelu(MLOperand input, optional MLLeakyReluOptions options = {});
-  MLActivation leakyRelu(optional MLLeakyReluOptions options = {});
 };
 </script>
 
@@ -4305,7 +4169,6 @@ partial interface MLGraphBuilder {
          A scalar multiplier.
 </dl>
 
-#### {{MLGraphBuilder/leakyRelu(input, options)}} #### {#api-mlgraphbuilder-leaky-relu-input-options}
 <div dfn-for="MLGraphBuilder/leakyRelu(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
@@ -4365,27 +4228,6 @@ partial interface MLGraphBuilder {
   </details>
 </div>
 
-#### {{MLGraphBuilder/leakyRelu(options)}} #### {#api-mlgraphbuilder-leaky-relu-options}
-<div dfn-for="MLGraphBuilder/leakyRelu(options)" dfn-type=argument>
-    **Arguments:**
-        - <dfn>options</dfn>: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the leaky relu operation.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>leakyRelu(|options|)</dfn> method steps are:
-  </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
-        1. Set |options|.{{MLLeakyReluOptions/alpha}} to the result of [=casting=] |options|.{{MLLeakyReluOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
-        1. Return true.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "leakyRelu", |options|, and |validationSteps|.
-    1. Return |op|.
-</details>
-
 ### linear ### {#api-mlgraphbuilder-linear}
 Calculate a linear function `y = alpha * x + beta` on the input tensor.
 
@@ -4397,7 +4239,6 @@ dictionary MLLinearOptions {
 
 partial interface MLGraphBuilder {
   MLOperand linear(MLOperand input, optional MLLinearOptions options = {});
-  MLActivation linear(optional MLLinearOptions options = {});
 };
 </script>
 
@@ -4411,7 +4252,6 @@ partial interface MLGraphBuilder {
          A scalar addition.
 </dl>
 
-#### {{MLGraphBuilder/linear(input, options)}} #### {#api-mlgraphbuilder-linear-input-options}
 <div dfn-for="MLGraphBuilder/linear(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
@@ -4469,28 +4309,6 @@ partial interface MLGraphBuilder {
   </details>
 </div>
 
-#### {{MLGraphBuilder/linear(options)}} #### {#api-mlgraphbuilder-linear-options}
-<div dfn-for="MLGraphBuilder/linear(options)" dfn-type=argument>
-    **Arguments:**
-        - <dfn>options</dfn>: an optional {{MLLinearOptions}}. The optional parameters of the operation.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the linear operation.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder>linear(|options|)</dfn> method steps are:
-  </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Let |validationSteps| given {{MLOperandDescriptor}} |descriptor| be these steps:
-        1. Set |options|.{{MLLinearOptions/alpha}} to the result of [=casting=] |options|.{{MLLinearOptions/alpha}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
-        1. Set |options|.{{MLLinearOptions/beta}} to the result of [=casting=] |options|.{{MLLinearOptions/beta}} to |descriptor|.{{MLOperandDescriptor/dataType}}.
-        1. Return true.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=], "linear", |options|, and |validationSteps|.
-    1. Return |op|.
-</details>
-
 ### lstm ### {#api-mlgraphbuilder-lstm}
 Long Short-Term Memory [[LSTM]] recurrent network uses an input, output, forget, and cell gate to compute the output state that rolls into the output across the temporal sequence of the network.
 
@@ -4509,7 +4327,7 @@ dictionary MLLstmOptions {
   boolean returnSequence = false;
   MLRecurrentNetworkDirection direction = "forward";
   MLLstmWeightLayout layout = "iofg";
-  sequence<MLActivation> activations;
+  sequence<MLRecurrentNetworkActivation> activations;
 };
 
 partial interface MLGraphBuilder {
@@ -4558,7 +4376,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>activations</dfn>
     ::
-        A list of three activation functions, the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, implementations SHOULD use the sequence of the sigmoid function ("sigmoid") followed by two hyperbolic tangent functions ("tanh") respectively.
+        A list of three [=operator/activation functions=], the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, defaults to a sequence of the {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, and {{MLRecurrentNetworkActivation/"tanh"}} functions, respectively.
 </dl>
 
 <div dfn-for="MLGraphBuilder/lstm(input, weight, recurrentWeight, steps, hiddenSize, options)" dfn-type=argument>
@@ -4630,7 +4448,6 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLLstmOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/recurrentBias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/peepholeWeight}} (if it [=map/exists=]), |options|.{{MLLstmOptions/initialHiddenState}} (if it [=map/exists=]), and |options|.{{MLLstmOptions/initialCellState}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |numDirections| be 2 if |options|.{{MLLstmOptions/direction}} is {{MLRecurrentNetworkDirection/"both"}}, or 1 otherwise.
     1. If the [=MLOperand/dataType=] of any of |input|, |weight| or |recurrentWeight| is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/rank=] of any of |input|, |weight| or |recurrentWeight| is not its [=allowed rank=], then [=exception/throw=] a {{TypeError}}.
@@ -4661,10 +4478,9 @@ partial interface MLGraphBuilder {
         1. If its [=MLOperand/shape=] is not equal to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
-        1. Let |gateDescriptor| be a new {{MLOperandDescriptor}}.
-        1. Set |gateDescriptor|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |batchSize|, |hiddenSize| ».
-        1. Set |gateDescriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-        1. If running the [=MLActivation/validation steps=] of any [=list/item=] in |options|.{{MLLstmOptions/activations}} with |gateDescriptor| returns false, then [=exception/throw=] a {{TypeError}}.
+        1. Let |activations| be a [=list/clone=] of |options|.{{MLLstmOptions/activations}}.
+    1. Otherwise:
+        1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
         1. Let |desc| be a new {{MLOperandDescriptor}}.
         1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |numDirections|, |batchSize|, |hiddenSize| ».
@@ -4690,7 +4506,7 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
-        1. If |options|.{{MLLstmOptions/activations}} [=map/exists=], then add its [=list/items=] to |operator|'s [=operator/activation functions=].
+        1. Set |operator|'s [=operator/activation functions=] to a [=list/clone=] of |activations|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -4836,7 +4652,7 @@ dictionary MLLstmCellOptions {
   MLOperand recurrentBias;
   MLOperand peepholeWeight;
   MLLstmWeightLayout layout = "iofg";
-  sequence<MLActivation> activations;
+  sequence<MLRecurrentNetworkActivation> activations;
 };
 
 partial interface MLGraphBuilder {
@@ -4870,7 +4686,7 @@ partial interface MLGraphBuilder {
 
     : <dfn>activations</dfn>
     ::
-        A list of three activation functions, the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, they are assumed to be of the sigmoid function ("sigmoid") followed by two hyperbolic tangent functions ("tanh") respectively.
+        A list of three [=operator/activation functions=], the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, defaults to a sequence of the {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, and {{MLRecurrentNetworkActivation/"tanh"}} functions, respectively.
 </dl>
 
 <div dfn-for="MLGraphBuilder/lstmCell(input, weight, recurrentWeight, hiddenState, cellState, hiddenSize, options)" dfn-type=argument>
@@ -4943,7 +4759,6 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |options|.{{MLLstmCellOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmCellOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLLstmCellOptions/peepholeWeight}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=], and [=MLGraphBuilder/validating activation=] with [=this=] and any [=list/item=] in it returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/rank=] of any of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not its [=allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][0].
@@ -4968,10 +4783,12 @@ partial interface MLGraphBuilder {
         1. If its [=MLOperand/shape=] is not equal to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
+        1. Let |activations| be a [=list/clone=] of |options|.{{MLLstmCellOptions/activations}}.
+    1. Otherwise:
+        1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |batchSize|, |hiddenSize| ».
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=], and running the [=MLActivation/validation steps=] of any [=list/item=] in it with |desc| returns false, then [=exception/throw=] a {{TypeError}}.
        1. *Make graph connections:*
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
@@ -4982,7 +4799,7 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
-        1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=], then add its [=list/items=] to |operator|'s [=operator/activation functions=].
+        1. Set |operator|'s [=operator/activation functions=] to a [=list/clone=] of |activations|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -4990,7 +4807,7 @@ partial interface MLGraphBuilder {
 <div class="note">
 <details open>
   <summary>
-    The behavior of this operation when the weight layout is the default {{MLLstmWeightLayout/"iofg"}} layout, and the activation functions of the input/forget/output gate and the cell gate/the cell state's filter for the output hidden state are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively can be [EMULATED]
+    The behavior of this operation when the weight layout is the default {{MLLstmWeightLayout/"iofg"}} layout, and the [=operator/activation functions=] of the input/forget/output gate and the cell gate/the cell state's filter for the output hidden state are {{MLGraphBuilder/sigmoid()}} and {{MLGraphBuilder/tanh()}} respectively can be [EMULATED]
   </summary>
   <pre highlight="js">
     function lstmCell(
@@ -5805,11 +5622,9 @@ Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand relu(MLOperand input);
-  MLActivation relu();
 };
 </script>
 
-#### {{MLGraphBuilder/relu(input)}} #### {#api-mlgraphbuilder-relu-input}
 <div dfn-for="MLGraphBuilder/relu(input)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
@@ -5862,24 +5677,6 @@ partial interface MLGraphBuilder {
     </pre>
   </details>
 </div>
-
-#### {{MLGraphBuilder/relu()}} #### {#api-mlgraphbuilder-relu}
-<div dfn-for="MLGraphBuilder/relu()" dfn-type=argument>
-    **Arguments:**
-        - None.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the relu operation.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder id=relu-noargs>relu()</dfn> method steps are:
-  </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=] and "relu".
-    1. Return |op|.
-</details>
 
 ### resample2d ### {#api-mlgraphbuilder-resample2d-method}
 Resample the tensor values from the source to the destination spatial dimensions according to the scaling factors.
@@ -6039,11 +5836,9 @@ Compute the <a href="https://en.wikipedia.org/wiki/Sigmoid_function">sigmoid fun
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand sigmoid(MLOperand input);
-  MLActivation sigmoid();
 };
 </script>
 
-#### {{MLGraphBuilder/sigmoid(input)}} #### {#api-mlgraphbuilder-sigmoid-input}
 <div dfn-for="MLGraphBuilder/sigmoid(input)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
@@ -6099,24 +5894,6 @@ partial interface MLGraphBuilder {
     </pre>
   </details>
 </div>
-
-#### {{MLGraphBuilder/sigmoid()}} #### {#api-mlgraphbuilder-sigmoid}
-<div dfn-for="MLGraphBuilder/sigmoid()" dfn-type=argument>
-    **Arguments:**
-        - None.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the sigmoid operation.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder id=sigmoid-noargs>sigmoid()</dfn> method steps are:
-  </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=] and "sigmoid".
-    1. Return |op|.
-</details>
 
 ### slice ### {#api-mlgraphbuilder-slice}
 Produce a slice of the input tensor.
@@ -6239,11 +6016,9 @@ Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#S
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand softplus(MLOperand input);
-  MLActivation softplus();
 };
 </script>
 
-#### {{MLGraphBuilder/softplus(input)}} #### {#api-mlgraphbuilder-softplus-input}
 <div dfn-for="MLGraphBuilder/softplus(input)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
@@ -6298,30 +6073,11 @@ partial interface MLGraphBuilder {
   </details>
 </div>
 
-#### {{MLGraphBuilder/softplus()}} #### {#api-mlgraphbuilder-softplus}
-<div dfn-for="MLGraphBuilder/softplus(options)" dfn-type=argument>
-    **Arguments:**
-        - None.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the softplus operation.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder id=softplus-noargs>softplus()</dfn> method steps are:
-  </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=] and "softplus".
-    1. Return |op|.
-</details>
-
 ### softsign ### {#api-mlgraphbuilder-softsign-method}
 Compute the <a href="https://pytorch.org/docs/stable/generated/torch.nn.Softsign.html">softsign function</a> of the input tensor. The calculation follows the expression `x / (1 + |x|)`.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand softsign(MLOperand input);
-  MLActivation softsign();
 };
 </script>
 
@@ -6340,7 +6096,6 @@ partial interface MLGraphBuilder {
   </details>
 </div>
 
-#### {{MLGraphBuilder/softsign(input)}} #### {#api-mlgraphbuilder-softsign-input}
 <div dfn-for="MLGraphBuilder/softsign(input)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
@@ -6379,24 +6134,6 @@ partial interface MLGraphBuilder {
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
-</details>
-
-#### {{MLGraphBuilder/softsign()}} #### {#api-mlgraphbuilder-softsign}
-<div dfn-for="MLGraphBuilder/softsign()" dfn-type=argument>
-    **Arguments:**
-        - None.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the softsign operation.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder id=softsign-noargs>softsign()</dfn> method steps are:
-  </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=] and "softsign".
-    1. Return |op|.
 </details>
 
 ### split ### {#api-mlgraphbuilder-split}
@@ -6494,11 +6231,9 @@ Compute the <a href="https://en.wikipedia.org/wiki/Hyperbolic_functions">hyperbo
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand tanh(MLOperand input);
-  MLActivation tanh();
 };
 </script>
 
-#### {{MLGraphBuilder/tanh(input)}} #### {#api-mlgraphbuilder-tanh-input}
 <div dfn-for="MLGraphBuilder/tanh(input)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
@@ -6557,24 +6292,6 @@ partial interface MLGraphBuilder {
     </pre>
   </details>
 </div>
-
-#### {{MLGraphBuilder/tanh()}} #### {#api-mlgraphbuilder-tanh}
-<div dfn-for="MLGraphBuilder/tanh()" dfn-type=argument>
-    **Arguments:**
-        - None.
-
-    **Returns:**
-        - an {{MLActivation}}. The activation function representing the tanh operation.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLGraphBuilder id=tanh-noargs>tanh()</dfn> method steps are:
-  </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Let |op| be the result of [=creating an MLActivation=] given [=this=] and "tanh".
-    1. Return |op|.
-</details>
 
 ### transpose ### {#api-mlgraphbuilder-transpose}
 Permute the dimensions of the input tensor according to the *permutation* argument.
