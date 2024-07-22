@@ -70,6 +70,11 @@ p, ul, ol, dl {
     margin: 1em 0;
 }
 
+/* Override rule making <code> smaller than surrounding text. */
+dfn code {
+    font-size: 100%;
+}
+
 /* Style <details>, for clarity of presentation of these blocks. */
 details {
     padding: .5em;
@@ -195,9 +200,48 @@ th {
 
 th, td {
   border-bottom: 1px solid black;
-  border-collapse: collapse;
+  border-collapse: collapse; /* BUG: This property only applies to TABLE. */
   padding-left: 5px;
   padding-right: 5px;
+}
+
+/*
+ * Grid table format.
+ */
+table.grid {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+
+table.grid td, table.grid th {
+  border: 1px solid black;
+}
+
+table.grid th {
+  text-align: center;
+}
+
+/* For a table header cell that is split diagonally */
+th.split {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' version='1.1' preserveAspectRatio='none' viewBox='0 0 1 1'><line x1='0' y1='0' x2='1' y2='1' stroke='black' vector-effect='non-scaling-stroke'/></svg>");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  position: relative;
+}
+
+th.split .bottom-left {
+    display: block;
+    position: absolute;
+    bottom: 1px;
+    left: 5px;
+}
+
+th.split .top-right {
+    display: block;
+    position: absolute;
+    top: 1px;
+    right: 5px;
 }
 
 /*
@@ -569,6 +613,8 @@ Once the graph is fully constructed and compiled, the input shapes into each of 
 
 Issue: Document operations susceptible to out-of-bounds access as a guidance to implementers.
 
+Implementations must defend against control-flow attacks based on changes to data considered to be constant. For example, optimizations in the underlying platform may assume that a weight remains unchanged throughout a computation. If the API allowed the contents of buffers holding weights to change during a computation then those optimization assumptions would be invalidated, causing undefined behavior in the underlying platform. The API mitigates this category of attacks from script by always copying or transferring buffers, but implementations should consider additional defenses such as process isolation of data assumed to be constant.
+
 As a future-proofing measure, the API design allows certain operations that can be generically emulated to be deprecated for security, performance, or other reasons without breaking compatibility. This is made possible by high-level functions that are defined in terms of smaller primitive operations defined in this specifications. This enables a native implementation of a high-level function to be replaced with a polyfill implementation.
 
 Issue: Investigate side channel attack feasibility considering the current state where CPU is shared between processes running renderers.
@@ -656,7 +702,7 @@ The implementation may use views, as above, for intermediate values.
 
 Before the execution, the computation graph that is used to compute one or more specified outputs needs to be converted, compiled, and optimized. The key purpose of the compilation step is to enable optimizations that span two or more operations, such as operation or loop fusion. The user agent may also perform these optimizations during graph conversion.
 
-The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph in the background without blocking the calling thread, and returns a {{Promise}} that resolves to an {{MLGraph}}. The compilation step produces an {{MLGraph}} that represents a compiled graph for optimal execution.
+The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph in the background without blocking the calling thread, and returns a {{Promise}} that resolves to an {{MLGraph}}. Each {{MLGraphBuilder}} can build at most one {{MLGraph}}.
 
 The {{MLGraph}} underlying implementation will be composed of platform-specific representations of operators and operands which correspond to the {{MLGraphBuilder}}'s [=operators=] and {{MLOperand}}s, but which are not script-visible and may be compositions or decompositions of the graph as constructed by script.
 
@@ -752,6 +798,13 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 </dl>
 
 ### {{ML/createContext()}} ### {#api-ml-createcontext}
+
+<div dfn-for="ML/createContext(options), ML/createContext(gpuDevice)" dfn-type=argument>
+    **Arguments:**
+        - <dfn>options</dfn>: an {{MLContextOptions}}. Provides the application's preferences for the context.
+        - <dfn>gpuDevice</dfn>: a {{GPUDevice}}. A specific device to use with the context.
+    **Returns:** an {{MLContext}}.
+</div>
 
 <details open algorithm>
 <summary>
@@ -888,9 +941,12 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
   <summary>
     To <dfn for="MLNamedArrayBufferViews">transfer</dfn> an {{MLNamedArrayBufferViews}} |views| with [=realm=] |realm|:
   </summary>
+    1. [=map/For each=] |name| → |view| of |views|:
+        1. If |view| is not [=BufferSource/transferable=], then throw a {{TypeError}}.
     1. Let |transferredViews| be a new {{MLNamedArrayBufferViews}}.
     1. [=map/For each=] |name| → |view| of |views|:
         1. Let |transferredBuffer| be the result of [=ArrayBuffer/transfer|transferring=] |view|'s [=BufferSource/underlying buffer=].
+        1. [=Assert=]: The above step never throws an exception.
         1. Let |constructor| be the appropriate [=view constructor=] for the type of {{ArrayBufferView}} |view| from |realm|.
         1. Let |elementsNumber| be the result of |view|'s [=BufferSource/byte length=] / |view|'s [=element size=].
         1. Let |transferredView| be [$Construct$](|constructor|, |transferredBuffer|, |view|.\[[ByteOffset]], |elementsNumber|).
@@ -905,13 +961,13 @@ Asynchronously carries out the computational workload of a compiled graph {{MLGr
 In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the calling thread from modifying the input and output resources while the computation is ongoing, this method [=MLNamedArrayBufferViews/transfer|transfers=] the input and output {{MLNamedArrayBufferViews}} to new views that share the same backing memory allocations. The transferred views are returned to the caller via the promise fulfillment with the computation result written into the backing memory of the output views.
 </div>
 
-<div>
+<div dfn-for="MLContext/compute(graph, inputs, outputs)" dfn-type=argument>
     **Arguments:**
-      - *graph*: an {{MLGraph}}. The compiled graph to be executed.
-      - *inputs*: an {{MLNamedArrayBufferViews}}. The resources of inputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
-      - *outputs*: an {{MLNamedArrayBufferViews}}. The pre-allocated resources of required outputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
+      - <dfn>graph</dfn>: an {{MLGraph}}. The compiled graph to be executed.
+      - <dfn>inputs</dfn>: an {{MLNamedArrayBufferViews}}. The resources of inputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
+      - <dfn>outputs</dfn>: an {{MLNamedArrayBufferViews}}. The pre-allocated resources of required outputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
 
-    **Returns:** Promise<{{MLComputeResult}}>.
+    **Returns:** {{Promise}}<{{MLComputeResult}}>.
 </div>
 
 Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext/compute(graph, inputs, outputs)/graph}}'s inputs are not provided as {{MLContext/compute(graph, inputs, outputs)/inputs}}, or if any requested {{MLContext/compute(graph, inputs, outputs)/outputs}} do not match the {{MLContext/compute(graph, inputs, outputs)/graph}}'s outputs.
@@ -956,7 +1012,7 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
     const context = await navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
     // 1. Create a computational graph 'C = 0.2 * A + B'.
-    const constant = builder.constant(operandType.dataType(), 0.2);
+    const constant = builder.constant(operandType.dataType, 0.2);
     const A = builder.input('A', operandType);
     const B = builder.input('B', operandType);
     const C = builder.add(builder.mul(A, constant), B);
@@ -1159,10 +1215,10 @@ To <dfn for="MLGraphBuilder">validate operand</dfn> given {{MLGraphBuilder}} |bu
   Specifying the option as {{double}} would lose accuracy when passing values over 2<sup>53</sup>, and specifying {{long long}} would disallow values over 2<sup>63</sup>.
 </div>
 
-Issue(whatwg/webidl#1388): Support for unions of {{bigint}} and [=numeric types=] new in [[WEBIDL]], and implementation support is also limited. Prototype implementations are encouraged to provide feedback for this approach.
+Issue(whatwg/webidl#1388): Support for unions of {{bigint}} and [=numeric types=] is new in [[WEBIDL]], and implementation support is also limited. Prototype implementations are encouraged to provide feedback for this approach.
 
 ### {{MLOperand/dataType()}} ### {#api-mloperand-datatype}
-Return a data type of the {{MLOperand}}.
+Returns the data type of the {{MLOperand}}.
 
 <div>
     **Returns:** an {{MLOperandDataType}}. The data type of the operand.
@@ -1176,10 +1232,10 @@ Return a data type of the {{MLOperand}}.
 </details>
 
 ### {{MLOperand/shape()}} ### {#api-mloperand-shape}
-Return a shape of the {{MLOperand}}.
+Returns the shape of the {{MLOperand}}.
 
 <div>
-    **Returns:** a sequence of {{unsigned long}}. The shape of the operand.
+    **Returns:** [=sequence=]<{{unsigned long}}>. The shape of the operand.
 </div>
 
 <details open algorithm>
@@ -1225,10 +1281,18 @@ The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph buil
     : <dfn>\[[context]]</dfn> of type {{MLContext}}
     ::
         The context of type {{MLContext}} associated with this {{MLGraphBuilder}}.
+    : <dfn>\[[hasBuilt]]</dfn> of type {{boolean}}
+    ::
+        Whether {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} has been called. Once built, the {{MLGraphBuilder}} can no longer create [=operators=] or compile {{MLGraph}}s.
   </dl>
 </div>
 
 ### {{MLGraphBuilder}} constructor ### {#api-mlgraphbuilder-constructor}
+
+<div dfn-for="MLGraphBuilder/constructor(context)" dfn-type=argument>
+    **Arguments:**
+      - <dfn>context</dfn>: an {{MLContext}}. The context to associate with the {{MLGraphBuilder}}.
+</div>
 
 <details open algorithm>
   <summary>
@@ -1236,24 +1300,27 @@ The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph buil
   </summary>
     1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
     1. Set [=this=].{{MLGraphBuilder/[[context]]}} to |context|.
+    1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to false.
 </details>
 
 ### input operands ### {#api-mlgraphbuilder-input}
 
 Create a named {{MLOperand}} based on a descriptor, that can be used as an input.
 
-<div>
+<div dfn-for="MLGraphBuilder/input(name, descriptor)" dfn-type=argument>
     **Arguments:**
-        - *name*: a [=string=] name of the input.
-        - *descriptor*: an {{MLOperandDescriptor}} object.
-    **Returns:** an {{MLOperand}} object.
+        - <dfn>name</dfn>: a [=string=] name of the input.
+        - <dfn>descriptor</dfn>: an {{MLOperandDescriptor}} object.
+    **Returns:** an {{MLOperand}}.
 </div>
 
 <details open algorithm>
   <summary>
     The <dfn method for=MLGraphBuilder>input(|name|, |descriptor|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If |name| is empty, then [=exception/throw=] a {{TypeError}}.
+    1. If any {{MLOperand}}s in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] have a {{MLOperand/[[name]]}} equal to |name|, then [=exception/throw=] a {{TypeError}}.
     1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
@@ -1263,7 +1330,7 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
 </details>
 
 <div class="note">
-  The {{MLGraphBuilder}} API allows creating an {{MLGraph}} without input operands. If the underlying platform doesn't support that, implementations may add a stub input or passing constants as inputs to the graph.
+  The {{MLGraphBuilder}} API allows creating an {{MLGraph}} without input operands. If the underlying platform doesn't support that, implementations may add a stub input, or pass constants as inputs to the graph.
 </div>
 
 ### constant operands ### {#api-mlgraphbuilder-constant}
@@ -1272,10 +1339,10 @@ Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
 #### {{MLGraphBuilder/constant(descriptor, bufferView)}} #### {#api-mlgraphbuilder-constant-bufferview}
 Create a constant {{MLOperand}} of the specified data type and shape that contains the initializing data.
 
-<div>
+<div dfn-for="MLGraphBuilder/constant(descriptor, bufferView)" dfn-type=argument>
     **Arguments:**
-        - *descriptor*: an {{MLOperandDescriptor}}. The descriptor of the output tensor.
-        - *bufferView*: an {{ArrayBufferView}}. The view of the buffer containing the initializing data.
+        - <dfn>descriptor</dfn>: an {{MLOperandDescriptor}}. The descriptor of the output tensor.
+        - <dfn>bufferView</dfn>: an {{ArrayBufferView}}. The view of the buffer containing the initializing data.
     **Returns:** an {{MLOperand}}. The constant output tensor.
 </div>
 
@@ -1283,6 +1350,7 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
   <summary>
     The <dfn method for=MLGraphBuilder>constant(|descriptor|, |bufferView|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |bufferView| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -1299,10 +1367,10 @@ Create a scalar constant {{MLOperand}} of the specified value and data type.
 Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a floating point value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
 </div>
 
-<div>
+<div dfn-for="MLGraphBuilder/constant(type, value)" dfn-type=argument>
     **Arguments:**
-        - *type*: an {{MLOperandDataType}}.
-        - *value*: an {{MLNumber}}. The value of the constant.
+        - <dfn>type</dfn>: an {{MLOperandDataType}}.
+        - <dfn>value</dfn>: an {{MLNumber}}. The value of the constant.
     **Returns:** an {{MLOperand}}. The constant output.
 </div>
 
@@ -1310,6 +1378,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
   <summary>
     The <dfn method for=MLGraphBuilder>constant(|type|, |value|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. Set |value| to the result of [=casting=] |value| to |type|.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
         1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
@@ -1323,10 +1392,17 @@ Data truncation will occur when the specified value exceeds the range of the spe
 ### build method ### {#api-mlgraphbuilder-build}
 Build a composed graph up to a given output operand into a computational graph asynchronously.
 
+<div dfn-for="MLGraphBuilder/build(outputs)" dfn-type=argument>
+    **Arguments:**
+        - <dfn>outputs</dfn>: an {{MLNamedOperands}}. Identifies the {{MLOperand}}s that will be the outputs of the graph.
+    **Returns:** Promise<{{MLGraph}}>.
+</div>
+
 <details open algorithm>
   <summary>
     The <dfn method for=MLGraphBuilder>build(|outputs|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then return [=a new promise=] [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
     1. If |outputs| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. [=map/For each=] |name| → |operand| of |outputs|:
         1. If |name| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
@@ -1343,10 +1419,6 @@ Build a composed graph up to a given output operand into a computational graph a
         1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=], [=set/append=] |operand| to |inputs|.
         1. [=list/For each=] |input| of |operand|.{{MLOperand/[[operator]]}}'s [=operator/inputs=]:
             1. [=queue/Enqueue=] |input| to |queue|.
-    1. If any {{MLOperand}}s in |inputs| have the same {{MLOperand/[[name]]}}, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-
-        Issue(567): If {{MLGraphBuilder}} can't be re-used, then this can be simplified: enforce uniqueness in {{MLGraphBuilder/input()}} instead, and iteration can be done over all of the graph's inputs instead of needing this traversal.
-
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
     1. Let |graph| be a new {{MLGraph}} with |realm|.
@@ -1364,57 +1436,52 @@ Build a composed graph up to a given output operand into a computational graph a
             1. If the underlying platform does not support a requested feature, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
         1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
+    1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
     1. Return |promise|.
 </details>
 
 NOTE: Specifying an [=computational graph/input=] operand or [=computational graph/constant=] operand as a graph {{MLGraphBuilder/build(outputs)/outputs|output}} results in an error, as this is usually an incorrect usage of the API. Callers can work around this by introducing an {{MLGraphBuilder/identity()}} operator.
 
 ### argMin/argMax operations ### {#api-mlgraphbuilder-argminmax}
-Return the index location of the minimum or maxmium values of all the input values along the axes.
+Return the index location of the minimum or maxmium values of all the input values along the axis. In case of ties, the identity of the return value is implementation dependent.
 
 <script type=idl>
 dictionary MLArgMinMaxOptions {
-  sequence<[EnforceRange] unsigned long> axes;
   boolean keepDimensions = false;
-  boolean selectLastIndex = false;
 };
 
 partial interface MLGraphBuilder {
-  MLOperand argMin(MLOperand input, optional MLArgMinMaxOptions options = {});
-  MLOperand argMax(MLOperand input, optional MLArgMinMaxOptions options = {});
+  MLOperand argMin(MLOperand input, [EnforceRange] unsigned long axis,
+                   optional MLArgMinMaxOptions options = {});
+  MLOperand argMax(MLOperand input, [EnforceRange] unsigned long axis,
+                   optional MLArgMinMaxOptions options = {});
 };
 </script>
 
 {{MLArgMinMaxOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLArgMinMaxOptions>
-    : <dfn>axes</dfn>
-    ::
-        The dimensions to reduce. The values must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor. If not present, all dimensions are reduced. If empty, no dimensions are reduced, and the shape of the output tensor is the same as the shape of the input tensor.
-
     : <dfn>keepDimensions</dfn>
     ::
         If true, retains reduced dimensions with [=list/size=] 1.
-
-    : <dfn>selectLastIndex</dfn>
-    ::
-        If true, select the last index instead of the first found along the axes.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/argMin(input, axis, options), MLGraphBuilder/argMax(input, axis, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *options*: an optional {{MLArgMinMaxOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>axis</dfn>: The dimension to reduce. The value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor.
+        - <dfn>options</dfn>: an optional {{MLArgMinMaxOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type {{MLOperandDataType/"int64"}} in the range [0, N-1] where N is the corresponding size of each of the input dimensions specified by options.axes.
+    **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type {{MLOperandDataType/"int64"}} in the range [0, N-1] where N is the size of the input dimension specified by axis.
 </div>
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder" data-lt="argminmax-op">create argMin/argMax operation</dfn> given [=string=] |op|, {{MLOperand}} |input| and {{MLArgMinMaxOptions}} |options|, run the following steps:
+    To <dfn for="MLGraphBuilder" data-lt="argminmax-op">create argMin/argMax operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{unsigned long}} |axis|, and {{MLArgMinMaxOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "argMin", "argMax".
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLArgMinMaxOptions/axes}} (if it [=map/exists=]), and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], « |axis| », and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a new {{MLOperandDescriptor}}.
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"int64"}}.
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
@@ -1432,15 +1499,15 @@ partial interface MLGraphBuilder {
     The following argMin/argMax algorithms are supported.
   </summary>
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>argMin(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMin", |input| and |options|.
+    The <dfn method for=MLGraphBuilder>argMin(|input|, |axis|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMin", |input|, |axis| and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>argMax(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMax", |input| and |options|.
+    The <dfn method for=MLGraphBuilder>argMax(|input|, |axis|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMax", |input|, |axis| and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -1482,12 +1549,12 @@ partial interface MLGraphBuilder {
         A small value to prevent computational error due to divide-by-zero.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/batchNormalization(input, mean, variance, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *mean*: an {{MLOperand}}. Specifies the 1-D tensor of the mean values of the input features across the batch. Its [=list/size=] is equal to the size of the input dimension denoted by  {{MLBatchNormalizationOptions/axis}}.
-        - *variance*: an {{MLOperand}}. The 1-D tensor of the variance values of the input features across the batch whose [=list/size=] is equal to the size of the input dimension denoted by {{MLBatchNormalizationOptions/axis}}.
-        - *options*: an optional {{MLBatchNormalizationOptions}}. Specifies the optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>mean</dfn>: an {{MLOperand}}. Specifies the 1-D tensor of the mean values of the input features across the batch. Its [=list/size=] is equal to the size of the input dimension denoted by  {{MLBatchNormalizationOptions/axis}}.
+        - <dfn>variance</dfn>: an {{MLOperand}}. The 1-D tensor of the variance values of the input features across the batch whose [=list/size=] is equal to the size of the input dimension denoted by {{MLBatchNormalizationOptions/axis}}.
+        - <dfn>options</dfn>: an optional {{MLBatchNormalizationOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The batch-normalized N-D tensor of the same shape as *input*.
 </div>
@@ -1496,6 +1563,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>batchNormalization(|input|, |mean|, |variance|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |mean|, |variance|, |options|.{{MLBatchNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLBatchNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/axis}} is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
@@ -1551,18 +1619,84 @@ partial interface MLGraphBuilder {
   MLOperand cast(MLOperand input, MLOperandDataType type);
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/cast(input, type)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *type*: an {{MLOperandDataType}}. The target data type.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>type</dfn>: an {{MLOperandDataType}}. The target data type.
 
     **Returns:** an {{MLOperand}}. The N-D tensor of the same shape as *input* with each element casted to the target data type.
 </div>
+
+
+Casting between {{MLOperandDataType}}s is specified for some cases and [=implementation-defined=] in other cases, according to the following table:
+
+<table class=grid>
+  <caption>
+    Behavior of the {{MLGraphBuilder/cast()}} operation given the {{MLGraphBuilder/cast(input, type)/input}}'s [=MLOperand/dataType=] (rows) and target {{MLGraphBuilder/cast(input, type)/type}} (columns).
+  </caption>
+  <tr>
+    <th class=split>
+      <span class=top-right>Target type</span>
+      <span class=bottom-left>Input type</span>
+    </th>
+    <th>
+      {{MLOperandDataType/"float32"}},
+      {{MLOperandDataType/"float16"}}
+    </th>
+    <th>
+      {{MLOperandDataType/"int32"}},
+      {{MLOperandDataType/"uint32"}},
+      {{MLOperandDataType/"int64"}},
+      {{MLOperandDataType/"uint64"}},
+      {{MLOperandDataType/"int8"}},
+      {{MLOperandDataType/"uint8"}}
+    </th>
+  </tr>
+  <tr>
+    <th>
+      {{MLOperandDataType/"float32"}},
+      {{MLOperandDataType/"float16"}}
+    </th>
+    <td>
+      If in range, nearest representable value.
+
+      If out of range, +/-Infinity.
+    </td>
+    <td>
+      If in range, truncated.
+
+      If out of range, [=implementation-defined=].
+    </td>
+  </tr>
+  <tr>
+    <th>
+      {{MLOperandDataType/"int32"}},
+      {{MLOperandDataType/"uint32"}},
+      {{MLOperandDataType/"int64"}},
+      {{MLOperandDataType/"uint64"}},
+      {{MLOperandDataType/"int8"}},
+      {{MLOperandDataType/"uint8"}}
+    </th>
+    <td>
+      If in range, nearest representable value.
+
+      If out of range, +/-Infinity.
+    </td>
+    <td>
+      If in range, same value.
+
+      If out of range, lowest N bits reinterpreted as target type, assuming two's complement for signed types.
+    </td>
+  </tr>
+</table>
+
+NOTE: For example, casting -1 from {{MLOperandDataType/"int8"}} to {{MLOperandDataType/"uint8"}} is specified to yield 255. But casting -1 from {{MLOperandDataType/"float32"}} to {{MLOperandDataType/"uint8"}} is [=implementation-defined=].
 
 <details open algorithm>
   <summary>
     The <dfn method for=MLGraphBuilder>cast(|input|, |type|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "cast" operation, given |type|.
@@ -1595,10 +1729,10 @@ partial interface MLGraphBuilder {
     :: The maximum value of the range. When it is not specified, the clamping is not performed on the upper limit of the range.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/clamp(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLClampOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLClampOptions}}. The optional parameters of the operation.
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *operand*.
 </div>
@@ -1607,6 +1741,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>clamp(|input|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |minValue| be the |options|.{{MLClampOptions/minValue}} if given, or Infinity otherwise.
     1. Set |options|.{{MLClampOptions/minValue}} to the result of [=casting=] |minValue| to |input|'s [=MLOperand/dataType=].
@@ -1659,11 +1794,11 @@ partial interface MLGraphBuilder {
   MLOperand concat(sequence<MLOperand> inputs, [EnforceRange] unsigned long axis);
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/concat(inputs, axis)" dfn-type=argument>
     **Arguments:**
-        - *inputs*: a sequence of {{MLOperand}}. All input tensors must have the
+        - <dfn>inputs</dfn>: a [=sequence=]<{{MLOperand}}>. All input tensors must have the
             same shape, except for the size of the dimension to concatenate on.
-        - *axis*: an {{unsigned long}} scalar. The axis that the inputs concatenate along. Its value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensors.
+        - <dfn>axis</dfn>: an {{unsigned long}} scalar. The axis that the inputs concatenate along. Its value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensors.
 
     **Returns:** an {{MLOperand}}. The concatenated tensor of all the inputs along
     the *axis*. The output tensor has the same shape except on the dimension
@@ -1675,6 +1810,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>concat(|inputs|, |axis|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any [=list/item=] in |inputs| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |inputs| [=list/is empty=], then [=exception/throw=] a {{TypeError}}.
     1. Let |first| be |inputs|[0].
@@ -1778,13 +1914,13 @@ partial interface MLGraphBuilder {
           An additional 1-D tensor with the shape of *[outputChannels]* whose values are to be added to the convolution result.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/conv2d(input, filter, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *options*.{{MLConv2dOptions/inputLayout}}.
-        - *filter*: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
+        - <dfn>filter</dfn>: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
             interpreted according to the value of *options*.{{MLConv2dOptions/filterLayout}} and *options*.{{MLConv2dOptions/groups}}.
-        - *options*: an {{MLConv2dOptions}}. The optional parameters of the operation.
+        - <dfn>options</dfn>: an {{MLConv2dOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the convolution result. The output shape is interpreted according to the *options*.{{MLConv2dOptions/inputLayout}} value. More specifically, the spatial dimensions or the sizes of the last two dimensions of the output tensor for the *nchw* input layout can be calculated as follows:
 
@@ -1818,6 +1954,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>conv2d(|input|, |filter|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConv2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -1993,13 +2130,13 @@ partial interface MLGraphBuilder {
         An additional 1-D tensor with the shape of *[outputChannels]* whose values are to be added to the convolution result.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/convTranspose2d(input, filter, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *options*.{{MLConvTranspose2dOptions/inputLayout}}.
-        - *filter*: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
+        - <dfn>filter</dfn>: an {{MLOperand}}. The filter 4-D tensor. The logical shape is
             interpreted according to the value of *options*.{{MLConvTranspose2dOptions/filterLayout}} and {{MLConvTranspose2dOptions/groups}}.
-        - *options*: an optional {{MLConvTranspose2dOptions}}.
+        - <dfn>options</dfn>: an optional {{MLConvTranspose2dOptions}}.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options*.{{MLConvTranspose2dOptions/inputLayout}} value. More specifically, unless the *options*.{{MLConvTranspose2dOptions/outputSizes}} values are explicitly specified, the *options*.{{MLConvTranspose2dOptions/outputPadding}} may be needed to compute the spatial dimension values of the output tensor as follows:
 
@@ -2028,6 +2165,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>convTranspose2d(|input|, |filter|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConvTranspose2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
@@ -2135,10 +2273,10 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/add(a, b), MLGraphBuilder/sub(a, b), MLGraphBuilder/mul(a, b), MLGraphBuilder/div(a, b), MLGraphBuilder/max(a, b), MLGraphBuilder/min(a, b), MLGraphBuilder/pow(a, b)" dfn-type=argument>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input tensor.
-        - *b*: an {{MLOperand}}. The second input tensor.
+        - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor.
+        - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise binary operation of the two input tensors.
@@ -2159,6 +2297,7 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder" data-lt="element-wise-binary-op">create element-wise binary operation</dfn> given [=string=] |op|, {{MLOperand}} |a| and {{MLOperand}} |b|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "add", "sub", "mul", "div", "max", "min", "pow".
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
@@ -2245,10 +2384,10 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/equal(a, b), MLGraphBuilder/greater(a, b), MLGraphBuilder/greaterOrEqual(a, b), MLGraphBuilder/lesser(a, b), MLGraphBuilder/lesserOrEqual(a, b), MLGraphBuilder/logicalNot(a)" dfn-type=argument>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input tensor.
-        - *b*: an {{MLOperand}}. The second input tensor when specified.
+        - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor.
+        - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor when specified.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of element-wise comparison of the two input tensors.
 </div>
@@ -2271,6 +2410,7 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     To <dfn for="MLGraphBuilder" data-lt="element-wise-logical-op">create element-wise logical operation</dfn> given [=string=] |op|, {{MLOperand}} |a| and an optional {{MLOperand}} |b|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "equal", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "logicalNot".
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If |op| is "logicalNot":
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and |a| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
@@ -2358,9 +2498,9 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/abs(input), MLGraphBuilder/ceil(input), MLGraphBuilder/cos(input), MLGraphBuilder/erf(input), MLGraphBuilder/exp(input), MLGraphBuilder/floor(input), MLGraphBuilder/identity(input), MLGraphBuilder/log(input), MLGraphBuilder/neg(input), MLGraphBuilder/reciprocal(input), MLGraphBuilder/sin(input), MLGraphBuilder/sqrt(input), MLGraphBuilder/tan(input)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise unary operation of the input tensor. The shape of the output
@@ -2389,6 +2529,7 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create element-wise unary operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, and optional [=/list=] |allowedDataTypes|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "erf", "exp", "floor", "identity", "log", "neg", "reciprocal", "sin", "sqrt", "tan".
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -2517,8 +2658,8 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLEluOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLEluOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -2528,6 +2669,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>elu(|input|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLEluOptions/alpha}} to the result of [=casting=] |options|.{{MLEluOptions/alpha}} to |input|'s [=MLOperand/dataType=].
@@ -2566,10 +2708,10 @@ partial interface MLGraphBuilder {
   MLOperand expand(MLOperand input, sequence<[EnforceRange] unsigned long> newShape);
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/expand(input, newShape)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. An input tensor
-        - *newShape*: a sequence of {{unsigned long}}. The new shape the input tensor is expanded to.
+        - <dfn>input</dfn>: an {{MLOperand}}. An input tensor
+        - <dfn>newShape</dfn>: [=sequence=]<{{unsigned long}}>. The new shape the input tensor is expanded to.
 
     **Returns:** an {{MLOperand}}. The tensor with expanded size dimensions.
 </div>
@@ -2578,6 +2720,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>expand(|input|, |newShape|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputDescriptor| be a new {{MLOperandDescriptor}}.
     1. Set |outputDescriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
@@ -2613,11 +2756,11 @@ partial interface MLGraphBuilder {
         The axis along which the gathered values are obtained. Its value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/gather(input, indices, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor from which the values are gathered.
-        - *indices*: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
-        - *options*: an optional {{MLGatherOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor from which the values are gathered.
+        - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
+        - <dfn>options</dfn>: an optional {{MLGatherOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input* + the [=MLOperand/rank=] of *indices* - 1.
 </div>
@@ -2630,6 +2773,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>gather(|input|, |indices|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |indices| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |indices|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, then [=exception/throw=] a {{TypeError}}.
     1. Let |shapeInput| be |input|'s [=MLOperand/shape=] and |rankInput| be |shapeInput|'s [=MLOperand/rank=].
@@ -2733,7 +2877,7 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -2743,6 +2887,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>gelu(|input|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -2812,11 +2957,11 @@ partial interface MLGraphBuilder {
         Indicates if the second input should be transposed prior to calculating the output.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/gemm(a, b, options)" dfn-type=argument>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input 2-D tensor with shape *[M, K]* if *aTranspose* is false, or *[K, M]* if *aTranspose* is true.
-        - *b*: an {{MLOperand}}. The second input 2-D tensor with shape *[K, N]* if *bTranspose* is false, or *[N, K]* if *bTranspose* is true.
-        - *options*: an optional {{MLGemmOptions}}. The optional parameters of the operation.
+        - <dfn>a</dfn>: an {{MLOperand}}. The first input 2-D tensor with shape *[M, K]* if *aTranspose* is false, or *[K, M]* if *aTranspose* is true.
+        - <dfn>b</dfn>: an {{MLOperand}}. The second input 2-D tensor with shape *[K, N]* if *bTranspose* is false, or *[N, K]* if *bTranspose* is true.
+        - <dfn>options</dfn>: an optional {{MLGemmOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output 2-D tensor of shape *[M, N]* that contains the calculated product of all the inputs.
 </div>
@@ -2825,6 +2970,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>gemm(|a|, |b|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |b|'s [=MLOperand/dataType=] is not equal to |a|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -2955,22 +3101,23 @@ partial interface MLGraphBuilder {
         Specifies a pair of [=operator/activation functions=] with the first function used for the update and reset gate, and the second used for the new gate. When not specified, defaults to the {{MLRecurrentNetworkActivation/"sigmoid"}} and {{MLRecurrentNetworkActivation/"tanh"}} functions, respectively.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/gru(input, weight, recurrentWeight, steps, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
-        - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
-        - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{MLGruOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
+        - <dfn>weight</dfn>: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
+        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
+        - <dfn>steps</dfn>: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
+        - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
+        - <dfn>options</dfn>: an optional {{MLGruOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the cell output from the last time step of the network. Additionally, if |options|.{{MLGruOptions/returnSequence}} is set to true, the second element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every cell outputs from each time step in the temporal sequence.
+    **Returns:** [=sequence=]<{{MLOperand}}>. The first element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the cell output from the last time step of the network. Additionally, if |options|.{{MLGruOptions/returnSequence}} is set to true, the second element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every cell outputs from each time step in the temporal sequence.
 </div>
 
 <details open algorithm>
   <summary>
     The <dfn method for=MLGraphBuilder>gru(|input|, |weight|, |recurrentWeight|, |steps|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLGruOptions/bias}} (if it [=map/exists=]), |options|.{{MLGruOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLGruOptions/initialHiddenState}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 3, then [=exception/throw=] a {{TypeError}}.
@@ -3177,14 +3324,14 @@ partial interface MLGraphBuilder {
         Specifies a pair of [=operator/activation functions=] with the first function used for the update and reset gate, and the second used for the new gate. When not specified, defaults to the {{MLRecurrentNetworkActivation/"sigmoid"}} and {{MLRecurrentNetworkActivation/"tanh"}} functions, respectively.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/gruCell(input, weight, recurrentWeight, hiddenState, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
-        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape *[3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
-        - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{MLGruCellOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
+        - <dfn>weight</dfn>: an {{MLOperand}}. The 2-D input weight tensor of shape *[3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>hiddenState</dfn>: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
+        - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
+        - <dfn>options</dfn>: an optional {{MLGruCellOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The 2-D tensor of shape *[batchSize, hiddenSize]*, the cell output hidden state of a single time step of the recurrent network.
 </div>
@@ -3193,6 +3340,7 @@ partial interface MLGraphBuilder {
   <summary>
      The <dfn method for=MLGraphBuilder>gruCell(|input|, |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |options|.{{MLGruCellOptions/bias}} (if it [=map/exists=]), and |options|.{{MLGruCellOptions/recurrentBias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 2, then [=exception/throw=] a {{TypeError}}.
@@ -3362,8 +3510,8 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLHardSigmoidOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLHardSigmoidOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -3373,6 +3521,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>hardSigmoid(|input|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLHardSigmoidOptions/alpha}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/alpha}} to |input|'s [=MLOperand/dataType=].
@@ -3415,7 +3564,7 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -3425,6 +3574,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>hardSwish(|input|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -3494,10 +3644,10 @@ partial interface MLGraphBuilder {
 
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/instanceNormalization(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 4-D tensor.
-        - *options*: an optional {{MLInstanceNormalizationOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 4-D tensor.
+        - <dfn>options</dfn>: an optional {{MLInstanceNormalizationOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The instance-normalized 4-D tensor of the same shape as *input*.
 </div>
@@ -3506,6 +3656,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>instanceNormalization(|input|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLInstanceNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLInstanceNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -3594,10 +3745,10 @@ partial interface MLGraphBuilder {
         A small value to prevent computational error due to divide-by-zero.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/layerNormalization(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *options*: an optional {{MLLayerNormalizationOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>options</dfn>: an optional {{MLLayerNormalizationOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The layer-normalized N-D tensor of the same shape as *input*.
 </div>
@@ -3606,6 +3757,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>layerNormalization(|input|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLLayerNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLLayerNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either equal to [=the range=] from 1 to |input|'s [=MLOperand/rank=], exclusive, if |input|'s [=MLOperand/rank=] is greater than 1, or an empty [=/list=] otherwise.
@@ -3689,8 +3841,8 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLLeakyReluOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -3700,6 +3852,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>leakyRelu(|input|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLLeakyReluOptions/alpha}} to the result of [=casting=] |options|.{{MLLeakyReluOptions/alpha}} to |input|'s [=MLOperand/dataType=].
@@ -3755,8 +3908,8 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLLinearOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLLinearOptions}}. The optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -3766,6 +3919,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>linear(|input|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLLinearOptions/alpha}} to the result of [=casting=] |options|.{{MLLinearOptions/alpha}} to |input|'s [=MLOperand/dataType=].
@@ -3864,22 +4018,23 @@ partial interface MLGraphBuilder {
         A list of three [=operator/activation functions=], the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, defaults to a sequence of the {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, and {{MLRecurrentNetworkActivation/"tanh"}} functions, respectively.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/lstm(input, weight, recurrentWeight, steps, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
-        - *weight*: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
-        - *recurrentWeight*: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
-        - *steps*: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
-        - *hiddenSize*: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{MLLstmOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
+        - <dfn>weight</dfn>: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
+        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
+        - <dfn>steps</dfn>: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
+        - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
+        - <dfn>options</dfn>: an optional {{MLLstmOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output cell state from the last time step of the network. Additionally, if |options|.{{MLLstmOptions/returnSequence}} is set to true, the third element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every output from each time step in the temporal sequence.
+    **Returns:** [=sequence=]<{{MLOperand}}>. The first element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output cell state from the last time step of the network. Additionally, if |options|.{{MLLstmOptions/returnSequence}} is set to true, the third element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every output from each time step in the temporal sequence.
 </div>
 
 <details open algorithm>
   <summary>
     The <dfn method for=MLGraphBuilder>lstm(|input|, |weight|, |recurrentWeight|, |steps|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLLstmOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/recurrentBias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/peepholeWeight}} (if it [=map/exists=]), |options|.{{MLLstmOptions/initialHiddenState}} (if it [=map/exists=]), and |options|.{{MLLstmOptions/initialCellState}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |numDirections| be 2 if |options|.{{MLLstmOptions/direction}} is {{MLRecurrentNetworkDirection/"both"}}, or 1 otherwise.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
@@ -4124,23 +4279,24 @@ partial interface MLGraphBuilder {
         A list of three [=operator/activation functions=], the first one is used for the `input (i)`, `forget (f)`, and `output (o)` gate, the second one is used for the `cell (g)` gate, and the last used for filtering the output cell state before combining it with the result of the output gate to form the output hidden state. When not specified, defaults to a sequence of the {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, and {{MLRecurrentNetworkActivation/"tanh"}} functions, respectively.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/lstmCell(input, weight, recurrentWeight, hiddenState, cellState, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
-        - *weight*: an {{MLOperand}}. The 2-D input weight tensor of shape *[4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *recurrentWeight*: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - *hiddenState*: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
-        - *cellState*: an {{MLOperand}}. The 2-D input cell state tensor of shape *[batchSize, hiddenSize]*.
-        - *hiddenSize*: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
-        - *options*: an optional {{MLLstmCellOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
+        - <dfn>weight</dfn>: an {{MLOperand}}. The 2-D input weight tensor of shape *[4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>hiddenState</dfn>: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
+        - <dfn>cellState</dfn>: an {{MLOperand}}. The 2-D input cell state tensor of shape *[batchSize, hiddenSize]*.
+        - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
+        - <dfn>options</dfn>: an optional {{MLLstmCellOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The first element of the sequence is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape *[batchSize, hiddenSize]*.
+    **Returns:** [=sequence=]<{{MLOperand}}>. The first element is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape *[batchSize, hiddenSize]*.
 </div>
 
 <details open algorithm>
   <summary>
     The <dfn method for=MLGraphBuilder>lstmCell(|input|, |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |options|.{{MLLstmCellOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmCellOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLLstmCellOptions/peepholeWeight}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not equal to 2, then [=exception/throw=] a {{TypeError}}.
@@ -4322,10 +4478,10 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/matmul(a, b)" dfn-type=argument>
     **Arguments:**
-        - *a*: an {{MLOperand}}. The first input tensor which is at least 2-D.
-        - *b*: an {{MLOperand}}. The second input tensor which is at least 2-D.
+        - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor which is at least 2-D.
+        - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor which is at least 2-D.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the matrix
     product of two input tensors.
@@ -4362,6 +4518,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>matmul(|a|, |b|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |b|'s [=MLOperand/dataType=] is not equal to |a|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -4412,12 +4569,12 @@ partial interface MLGraphBuilder {
         The padding value when {{MLPadOptions/mode}} is set to {{MLPaddingMode/"constant"}}.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/pad(input, beginningPadding, endingPadding, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *beginningPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the beginning of each input dimension, of length *N* where *N* is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *beginningPadding[d]* indicates how many values to add before the content in that dimension.
-        - *endingPadding*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of padding values to add at the ending of each input dimension, of length *N* where *N* is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *endingPadding[d]* indicates how many values to add after the content in that dimension.
-        - *options*: an optional {{MLPadOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>beginningPadding</dfn>: [=sequence=]<{{unsigned long}}>. The number of padding values to add at the beginning of each input dimension, of length *N* where *N* is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *beginningPadding[d]* indicates how many values to add before the content in that dimension.
+        - <dfn>endingPadding</dfn>: [=sequence=]<{{unsigned long}}>. The number of padding values to add at the ending of each input dimension, of length *N* where *N* is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *endingPadding[d]* indicates how many values to add after the content in that dimension.
+        - <dfn>options</dfn>: an optional {{MLPadOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The padded output tensor. Each dimension of the output tensor can be calculated as follows:
 
@@ -4439,6 +4596,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>pad(|input|, |beginningPadding|, |endingPadding|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is 0, then [=exception/throw=] a {{TypeError}}.
     1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
@@ -4573,11 +4731,11 @@ partial interface MLGraphBuilder {
         If not specified, the output sizes are automatically computed.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/averagePool2d(input, options), MLGraphBuilder/l2Pool2d(input, options), MLGraphBuilder/maxPool2d(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 4-D tensor. The logical shape
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 4-D tensor. The logical shape
             is interpreted according to the value of *options.layout*.
-        - *options*: an optional {{MLPool2dOptions}}. The optional parameters of the operation.
+        - <dfn>options</dfn>: an optional {{MLPool2dOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
@@ -4649,6 +4807,7 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder" data-lt="pooling-op">create pooling operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{MLPool2dOptions}} |options|, and optional [=/list=] |allowedDataTypes|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "averagePool2d", "l2Pool2d", "maxPool2d".
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -4722,10 +4881,10 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/prelu(input, slope)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *slope*: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or [=unidirectionally broadcastable=] to the shape of input tensor *input*.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>slope</dfn>: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or [=unidirectionally broadcastable=] to the shape of input tensor *input*.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -4735,6 +4894,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>prelu(|input|, |slope|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |slope| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, or {{MLOperandDataType/"int8"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |slope|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -4800,10 +4960,10 @@ partial interface MLGraphBuilder {
         If true, the output has the same rank as the input, setting any reduced dimensions to size 1.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/reduceL1(input, options), MLGraphBuilder/reduceL2(input, options), MLGraphBuilder/reduceLogSum(input, options), MLGraphBuilder/reduceLogSumExp(input, options), MLGraphBuilder/reduceMax(input, options), MLGraphBuilder/reduceMean(input, options), MLGraphBuilder/reduceMin(input, options), MLGraphBuilder/reduceProduct(input, options), MLGraphBuilder/reduceSum(input, options), MLGraphBuilder/reduceSumSquare(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *options*: an optional {{MLReduceOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an optional {{MLReduceOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The reduced output tensor.
 </div>
@@ -4845,6 +5005,7 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder" data-lt="reduce-op">create reduce operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{MLReduceOptions}} |options|, and optional [=/list=] |allowedDataTypes|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLReduceOptions/axes}} (if it [=map/exists=]), and |options|.{{MLReduceOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
@@ -4971,7 +5132,7 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -4981,6 +5142,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>relu(|input|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, or {{MLOperandDataType/"int8"}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -5024,10 +5186,10 @@ partial interface MLGraphBuilder {
   MLOperand resample2d(MLOperand input, optional MLResample2dOptions options = {});
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/resample2d(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input 4-D tensor.
-        - *options*: an optional {{MLResample2dOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input 4-D tensor.
+        - <dfn>options</dfn>: an optional {{MLResample2dOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor.
 </div>
@@ -5052,7 +5214,7 @@ partial interface MLGraphBuilder {
     : <dfn>axes</dfn>
     ::
         A list of length 2.
-        Specifies the two consecutive dimensions of the input tensor to which the interpolation algorithm applies. The valid values in the sequence are [0, 1], [1, 2] or [2, 3].
+        Specifies the two consecutive dimensions of the input tensor to which the interpolation algorithm applies. The valid values are [0, 1], [1, 2] or [2, 3].
         The default value is [2, 3].
 </dl>
 
@@ -5085,6 +5247,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>resample2d(|input|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -5106,10 +5269,10 @@ partial interface MLGraphBuilder {
   MLOperand reshape(MLOperand input, sequence<[EnforceRange] unsigned long> newShape);
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/reshape(input, newShape)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *newShape*: a sequence of {{unsigned long}}. The shape of the output tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>newShape</dfn>: [=sequence=]<{{unsigned long}}>. The shape of the output tensor.
             The number of elements implied by *newShape* must be the same as the
             number of elements in the input tensor.
 
@@ -5122,6 +5285,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>reshape(|input|, |newShape|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be an empty array of {{unsigned long}}.
     1. If |newShape|'s [=list/size=] is 0, set |outputShape| to an empty [=/list=] for a scalar.
@@ -5150,7 +5314,7 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -5160,6 +5324,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>sigmoid(|input|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -5196,11 +5361,11 @@ partial interface MLGraphBuilder {
                   sequence<[EnforceRange] unsigned long> sizes);
 };
 </script>
-<div>
+<div dfn-for="MLGraphBuilder/slice(input, starts, sizes)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *starts*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the starting index to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *starts[d]* indicates the starting index to slice in that dimension. The starting index must be in the range [0, input size - 1] in that dimension.
-        - *sizes*: a sequence of {{unsigned long}}. The sequence of unsigned integer values indicating the number of elements to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *sizes[d]* indicates the number of elements to slice in that dimension. The size must not be 0 and must satisfy the constraint `starting index + size <= input size` in that dimension.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>starts</dfn>: [=sequence=]<{{unsigned long}}>. The starting index to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *starts[d]* indicates the starting index to slice in that dimension. The starting index must be in the range [0, input size - 1] in that dimension.
+        - <dfn>sizes</dfn>: [=sequence=]<{{unsigned long}}>. The number of elements to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *sizes[d]* indicates the number of elements to slice in that dimension. The size must not be 0 and must satisfy the constraint `starting index + size <= input size` in that dimension.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
@@ -5209,6 +5374,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>slice(|input|, |starts|, |sizes|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If any of |sizes|'s [=list/items=] are 0, then [=exception/throw=] a {{TypeError}}.
     1. If |starts|'s [=list/size=] and |sizes|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
@@ -5237,10 +5403,10 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/softmax(input, axis)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *axis*: an {{unsigned long}} scalar. The dimension the reduction will be performed on.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>axis</dfn>: an {{unsigned long}} scalar. The dimension the reduction will be performed on.
 
     **Returns:**
         - an {{MLOperand}}. The output N-D tensor that contains the softmax results, of the same shape as *input*.
@@ -5250,6 +5416,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>softmax(|input|, |axis|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
@@ -5295,7 +5462,7 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -5305,6 +5472,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>softplus(|input|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -5355,7 +5523,7 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -5365,6 +5533,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>softsign(|input|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -5391,13 +5560,13 @@ partial interface MLGraphBuilder {
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/split(input, splits, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
-        - *splits*: an {{unsigned long}} or a sequence of {{unsigned long}}. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a sequence of {{unsigned long}}, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
-        - *options*: an optional {{MLSplitOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>splits</dfn>: an {{unsigned long}} or [=sequence=]<{{unsigned long}}>. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a [=sequence=]<{{unsigned long}}>, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
+        - <dfn>options</dfn>: an optional {{MLSplitOptions}}. The optional parameters of the operation.
 
-    **Returns:** a sequence of {{MLOperand}}. The splitted output tensors. If *splits* is an {{unsigned long}}, the [=list/size=] of the output sequence equals to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a sequence of {{unsigned long}}, the [=list/size=] of the output sequence equals to the [=list/size=] of *splits*. The shape of the i-th output tensor is the same as *input* except along *axis* where the dimension size is *splits[i]*.
+    **Returns:** [=sequence=]<{{MLOperand}}>. The split output tensors. If *splits* is an {{unsigned long}}, the [=list/size=] of the output is equal to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a [=sequence=]<{{unsigned long}}>, the [=list/size=] of the output equals the [=list/size=] of *splits*. The shape of the i-th output tensor is the same as *input* except along *axis* where the dimension size is *splits[i]*.
 </div>
 
 {{MLSplitOptions}} has the following members:
@@ -5411,13 +5580,14 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>split(|input|, |splits|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |axis| be |options|.{{MLSplitOptions/axis}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |splits| is an {{unsigned long}}:
         1. If |input|'s [=MLOperand/shape=][|axis|] % |splits| is not 0, then [=exception/throw=] a {{TypeError}}.
         1. Otherwise, let |splitCount| be |splits|.
-    1. If |splits| is a sequence of {{unsigned long}}:
+    1. If |splits| is a [=sequence=]<{{unsigned long}}>:
         1. If any of its elements is equal to 0, then [=exception/throw=] a {{TypeError}}.
 
             Issue(391): If 0-size dimensions are allowed, revise the above step.
@@ -5475,7 +5645,7 @@ partial interface MLGraphBuilder {
 
 <div>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -5485,6 +5655,7 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>tanh(|input|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -5532,14 +5703,14 @@ partial interface MLGraphBuilder {
     : <dfn>permutation</dfn>
     ::
         The values used to permute the output shape.
-        The default value is [N-1, ..., 0], where N is the [=MLOperand/rank=] of the input tensor, e.g. [2,1,0] for a 3-D tensor.
-        These default values cause the output to become a transposed tensor of the input. When specified, the number of values in the sequence must be the same as the [=MLOperand/rank=] of the input tensor, and the values in the sequence must be within the range from 0 to N-1 with no two or more same values found in the sequence.
+        The default is [N-1, ..., 0], where N is the [=MLOperand/rank=] of the input tensor, e.g. [2,1,0] for a 3-D tensor.
+        These default values cause the output to become a transposed tensor of the input. When specified, the number of values must be the same as the [=MLOperand/rank=] of the input tensor, and the values must be within the range from 0 to N-1 with no duplicates.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/transpose(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input N-D tensor.
-        - *options*: an optional {{MLTransposeOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
+        - <dfn>options</dfn>: an optional {{MLTransposeOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor.
 </div>
@@ -5548,6 +5719,8 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>transpose(|input|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|'s [=MLOperand/shape=].
     1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
         1. If its [=list/size=] is not equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
@@ -5586,10 +5759,10 @@ partial interface MLGraphBuilder {
         Specifies how many diagonals above or below the main diagonals of the input matrix are retained or excluded. A value of 0 means no diagonals other than the main diagonals are affected.
 </dl>
 
-<div>
+<div dfn-for="MLGraphBuilder/triangular(input, options)" dfn-type=argument>
     **Arguments:**
-        - *input*: an {{MLOperand}}. The input tensor which is at least 2-D.
-        - *options*: an optional {{MLTriangularOptions}}. The optional parameters of the operation.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor which is at least 2-D.
+        - <dfn>options</dfn>: an optional {{MLTriangularOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output tensor representing a triangular matrix, or batch of matrices which is the same shape as the input.
 </div>
@@ -5598,6 +5771,8 @@ partial interface MLGraphBuilder {
   <summary>
     The <dfn method for=MLGraphBuilder>triangular(|input|, |options|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is less than 2, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -5670,42 +5845,44 @@ partial interface MLGraphBuilder {
 </div>
 
 ### where ### {#api-mlgraphbuilder-where}
-Select the values from the input or the other tensor depending on the corresponding {{boolean}} values of the condition tensor. The condition tensor is often the output of one of the element-wise logical operations.
+Select the values from the trueValue or the falseValue tensor depending on the corresponding {{boolean}} values of the condition tensor. The condition tensor is often the output of one of the element-wise logical operations.
 
 The input tensors will be broadcasted according to [[!numpy-broadcasting-rule]] to the final output shape. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors.
 For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand where(MLOperand condition, MLOperand input, MLOperand other);
+  MLOperand where(MLOperand condition, MLOperand trueValue, MLOperand falseValue);
 };
 </script>
 
-<div>
+<div dfn-for="MLGraphBuilder/where(condition, trueValue, falseValue)" dfn-type=argument>
     **Arguments:**
-        - *condition*: an {{MLOperand}}. The condition tensor.
-        - *input*: an {{MLOperand}}. The input tensor from which the value is selected when the condition of the corresponding element is set to true.
-        - *other*: an {{MLOperand}}. The other tensor from which the value is selected when the condition of the corresponding element is set to false.
+        - <dfn>condition</dfn>: an {{MLOperand}}. The condition tensor.
+        - <dfn>trueValue</dfn>: an {{MLOperand}}. The tensor from which the value is selected when the condition of the corresponding element is set to true.
+        - <dfn>falseValue</dfn>: an {{MLOperand}}. The tensor from which the value is selected when the condition of the corresponding element is set to false.
 
-    **Returns:** an {{MLOperand}}. The output tensor that contains the values selected element-wise from either the input or the other tensor.
+    **Returns:** an {{MLOperand}}. The output tensor that contains the values selected element-wise from either the trueValue or the falseValue tensor.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>where(|condition|, |input|, |other|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>where(|condition|, |trueValue|, |falseValue|)</dfn> method steps are:
   </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |condition|, |trueValue|, and |falseValue| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |condition|'s [=MLOperand/dataType=] is not equal to {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not equal to |other|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+    1. If |trueValue|'s [=MLOperand/dataType=] is not equal to |falseValue|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |input|'s [=MLOperand/shape=] and |other|'s [=MLOperand/shape=].
+    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |trueValue|'s [=MLOperand/dataType=].
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |trueValue|'s [=MLOperand/shape=] and |falseValue|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. If |condition| is not [=bidirectionally broadcastable=] to |descriptor|.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |operator| be an [=operator=] for the "where" operation, given |condition|, |input| and |other|.
+        1. Let |operator| be an [=operator=] for the "where" operation, given |condition|, |trueValue| and |falseValue|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
-        1. Set |operator|'s [=operator/inputs=] to |condition|, |input| and |other|.
+        1. Set |operator|'s [=operator/inputs=] to |condition|, |trueValue| and |falseValue|.
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -5716,12 +5893,12 @@ partial interface MLGraphBuilder {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    function where(builder, condition, input, other) {
+    function where(builder, condition, trueValue, falseValue) {
       const c = builder.clamp(condition, {'minValue': 0, 'maxValue': 1});
       builder.add(
-        builder.mul(input, builder.cast(c, input.dataType())),
+        builder.mul(trueValue, builder.cast(c, trueValue.dataType())),
         builder.mul(
-          other, builder.cast(builder.logicalNot(c), other.dataType())));
+          falseValue, builder.cast(builder.logicalNot(c), falseValue.dataType())));
     }
     </pre>
   </details>
