@@ -1125,7 +1125,7 @@ dictionary MLOperandDescriptor {
 </details>
 
 <p>
-A <dfn>valid dimension</dfn> is an integer greater than zero in the range of {{unsigned long}}. Implementations may impose a smaller upper bound.
+A <dfn>valid dimension</dfn> is an integer greater than zero and in the range of {{long}}. Implementations may impose a smaller upper bound.
 </p>
 
 Issue(391): Should 0-size dimensions be supported?
@@ -1451,11 +1451,12 @@ Build a composed graph up to a given output operand into a computational graph a
 NOTE: Specifying an [=computational graph/input=] operand or [=computational graph/constant=] operand as a graph {{MLGraphBuilder/build(outputs)/outputs|output}} results in an error, as this is usually an incorrect usage of the API. Callers can work around this by introducing an {{MLGraphBuilder/identity()}} operator.
 
 ### argMin/argMax operations ### {#api-mlgraphbuilder-argminmax}
-Return the index location of the minimum or maxmium values of all the input values along the axis. In case of ties, the identity of the return value is implementation dependent.
+Return the index location of the minimum or maximum values of all the input values along the axis. In case of ties, the identity of the return value is implementation dependent.
 
 <script type=idl>
 dictionary MLArgMinMaxOptions {
   boolean keepDimensions = false;
+  MLOperandDataType outputDataType = "int32";
 };
 
 partial interface MLGraphBuilder {
@@ -1471,6 +1472,10 @@ partial interface MLGraphBuilder {
     : <dfn>keepDimensions</dfn>
     ::
         If true, retains reduced dimensions with [=list/size=] 1.
+    
+    : <dfn>outputDataType</dfn>
+    ::
+        An {{MLOperandDataType}}. The output data type.
 </dl>
 
 <div dfn-for="MLGraphBuilder/argMin(input, axis, options), MLGraphBuilder/argMax(input, axis, options)" dfn-type=argument>
@@ -1479,7 +1484,7 @@ partial interface MLGraphBuilder {
         - <dfn>axis</dfn>: The dimension to reduce. The value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor.
         - <dfn>options</dfn>: an optional {{MLArgMinMaxOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type {{MLOperandDataType/"int64"}} in the range [0, N-1] where N is the size of the input dimension specified by axis.
+    **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type |options|.{{MLArgMinMaxOptions/outputDataType}} in the range [0, N-1] where N is the size of the input dimension specified by axis.
 </div>
 
 <details open algorithm>
@@ -1489,8 +1494,9 @@ partial interface MLGraphBuilder {
     1. [=Assert=]: |op| is one of "argMin", "argMax".
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/shape=][|axis|] is greater than |options|.{{MLArgMinMaxOptions/outputDataType}}'s maximum value, [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], « |axis| », and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given {{MLOperandDataType/"int64"}} and |outputShape|.
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |options|.{{MLArgMinMaxOptions/outputDataType}} and |outputShape|.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the |op| operation, given |options|.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
