@@ -4934,7 +4934,8 @@ partial interface MLGraphBuilder {
 </div>
 
 ### Reduction operations ### {#api-mlgraphbuilder-reduce}
-Reduce the input tensor along all dimensions, or along the axes specified in the {{MLReduceOptions/axes}}  array parameter. For each specified axis, the dimension with that index is reduced, i.e. the resulting tensor will not contain it, unless the {{MLReduceOptions/keepDimensions}} option is specified. The values of the resulting tensor are calculated using the specified reduction function that takes as parameters all the values across the reduced dimension.
+Reduce the input tensor along all dimensions, or along the axes specified in the {{MLReduceOptions/axes}}  array parameter. For each specified axis, the dimension with that index is reduced, i.e. the resulting tensor will not contain it, unless the {{MLReduceOptions/keepDimensions}} option is specified. The values of the resulting tensor are calculated using the specified reduction function that takes as parameters all the input values across the reduced dimensions.
+
 <script type=idl>
 dictionary MLReduceOptions {
   sequence<[EnforceRange] unsigned long> axes;
@@ -4959,7 +4960,7 @@ partial interface MLGraphBuilder {
 <dl dfn-type=dict-member dfn-for=MLReduceOptions>
     : <dfn>axes</dfn>
     ::
-        The dimensions to reduce. The values in the list must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor. If not present, all dimensions are reduced. If empty, no dimensions are reduced, and the shape of the output tensor is the same as the shape of the input tensor.
+        The dimensions to reduce. The values in the list must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor. If not present, all dimensions are reduced. If empty, no dimensions are reduced, and the shape of the output tensor is the same as the shape of the input tensor; the reduction function is applied to each input value individually.
 
     : <dfn>keepDimensions</dfn>
     ::
@@ -4971,21 +4972,21 @@ partial interface MLGraphBuilder {
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
         - <dfn>options</dfn>: an optional {{MLReduceOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The reduced output tensor.
+    **Returns:** an {{MLOperand}}. The reduced output tensor. If the input operand is a scalar, the reduction function is applied to the scalar value and the output is also a scalar.
 </div>
 
 <div class="note">
     **Reduction types:**
-        - *L1*: Compute the <a href="https://mathworld.wolfram.com/L1-Norm.html">L1 norm</a> of all the input values along the axes.
-        - *L2*: Compute the <a href="https://mathworld.wolfram.com/L2-Norm.html">L2 norm</a> of all the input values along the axes.
-        - *LogSum*: Compute the log value of the sum of all the input values along the axes.
-        - *LogSumExp*: Compute the log value of the sum of the exponent of all the input values along the axes.
-        - *Max*: Compute the maximum value of all the input values along the axes.
-        - *Mean*: Compute the average value of all the input values along the axes.
-        - *Min*: Compute the minimum value of all the input values along the axes.
-        - *Product*: Compute the product of all the input values along the axes.
-        - *Sum*: Compute the sum of all the input values along the axes.
-        - *SumSquare*: Compute the sum of the square of all the input values along the axes.
+        - *L1*: Compute the <a href="https://mathworld.wolfram.com/L1-Norm.html">L1 norm</a>, the sum of the absolute value of all the input values.
+        - *L2*: Compute the <a href="https://mathworld.wolfram.com/L2-Norm.html">L2 norm</a>, the square root of the sum of the square of all the input values.
+        - *LogSum*: Compute the log value of the sum of all the input values.
+        - *LogSumExp*: Compute the log value of the sum of the exponent of all the input values.
+        - *Max*: Compute the maximum value of all the input values.
+        - *Mean*: Compute the average value of all the input values.
+        - *Min*: Compute the minimum value of all the input values.
+        - *Product*: Compute the product of all the input values.
+        - *Sum*: Compute the sum of all the input values.
+        - *SumSquare*: Compute the sum of the square of all the input values.
 </div>
 
 <details open algorithm>
@@ -5008,7 +5009,7 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder" data-lt="reduce-op">create reduce operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{MLReduceOptions}} |options|, and optional [=/list=] |allowedDataTypes|, run the following steps:
+    To <dfn for="MLGraphBuilder">create reduction operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{MLReduceOptions}} |options|, and optional [=/list=] |allowedDataTypes|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
@@ -5033,70 +5034,70 @@ partial interface MLGraphBuilder {
   </summary>
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceL1(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceL1", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceL1", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceL2(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceL2", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceL2", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceLogSum(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceLogSum", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceLogSum", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceLogSumExp(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceLogSumExp", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceLogSumExp", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceMax(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceMax", |input| and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceMax", |input| and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceMean(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceMean", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceMean", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceMin(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceMin", |input| and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceMin", |input| and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceProduct(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceProduct", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceProduct", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceSum(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceSum", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceSum", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceSumSquare(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/reduce-op | create reduce operation=] given "reduceSumSquare", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceSumSquare", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
