@@ -1105,6 +1105,16 @@ dictionary MLOperandDescriptor {
 
 <details open algorithm>
   <summary>
+  To <dfn>create an {{MLOperandDescriptor}}</dfn> given {{MLOperandDataType}} |dataType| and [=/list=] |dimensions|, run the following steps:
+  </summary>
+    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
+    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |dataType|.
+    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to a [=list/clone=] of |dimensions|.
+    1. Return |descriptor|.
+</details>
+
+<details open algorithm>
+  <summary>
     The <dfn for="MLOperandDescriptor">byte length</dfn> of an {{MLOperandDescriptor}} |desc| is the value returned by the following steps:
   </summary>
     1. Let |elementLength| be 1.
@@ -1380,9 +1390,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. Set |value| to the result of [=casting=] |value| to |type|.
-    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-        1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |type|.
-        1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to an empty [=/list=].
+    1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |type| and « ».
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |value| as value.
@@ -1464,7 +1472,7 @@ partial interface MLGraphBuilder {
     : <dfn>keepDimensions</dfn>
     ::
         If true, retains reduced dimensions with [=list/size=] 1.
-    
+
     : <dfn>outputDataType</dfn>
     ::
         An {{MLOperandDataType}}. The output data type.
@@ -1488,9 +1496,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/shape=][|axis|] is greater than |options|.{{MLArgMinMaxOptions/outputDataType}}'s maximum value, [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], « |axis| », and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |options|.{{MLArgMinMaxOptions/outputDataType}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |options|.{{MLArgMinMaxOptions/outputDataType}} and |outputShape|.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the |op| operation, given |options|.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
@@ -1740,7 +1746,7 @@ partial interface MLGraphBuilder {
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
         - <dfn>options</dfn>: an optional {{MLClampOptions}}. The optional parameters of the operation.
     **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *operand*.
+        - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
 <details open algorithm>
@@ -1821,9 +1827,7 @@ partial interface MLGraphBuilder {
     1. If |inputs| [=list/is empty=], then [=exception/throw=] a {{TypeError}}.
     1. Let |first| be |inputs|[0].
     1. If |axis| is greater than or equal to |first|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |first|'s [=MLOperand/dataType=].
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to a [=list/clone=] of |first|'s [=MLOperand/shape=].
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |first|'s [=MLOperand/dataType=] and |first|'s [=MLOperand/shape=].
     1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] to |first|'s [=MLOperand/shape=][|axis|].
     1. [=list/For each=] |index| in [=the range=] 1 to |inputs|'s [=list/size=], exclusive:
         1. Let |input| be |inputs|[|index|].
@@ -2034,9 +2038,7 @@ partial interface MLGraphBuilder {
                 :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ), |outputChannels|  ».
             </dl>
         1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-        1. Let |desc| be a new {{MLOperandDescriptor}}.
-        1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+        1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "conv2d" operation, given |options| and |filter|.
@@ -2246,9 +2248,7 @@ partial interface MLGraphBuilder {
                 :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ), |outputChannels| ».
             </dl>
         1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-        1. Let |desc| be a new {{MLOperandDescriptor}}.
-        1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+        1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "convTranspose2d" operation, given |options| and |filter|.
@@ -2306,10 +2306,9 @@ partial interface MLGraphBuilder {
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |a|'s [=MLOperand/dataType=].
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=].
+    1. Let |outputShape| be the result of [=bidirectionally broadcasting the shapes=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Let |operator| be an [=operator=] for the |op| operation, given |a| and |b|.
@@ -2425,9 +2424,7 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
         1. Let |outputShape| be the result of [=bidirectionally broadcasting the shapes=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to {{MLOperandDataType/"uint8"}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+    1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given {{MLOperandDataType/"uint8"}} and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Let |operator| be an [=operator=] for the |op| operation, given |a| and (if |op| is not "logicalNot") |b|.
@@ -2728,10 +2725,9 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputDescriptor| be a new {{MLOperandDescriptor}}.
-    1. Set |outputDescriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. Set |outputDescriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |input|'s [=MLOperand/shape=] and |newShape|.
+    1. Let |outputShape| be the result of [=unidirectionally broadcasting the shapes=] |input|'s [=MLOperand/shape=] and |newShape|.
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Let |outputDescriptor| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDescriptor|.
         1. Let |operator| be an [=operator=] for the "expand" operation, given |input| and |newShape|.
@@ -2804,9 +2800,7 @@ partial interface MLGraphBuilder {
         1. If |dimCount| is less than or equal to |axis| then [=iteration/continue=].
         1. Set |shapeOutput|[|rankOutput| + |dimCount| - |axis| - 1] to |size|.
         1. Increment |dimCount| by one.
-    1. Let |desc| be a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |shapeOutput|.
-    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |shapeOutput|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given |desc|.
         1. Let |operator| be an [=operator=] for the "gather" operation, given |input|, |indices|, and |options|.
@@ -2991,9 +2985,7 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLGemmOptions/c}} [=map/exists=]:
         1. If it is not [=unidirectionally broadcastable=] to the shape « |shapeA|[0], |shapeB|[1] », then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/dataType=] is not equal to |a|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |shapeA|[0], |shapeB|[1] ».
-    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |a|'s [=MLOperand/dataType=].
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and « |shapeA|[0], |shapeB|[1] ».
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "gemm" operation, given |options|.
@@ -3154,13 +3146,9 @@ partial interface MLGraphBuilder {
     1. Otherwise:
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
-        1. Let |desc0| be a new {{MLOperandDescriptor}}.
-        1. Set |desc0|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |numDirections|, |batchSize|, |hiddenSize| ».
-        1. Set |desc0|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+        1. Let |desc0| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |numDirections|, |batchSize|, |hiddenSize| ».
         1. If |options|.{{MLGruOptions/returnSequence}} is true:
-            1. Let |desc1| be a new {{MLOperandDescriptor}}.
-            1. Set |desc1|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-            1. Set |desc1|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+            1. Let |desc1| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "gru" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options| as parameters.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc0|.
@@ -3372,9 +3360,7 @@ partial interface MLGraphBuilder {
         1. Let |activations| be a [=list/clone=] of |options|.{{MLGruCellOptions/activations}}.
     1. Otherwise:
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
-    1. Let |desc| be a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |batchSize|, |hiddenSize| ».
-    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |batchSize|, |hiddenSize| ».
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "gruCell" operation, given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
@@ -4078,13 +4064,9 @@ partial interface MLGraphBuilder {
     1. Otherwise:
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
-        1. Let |desc| be a new {{MLOperandDescriptor}}.
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |numDirections|, |batchSize|, |hiddenSize| ».
-        1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
+        1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |numDirections|, |batchSize|, |hiddenSize| ».
         1. If |options|.{{MLLstmOptions/returnSequence}} is true:
-            1. Let |desc2| be a new {{MLOperandDescriptor}}.
-            1. Set |desc2|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-            1. Set |desc2|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+            1. Let |desc2| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "lstm" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
@@ -4528,10 +4510,9 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |b|'s [=MLOperand/dataType=] is not equal to |a|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the result of [=MLGraphBuilder/calculating matmul output sizes=] given |a| and |b|.
-    1. If that throws an error, re-[=exception/throw=] the error.
-    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |a|'s [=MLOperand/dataType=].
+    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating matmul output sizes=] given |a| and |b|.
+        1. If that throws an error, re-[=exception/throw=] the error.
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "matmul" operation.
@@ -4904,10 +4885,9 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |slope| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, or {{MLOperandDataType/"int8"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |slope|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=unidirectionally broadcasting the shapes=] |slope|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=].
+    1. Let |outputShape| be to the result of [=unidirectionally broadcasting the shapes=] |slope|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Let |operator| be an [=operator=] for the "prelu" operation, given |slope|.
@@ -5015,9 +4995,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLReduceOptions/axes}} (if it [=map/exists=]), and |options|.{{MLReduceOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the |op| operation, given |options|.
@@ -5240,13 +5218,14 @@ partial interface MLGraphBuilder {
   <summary>
     To <dfn for="MLGraphBuilder">calculate resample output sizes</dfn> given {{MLOperand}} |input| and {{MLResample2dOptions}} |options|, run the following steps:
   </summary>
-    1. Let |desc| be a new {{MLOperandDescriptor}} initialized to |input|.{{MLOperand/[[descriptor]]}}.
+    1. Let |inputDescriptor| be |input|.{{MLOperand/[[descriptor]]}}.
+    1. Let |outputShape| be a [=list/clone=] of |inputDescriptor|.{{MLOperandDescriptor/dimensions}}.
     1. [=list/For each=] |index| in [=the range=] 0 to |options|.{{MLResample2dOptions/axes}}'s [=list/size=], exclusive:
         1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then let |size| be |options|.{{MLResample2dOptions/sizes}}[|index|].
         1. Otherwise, let |size| be floor(|input|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] * |options|.{{MLResample2dOptions/scales}}[|index|]).
         1. If |size| is not a [=valid dimension=], then return failure.
-        1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|options|.{{MLResample2dOptions/axes}}[|index|]] to |size|.
-    1. Return |desc|.
+        1. Set |outputShape|[|options|.{{MLResample2dOptions/axes}}[|index|]] to |size|.
+    1. Return the result of [=creating an MLOperandDescriptor=] given |inputDescriptor|.{{MLOperandDescriptor/dataType}} and |outputShape|.
 </details>
 
 <details open algorithm>
@@ -5853,7 +5832,7 @@ partial interface MLGraphBuilder {
 ### where ### {#api-mlgraphbuilder-where}
 Select the values from the trueValue or the falseValue tensor depending on the corresponding values of the condition tensor, where non-zero is true and zero is false. The condition tensor is often the output of one of the element-wise logical operations.
 
-The input tensors will be broadcasted according to [[!numpy-broadcasting-rule]] to the final output shape. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors.
+The input tensors must be [=bidirectionally broadcastable=] and will be broadcasted according to [[!numpy-broadcasting-rule]] to the final output shape. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors.
 For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 
 <script type=idl>
@@ -5879,11 +5858,11 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |condition|, |trueValue|, and |falseValue| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |condition|'s [=MLOperand/dataType=] is not equal to {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |trueValue|'s [=MLOperand/dataType=] is not equal to |falseValue|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |descriptor| be a new {{MLOperandDescriptor}}.
-    1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |trueValue|'s [=MLOperand/dataType=].
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to the result of [=bidirectionally broadcasting the shapes=] |trueValue|'s [=MLOperand/shape=] and |falseValue|'s [=MLOperand/shape=].
+    1. Let |outputShape| be the result of [=bidirectionally broadcasting the shapes=] |trueValue|'s [=MLOperand/shape=] and |falseValue|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. If |condition| is not [=bidirectionally broadcastable=] to |descriptor|.{{MLOperandDescriptor/dimensions}}, then [=exception/throw=] a {{TypeError}}.
+    1. Set |outputShape| to the result of [=bidirectionally broadcasting the shapes=] |condition|'s [=MLOperand/shape=] and |outputShape].
+        1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |trueValue|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Let |operator| be an [=operator=] for the "where" operation, given |condition|, |trueValue| and |falseValue|.
