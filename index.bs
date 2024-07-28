@@ -2284,10 +2284,7 @@ partial interface MLGraphBuilder {
 ### Element-wise binary operations ### {#api-mlgraphbuilder-binary}
 Compute the element-wise binary addition, subtraction, multiplication, division, power, maximum and minimum of the two input tensors.
 
-The element-wise binary operations will be broadcasted according to
-[[!numpy-broadcasting-rule]]. The [=MLOperand/rank=] of the output tensor is the maximum
-[=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size
-is the maximum size along that dimension of the input tensors.
+The operation will be broadcast according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -2329,7 +2326,7 @@ partial interface MLGraphBuilder {
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be the result of [=bidirectionally broadcasting the shapes=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=].
+    1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
@@ -2398,8 +2395,7 @@ partial interface MLGraphBuilder {
 ### Element-wise logical operations ### {#api-mlgraphbuilder-logical}
 Compare input tensors element-wise and return a {{MLOperandDataType/"uint8"}} tensor of values 0 (false) or 1 (true) for the comparisons. For single-operand operations, return the logical results of the operation.
 
-The input tensor will be broadcasted according to [[!numpy-broadcasting-rule]]. The [=MLOperand/rank=] of the output tensor is the maximum
-[=MLOperand/rank=] of the input tensors.
+For multiple-operand operations, the operation will be broadcast according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -2457,7 +2453,7 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     1. Otherwise:
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-        1. Let |outputShape| be the result of [=bidirectionally broadcasting the shapes=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+        1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given {{MLOperandDataType/"uint8"}} and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
@@ -2740,7 +2736,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### expand ### {#api-mlgraphbuilder-expand}
-Expand any dimension of size 1 of the input tensor to a larger size according to the new shape. The expansion is consistent with [[!numpy-broadcasting-rule]]. The input dimensions must have the size of 1 or match the sizes of the corresponding output dimensions according to the new shape.
+Expand any dimension of size 1 of the input tensor to a larger size according to the new shape. The expansion is consistent with [[!numpy-broadcasting-rule]]. The input tensor must be [=unidirectionally broadcastable=] to the new shape; its dimensions must have the size of 1 or match the sizes of the corresponding output dimensions according to the new shape.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand expand(MLOperand input,
@@ -2763,7 +2759,7 @@ partial interface MLGraphBuilder {
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be the result of [=unidirectionally broadcasting the shapes=] |input|'s [=MLOperand/shape=] and |newShape|.
+    1. Let |outputShape| be the result of [=unidirectionally broadcasting=] |input|'s [=MLOperand/shape=] and |newShape|.
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputDescriptor| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
@@ -4519,7 +4515,7 @@ partial interface MLGraphBuilder {
     Computes the matrix product of two input tensors as follows:
         - If both *a* and *b* are 2-dimensional, they are multiplied like conventional
             matrices and produce a 2-dimensional tensor as the output.
-        - If either *a* or *b* is `N`-dimensional where `N > 2`, it is treated as a stack of matrices with dimensions corresponding to the last two indices. The matrix multiplication will be broadcasted accordingly by following the [[!numpy-broadcasting-rule]]. The output is a `N`-dimensional tensor whose rank is the maximum [=MLOperand/rank=] of the input tensors. For each dimension, except the last two, of the output tensor, its size is the maximum size along that dimension of the input tensors.
+        - If either *a* or *b* is `N`-dimensional where `N > 2`, it is treated as a stack of matrices with dimensions corresponding to the last two indices. The matrix multiplication will be broadcast according to [[!numpy-broadcasting-rule]]. The shapes of *a* and *b*, except the last two dimensions, must be [=bidirectionally broadcastable=]. The output is a `N`-dimensional tensor whose rank is the maximum [=MLOperand/rank=] of the input tensors. For each dimension, except the last two, of the output tensor, its size is the maximum size along that dimension of the input tensors.
 </div>
 
 <details open algorithm>
@@ -4538,7 +4534,7 @@ partial interface MLGraphBuilder {
     1. If |colsA| is not equal to |rowsB|, then [=exception/throw=] a {{TypeError}}.
     1. Let |batchShapeA| be a [=list/clone=] of |shapeA| with the spatial dimensions (last 2 items) [=list/removed=].
     1. Let |batchShapeB| be a [=list/clone=] of |shapeB| with the spatial dimensions (last 2 items) [=list/removed=].
-    1. Let |outputShape| be the result of [=bidirectionally broadcasting the shapes=] |batchShapeA| and |batchShapeB|. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |batchShapeA| and |batchShapeB|. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. [=list/Append=] « |rowsA|, |colsB| » to |outputShape|.
     1. Return |outputShape|.
 </details>
@@ -4903,6 +4899,8 @@ Calculate the maximum value for patches of a feature map, and use it to create a
 ### prelu ### {#api-mlgraphbuilder-prelu}
 Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Parametric_ReLU">parametric version of rectified linear function (Parametric ReLU)</a> on the input tensor element-wise. Parametric ReLU is a type of leaky ReLU that, instead of having a scalar slope like 0.01, making the slope (coefficient of leakage) into a parameter that is learned during the model training phase of this operation. The calculation follows the expression `max(0, x) + slope * min(0, x)`.
 
+The operation will be broadcast according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
+
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand prelu(MLOperand input,
@@ -4914,7 +4912,7 @@ partial interface MLGraphBuilder {
 <div dfn-for="MLGraphBuilder/prelu(input, slope, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
-        - <dfn>slope</dfn>: an {{MLOperand}}. The slope tensor. Its shape is either the same as, or [=unidirectionally broadcastable=] to the shape of input tensor *input*.
+        - <dfn>slope</dfn>: an {{MLOperand}}. The slope tensor. Its shape must be [=bidirectionally broadcastable=] to the shape of *input*.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
@@ -4929,7 +4927,7 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |slope| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, or {{MLOperandDataType/"int8"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |slope|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be to the result of [=unidirectionally broadcasting the shapes=] |slope|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=].
+    1. Let |outputShape| be to the result of [=bidirectionally broadcasting=] |slope|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
@@ -5889,8 +5887,7 @@ partial interface MLGraphBuilder {
 ### where ### {#api-mlgraphbuilder-where}
 Select the values from the trueValue or the falseValue tensor depending on the corresponding values of the condition tensor, where non-zero is true and zero is false. The condition tensor is often the output of one of the element-wise logical operations.
 
-The input tensors must be [=bidirectionally broadcastable=] and will be broadcasted according to [[!numpy-broadcasting-rule]] to the final output shape. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors.
-For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
+The operation will be broadcast according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -5919,9 +5916,9 @@ partial interface MLGraphBuilder {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |condition|, |trueValue|, and |falseValue| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |condition|'s [=MLOperand/dataType=] is not equal to {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |trueValue|'s [=MLOperand/dataType=] is not equal to |falseValue|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be the result of [=bidirectionally broadcasting the shapes=] |trueValue|'s [=MLOperand/shape=] and |falseValue|'s [=MLOperand/shape=].
+    1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |trueValue|'s [=MLOperand/shape=] and |falseValue|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. Set |outputShape| to the result of [=bidirectionally broadcasting the shapes=] |condition|'s [=MLOperand/shape=] and |outputShape].
+    1. Set |outputShape| to the result of [=bidirectionally broadcasting=] |condition|'s [=MLOperand/shape=] and |outputShape].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |trueValue|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
@@ -5961,7 +5958,7 @@ Broadcasting refers to how operations treat tensors with different shapes, and f
 
 <details open algorithm>
 <summary>
-To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broadcast the shapes</dfn> |shapeFrom| and |shapeTo|, perform the following steps. |shapeFrom| and |shapeTo| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+To <dfn data-lt="unidirectionally broadcasting">unidirectionally broadcast the shapes</dfn> |shapeFrom| and |shapeTo|, perform the following steps. |shapeFrom| and |shapeTo| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
 </summary>
 
 1. Let |sizeFrom| be |shapeFrom|'s [=list/size=].
@@ -5980,12 +5977,12 @@ To <dfn data-lt="unidirectionally broadcasting the shapes">unidirectionally broa
 </details>
 
 <p algorithm>
-|shapeFrom| is <dfn>unidirectionally broadcastable</dfn> to |shapeTo| if [=unidirectionally broadcasting the shapes=] |shapeFrom| and |shapeTo| does not result in failure.
+|shapeFrom| is <dfn>unidirectionally broadcastable</dfn> to |shapeTo| if [=unidirectionally broadcasting=] |shapeFrom| and |shapeTo| does not result in failure.
 </p>
 
 <details open algorithm>
 <summary>
-To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadcast the shapes</dfn> |shapeA| and |shapeB|, perform the following steps. |shapeA| and |shapeB| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+To <dfn data-lt="bidirectionally broadcasting">bidirectionally broadcast the shapes</dfn> |shapeA| and |shapeB|, perform the following steps. |shapeA| and |shapeB| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
 </summary>
 
 1. Let |sizeA| be |shapeA|'s [=list/size=].
@@ -6006,7 +6003,7 @@ To <dfn data-lt="bidirectionally broadcasting the shapes">bidirectionally broadc
 </details>
 
 <p algorithm>
-|shapeA| is <dfn>bidirectionally broadcastable</dfn> to |shapeB| if [=bidirectionally broadcasting the shapes=] |shapeA| and |shapeB| does not result in failure.
+|shapeA| is <dfn>bidirectionally broadcastable</dfn> to |shapeB| if [=bidirectionally broadcasting=] |shapeA| and |shapeB| does not result in failure.
 </p>
 
 ## Casting ## {#algorithms-casting}
