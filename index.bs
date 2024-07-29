@@ -817,6 +817,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
         1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
     1. Otherwise:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/default=]".
+        1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=].
         1. If |options|["{{MLContextOptions/deviceType}}"] [=map/exists=], then set |context|.{{MLContext/[[deviceType]]}} to |options|["{{MLContextOptions/deviceType}}"]. Otherwise, set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"cpu"}}.
         1. If |options|["{{MLContextOptions/powerPreference}}"] [=map/exists=], then set |context|.{{MLContext/[[powerPreference]]}} to |options|["{{MLContextOptions/powerPreference}}"]. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
     1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, |context|.{{MLContext/[[deviceType]]}} and |context|.{{MLContext/[[powerPreference]]}}, return failure.
@@ -862,10 +863,16 @@ dictionary MLComputeResult {
   MLNamedArrayBufferViews outputs;
 };
 
+dictionary MLContextLostInfo {
+  DOMString message;
+};
+
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLContext {
   Promise<MLComputeResult> compute(
       MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
+
+  readonly attribute Promise<MLContextLostInfo> lost;
 };
 </script>
 
@@ -881,6 +888,9 @@ interface MLContext {
     : <dfn>\[[powerPreference]]</dfn> of type {{MLPowerPreference}}.
     ::
         The {{MLContext}}'s {{MLPowerPreference}}.
+    : <dfn>\[[lost]]</dfn> of type {{Promise}}<{{MLContextLostInfo}}>.
+    ::
+        A {{Promise}} that is resolved when the {{MLContext}}'s underlying execution device is no longer available.
   </dl>
 </div>
 
@@ -978,6 +988,7 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If [=this=] [=MLContext/is lost=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", then return [=a new promise=] [=rejected=] with an "{{OperationError}}" {{DOMException}}.
     1. [=map/For each=] |name| → |descriptor| of |graph|.{{MLGraph/[[inputDescriptors]]}}:
@@ -1038,6 +1049,31 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
   </pre>
 </details>
 </div>
+
+### Errors ### {#api-mlcontext-errors}
+
+<details open algorithm="context-lost">
+<summary>
+When an {{MLContext}} |context| is no longer available to fulfill requests, run the following steps:
+</summary>
+    1. Let |global| be |context|'s [=relevant global object=].
+    1. [=Queue an ML task=] with |global| to run these steps:
+        1. Let |info| be a new {{MLContextLostInfo}}.
+        1. Set |info|.{{MLContextLostInfo/message}} to an [=implementation-defined=] value.
+        1. [=Resolve=] |context|.{{MLContext/[[lost]]}} with |info|.
+</details>
+
+<dl dfn-type=dict-member dfn-for=MLContextLostInfo>
+    : <dfn>message</dfn>
+    :: An [=implementation-defined=] message providing information about the error that occurred.
+</dl>
+
+<div algorithm>
+The <dfn attribute for=MLContext>lost</dfn> getter steps are to return [=this=]'s {{MLContext/[[lost]]}} {{Promise}}.
+</div>
+
+A {{MLContext}} <dfn for=MLContext>is lost</dfn> if its {{MLContext/[[lost]]}} {{Promise}} is settled.
+
 
 ## {{MLGraph}} interface ## {#api-mlgraph}
 The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
@@ -1309,6 +1345,7 @@ The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph buil
     The [=new=] <dfn constructor for=MLGraphBuilder lt="MLGraphBuilder(context)">MLGraphBuilder(|context|)</dfn> constructor steps are:
   </summary>
     1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
+    1. If |context| [=MLContext/is lost=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. Set [=this=].{{MLGraphBuilder/[[context]]}} to |context|.
     1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to false.
 </details>

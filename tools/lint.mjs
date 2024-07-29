@@ -232,6 +232,10 @@ for (const algorithm of root.querySelectorAll('.algorithm')) {
         // Lambda argument declarations
         // e.g. "Let validationSteps given MLOperandDescriptor descriptor be..."
         seen.add(name);
+      } else if (new RegExp('^When .* \\b' + name + '\\b').test(text)) {
+        // Reactive argument declarations
+        // e.g. "When something bad happens to MLContext context, ..."
+        seen.add(name);
       } else if (!seen.has(name)) {
         error(`Uninitialized variable "${name}" in "${algorithm.getAttribute('data-algorithm')}": ${text}`);
         seen.add(name);
