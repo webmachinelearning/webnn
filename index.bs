@@ -1233,6 +1233,38 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
 To <dfn for="MLGraphBuilder">validate operand</dfn> given {{MLGraphBuilder}} |builder| and {{MLOperand}} |operand|, return true if |operand|.{{MLOperand/[[builder]]}} is |builder|, and false otherwise.
 </p>
 
+## {{MLConstantOperand}} interface ## {#api-mlconstantoperand}
+
+An {{MLConstantOperand}} is an {{MLOperand}} which represents constant weight data. Its {{MLConstantOperand/[[data]]}} is statically known during graph construction time, which allows for optimizations such as weight preprocessing.
+
+<script type=idl>
+[SecureContext, Exposed=(Window, DedicatedWorker)]
+interface MLConstantOperand : MLOperand {};
+</script>
+
+<div class=internal-slots>
+{{MLConstantOperand}} has the following internal slots:
+  <dl dfn-type=attribute dfn-for="MLConstantOperand">
+    : <dfn>\[[data]]</dfn> of type [=byte sequence=]
+    ::
+        The bytes associated with this {{MLConstantOperand}}.
+  </dl>
+</div>
+
+### Creating an {{MLConstantOperand}} ### {#api-mlconstantoperand-create}
+The {{MLConstantOperand}} objects are created by the {{MLGraphBuilder/constant(descriptor, bufferView)}} and {{MLGraphBuilder/constant(type, value)}} methods of {{MLGraphBuilder}}, internally using the following algorithm.
+
+<details open algorithm>
+  <summary>
+    To <dfn>create an MLConstantOperand</dfn> given {{MLGraphBuilder}} |builder|, {{MLOperandDescriptor}} |desc|, and [=byte sequence=] |bytes| run the following steps:
+  </summary>
+    1. Let |constantOperand| be a new {{MLConstantOperand}}.
+    1. Set |constantOperand|.{{MLOperand/[[builder]]}} to |builder|.
+    1. Set |constantOperand|.{{MLOperand/[[descriptor]]}} to |desc|.
+    1. Set |constantOperand|.{{MLConstantOperand/[[data]]}} to |bytes|.
+    1. Return |constantOperand|.
+</details>
+
 #### {{MLNumber}} #### {#api-mlnumber-typedef}
 
 <dfn typedef>MLNumber</dfn> is used when specifying the type of a numeric option for an {{MLOperand}} which can be of any {{MLOperandDataType}}, including both 64-bit integer types ({{MLOperandDataType/"uint64"}} and {{MLOperandDataType/"int64"}}) and 32-bit floating point ({{MLOperandDataType/"float32"}}). Implementations process the value according to the corresponding {{MLOperandDataType}}. For example, if {{MLGraphBuilder/clamp(input, options)}} is called with an {{MLOperand}} with [=MLOperand/dataType=] {{MLOperandDataType/"uint32"}}, the {{MLNumber}} parameters are explicitly [=cast=] to {{unsigned long}}.
@@ -1287,10 +1319,10 @@ interface MLGraphBuilder {
   MLOperand input(USVString name, MLOperandDescriptor descriptor);
 
   // Create an operand for a graph constant.
-  MLOperand constant(MLOperandDescriptor descriptor, ArrayBufferView bufferView);
+  MLConstantOperand constant(MLOperandDescriptor descriptor, ArrayBufferView bufferView);
 
   // Create a scalar operand from the specified number of the specified type.
-  MLOperand constant(MLOperandDataType type, MLNumber value);
+  MLConstantOperand constant(MLOperandDataType type, MLNumber value);
 
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
@@ -1298,7 +1330,7 @@ interface MLGraphBuilder {
 </script>
 
 <div class="note">
-The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferView)|constant()}} method as constant operands during graph construction time.
+The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically specified through {{MLConstantOperand}}s.
 </div>
 
 <div class=internal-slots>
@@ -1360,16 +1392,16 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
 </div>
 
 ### constant operands ### {#api-mlgraphbuilder-constant}
-Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
+Create an {{MLConstantOperand}} that can be used in {{MLGraphBuilder}} methods.
 
 #### {{MLGraphBuilder/constant(descriptor, bufferView)}} #### {#api-mlgraphbuilder-constant-bufferview}
-Create a constant {{MLOperand}} of the specified data type and shape that contains the initializing data.
+Create a {{MLConstantOperand}} of the specified data type and shape that contains the initializing data.
 
 <div dfn-for="MLGraphBuilder/constant(descriptor, bufferView)" dfn-type=argument>
     **Arguments:**
         - <dfn>descriptor</dfn>: an {{MLOperandDescriptor}}. The descriptor of the output tensor.
         - <dfn>bufferView</dfn>: an {{ArrayBufferView}}. The view of the buffer containing the initializing data.
-    **Returns:** an {{MLOperand}}. The constant output tensor.
+    **Returns:** an {{MLConstantOperand}}. The constant output tensor.
 </div>
 
 <details open algorithm>
@@ -1380,14 +1412,14 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |bufferView| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
-        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |bufferView|.
-        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |bytes| as value.
+        1. Let |operand| be the result of [=creating an MLConstantOperand=] given [=this=], |descriptor|, and |bytes|.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=].
     1. Return |operand|.
 </details>
 
 #### {{MLGraphBuilder/constant(type, value)}} #### {#api-mlgraphbuilder-constant-type-value}
-Create a scalar constant {{MLOperand}} of the specified value and data type.
+Create a scalar {{MLConstantOperand}} of the specified value and data type.
 
 <div class="note">
 Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a floating point value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
@@ -1397,7 +1429,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
     **Arguments:**
         - <dfn>type</dfn>: an {{MLOperandDataType}}.
         - <dfn>value</dfn>: an {{MLNumber}}. The value of the constant.
-    **Returns:** an {{MLOperand}}. The constant output.
+    **Returns:** an {{MLConstantOperand}}. The constant output.
 </div>
 
 <details open algorithm>
@@ -1406,10 +1438,14 @@ Data truncation will occur when the specified value exceeds the range of the spe
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. Set |value| to the result of [=casting=] |value| to |type|.
+    1. Let |bytes| be a [=byte sequence=] represented by |value|.
+
+      ISSUE(TODO): Specify this in terms of https://tc39.es/ecma262/multipage/structured-data.html#sec-numerictorawbytes.
+
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |type| and « ».
     1. *Make graph connections:*
-        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |value| as value.
+        1. Let |operand| be the result of [=creating an MLConstantOperand=] given [=this=], |descriptor|, and |bytes|.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=].
     1. Return |operand|.
 </details>
 
@@ -1546,14 +1582,14 @@ Normalize the values of the input tensor using [[Batch-Normalization]]. For each
 
 <script type=idl>
 dictionary MLBatchNormalizationOptions : MLOperatorOptions {
-  MLOperand scale;
-  MLOperand bias;
+  MLConstantOperand scale;
+  MLConstantOperand bias;
   [EnforceRange] unsigned long axis = 1;
   double epsilon = 1e-5;
 };
 
 partial interface MLGraphBuilder {
-  MLOperand batchNormalization(MLOperand input, MLOperand mean, MLOperand variance,
+  MLOperand batchNormalization(MLOperand input, MLConstantOperand mean, MLConstantOperand variance,
                                optional MLBatchNormalizationOptions options = {});
 };
 </script>
@@ -1580,8 +1616,8 @@ partial interface MLGraphBuilder {
 <div dfn-for="MLGraphBuilder/batchNormalization(input, mean, variance, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
-        - <dfn>mean</dfn>: an {{MLOperand}}. Specifies the 1-D tensor of the mean values of the input features across the batch. Its [=list/size=] is equal to the size of the input dimension denoted by  {{MLBatchNormalizationOptions/axis}}.
-        - <dfn>variance</dfn>: an {{MLOperand}}. The 1-D tensor of the variance values of the input features across the batch whose [=list/size=] is equal to the size of the input dimension denoted by {{MLBatchNormalizationOptions/axis}}.
+        - <dfn>mean</dfn>: an {{MLConstantOperand}}. Specifies the 1-D tensor of the mean values of the input features across the batch. Its [=list/size=] is equal to the size of the input dimension denoted by {{MLBatchNormalizationOptions/axis}}.
+        - <dfn>variance</dfn>: an {{MLConstantOperand}}. The 1-D tensor of the variance values of the input features across the batch whose [=list/size=] is equal to the size of the input dimension denoted by {{MLBatchNormalizationOptions/axis}}.
         - <dfn>options</dfn>: an optional {{MLBatchNormalizationOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The batch-normalized N-D tensor of the same shape as *input*.
@@ -1890,7 +1926,7 @@ dictionary MLConv2dOptions : MLOperatorOptions {
   [EnforceRange] unsigned long groups = 1;
   MLInputOperandLayout inputLayout = "nchw";
   MLConv2dFilterOperandLayout filterLayout = "oihw";
-  MLOperand bias;
+  MLConstantOperand bias;
 };
 
 partial interface MLGraphBuilder {
@@ -3078,8 +3114,8 @@ enum MLRecurrentNetworkDirection {
 };
 
 dictionary MLGruOptions : MLOperatorOptions {
-  MLOperand bias;
-  MLOperand recurrentBias;
+  MLConstantOperand bias;
+  MLConstantOperand recurrentBias;
   MLOperand initialHiddenState;
   boolean resetAfter = true;
   boolean returnSequence = false;
@@ -3090,8 +3126,8 @@ dictionary MLGruOptions : MLOperatorOptions {
 
 partial interface MLGraphBuilder {
   sequence<MLOperand> gru(MLOperand input,
-                          MLOperand weight,
-                          MLOperand recurrentWeight,
+                          MLConstantOperand weight,
+                          MLConstantOperand recurrentWeight,
                           [EnforceRange] unsigned long steps,
                           [EnforceRange] unsigned long hiddenSize,
                           optional MLGruOptions options = {});
@@ -3137,8 +3173,8 @@ partial interface MLGraphBuilder {
 <div dfn-for="MLGraphBuilder/gru(input, weight, recurrentWeight, steps, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
-        - <dfn>weight</dfn>: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
-        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
+        - <dfn>weight</dfn>: an {{MLConstantOperand}}. The 3-D input weight tensor of shape *[numDirections, 3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
+        - <dfn>recurrentWeight</dfn>: an {{MLConstantOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLGruOptions/layout}} argument.
         - <dfn>steps</dfn>: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
         - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
         - <dfn>options</dfn>: an optional {{MLGruOptions}}. The optional parameters of the operation.
@@ -3313,8 +3349,8 @@ A single time step of the Gated Recurrent Unit [[GRU]] recurrent network using a
 
 <script type=idl>
 dictionary MLGruCellOptions : MLOperatorOptions {
-  MLOperand bias;
-  MLOperand recurrentBias;
+  MLConstantOperand bias;
+  MLConstantOperand recurrentBias;
   boolean resetAfter = true;
   MLGruWeightLayout layout = "zrn";
   sequence<MLRecurrentNetworkActivation> activations;
@@ -3322,8 +3358,8 @@ dictionary MLGruCellOptions : MLOperatorOptions {
 
 partial interface MLGraphBuilder {
   MLOperand gruCell(MLOperand input,
-                    MLOperand weight,
-                    MLOperand recurrentWeight,
+                    MLConstantOperand weight,
+                    MLConstantOperand recurrentWeight,
                     MLOperand hiddenState,
                     [EnforceRange] unsigned long hiddenSize,
                     optional MLGruCellOptions options = {});
@@ -3356,8 +3392,8 @@ partial interface MLGraphBuilder {
 <div dfn-for="MLGraphBuilder/gruCell(input, weight, recurrentWeight, hiddenState, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
-        - <dfn>weight</dfn>: an {{MLOperand}}. The 2-D input weight tensor of shape *[3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>weight</dfn>: an {{MLConstantOperand}}. The 2-D input weight tensor of shape *[3 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>recurrentWeight</dfn>: an {{MLConstantOperand}}. The 2-D recurrent weight tensor of shape *[3 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
         - <dfn>hiddenState</dfn>: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
         - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
         - <dfn>options</dfn>: an optional {{MLGruCellOptions}}. The optional parameters of the operation.
@@ -3640,8 +3676,8 @@ Normalize the input using [[Instance-Normalization]]. Unlike {{MLGraphBuilder/ba
 
 <script type=idl>
 dictionary MLInstanceNormalizationOptions : MLOperatorOptions {
-  MLOperand scale;
-  MLOperand bias;
+  MLConstantOperand scale;
+  MLConstantOperand bias;
   double epsilon = 1e-5;
   MLInputOperandLayout layout = "nchw";
 };
@@ -3743,8 +3779,8 @@ Normalize the input using [[Layer-Normalization]]. Unlike {{MLGraphBuilder/batch
 
 <script type=idl>
 dictionary MLLayerNormalizationOptions : MLOperatorOptions {
-  MLOperand scale;
-  MLOperand bias;
+  MLConstantOperand scale;
+  MLConstantOperand bias;
   sequence<[EnforceRange] unsigned long> axes;
   double epsilon = 1e-5;
 };
@@ -3986,9 +4022,9 @@ enum MLLstmWeightLayout {
 };
 
 dictionary MLLstmOptions : MLOperatorOptions {
-  MLOperand bias;
-  MLOperand recurrentBias;
-  MLOperand peepholeWeight;
+  MLConstantOperand bias;
+  MLConstantOperand recurrentBias;
+  MLConstantOperand peepholeWeight;
   MLOperand initialHiddenState;
   MLOperand initialCellState;
   boolean returnSequence = false;
@@ -3999,8 +4035,8 @@ dictionary MLLstmOptions : MLOperatorOptions {
 
 partial interface MLGraphBuilder {
   sequence<MLOperand> lstm(MLOperand input,
-                           MLOperand weight,
-                           MLOperand recurrentWeight,
+                           MLConstantOperand weight,
+                           MLConstantOperand recurrentWeight,
                            [EnforceRange] unsigned long steps,
                            [EnforceRange] unsigned long hiddenSize,
                            optional MLLstmOptions options = {});
@@ -4049,8 +4085,8 @@ partial interface MLGraphBuilder {
 <div dfn-for="MLGraphBuilder/lstm(input, weight, recurrentWeight, steps, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input 3-D tensor of shape *[steps, batchSize, inputSize]*.
-        - <dfn>weight</dfn>: an {{MLOperand}}. The 3-D input weight tensor of shape *[numDirections, 4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
-        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
+        - <dfn>weight</dfn>: an {{MLConstantOperand}}. The 3-D input weight tensor of shape *[numDirections, 4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}}.
+        - <dfn>recurrentWeight</dfn>: an {{MLConstantOperand}}. The 3-D recurrent weight tensor of shape *[numDirections, 4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the second dimension of the tensor shape is specified according to the |options|.{{MLLstmOptions/layout}} argument.
         - <dfn>steps</dfn>: an {{unsigned long}} scalar. The number of time steps in the recurrent network. The value must be greater than 0.
         - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the third dimension of the cell output tensor shape. It indicates the number of features in the hidden state.
         - <dfn>options</dfn>: an optional {{MLLstmOptions}}. The optional parameters of the operation.
@@ -4262,17 +4298,17 @@ A single time step of the Long Short-Term Memory [[LSTM]] recurrent network usin
 
 <script type=idl>
 dictionary MLLstmCellOptions : MLOperatorOptions {
-  MLOperand bias;
-  MLOperand recurrentBias;
-  MLOperand peepholeWeight;
+  MLConstantOperand bias;
+  MLConstantOperand recurrentBias;
+  MLConstantOperand peepholeWeight;
   MLLstmWeightLayout layout = "iofg";
   sequence<MLRecurrentNetworkActivation> activations;
 };
 
 partial interface MLGraphBuilder {
   sequence<MLOperand> lstmCell(MLOperand input,
-                               MLOperand weight,
-                               MLOperand recurrentWeight,
+                               MLConstantOperand weight,
+                               MLConstantOperand recurrentWeight,
                                MLOperand hiddenState,
                                MLOperand cellState,
                                [EnforceRange] unsigned long hiddenSize,
@@ -4306,8 +4342,8 @@ partial interface MLGraphBuilder {
 <div dfn-for="MLGraphBuilder/lstmCell(input, weight, recurrentWeight, hiddenState, cellState, hiddenSize, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input 2-D tensor of shape *[batchSize, inputSize]*.
-        - <dfn>weight</dfn>: an {{MLOperand}}. The 2-D input weight tensor of shape *[4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
-        - <dfn>recurrentWeight</dfn>: an {{MLOperand}}. The 2-D recurrent weight tensor of shape *[4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>weight</dfn>: an {{MLConstantOperand}}. The 2-D input weight tensor of shape *[4 * hiddenSize, inputSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
+        - <dfn>recurrentWeight</dfn>: an {{MLConstantOperand}}. The 2-D recurrent weight tensor of shape *[4 * hiddenSize, hiddenSize]*. The ordering of the weight vectors in the first dimension of the tensor shape is specified according to the *options.layout* argument.
         - <dfn>hiddenState</dfn>: an {{MLOperand}}. The 2-D input hidden state tensor of shape *[batchSize, hiddenSize]*.
         - <dfn>cellState</dfn>: an {{MLOperand}}. The 2-D input cell state tensor of shape *[batchSize, hiddenSize]*.
         - <dfn>hiddenSize</dfn>: an {{unsigned long}} scalar. The value of the second dimension of the output tensor shape. It indicates the number of features in the hidden state.
@@ -4904,7 +4940,7 @@ The operation will be broadcast according to [[!numpy-broadcasting-rule]]. The i
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand prelu(MLOperand input,
-                  MLOperand slope,
+                  MLConstantOperand slope,
                   optional MLOperatorOptions options = {});
 };
 </script>
@@ -4912,7 +4948,7 @@ partial interface MLGraphBuilder {
 <div dfn-for="MLGraphBuilder/prelu(input, slope, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
-        - <dfn>slope</dfn>: an {{MLOperand}}. The slope tensor. Its shape must be [=bidirectionally broadcastable=] to the shape of *input*.
+        - <dfn>slope</dfn>: an {{MLConstantOperand}}. The slope tensor. Its shape must be [=bidirectionally broadcastable=] to the shape of *input*.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
@@ -6131,7 +6167,7 @@ Given the following build graph:
       dimensions: TENSOR_DIMS
     };
 
-    // constant1 is a constant MLOperand with the value 0.5.
+    // constant1 is an MLConstantOperand with the value 0.5.
     const constantBuffer1 = new Float32Array(TENSOR_SIZE).fill(0.5);
     const constant1 = builder.constant(desc, constantBuffer1);
 
@@ -6139,7 +6175,7 @@ Given the following build graph:
     // execution.
     const input1 = builder.input('input1', desc);
 
-    // constant2 is another constant MLOperand with the value 0.5.
+    // constant2 is another MLConstantOperand with the value 0.5.
     const constantBuffer2 = new Float32Array(TENSOR_SIZE).fill(0.5);
     const constant2 = builder.constant(desc, constantBuffer2);
 
