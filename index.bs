@@ -691,6 +691,10 @@ In WebNN, a [=computational graph=] is composed of <dfn>operators</dfn> which ac
 
 A key part of the {{MLGraphBuilder}} interface are methods such as {{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/relu()}} which create an [=operator=] which represents the actual operation to perform on the input data when the computation is run, and return a new {{MLOperand}} holding the operator. Methods that create an {{MLOperand}} connect any [=operator/inputs=] and [=operator/activations=] to the operator. Each method invocation returns a distinct new value, without changing the value of any other {{MLOperand}}.
 
+An [=operator=] has a <dfn for=operator>label</dfn>, a string which may be included in diagnostics such as [=exception=] messages. When an [=operator=] is created its [=operator/label=] is initialized in an [=implementation-defined=] manner and may include the passed {{MLOperatorOptions/label}}.
+
+Note: Implementations are encouraged to use the {{MLOperatorOptions/label}} provided by developers to enhance error messages and improve debuggability, including both synchronous errors during graph construction and for errors that occur during asynchronous {{MLGraphBuilder/build()}} or {{MLContext/compute()}} operations.
+
 At inference time, every {{MLOperand}} will be bound to a tensor (the actual data), which are essentially multidimensional arrays. The representation of the tensors is implementation dependent, but it typically includes the array data stored in some buffer (memory) and some metadata describing the array data (such as its shape).
 
 Operations within the computational graph have functional semantics. This allows the implementation
@@ -1157,6 +1161,10 @@ interface MLOperand {
   sequence<unsigned long> shape();
 };
 
+dictionary MLOperatorOptions {
+  USVString label = "";
+};
+
 typedef (bigint or unrestricted double) MLNumber;
 </script>
 
@@ -1193,6 +1201,12 @@ If an operation supports only a subset of {{MLOperandDataType}}s, the <dfn>allow
 
 If an operation requires input operands with a particular [=MLOperand/rank=], the <dfn>allowed ranks</dfn> for each of the operation's input operands, including both positional arguments and options, are given as an explicit rank (e.g. 1), or <dfn lt="any rank">N</dfn> to allow any dimensionality.
 
+{{MLOperatorOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLOperatorOptions>
+    : <dfn>label</dfn>
+    ::
+        Optionally provided when an [=operator=] is created using {{MLGraphBuilder}} methods that create {{MLOperand}}s. The implementation may use this value to initialize the [=operator=]'s [=operator/label=].
+</dl>
 
 ### Creating an {{MLOperand}} ### {#api-mloperand-create}
 The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, internally using the following algorithms.
@@ -1459,7 +1473,7 @@ NOTE: Specifying an [=computational graph/input=] operand or [=computational gra
 Return the index location of the minimum or maximum values of all the input values along the axis. In case of ties, the identity of the return value is implementation dependent.
 
 <script type=idl>
-dictionary MLArgMinMaxOptions {
+dictionary MLArgMinMaxOptions : MLOperatorOptions {
   boolean keepDimensions = false;
   MLOperandDataType outputDataType = "int32";
 };
@@ -1534,7 +1548,7 @@ partial interface MLGraphBuilder {
 Normalize the values of the input tensor using [[Batch-Normalization]]. For each input feature, the mean and variance values of that feature are computed across all the samples in the batch dimension while the model is trained. These mean and variance values are then subsequently given to this operation during model inference.
 
 <script type=idl>
-dictionary MLBatchNormalizationOptions {
+dictionary MLBatchNormalizationOptions : MLOperatorOptions {
   MLOperand scale;
   MLOperand bias;
   [EnforceRange] unsigned long axis = 1;
@@ -1669,13 +1683,16 @@ partial interface MLGraphBuilder {
 Cast each element in the input tensor to the target data type.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand cast(MLOperand input, MLOperandDataType type);
+  MLOperand cast(MLOperand input,
+                 MLOperandDataType type,
+                 optional MLOperatorOptions options = {});
 };
 </script>
-<div dfn-for="MLGraphBuilder/cast(input, type)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/cast(input, type, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
         - <dfn>type</dfn>: an {{MLOperandDataType}}. The target data type.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The N-D tensor of the same shape as *input* with each element casted to the target data type.
 </div>
@@ -1685,7 +1702,7 @@ Casting between {{MLOperandDataType}}s is specified for some cases and [=impleme
 
 <table class=grid>
   <caption>
-    Behavior of the {{MLGraphBuilder/cast()}} operation given the {{MLGraphBuilder/cast(input, type)/input}}'s [=MLOperand/dataType=] (rows) and target {{MLGraphBuilder/cast(input, type)/type}} (columns).
+    Behavior of the {{MLGraphBuilder/cast()}} operation given the {{MLGraphBuilder/cast(input, type, options)/input}}'s [=MLOperand/dataType=] (rows) and target {{MLGraphBuilder/cast(input, type, options)/type}} (columns).
   </caption>
   <tr>
     <th class=split>
@@ -1747,12 +1764,12 @@ NOTE: For example, casting -1 from {{MLOperandDataType/"int8"}} to {{MLOperandDa
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>cast(|input|, |type|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>cast(|input|, |type|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
-        1. Let |operator| be an [=operator=] for the "cast" operation, given |type|.
+        1. Let |operator| be an [=operator=] for the "cast" operation, given |type| and |options|.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
@@ -1763,7 +1780,7 @@ NOTE: For example, casting -1 from {{MLOperandDataType/"int8"}} to {{MLOperandDa
 ### clamp ### {#api-mlgraphbuilder-clamp}
 Clamp the input tensor element-wise within a range specified by the minimum and maximum values.
 <script type=idl>
-dictionary MLClampOptions {
+dictionary MLClampOptions : MLOperatorOptions {
   MLNumber minValue;
   MLNumber maxValue;
 };
@@ -1803,7 +1820,7 @@ partial interface MLGraphBuilder {
     1. If |options|.{{MLClampOptions/minValue}} is greater than |options|.{{MLClampOptions/maxValue}}, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "clamp" operation, given |options|.{{MLClampOptions/minValue}} and |options|.{{MLClampOptions/maxValue}}.
+        1. Let |operator| be an [=operator=] for the "clamp" operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -1844,14 +1861,17 @@ partial interface MLGraphBuilder {
 Concatenates the input tensors along a given axis.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand concat(sequence<MLOperand> inputs, [EnforceRange] unsigned long axis);
+  MLOperand concat(sequence<MLOperand> inputs,
+                   [EnforceRange] unsigned long axis,
+                   optional MLOperatorOptions options = {});
 };
 </script>
-<div dfn-for="MLGraphBuilder/concat(inputs, axis)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/concat(inputs, axis, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>inputs</dfn>: a [=sequence=]<{{MLOperand}}>. All input tensors must have the
             same shape, except for the size of the dimension to concatenate on.
         - <dfn>axis</dfn>: an {{unsigned long}} scalar. The axis that the inputs concatenate along. Its value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensors.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The concatenated tensor of all the inputs along
     the *axis*. The output tensor has the same shape except on the dimension
@@ -1861,7 +1881,7 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>concat(|inputs|, |axis|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>concat(|inputs|, |axis|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any [=list/item=] in |inputs| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -1885,7 +1905,7 @@ partial interface MLGraphBuilder {
                 1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] to |size|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Let |operator| be an [=operator=] for the "concat" operation, given |inputs| and |axis|.
+        1. Let |operator| be an [=operator=] for the "concat" operation, given |inputs|, |axis|, and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |inputs|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -1902,7 +1922,7 @@ enum MLConv2dFilterOperandLayout {
   "ihwo"
 };
 
-dictionary MLConv2dOptions {
+dictionary MLConv2dOptions : MLOperatorOptions {
   sequence<[EnforceRange] unsigned long> padding;
   sequence<[EnforceRange] unsigned long> strides;
   sequence<[EnforceRange] unsigned long> dilations;
@@ -2126,7 +2146,7 @@ enum MLConvTranspose2dFilterOperandLayout {
   "ohwi"
 };
 
-dictionary MLConvTranspose2dOptions {
+dictionary MLConvTranspose2dOptions : MLOperatorOptions {
   sequence<[EnforceRange] unsigned long> padding;
   sequence<[EnforceRange] unsigned long> strides;
   sequence<[EnforceRange] unsigned long> dilations;
@@ -2359,20 +2379,21 @@ The operation will be broadcast according to [[!numpy-broadcasting-rule]]. The i
 
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand add(MLOperand a, MLOperand b);
-  MLOperand sub(MLOperand a, MLOperand b);
-  MLOperand mul(MLOperand a, MLOperand b);
-  MLOperand div(MLOperand a, MLOperand b);
-  MLOperand max(MLOperand a, MLOperand b);
-  MLOperand min(MLOperand a, MLOperand b);
-  MLOperand pow(MLOperand a, MLOperand b);
+  MLOperand add(MLOperand a, MLOperand b, optional MLOperatorOptions options = {});
+  MLOperand sub(MLOperand a, MLOperand b, optional MLOperatorOptions options = {});
+  MLOperand mul(MLOperand a, MLOperand b, optional MLOperatorOptions options = {});
+  MLOperand div(MLOperand a, MLOperand b, optional MLOperatorOptions options = {});
+  MLOperand max(MLOperand a, MLOperand b, optional MLOperatorOptions options = {});
+  MLOperand min(MLOperand a, MLOperand b, optional MLOperatorOptions options = {});
+  MLOperand pow(MLOperand a, MLOperand b, optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/add(a, b), MLGraphBuilder/sub(a, b), MLGraphBuilder/mul(a, b), MLGraphBuilder/div(a, b), MLGraphBuilder/max(a, b), MLGraphBuilder/min(a, b), MLGraphBuilder/pow(a, b)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/add(a, b, options), MLGraphBuilder/sub(a, b, options), MLGraphBuilder/mul(a, b, options), MLGraphBuilder/div(a, b, options), MLGraphBuilder/max(a, b, options), MLGraphBuilder/min(a, b, options), MLGraphBuilder/pow(a, b, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor.
         - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise binary operation of the two input tensors.
@@ -2390,7 +2411,7 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder" data-lt="element-wise-binary-op">create element-wise binary operation</dfn> given [=string=] |op|, {{MLOperand}} |a| and {{MLOperand}} |b|, run the following steps:
+    To <dfn for="MLGraphBuilder" data-lt="element-wise-binary-op">create element-wise binary operation</dfn> given [=string=] |op|, {{MLOperand}} |a|, {{MLOperand}} |b|, and {{MLOperatorOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "add", "sub", "mul", "div", "max", "min", "pow".
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
@@ -2401,7 +2422,7 @@ partial interface MLGraphBuilder {
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |operator| be an [=operator=] for the |op| operation, given |a| and |b|.
+        1. Let |operator| be an [=operator=] for the |op| operation, given |a|, |b|, and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |a| and |b|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -2413,50 +2434,50 @@ partial interface MLGraphBuilder {
     The element-wise binary operation algorithms invoke the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] steps as follows.
   </summary>
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>add(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "add", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>add(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "add", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>sub(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "sub", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>sub(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "sub", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>mul(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "mul", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>mul(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "mul", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>div(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "div", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>div(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "div", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>max(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "max", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>max(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "max", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>min(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "min", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>min(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "min", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>pow(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "pow", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>pow(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "pow", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -2469,19 +2490,30 @@ For multiple-operand operations, the operation will be broadcast according to [[
 
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand equal(MLOperand a, MLOperand b);
-  MLOperand greater(MLOperand a, MLOperand b);
-  MLOperand greaterOrEqual(MLOperand a, MLOperand b);
-  MLOperand lesser(MLOperand a, MLOperand b);
-  MLOperand lesserOrEqual(MLOperand a, MLOperand b);
-  MLOperand logicalNot(MLOperand a);
+  MLOperand equal(MLOperand a,
+                  MLOperand b,
+                  optional MLOperatorOptions options = {});
+  MLOperand greater(MLOperand a,
+                    MLOperand b,
+                    optional MLOperatorOptions options = {});
+  MLOperand greaterOrEqual(MLOperand a,
+                           MLOperand b,
+                           optional MLOperatorOptions options = {});
+  MLOperand lesser(MLOperand a,
+                   MLOperand b,
+                   optional MLOperatorOptions options = {});
+  MLOperand lesserOrEqual(MLOperand a,
+                          MLOperand b,
+                          optional MLOperatorOptions options = {});
+  MLOperand logicalNot(MLOperand a, optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/equal(a, b), MLGraphBuilder/greater(a, b), MLGraphBuilder/greaterOrEqual(a, b), MLGraphBuilder/lesser(a, b), MLGraphBuilder/lesserOrEqual(a, b), MLGraphBuilder/logicalNot(a)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor.
         - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor when specified.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of element-wise comparison of the two input tensors.
 </div>
@@ -2501,7 +2533,7 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder" data-lt="element-wise-logical-op">create element-wise logical operation</dfn> given [=string=] |op|, {{MLOperand}} |a| and an optional {{MLOperand}} |b|, run the following steps:
+    To <dfn for="MLGraphBuilder" data-lt="element-wise-logical-op">create element-wise logical operation</dfn> given [=string=] |op|, {{MLOperand}} |a|, an optional {{MLOperand}} |b|, and {{MLOperatorOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "equal", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "logicalNot".
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
@@ -2516,7 +2548,7 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given {{MLOperandDataType/"uint8"}} and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |operator| be an [=operator=] for the |op| operation, given |a| and (if |op| is not "logicalNot") |b|.
+        1. Let |operator| be an [=operator=] for the |op| operation, given |a| and (if |op| is not "logicalNot") |b|, and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |a| and (if |op| is anything other than "logicalNot") |b|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -2528,43 +2560,43 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     The element-wise logical operation algorithms invoke the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] steps as follows.
   </summary>
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>equal(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "equal", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>equal(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "equal", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>greater(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "greater", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>greater(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "greater", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>greaterOrEqual(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "greaterOrEqual", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>greaterOrEqual(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "greaterOrEqual", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>lesser(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "lesser", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>lesser(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "lesser", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>lesserOrEqual(|a|, |b|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "lesserOrEqual", |a| and |b|.
+    The <dfn method for=MLGraphBuilder>lesserOrEqual(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "lesserOrEqual", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>logicalNot(|a|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalNot" and |a|.
+    The <dfn method for=MLGraphBuilder>logicalNot(|a|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalNot", |a|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -2574,25 +2606,26 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
 Compute the element-wise unary operation for input tensor.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand abs(MLOperand input);
-  MLOperand ceil(MLOperand input);
-  MLOperand cos(MLOperand input);
-  MLOperand erf(MLOperand input);
-  MLOperand exp(MLOperand input);
-  MLOperand floor(MLOperand input);
-  MLOperand identity(MLOperand input);
-  MLOperand log(MLOperand input);
-  MLOperand neg(MLOperand input);
-  MLOperand reciprocal(MLOperand input);
-  MLOperand sin(MLOperand input);
-  MLOperand sqrt(MLOperand input);
-  MLOperand tan(MLOperand input);
+  MLOperand abs(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand ceil(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand cos(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand erf(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand exp(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand floor(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand identity(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand log(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand neg(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand reciprocal(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand sin(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand sqrt(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand tan(MLOperand input, optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/abs(input), MLGraphBuilder/ceil(input), MLGraphBuilder/cos(input), MLGraphBuilder/erf(input), MLGraphBuilder/exp(input), MLGraphBuilder/floor(input), MLGraphBuilder/identity(input), MLGraphBuilder/log(input), MLGraphBuilder/neg(input), MLGraphBuilder/reciprocal(input), MLGraphBuilder/sin(input), MLGraphBuilder/sqrt(input), MLGraphBuilder/tan(input)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/abs(input, options), MLGraphBuilder/ceil(input, options), MLGraphBuilder/cos(input, options), MLGraphBuilder/erf(input, options), MLGraphBuilder/exp(input, options), MLGraphBuilder/floor(input, options), MLGraphBuilder/identity(input, options), MLGraphBuilder/log(input, options), MLGraphBuilder/neg(input, options), MLGraphBuilder/reciprocal(input, options), MLGraphBuilder/sin(input, options), MLGraphBuilder/sqrt(input, options), MLGraphBuilder/tan(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of
     element-wise unary operation of the input tensor. The shape of the output
@@ -2618,7 +2651,7 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create element-wise unary operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, and optional [=/list=] |allowedDataTypes|, run the following steps:
+    To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create element-wise unary operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, optional [=/list=] |allowedDataTypes|, and |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "erf", "exp", "floor", "identity", "log", "neg", "reciprocal", "sin", "sqrt", "tan".
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
@@ -2626,7 +2659,7 @@ partial interface MLGraphBuilder {
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the |op| operation.
+        1. Let |operator| be an [=operator=] for the |op| operation given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -2638,92 +2671,92 @@ partial interface MLGraphBuilder {
     The element-wise unary operation algorithms invoke the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] steps as follows.
   </summary>
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>abs(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "abs", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} ».
+    The <dfn method for=MLGraphBuilder>abs(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "abs", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>ceil(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "ceil", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+    The <dfn method for=MLGraphBuilder>ceil(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "ceil", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>cos(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "cos", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+    The <dfn method for=MLGraphBuilder>cos(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "cos", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>erf(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "erf", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+    The <dfn method for=MLGraphBuilder>erf(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "erf", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>exp(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "exp", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+    The <dfn method for=MLGraphBuilder>exp(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "exp", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>floor(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "floor", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+    The <dfn method for=MLGraphBuilder>floor(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "floor", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>identity(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "identity" and |input|.
+    The <dfn method for=MLGraphBuilder>identity(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "identity" |input|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>log(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "log", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+    The <dfn method for=MLGraphBuilder>log(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "log", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>neg(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "neg", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} ».
+    The <dfn method for=MLGraphBuilder>neg(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "neg", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>reciprocal(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "reciprocal", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+    The <dfn method for=MLGraphBuilder>reciprocal(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "reciprocal", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>sin(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "sin", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+    The <dfn method for=MLGraphBuilder>sin(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "sin", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>sqrt(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "sqrt", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+    The <dfn method for=MLGraphBuilder>sqrt(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "sqrt", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>tan(|input|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "tan", |input|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+    The <dfn method for=MLGraphBuilder>tan(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "tan", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -2733,7 +2766,7 @@ partial interface MLGraphBuilder {
 Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#ELU"> exponential linear unit function</a> (ELU) on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha * (exp(min(0, x)) - 1)`.
 
 <script type=idl>
-dictionary MLEluOptions {
+dictionary MLEluOptions : MLOperatorOptions {
   double alpha = 1;
 };
 
@@ -2813,20 +2846,23 @@ partial interface MLGraphBuilder {
 Expand any dimension of size 1 of the input tensor to a larger size according to the new shape. The expansion is consistent with [[!numpy-broadcasting-rule]]. The input tensor must be [=unidirectionally broadcastable=] to the new shape; its dimensions must have the size of 1 or match the sizes of the corresponding output dimensions according to the new shape.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand expand(MLOperand input, sequence<[EnforceRange] unsigned long> newShape);
+  MLOperand expand(MLOperand input,
+                   sequence<[EnforceRange] unsigned long> newShape,
+                   optional MLOperatorOptions options = {});
 };
 </script>
-<div dfn-for="MLGraphBuilder/expand(input, newShape)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/expand(input, newShape, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. An input tensor
         - <dfn>newShape</dfn>: [=sequence=]<{{unsigned long}}>. The new shape the input tensor is expanded to.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The tensor with expanded size dimensions.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>expand(|input|, |newShape|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>expand(|input|, |newShape|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -2835,7 +2871,7 @@ partial interface MLGraphBuilder {
     1. Let |outputDescriptor| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDescriptor|.
-        1. Let |operator| be an [=operator=] for the "expand" operation, given |input| and |newShape|.
+        1. Let |operator| be an [=operator=] for the "expand" operation, given |input|, |newShape|, and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -2845,7 +2881,7 @@ partial interface MLGraphBuilder {
 ### gather ### {#api-mlgraphbuilder-gather}
 Gather values of the input tensor along an axis according to the indices.
 <script type=idl>
-dictionary MLGatherOptions {
+dictionary MLGatherOptions : MLOperatorOptions {
   [EnforceRange] unsigned long axis = 0;
 };
 
@@ -2997,13 +3033,14 @@ Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#G
 
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand gelu(MLOperand input);
+  MLOperand gelu(MLOperand input, optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/gelu(input)" dfn-type="argument">
+<div dfn-for="MLGraphBuilder/gelu(input, options)" dfn-type="argument">
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -3027,14 +3064,14 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>gelu(|input|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>gelu(|input|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "gelu" operation.
+        1. Let |operator| be an [=operator=] for the "gelu" operation given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -3063,7 +3100,7 @@ partial interface MLGraphBuilder {
 Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape *[M, K]* or *[K, M]*, `B` is a 2-D tensor with shape *[K, N]* or *[N, K]*, and `C` is [=unidirectionally broadcastable=] to the shape *[M, N]*. `A` and `B` may optionally be transposed prior to the calculation.
 
 <script type=idl>
-dictionary MLGemmOptions {
+dictionary MLGemmOptions : MLOperatorOptions {
   MLOperand c;
   double alpha = 1.0;
   double beta = 1.0;
@@ -3209,7 +3246,7 @@ enum MLRecurrentNetworkDirection {
   "both"
 };
 
-dictionary MLGruOptions {
+dictionary MLGruOptions : MLOperatorOptions {
   MLOperand bias;
   MLOperand recurrentBias;
   MLOperand initialHiddenState;
@@ -3357,7 +3394,7 @@ partial interface MLGraphBuilder {
         1. If |options|.{{MLGruOptions/returnSequence}} is true:
             1. Let |desc1| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
     1. *Make graph connections:*
-        1. Let |operator| be an [=operator=] for the "gru" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options| as parameters.
+        1. Let |operator| be an [=operator=] for the "gru" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc0|.
         1. If |options|.{{MLGruOptions/returnSequence}} is true:
             1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc1|.
@@ -3484,7 +3521,7 @@ partial interface MLGraphBuilder {
 A single time step of the Gated Recurrent Unit [[GRU]] recurrent network using an update gate and a reset gate to compute the hidden state that rolls into the output across the temporal sequence of a recurrent network.
 
 <script type=idl>
-dictionary MLGruCellOptions {
+dictionary MLGruCellOptions : MLOperatorOptions {
   MLOperand bias;
   MLOperand recurrentBias;
   boolean resetAfter = true;
@@ -3605,7 +3642,7 @@ partial interface MLGraphBuilder {
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |batchSize|, |hiddenSize| ».
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Let |operator| be an [=operator=] for the "gruCell" operation, given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options| as parameters.
+        1. Let |operator| be an [=operator=] for the "gruCell" operation, given |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize| and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input|, |weight|, |recurrentWeight|, and |hiddenState|.
         1. If |options|.{{MLGruCellOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
@@ -3722,7 +3759,7 @@ partial interface MLGraphBuilder {
 ### hardSigmoid ### {#api-mlgraphbuilder-hard-sigmoid}
 Calculate the non-smooth <a href="https://en.wikipedia.org/wiki/Hard_sigmoid">hard sigmoid function</a> on the input tensor, used instead of the sigmoid function for faster computation.
 <script type=idl>
-dictionary MLHardSigmoidOptions {
+dictionary MLHardSigmoidOptions : MLOperatorOptions {
   double alpha = 0.2;
   double beta = 0.5;
 };
@@ -3808,13 +3845,14 @@ partial interface MLGraphBuilder {
 Computes the nonlinear function `y = x * max(0, min(6, (x + 3))) / 6` that is introduced by [[MobileNetV3]] on the input tensor element-wise.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand hardSwish(MLOperand input);
+  MLOperand hardSwish(MLOperand input, optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/hardSwish(input)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/hardSwish(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -3838,14 +3876,14 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>hardSwish(|input|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>hardSwish(|input|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "hardSwish" operation.
+        1. Let |operator| be an [=operator=] for the "hardSwish" operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -3877,7 +3915,7 @@ partial interface MLGraphBuilder {
 Normalize the input using [[Instance-Normalization]]. Unlike {{MLGraphBuilder/batchNormalization()}} where the mean and variance values used in the normalization are computed across all the samples in the batch dimension while the model is trained, the mean and variance values used in the instance normalization are computed on the fly for each input feature of each individual sample in the batch.
 
 <script type=idl>
-dictionary MLInstanceNormalizationOptions {
+dictionary MLInstanceNormalizationOptions : MLOperatorOptions {
   MLOperand scale;
   MLOperand bias;
   double epsilon = 1e-5;
@@ -4006,7 +4044,7 @@ partial interface MLGraphBuilder {
 Normalize the input using [[Layer-Normalization]]. Unlike {{MLGraphBuilder/batchNormalization()}} where the mean and variance values are computed across all the samples in the batch dimension while the model is trained, and in {{MLGraphBuilder/instanceNormalization()}} where the mean and variance values are computed on the fly for each input feature of each individual sample in the batch, the means and variance values of the layer normalization are computed on the fly across all the input features of each individual sample in the batch.
 
 <script type=idl>
-dictionary MLLayerNormalizationOptions {
+dictionary MLLayerNormalizationOptions : MLOperatorOptions {
   MLOperand scale;
   MLOperand bias;
   sequence<[EnforceRange] unsigned long> axes;
@@ -4141,7 +4179,7 @@ partial interface MLGraphBuilder {
 Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Leaky_ReLU"> leaky version of rectified linear function</a> on the input tensor element-wise. The calculation follows the expression `max(0, x) + alpha * min(0, x)`.
 
 <script type=idl>
-dictionary MLLeakyReluOptions {
+dictionary MLLeakyReluOptions : MLOperatorOptions {
   double alpha = 0.01;
 };
 
@@ -4220,7 +4258,7 @@ partial interface MLGraphBuilder {
 Calculate a linear function `y = alpha * x + beta` on the input tensor.
 
 <script type=idl>
-dictionary MLLinearOptions {
+dictionary MLLinearOptions : MLOperatorOptions {
   double alpha = 1;
   double beta = 0;
 };
@@ -4306,7 +4344,7 @@ enum MLLstmWeightLayout {
   "ifgo"  // input-forget-cell-output gate ordering
 };
 
-dictionary MLLstmOptions {
+dictionary MLLstmOptions : MLOperatorOptions {
   MLOperand bias;
   MLOperand recurrentBias;
   MLOperand peepholeWeight;
@@ -4631,7 +4669,7 @@ partial interface MLGraphBuilder {
 A single time step of the Long Short-Term Memory [[LSTM]] recurrent network using a cell state, an input, output, and forget gate to compute the cell state and the hidden state of the next time step that rolls into the output across the temporal sequence of the network.
 
 <script type=idl>
-dictionary MLLstmCellOptions {
+dictionary MLLstmCellOptions : MLOperatorOptions {
   MLOperand bias;
   MLOperand recurrentBias;
   MLOperand peepholeWeight;
@@ -4918,14 +4956,15 @@ partial interface MLGraphBuilder {
 Compute the matrix product of two input tensors.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand matmul(MLOperand a, MLOperand b);
+  MLOperand matmul(MLOperand a, MLOperand b, optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/matmul(a, b)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/matmul(a, b, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor which is at least 2-D.
         - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor which is at least 2-D.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the matrix
     product of two input tensors.
@@ -4981,7 +5020,7 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>matmul(|a|, |b|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>matmul(|a|, |b|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -4991,7 +5030,7 @@ partial interface MLGraphBuilder {
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Let |operator| be an [=operator=] for the "matmul" operation.
+        1. Let |operator| be an [=operator=] for the "matmul" operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |a| and |b|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -5008,7 +5047,7 @@ enum MLPaddingMode {
   "symmetric"
 };
 
-dictionary MLPadOptions {
+dictionary MLPadOptions : MLOperatorOptions {
   MLPaddingMode mode = "constant";
   MLNumber value = 0;
 };
@@ -5130,7 +5169,7 @@ enum MLRoundingType {
   "ceil"
 };
 
-dictionary MLPool2dOptions {
+dictionary MLPool2dOptions : MLOperatorOptions {
   sequence<[EnforceRange] unsigned long> windowDimensions;
   sequence<[EnforceRange] unsigned long> padding;
   sequence<[EnforceRange] unsigned long> strides;
@@ -5342,14 +5381,17 @@ The operation will be broadcast according to [[!numpy-broadcasting-rule]]. The i
 
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand prelu(MLOperand input, MLOperand slope);
+  MLOperand prelu(MLOperand input,
+                  MLOperand slope,
+                  optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/prelu(input, slope)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/prelu(input, slope, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
         - <dfn>slope</dfn>: an {{MLOperand}}. The slope tensor. Its shape must be [=bidirectionally broadcastable=] to the shape of *input*.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -5373,7 +5415,7 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>prelu(|input|, |slope|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>prelu(|input|, |slope|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |slope| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -5383,7 +5425,7 @@ partial interface MLGraphBuilder {
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |operator| be an [=operator=] for the "prelu" operation, given |slope|.
+        1. Let |operator| be an [=operator=] for the "prelu" operation, given |slope| and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input| and |slope|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -5409,7 +5451,7 @@ partial interface MLGraphBuilder {
 ### Reduction operations ### {#api-mlgraphbuilder-reduce}
 Reduce the input tensor along all dimensions, or along the axes specified in the {{MLReduceOptions/axes}}  array parameter. For each specified axis, the dimension with that index is reduced, i.e. the resulting tensor will not contain it, unless the {{MLReduceOptions/keepDimensions}} option is specified. The values of the resulting tensor are calculated using the specified reduction function that takes as parameters all the values across the reduced dimension.
 <script type=idl>
-dictionary MLReduceOptions {
+dictionary MLReduceOptions : MLOperatorOptions {
   sequence<[EnforceRange] unsigned long> axes;
   boolean keepDimensions = false;
 };
@@ -5603,13 +5645,14 @@ Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)">
 
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand relu(MLOperand input);
+  MLOperand relu(MLOperand input, optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/relu(input)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/relu(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -5633,14 +5676,14 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>relu(|input|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>relu(|input|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "relu" operation.
+        1. Let |operator| be an [=operator=] for the "relu" operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -5668,7 +5711,7 @@ enum MLInterpolationMode {
   "linear"
 };
 
-dictionary MLResample2dOptions {
+dictionary MLResample2dOptions : MLOperatorOptions {
   MLInterpolationMode mode = "nearest-neighbor";
   sequence<float> scales;
   sequence<[EnforceRange] unsigned long> sizes;
@@ -5776,15 +5819,18 @@ partial interface MLGraphBuilder {
 Alter the shape of a tensor to a new shape. Reshape does not copy or change the content of the tensor. It just changes the tensor's logical dimensions for the subsequent operations.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand reshape(MLOperand input, sequence<[EnforceRange] unsigned long> newShape);
+  MLOperand reshape(MLOperand input,
+                    sequence<[EnforceRange] unsigned long> newShape,
+                    optional MLOperatorOptions options = {});
 };
 </script>
-<div dfn-for="MLGraphBuilder/reshape(input, newShape)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/reshape(input, newShape, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
         - <dfn>newShape</dfn>: [=sequence=]<{{unsigned long}}>. The shape of the output tensor.
             The number of elements implied by *newShape* must be the same as the
             number of elements in the input tensor.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output tensor. The values of the output
     tensor are the same as values of the input tensor. The shape of the output
@@ -5793,7 +5839,7 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>reshape(|input|, |newShape|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>reshape(|input|, |newShape|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -5806,7 +5852,7 @@ partial interface MLGraphBuilder {
     1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |newShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. Let |operator| be an [=operator=] for the "reshape" operation.
+        1. Let |operator| be an [=operator=] for the "reshape" operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -5818,13 +5864,14 @@ partial interface MLGraphBuilder {
 Compute the <a href="https://en.wikipedia.org/wiki/Sigmoid_function">sigmoid function</a> of the input tensor. The calculation follows the expression `1 / (exp(-x) + 1)`.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand sigmoid(MLOperand input);
+  MLOperand sigmoid(MLOperand input, optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/sigmoid(input)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/sigmoid(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -5848,14 +5895,14 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>sigmoid(|input|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>sigmoid(|input|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "sigmoid" operation.
+        1. Let |operator| be an [=operator=] for the "sigmoid" operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -5884,21 +5931,23 @@ Produce a slice of the input tensor.
 partial interface MLGraphBuilder {
   MLOperand slice(MLOperand input,
                   sequence<[EnforceRange] unsigned long> starts,
-                  sequence<[EnforceRange] unsigned long> sizes);
+                  sequence<[EnforceRange] unsigned long> sizes,
+                  optional MLOperatorOptions options = {});
 };
 </script>
-<div dfn-for="MLGraphBuilder/slice(input, starts, sizes)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/slice(input, starts, sizes, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
         - <dfn>starts</dfn>: [=sequence=]<{{unsigned long}}>. The starting index to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *starts[d]* indicates the starting index to slice in that dimension. The starting index must be in the range [0, input size - 1] in that dimension.
         - <dfn>sizes</dfn>: [=sequence=]<{{unsigned long}}>. The number of elements to slice of each input dimension, of length N where N is the [=MLOperand/rank=] of the input tensor. For each dimension *d* of *input*, *sizes[d]* indicates the number of elements to slice in that dimension. The size must not be 0 and must satisfy the constraint `starting index + size <= input size` in that dimension.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>slice(|input|, |starts|, |sizes|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>slice(|input|, |starts|, |sizes|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -5913,7 +5962,7 @@ partial interface MLGraphBuilder {
         1. If |starts|[|index|] + |sizes|[|index|] is greater than |input|'s [=MLOperand/shape=][|index|], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "slice" operation, given |starts| and |sizes|.
+        1. Let |operator| be an [=operator=] for the "slice" operation, given |starts|, |sizes|, and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -5925,14 +5974,17 @@ Compute the [softmax](https://en.wikipedia.org/wiki/Softmax_function) values of
 the N-D input tensor along the given axis.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand softmax(MLOperand input, unsigned long axis);
+  MLOperand softmax(MLOperand input,
+                    unsigned long axis,
+                    optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/softmax(input, axis)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/softmax(input, axis, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
         - <dfn>axis</dfn>: an {{unsigned long}} scalar. The dimension the reduction will be performed on.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output N-D tensor that contains the softmax results, of the same shape as *input*.
@@ -5956,7 +6008,7 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>softmax(|input|, |axis|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>softmax(|input|, |axis|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -5964,7 +6016,7 @@ partial interface MLGraphBuilder {
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "softmax" operation, given |axis|.
+        1. Let |operator| be an [=operator=] for the "softmax" operation, given |axis| and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -5998,13 +6050,14 @@ Compute the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#S
 
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand softplus(MLOperand input);
+  MLOperand softplus(MLOperand input, optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/softplus(input)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/softplus(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -6028,14 +6081,14 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>softplus(|input|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>softplus(|input|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "softplus" operation.
+        1. Let |operator| be an [=operator=] for the "softplus" operation and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -6060,7 +6113,7 @@ partial interface MLGraphBuilder {
 Compute the <a href="https://pytorch.org/docs/stable/generated/torch.nn.Softsign.html">softsign function</a> of the input tensor. The calculation follows the expression `x / (1 + |x|)`.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand softsign(MLOperand input);
+  MLOperand softsign(MLOperand input, optional MLOperatorOptions options = {});
 };
 </script>
 
@@ -6079,9 +6132,10 @@ partial interface MLGraphBuilder {
   </details>
 </div>
 
-<div dfn-for="MLGraphBuilder/softsign(input)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/softsign(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -6105,14 +6159,14 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>softsign(|input|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>softsign(|input|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "softsign" operation.
+        1. Let |operator| be an [=operator=] for the "softsign" operation and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -6122,7 +6176,7 @@ partial interface MLGraphBuilder {
 ### split ### {#api-mlgraphbuilder-split}
 Split the input tensor into a number of sub tensors along the given axis.
 <script type=idl>
-dictionary MLSplitOptions {
+dictionary MLSplitOptions : MLOperatorOptions {
   [EnforceRange] unsigned long axis = 0;
 };
 
@@ -6213,13 +6267,14 @@ partial interface MLGraphBuilder {
 Compute the <a href="https://en.wikipedia.org/wiki/Hyperbolic_functions">hyperbolic tangent function</a> of the input tensor. The calculation follows the expression `(exp(2 * x) - 1) / (exp(2 * x) + 1)`.
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand tanh(MLOperand input);
+  MLOperand tanh(MLOperand input, optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/tanh(input)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/tanh(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
@@ -6243,14 +6298,14 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>tanh(|input|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>tanh(|input|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=allowed data types=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
-        1. Let |operator| be an [=operator=] for the "tanh" operation.
+        1. Let |operator| be an [=operator=] for the "tanh" operation, given |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -6279,7 +6334,7 @@ partial interface MLGraphBuilder {
 ### transpose ### {#api-mlgraphbuilder-transpose}
 Permute the dimensions of the input tensor according to the *permutation* argument.
 <script type=idl>
-dictionary MLTransposeOptions {
+dictionary MLTransposeOptions : MLOperatorOptions {
   sequence<[EnforceRange] unsigned long> permutation;
 };
 
@@ -6329,7 +6384,7 @@ partial interface MLGraphBuilder {
 Given a 2-D tensor (matrix), return a 2-D tensor containing either the upper or lower triangular part of the input tensor. If the input tensor has greater than 2 dimensions it is treated as a batch of matrices and the result has the same shape.
 
 <script type=idl>
-dictionary MLTriangularOptions {
+dictionary MLTriangularOptions : MLOperatorOptions {
   boolean upper = true;
   [EnforceRange] long diagonal = 0;
 };
@@ -6457,15 +6512,19 @@ The operation will be broadcast according to [[!numpy-broadcasting-rule]]. The i
 
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand where(MLOperand condition, MLOperand trueValue, MLOperand falseValue);
+  MLOperand where(MLOperand condition,
+                  MLOperand trueValue,
+                  MLOperand falseValue,
+                  optional MLOperatorOptions options = {});
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/where(condition, trueValue, falseValue)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/where(condition, trueValue, falseValue, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>condition</dfn>: an {{MLOperand}}. The condition tensor.
         - <dfn>trueValue</dfn>: an {{MLOperand}}. The tensor from which the value is selected when the condition of the corresponding element is set to true.
         - <dfn>falseValue</dfn>: an {{MLOperand}}. The tensor from which the value is selected when the condition of the corresponding element is set to false.
+        - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the values selected element-wise from either the trueValue or the falseValue tensor.
 </div>
@@ -6498,7 +6557,7 @@ partial interface MLGraphBuilder {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>where(|condition|, |trueValue|, |falseValue|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>where(|condition|, |trueValue|, |falseValue|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |condition|, |trueValue|, and |falseValue| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -6510,7 +6569,7 @@ partial interface MLGraphBuilder {
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |trueValue|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |operator| be an [=operator=] for the "where" operation, given |condition|, |trueValue| and |falseValue|.
+        1. Let |operator| be an [=operator=] for the "where" operation, given |condition|, |trueValue|, |falseValue|, and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |condition|, |trueValue| and |falseValue|.
         1. Set |operator|'s [=operator/output=] to |output|.
