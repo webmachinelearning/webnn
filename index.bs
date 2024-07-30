@@ -925,7 +925,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
         1. Let |inputDescriptor| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|name|].
         1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} as follows:
             1. Set the data type of |inputTensor| to the one that matches |inputValue|'s [=element type=].
-            1. Set the dimensions of |inputTensor| to |inputDescriptor|.{{MLOperandDescriptor/dimensions}}.
+            1. Set the shape of |inputTensor| to |inputDescriptor|.{{MLOperandDescriptor/shape}}.
             1. Set the values of elements in |inputTensor| to the values of elements in |inputValue|.
         1. Request the underlying implementation of |graph| to bind |inputResources|[|name|] to |inputTensor|.
     1. [=map/For each=] |name| → |outputValue| of |outputs|:
@@ -1011,7 +1011,7 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
   <pre highlight="js">
     const operandType = {
       dataType: 'float32',
-      dimensions: [2, 2]
+      shape: [2, 2]
     };
     const context = await navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
@@ -1095,7 +1095,7 @@ enum MLOperandDataType {
 
 dictionary MLOperandDescriptor {
   required MLOperandDataType dataType;
-  sequence<[EnforceRange] unsigned long> dimensions = [];
+  sequence<[EnforceRange] unsigned long> shape = [];
 };
 </script>
 
@@ -1103,17 +1103,17 @@ dictionary MLOperandDescriptor {
     : <dfn>dataType</dfn>
     :: The operand data type.
 
-    : <dfn>dimensions</dfn>
+    : <dfn>shape</dfn>
     :: The shape of the operand. It is empty for scalar operands, and non-empty for tensor operands.
 </dl>
 
 <details open algorithm>
   <summary>
-  To <dfn>create an {{MLOperandDescriptor}}</dfn> given {{MLOperandDataType}} |dataType| and [=/list=] |dimensions|, run the following steps:
+  To <dfn>create an {{MLOperandDescriptor}}</dfn> given {{MLOperandDataType}} |dataType| and [=/list=] |shape|, run the following steps:
   </summary>
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |dataType|.
-    1. Set |descriptor|.{{MLOperandDescriptor/dimensions}} to a [=list/clone=] of |dimensions|.
+    1. Set |descriptor|.{{MLOperandDescriptor/shape}} to a [=list/clone=] of |shape|.
     1. Return |descriptor|.
 </details>
 
@@ -1122,7 +1122,7 @@ dictionary MLOperandDescriptor {
     The <dfn for="MLOperandDescriptor">byte length</dfn> of an {{MLOperandDescriptor}} |desc| is the value returned by the following steps:
   </summary>
     1. Let |elementLength| be 1.
-    1. [=list/For each=] |dimension| of |desc|.{{MLOperandDescriptor/dimensions}}:
+    1. [=list/For each=] |dimension| of |desc|.{{MLOperandDescriptor/shape}}:
         1. Set |elementLength| to |elementLength| * |dimension|.
     1. Let |elementSize| be the [=element size=] of one of the {{ArrayBufferView}} types that matches |desc|.{{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility).
     1. Return |elementLength| * |elementSize|.
@@ -1138,8 +1138,8 @@ Issue(391): Should 0-size dimensions be supported?
   <summary>
     To <dfn for="MLOperandDescriptor">check dimensions</dfn> given {{MLOperandDescriptor}} |descriptor|, run the following steps:
   </summary>
-    1. If any element of |descriptor|.{{MLOperandDescriptor/dimensions}} is not a [=valid dimension=], return false.
-    1. If |descriptor|.{{MLOperandDescriptor/dimensions}}'s [=list/size=] is too large to be supported by the implementation, return false.
+    1. If any element of |descriptor|.{{MLOperandDescriptor/shape}} is not a [=valid dimension=], return false.
+    1. If |descriptor|.{{MLOperandDescriptor/shape}}'s [=list/size=] is too large to be supported by the implementation, return false.
 
         Issue(456): The maximum number of operand dimensions is not defined, but native ML APIs usually have a maximum supported size.
 
@@ -1189,7 +1189,7 @@ typedef (bigint or unrestricted double) MLNumber;
   </dl>
 </div>
 
-An {{MLOperand}}'s <dfn for=MLOperand>shape</dfn> is its {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dimensions}}.
+An {{MLOperand}}'s <dfn for=MLOperand>shape</dfn> is its {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/shape}}.
 
 An {{MLOperand}}'s <dfn for=MLOperand>rank</dfn> is its [=MLOperand/shape=]'s [=list/size=].
 
@@ -1850,7 +1850,7 @@ partial interface MLGraphBuilder {
     1. Let |first| be |inputs|[0].
     1. If |axis| is greater than or equal to |first|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |first|'s [=MLOperand/dataType=] and |first|'s [=MLOperand/shape=].
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] to |first|'s [=MLOperand/shape=][|axis|].
+    1. Set |desc|.{{MLOperandDescriptor/shape}}[|axis|] to |first|'s [=MLOperand/shape=][|axis|].
     1. [=list/For each=] |index| in [=the range=] 1 to |inputs|'s [=list/size=], exclusive:
         1. Let |input| be |inputs|[|index|].
         1. If |input|'s [=MLOperand/dataType=] is not equal to |first|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -1861,9 +1861,9 @@ partial interface MLGraphBuilder {
             </div>
             1. If |dim| is not equal to |axis| and if |input|'s [=MLOperand/shape=][|dim|] is not equal to |first|'s [=MLOperand/shape=][|dim|], then [=exception/throw=] a {{TypeError}}.
             1. If |dim| is equal to |axis|:
-                1. Let |size| be the sum of |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] and |input|'s [=MLOperand/shape=][|dim|].
+                1. Let |size| be the sum of |desc|.{{MLOperandDescriptor/shape}}[|axis|] and |input|'s [=MLOperand/shape=][|dim|].
                 1. If |size| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-                1. Set |desc|.{{MLOperandDescriptor/dimensions}}[|axis|] to |size|.
+                1. Set |desc|.{{MLOperandDescriptor/shape}}[|axis|] to |size|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "concat" operation, given |inputs|, |axis|, and |options|.
@@ -2736,7 +2736,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### expand ### {#api-mlgraphbuilder-expand}
-Expand any dimension of size 1 of the input tensor to a larger size according to the new shape. The expansion is consistent with [[!numpy-broadcasting-rule]]. The input tensor must be [=unidirectionally broadcastable=] to the new shape; its dimensions must have the size of 1 or match the sizes of the corresponding output dimensions according to the new shape.
+Expand any dimension of size 1 of the input tensor to a larger size according to the new shape. The expansion is consistent with [[!numpy-broadcasting-rule]]. The input tensor must be [=unidirectionally broadcastable=] to the new shape; its shape must be of size 1 or match the sizes of the corresponding output dimensions according to the new shape.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand expand(MLOperand input,
@@ -2750,7 +2750,7 @@ partial interface MLGraphBuilder {
         - <dfn>newShape</dfn>: [=sequence=]<{{unsigned long}}>. The new shape the input tensor is expanded to.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The tensor with expanded size dimensions.
+    **Returns:** an {{MLOperand}}. The tensor with expanded size shape.
 </div>
 
 <details open algorithm>
@@ -2856,17 +2856,17 @@ partial interface MLGraphBuilder {
     //    [20, 21, 22],
     //    [30, 31, 32]]
     const input = builder.constant(
-      {dimensions: [4, 3]},
+      {shape: [4, 3]},
       new Float32Array([0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32]));
 
     const indices1 = builder.constant(
-      {dataType: 'uint32', dimensions: [2]}, new Uint32Array([3, 1]));
+      {dataType: 'uint32', shape: [2]}, new Uint32Array([3, 1]));
 
     const indices2 = builder.constant(
-      {dataType: 'uint32', dimensions: [3]}, new Uint32Array([2, 1, 1]));
+      {dataType: 'uint32', shape: [3]}, new Uint32Array([2, 1, 1]));
 
     const indices3 = builder.constant(
-      {dataType: 'uint32', dimensions: [2, 2]}, new Uint32Array([0, 1, 1, 2]));
+      {dataType: 'uint32', shape: [2, 2]}, new Uint32Array([0, 1, 1, 2]));
 
     // axis = 0 (default)
     // indices of shape [2]:
@@ -3219,7 +3219,7 @@ partial interface MLGraphBuilder {
       if (!hiddenState) {
         const desc = {
           dataType: 'float32',
-          dimensions: [numDirections, 1, hiddenSize]
+          shape: [numDirections, 1, hiddenSize]
         };
         const totalSize = numDirections * hiddenSize;
         hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
@@ -3833,7 +3833,7 @@ partial interface MLGraphBuilder {
           builder.sub(input, mean), builder.constant(input.dataType(), 2)),
         reduceOptions);
 
-      // The scale and bias tensors are of the shape of the input dimensions
+      // The scale and bias tensors are of the shape of the input shape
       // specified by the values in the axes parameter (i.e. [1,2,3]).
       return builder.add(
         builder.mul(
@@ -4142,7 +4142,7 @@ partial interface MLGraphBuilder {
       if (!hiddenState) {
         const desc = {
           dataType: 'float32',
-          dimensions: [numDirections, 1, hiddenSize]
+          shape: [numDirections, 1, hiddenSize]
         };
         const totalSize = numDirections * hiddenSize;
         hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
@@ -4151,7 +4151,7 @@ partial interface MLGraphBuilder {
       if (!cellState) {
         const desc = {
           dataType: 'float32',
-          dimensions: [numDirections, 1, hiddenSize]
+          shape: [numDirections, 1, hiddenSize]
         };
         const totalSize = numDirections * hiddenSize;
         cellState = builder.constant(desc, new Float32Array(totalSize).fill(0));
@@ -4351,7 +4351,7 @@ partial interface MLGraphBuilder {
     1. Otherwise:
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. Let |desc| be a new {{MLOperandDescriptor}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to the [=/list=] « |batchSize|, |hiddenSize| ».
+    1. Set |desc|.{{MLOperandDescriptor/shape}} to the [=/list=] « |batchSize|, |hiddenSize| ».
     1. Set |desc|.{{MLOperandDescriptor/dataType}} to |input|'s [=MLOperand/dataType=].
        1. *Make graph connections:*
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
@@ -4628,7 +4628,7 @@ partial interface MLGraphBuilder {
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
     1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLPadOptions/value}} to the result of [=casting=] |options|.{{MLPadOptions/value}} to |input|'s [=MLOperand/dataType=].
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+    1. Set |desc|.{{MLOperandDescriptor/shape}} to |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "padding" operation, given |beginningPadding|, |endingPadding| and |options|.
@@ -4646,7 +4646,7 @@ partial interface MLGraphBuilder {
   <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
     const input = builder.constant(
-      {dataType: 'float32', dimensions: [2, 3]},
+      {dataType: 'float32', shape: [2, 3]},
       new Float32Array([1, 2, 3, 4, 5, 6]));
 
     const beginningPadding = [1, 2];
@@ -4851,7 +4851,7 @@ partial interface MLGraphBuilder {
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating pool2d output sizes=] given |options|.{{MLPool2dOptions/layout}}, |input|'s [=MLOperand/shape=], |options|.{{MLPool2dOptions/roundingType}}, |options|.{{MLPool2dOptions/windowDimensions}}, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, |options|.{{MLPool2dOptions/dilations}}, and |options|.{{MLPool2dOptions/outputSizes}} (if it [=map/exists=]).
     1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |outputShape|.
+    1. Set |desc|.{{MLOperandDescriptor/shape}} to |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the |op| operation, given |options|.
@@ -5269,7 +5269,7 @@ partial interface MLGraphBuilder {
     To <dfn for="MLGraphBuilder">calculate resample output sizes</dfn> given {{MLOperand}} |input| and {{MLResample2dOptions}} |options|, run the following steps:
   </summary>
     1. Let |inputDescriptor| be |input|.{{MLOperand/[[descriptor]]}}.
-    1. Let |outputShape| be a [=list/clone=] of |inputDescriptor|.{{MLOperandDescriptor/dimensions}}.
+    1. Let |outputShape| be a [=list/clone=] of |inputDescriptor|.{{MLOperandDescriptor/shape}}.
     1. [=list/For each=] |index| in [=the range=] 0 to |options|.{{MLResample2dOptions/axes}}'s [=list/size=], exclusive:
         1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then let |size| be |options|.{{MLResample2dOptions/sizes}}[|index|].
         1. Otherwise, let |size| be floor(|input|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] * |options|.{{MLResample2dOptions/scales}}[|index|]).
@@ -5298,7 +5298,7 @@ partial interface MLGraphBuilder {
 </details>
 
 ### reshape ### {#api-mlgraphbuilder-reshape-method}
-Alter the shape of a tensor to a new shape. Reshape does not copy or change the content of the tensor. It just changes the tensor's logical dimensions for the subsequent operations.
+Alter the shape of a tensor to a new shape. Reshape does not copy or change the content of the tensor. It just changes the tensor's logical shape for the subsequent operations.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand reshape(MLOperand input,
@@ -5331,7 +5331,7 @@ partial interface MLGraphBuilder {
     1. Let |inputElementCount| be the product of all elements in |input|'s [=MLOperand/shape=]. Empty dimensions yield an |inputElementCount| of 1.
     1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
-    1. Set |desc|.{{MLOperandDescriptor/dimensions}} to |newShape|.
+    1. Set |desc|.{{MLOperandDescriptor/shape}} to |newShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "reshape" operation, given |options|.
@@ -5841,7 +5841,7 @@ partial interface MLGraphBuilder {
     //    [9, 4, 8],
     //    [2, 6, 3]]
     const input = builder.constant(
-      {dimensions: [3, 3]}, new Float32Array([7, 1, 2, 9, 4, 8, 2, 6, 3]));
+      {shape: [3, 3]}, new Float32Array([7, 1, 2, 9, 4, 8, 2, 6, 3]));
 
     // upper triangular matrix:
     //   [[7, 1, 2],
@@ -6136,7 +6136,7 @@ Given the following build graph:
     // Create MLOperandDescriptor object.
     const desc = {
       dataType: 'float32',
-      dimensions: TENSOR_DIMS
+      shape: TENSOR_DIMS
     };
 
     // constant1 is a constant MLOperand with the value 0.5.
