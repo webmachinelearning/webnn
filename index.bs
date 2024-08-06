@@ -2375,7 +2375,7 @@ partial interface MLGraphBuilder {
 ### Element-wise binary operations ### {#api-mlgraphbuilder-binary}
 Compute the element-wise binary addition, subtraction, multiplication, division, power, maximum and minimum of the two input tensors.
 
-The operation will be broadcast according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
+The operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -2486,7 +2486,7 @@ partial interface MLGraphBuilder {
 ### Element-wise logical operations ### {#api-mlgraphbuilder-logical}
 Compare input tensors element-wise and return a {{MLOperandDataType/"uint8"}} tensor of values 0 (false) or 1 (true) for the comparisons. For single-operand operations, return the logical results of the operation.
 
-For multiple-operand operations, the operation will be broadcast according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
+For multiple-operand operations, the operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -4973,7 +4973,7 @@ partial interface MLGraphBuilder {
     Computes the matrix product of two input tensors as follows:
         - If both *a* and *b* are 2-dimensional, they are multiplied like conventional
             matrices and produce a 2-dimensional tensor as the output.
-        - If either *a* or *b* is `N`-dimensional where `N > 2`, it is treated as a stack of matrices with dimensions corresponding to the last two indices. The matrix multiplication will be broadcast according to [[!numpy-broadcasting-rule]]. The shapes of *a* and *b*, except the last two dimensions, must be [=bidirectionally broadcastable=]. The output is a `N`-dimensional tensor whose rank is the maximum [=MLOperand/rank=] of the input tensors. For each dimension, except the last two, of the output tensor, its size is the maximum size along that dimension of the input tensors.
+        - If either *a* or *b* is `N`-dimensional where `N > 2`, it is treated as a stack of matrices with dimensions corresponding to the last two indices. The matrix multiplication will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The shapes of *a* and *b*, except the last two dimensions, must be [=bidirectionally broadcastable=]. The output is a `N`-dimensional tensor whose rank is the maximum [=MLOperand/rank=] of the input tensors. For each dimension, except the last two, of the output tensor, its size is the maximum size along that dimension of the input tensors.
 </div>
 
 <table class='data' link-for="MLGraphBuilder/matmul(a, b, options)">
@@ -5377,7 +5377,7 @@ Calculate the maximum value for patches of a feature map, and use it to create a
 ### prelu ### {#api-mlgraphbuilder-prelu}
 Calculate the <a href="https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Parametric_ReLU">parametric version of rectified linear function (Parametric ReLU)</a> on the input tensor element-wise. Parametric ReLU is a type of leaky ReLU that, instead of having a scalar slope like 0.01, making the slope (coefficient of leakage) into a parameter that is learned during the model training phase of this operation. The calculation follows the expression `max(0, x) + slope * min(0, x)`.
 
-The operation will be broadcast according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
+The operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -5986,7 +5986,7 @@ the N-D input tensor along the given axis.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand softmax(MLOperand input,
-                    unsigned long axis,
+                    [EnforceRange] unsigned long axis,
                     optional MLOperatorOptions options = {});
 };
 </script>
@@ -6519,7 +6519,7 @@ partial interface MLGraphBuilder {
 ### where ### {#api-mlgraphbuilder-where}
 Select the values from the trueValue or the falseValue tensor depending on the corresponding values of the condition tensor, where non-zero is true and zero is false. The condition tensor is often the output of one of the element-wise logical operations.
 
-The operation will be broadcast according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
+The operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors.
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -6611,7 +6611,15 @@ Algorithms {#algorithms}
 
 ## Broadcasting ## {#algorithms-broadcasting}
 
-Broadcasting refers to how operations treat tensors with different shapes, and follow the precedent set by [[!numpy-broadcasting-rule]].
+<dfn>Broadcasting</dfn> describes how WebNN treats tensors with different shapes during graph construction and computation. It is heavily influenced by [[NumPy]] and follows the [[!numpy-broadcasting-rule]]. Loosely speaking, it allows an operation on a smaller tensor to be "broadcast" across the shape of a larger tensor, so that the same data can be applied repeatedly without making copies.
+
+The simplest example is the application of a scalar constant to an N-dimension tensor with element-wise binary operations such as {{MLGraphBuilder/add()}} or {{MLGraphBuilder/mul()}}. Rather than needing to allocate and populate a matching N-dimensional tensor containing multiple copies of the scalar constant, these element-wise operations allow the scalar constant to be used directly, and broadcast the scalar value across the N-dimensional tensor. With the following considerations, the same logic applies to tensors of other dimensions.
+
+The shapes of the input tensors must be compatible. A tensor is [=unidirectionally broadcastable=] to another tensor if the first tensor can be "stretched" by repeating the first tensor along an axis with size 1 or repeating across new dimensions, starting from the last (rightmost) dimension. For example, a *[4]* tensor can be broadcast to a *[5, 4]* tensor by repeating it 5 times. A *[1]* tensor can be broadcast to a [5,4] tensor by repeating it 4 times on the last dimension and 5 times on the preceding dimension. Unidirectional broadcasting is important for operations such as {{MLGraphBuilder/expand()}} where the target tensor shape is explicitly given.
+
+Two tensors are [=bidirectionally broadcastable=] if they can be mutually "stretched" (repeated) across their various dimensions, starting from the last dimension. For example, a *[5,1]* tensor can be bidirectionally broadcast with a *[1,6]* tensor by repeating the first tensor 6 times in the last dimension and the second tensor 5 times in preceding dimension. The result of the operation will be a *[5,6]* tensor. Bidirectional broadcasting is convenient for element-wise operations.
+
+Some operations allow broadcasting with special semantics. For example, {{MLGraphBuilder/matmul()}} treats the last two dimensions of the input tensors as the rows and columns of the matrices, and the number of columns in the first matrix must be equal to the number of rows in the second matrix. The matrix multiplication is bidirectionally broadcast across any additional dimensions, treating the input tensors as stacks of matrices to multiply.
 
 <details open algorithm>
 <summary>
@@ -6990,8 +6998,14 @@ Thanks to Feng Dai for his continuous contributions that keep web-platform-tests
       "authors": ["Machine Learning for the Web Community Group"],
       "date": "2020"
   },
+  "NumPy": {
+    "href": "https://numpy.org/doc/stable/",
+    "title": "NumPy",
+    "authors": ["The SciPy community"],
+    "date": "July 2019"
+  },
   "numpy-broadcasting-rule": {
-    "href": "https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html#general-broadcasting-rules",
+    "href": "https://numpy.org/doc/stable/user/basics.broadcasting.html#general-broadcasting-rules",
     "title": "General Broadcasting Rules of NumPy",
     "authors": ["The SciPy community"],
     "date": "July 2019"
