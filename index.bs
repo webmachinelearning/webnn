@@ -941,7 +941,9 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
         1. Request the underlying implementation of |graph| to bind |inputResources|[|name|] to |inputTensor|.
     1. [=map/For each=] |name| → |outputValue| of |outputs|:
         1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |name| and |inputResources| and wait for completion.
-            1. If that returns an error, then return an "{{OperationError}}" {{DOMException}}.
+            1. If that fails:
+                1. If |graph|.{{MLGraph/[[context]]}} is no longer available to fulfill requests, then run the [=context lost=] steps for it.
+                1. Return an "{{OperationError}}" {{DOMException}}.
             1. Otherwise, let |outputTensor| be the result.
         1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|].
         1. If the byte length of |outputTensor| is not equal to |outputDesc|'s [=MLOperandDescriptor/byte length=], then return a {{TypeError}}.
@@ -1057,9 +1059,11 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
 
 ### Errors ### {#api-mlcontext-errors}
 
-<details open algorithm="context-lost">
+When a user agent determines that an {{MLContext}} is no longer available to fulfill requests, it must run the [=context lost=] steps for it.
+
+<details open>
 <summary>
-When an {{MLContext}} |context| is no longer available to fulfill requests, run the following steps:
+To <dfn lt="context lost">lose</dfn> the {{MLContext}} |context|, run these steps:
 </summary>
     1. Let |global| be |context|'s [=relevant global object=].
     1. [=Queue an ML task=] with |global| to run these steps:
@@ -1500,7 +1504,9 @@ Build a composed graph up to a given output operand into a computational graph a
     1. Let |promise| be [=a new promise=].
     1. Run the following steps [=in parallel=]:
         1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
-            1. If the underlying platform does not support a requested feature, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
+            1. If that fails:
+                1. If |graph|.{{MLGraph/[[context]]}} is no longer available to fulfill requests, then run the [=context lost=] steps for it.
+                1. [=Queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
         1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
     1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
