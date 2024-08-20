@@ -5202,7 +5202,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### resample2d ### {#api-mlgraphbuilder-resample2d-method}
-Resample the tensor values from the source to the destination spatial dimensions according to the scaling factors.
+Resample the tensor values from the source to the destination dimensions according to the axes and scaling factors.
 <script type=idl>
 enum MLInterpolationMode {
   "nearest-neighbor",
@@ -5237,18 +5237,18 @@ partial interface MLGraphBuilder {
     : <dfn>scales</dfn>
     ::
         A list of length 2.
-        Specifies the scaling factor in each spatial dimensions of the input: *[scaleHeight, scaleWidth]*.
+        Specifies the scaling factor in each dimensions of the input in {{MLResample2dOptions/axes}} : *[scaleForFirstAxis, scaleForSecondAxis]*.
         The default value is [1.0, 1.0].
 
     : <dfn>sizes</dfn>
     ::
         A list of length 2.
-        Specifies the target sizes for each spatial dimensions of the input: *[sizeHeight, sizeWidth]*. When the target sizes are specified, the {{MLResample2dOptions/scales}} argument is ignored, since the scaling factor values are derived from the target sizes of each spatial dimension of the input.
+        Specifies the target sizes for each dimensions of the input in {{MLResample2dOptions/axes}} : *[sizeForFirstAxis, ForSecondAxis]*. When the target sizes are specified, the {{MLResample2dOptions/scales}} argument is ignored, since the scaling factor values are derived from the target sizes of the input.
 
     : <dfn>axes</dfn>
     ::
         A list of length 2.
-        Specifies the two consecutive dimensions of the input tensor to which the interpolation algorithm applies. The valid values are [0, 1], [1, 2] or [2, 3].
+        Specifies the two dimensions of the input tensor to which the interpolation algorithm applies.
         The default value is [2, 3].
 </dl>
 
@@ -5260,7 +5260,7 @@ partial interface MLGraphBuilder {
     1. Otherwise, if any of its values is not greater than 0, or if its [=list/size=] is not 2, return false.
     1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], and if its size is not 2, or if any of its values is not greater than 0, return false.
     1. If |options|.{{MLResample2dOptions/axes}} does not [=map/exists=], set it to the [=/list=] « 2, 3 ».
-    1. Otherwise, if its value is not one of « 0, 1», « 1, 2», « 2, 3 », return false.
+    1. Otherwise, if |options|.{{MLResample2dOptions/axes}} contains duplicate values, or if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then return false.
     1. Return true.
 </details>
 
