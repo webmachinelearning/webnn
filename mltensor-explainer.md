@@ -124,11 +124,17 @@ const fn2 = builder.input('F_n-2', {dataType: "int32", shape: [1]});
 const add = builder.add(fn1, fn2);
 const graph = await builder.build({'F_n': add});
 
-const descriptor = {dataType: "int32", shape: [1], usage: MLTensorUsage.WRITE_TO};
+const usages = [
+    MLTensorUsage.WRITE_TO,  // To initialize F_0
+    MLTensorUsage.WRITE_TO,  // To initialize F_1
+    0
+];
+usages[N % 3] |= MLTensorUsage.READ_FROM;  // To read the output
+
 const tensors = await Promise.all([
-    mlContext.createTensor(descriptor),
-    mlContext.createTensor(descriptor),
-    mlContext.createTensor(descriptor)
+    mlContext.createTensor({dataType: "int32", shape: [1], usage: usages[0]}),
+    mlContext.createTensor({dataType: "int32", shape: [1], usage: usages[1]}),
+    mlContext.createTensor({dataType: "int32", shape: [1], usage: usages[2]})
 ]);
 
 mlContext.writeBuffer(tensors[0], new Int32Array([0]));  // F_0 = 0
@@ -324,7 +330,7 @@ const operandOfDesiredShape = builder.slice(input, /*starts=*/[0, 0], /*sizes=*/
 mlContext.dispatch(graph, {'a': mlTensor}, outputs);
 ```
 
-It's possible that demand may emerge for some mechanism to copy data between `MLTensor`s, though that is currently not planned.
+It's possible that demand may emerge for some mechanism to copy data between `MLTensor`s, though that is currently not planned. This may be worked around by creating another graph with an `identity` operation.
 
 ### Support passing an `MLTensor` as a `constant()`
 
