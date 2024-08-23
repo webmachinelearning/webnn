@@ -14,7 +14,7 @@ This explainer proposes an `MLTensor` interface which represents a tensor which 
 
 The machine learning context underlying WebNN may require input and output tensors to be allocated in a specific fashion, such as with a given byte alignment or on a given compute unit (e.g. CPU, GPU, NPU, TPU, etc...). Currently, this requires that the implementation of an `MLGraph` copy in data from the input tensors, execute the graph, and then copy out data from the output tensors.
 
-An `MLTensor` is an opaque tensor which may be created, written to, and read from independently from `MLGraph` inference. Each of these operations is performed on the [timeline](\#timelines) of the associated MLContext, with a clearly defined order of operations. Passing `MLTensor`s as input and output tensors to `MLGraph` inference - as opposed to passing `ArrayBufferView`s as is done today - allows for a decoupling of the uploading/downloading of model inputs/outputs from the model execution itself. This provides several benefits, such as buffer reuse, chained inference, explicit memory management, and the opportunity to interop with WebGPU.
+An `MLTensor` is an opaque tensor which may be created, written to, and read from independently from `MLGraph` inference. Each of these operations is performed on the [timeline](\#timelines) of the associated MLContext, with a clearly defined order of operations. Passing `MLTensor`s as input and output tensors to `MLGraph` inference - as opposed to passing `ArrayBufferView`s as is done today - allows for a decoupling of the uploading/downloading of model inputs/outputs from the model execution itself. This provides several benefits, such as buffer reuse, chained inference, explicit destruction, and the opportunity to interop with WebGPU.
 
 ## Goals
 
@@ -81,7 +81,7 @@ await mlContext.compute(graph2, {'input': imageAsArrayBuffer}, {'output': output
 await mlContext.compute(graph3, {'input': imageAsArrayBuffer}, {'output': outputArrayBuffer3});
 ```
 
-Using `MLTensor`s enables a programming model similar to [WebGPU's](https://www.w3.org/TR/webgpu/#programming-model). Tasks are posted to the ML context's [timeline](#timelines) and are executed as the ML context sees fit - so far as data dependencies are respected. In this example, the ML context should be working continuously from the `writeBuffer()` call until the work for the last `readBuffer()` completes. Better utilization of the ML context will result in significantly better throughput.
+Using `MLTensor`s enables a programming model similar to [WebGPU's](https://www.w3.org/TR/webgpu/#programming-model). Tasks are posted to the ML context's [timeline](#timelines) and are executed as the ML context sees fit - so far as data dependencies are respected such that each `MLTensor` is guaranteed to be modified in the order the methods using the tensor are called from script. In this example, the ML context should be working continuously from the `writeBuffer()` call until the work for the last `readBuffer()` completes. Better utilization of the ML context will result in significantly better throughput.
 
 ```js
 // Proposed approach to queue tasks to the ML context timeline
@@ -254,7 +254,7 @@ Specifying WebNN timelines is tracked in [#529](https://github.com/webmachinelea
 
 ### Device Affinity and Relationship to a `GPUDevice`
 
-The user agent decides where the memory backing an `MLTensor` is allocated. The WebNN API allows the developer to provide hints - primarily via `MLTensorUsageFlags` - but these are not binding.
+The WebNN API requires the developer to declare how an `MLTensor` will be used (via `MLTensorUsageFlags`), which the user agent may use as a hint in deciding where to allocate the memory backing an `MLTensor`. Where the memory is ultimately allocated is up to the user agent.
 
 For example [an `MLContext` may be created with a `GPUDevice`](https://www.w3.org/TR/webnn/#dom-ml-createcontext-gpudevice), and creating an `MLTensor` from this context with the `MLTensorUsage.WEBGPU_INTEROP` flag expresses a clear intention to share the tensor with the given `GPUDevice`. However, there is no guarantee that sharing this tensor with WebGPU will be zero-copy.
 
@@ -262,7 +262,7 @@ The `MLTensorUsage.READ_FROM` and `MLTensorUsage.WRITE_TO` flags likewise are hi
 
 ### Importing an `MLTensor` to WebGPU
 
-Any `MLTensor` created with the `MLTensorUsage.WEBGPU_INTEROP` flag may be imported into any `GPUDevice`, though cross-device buffer sharing may require expensive data copies. Sharing the tensor requires coordinating between the respective WebNN and WebGPU timelines. Below is an example of how this handoff might work:
+Any `MLTensor` created with the `MLTensorUsage.WEBGPU_INTEROP` flag may be imported into any `GPUDevice`, though cross-device buffer sharing may require expensive data copies. Sharing the tensor requires coordinating between the respective WebNN and WebGPU timelines. Below is an example of how the user agent may coordinate this handoff:
 
 - Two fences are created:
   1. a "start access" fence which is to be signaled by WebNN and waited on by WebGPU. A data copy may be required alongside the signaling of this fence
