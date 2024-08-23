@@ -278,6 +278,8 @@ Any `MLTensor` created with the `MLTensorUsage.WEBGPU_INTEROP` flag may be impor
 
 `compute()` will be deprecated and removed in favor of `dispatch()`.
 
+It's possible `compute()` may have a performance advantage on some platforms for some use cases, such as in one-shot inference (where the benefits of buffer re-use are not relevant) with small inputs/outputs on CPU (where the overhead of task queueing may outweigh the benefits of parallelization). At this time, we do not expect this performance impact to be substantial enough to justify providing two mostly-identical methods for executing an `MLGraph`.
+
 ### Open Questions
 
 - How will errors be surfaced? Do we need a concept similar to [WebGPU's error scopes](https://www.w3.org/TR/webgpu/#error-scopes), or is [returning errors via a promise for select operations sufficient](https://github.com/webmachinelearning/webnn/issues/697#issuecomment-2195656878)? See [#477](https://github.com/webmachinelearning/webnn/issues/477)
