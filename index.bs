@@ -870,6 +870,8 @@ dictionary MLComputeResult {
 interface MLContext {
   Promise<MLComputeResult> compute(
       MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
+  
+  MLOpSupportLimits opSupportLimits();
 };
 </script>
 
@@ -1042,6 +1044,387 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
   </pre>
 </details>
 </div>
+
+### {{MLContext/opSupportLimits()}}  ### {#api-mlcontext-opsupportlimits}
+The {{MLContext/opSupportLimits()}} returns an {{MLOpSupportLimits}} dictionary that exposes various support limits at op level which differs across implementations. Consumers of the WebNN API are encouraged to use the  {{MLContext/opSupportLimits()}} to probe the level of support for each operator to determine the optimal model architecture to be deployed for each target platforms.
+
+#### {{MLOpSupportLimits}} dictionary #### {#api-mlcontext-opsupportlimits-dictionary}
+<script type="idl">
+dictionary MLOpSupportLimits {
+  MLInputOperandLayout preferredInputLayout;
+  MLSupportLimits input;
+  MLSupportLimits constant;
+  MLSupportLimits output;
+  MLSingleInputSupportLimits argMin;
+  MLSingleInputSupportLimits argMax;
+  MLSingleInputSupportLimits cast;
+  MLSingleInputSupportLimits clamp;
+  MLConcatSupportLimits concat;
+  MLBinarySupportLimits add;
+  MLBinarySupportLimits sub;
+  MLBinarySupportLimits mul;
+  MLBinarySupportLimits div;
+  MLBinarySupportLimits max;
+  MLBinarySupportLimits min;
+  MLBinarySupportLimits pow;
+  MLBinarySupportLimits equal;
+  MLBinarySupportLimits greater;
+  MLBinarySupportLimits greaterOrEqual;
+  MLBinarySupportLimits lesser;
+  MLBinarySupportLimits lesserOrEqual;
+  MLLogicalNotSupportLimits logicalNot;
+  MLSingleInputSupportLimits abs;
+  MLSingleInputSupportLimits ceil;
+  MLSingleInputSupportLimits cos;
+  MLSingleInputSupportLimits erf;
+  MLSingleInputSupportLimits exp;
+  MLSingleInputSupportLimits floor;
+  MLSingleInputSupportLimits identity;
+  MLSingleInputSupportLimits log;
+  MLSingleInputSupportLimits neg;
+  MLSingleInputSupportLimits reciprocal;
+  MLSingleInputSupportLimits sin;
+  MLSingleInputSupportLimits sqrt;
+  MLSingleInputSupportLimits tan;
+  MLSingleInputSupportLimits elu;
+  MLSingleInputSupportLimits expand;
+  MLGatherSupportLimits gather;
+  MLSingleInputSupportLimits gelu;
+  MLGemmSupportLimits gemm;
+  MLSingleInputSupportLimits hardSigmoid;
+  MLSingleInputSupportLimits hardSwish;
+  MLSingleInputSupportLimits leakyRelu;
+  MLSingleInputSupportLimits linear;
+  MLBinarySupportLimits matmul;
+  MLSingleInputSupportLimits pad;
+  MLPreluSupportLimits prelu;
+  MLSingleInputSupportLimits averagePool2d;
+  MLSingleInputSupportLimits l2Pool2d;
+  MLSingleInputSupportLimits maxPool2d;
+  MLSingleInputSupportLimits reduceL1;
+  MLSingleInputSupportLimits reduceL2;
+  MLSingleInputSupportLimits reduceLogSum;
+  MLSingleInputSupportLimits reduceLogSumExp;
+  MLSingleInputSupportLimits reduceMax;
+  MLSingleInputSupportLimits reduceMean;
+  MLSingleInputSupportLimits reduceMin;
+  MLSingleInputSupportLimits reduceProduct;
+  MLSingleInputSupportLimits reduceSum;
+  MLSingleInputSupportLimits reduceSumSquare;
+  MLSingleInputSupportLimits relu;
+  MLSingleInputSupportLimits resample2d;
+  MLSingleInputSupportLimits reshape;
+  MLSingleInputSupportLimits sigmoid;
+  MLSingleInputSupportLimits slice;
+  MLSingleInputSupportLimits softmax;
+  MLSingleInputSupportLimits softplus;
+  MLSingleInputSupportLimits softsign;
+  MLSingleInputSupportLimits split;
+  MLSingleInputSupportLimits tanh;
+  MLSingleInputSupportLimits transpose;
+  MLSingleInputSupportLimits triangular;
+  MLWhereSupportLimits where;
+};
+</script>
+
+<dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
+    : <dfn>preferredInputLayout</dfn>
+    :: Preferred input layout for layout aware operators like {{MLGraphBuilder/conv2d(input, filter, options)}}.
+    : <dfn>input</dfn>
+    :: Support limits for operator input.
+    : <dfn>constant</dfn>
+    :: Support limits for operator constant.
+    : <dfn>output</dfn>
+    :: Support limits for operator output.
+    : <dfn>argMin</dfn>
+    :: Support limits for operator argMin.
+    : <dfn>argMax</dfn>
+    :: Support limits for operator argMax.
+    : <dfn>cast</dfn>
+    :: Support limits for operator cast.
+    : <dfn>clamp</dfn>
+    :: Support limits for operator clamp.
+    : <dfn>concat</dfn>
+    :: Support limits for operator concat.
+    : <dfn>add</dfn>
+    :: Support limits for operator add.
+    : <dfn>sub</dfn>
+    :: Support limits for operator sub.
+    : <dfn>mul</dfn>
+    :: Support limits for operator mul.
+    : <dfn>div</dfn>
+    :: Support limits for operator div.
+    : <dfn>max</dfn>
+    :: Support limits for operator max.
+    : <dfn>min</dfn>
+    :: Support limits for operator min.
+    : <dfn>pow</dfn>
+    :: Support limits for operator pow.
+    : <dfn>equal</dfn>
+    :: Support limits for operator equal.
+    : <dfn>greater</dfn>
+    :: Support limits for operator greater.
+    : <dfn>greaterOrEqual</dfn>
+    :: Support limits for operator greaterOrEqual.
+    : <dfn>lesser</dfn>
+    :: Support limits for operator lesser.
+    : <dfn>lesserOrEqual</dfn>
+    :: Support limits for operator lesserOrEqual.
+    : <dfn>logicalNot</dfn>
+    :: Support limits for operator logicalNot.
+    : <dfn>abs</dfn>
+    :: Support limits for operator abs.
+    : <dfn>ceil</dfn>
+    :: Support limits for operator ceil.
+    : <dfn>cos</dfn>
+    :: Support limits for operator cos.
+    : <dfn>erf</dfn>
+    :: Support limits for operator erf.
+    : <dfn>exp</dfn>
+    :: Support limits for operator exp.
+    : <dfn>floor</dfn>
+    :: Support limits for operator floor.
+    : <dfn>identity</dfn>
+    :: Support limits for operator identity.
+    : <dfn>log</dfn>
+    :: Support limits for operator log.
+    : <dfn>neg</dfn>
+    :: Support limits for operator neg.
+    : <dfn>reciprocal</dfn>
+    :: Support limits for operator reciprocal.
+    : <dfn>sin</dfn>
+    :: Support limits for operator sin.
+    : <dfn>sqrt</dfn>
+    :: Support limits for operator sqrt.
+    : <dfn>tan</dfn>
+    :: Support limits for operator tan.
+    : <dfn>elu</dfn>
+    :: Support limits for operator elu.
+    : <dfn>expand</dfn>
+    :: Support limits for operator expand.
+    : <dfn>gather</dfn>
+    :: Support limits for operator gather.
+    : <dfn>gelu</dfn>
+    :: Support limits for operator gelu.
+    : <dfn>gemm</dfn>
+    :: Support limits for operator gemm.
+    : <dfn>hardSigmoid</dfn>
+    :: Support limits for operator hardSigmoid.
+    : <dfn>hardSwish</dfn>
+    :: Support limits for operator hardSwish.
+    : <dfn>leakyRelu</dfn>
+    :: Support limits for operator leakyRelu.
+    : <dfn>linear</dfn>
+    :: Support limits for operator linear.
+    : <dfn>matmul</dfn>
+    :: Support limits for operator matmul.
+    : <dfn>pad</dfn>
+    :: Support limits for operator pad.
+    : <dfn>prelu</dfn>
+    :: Support limits for operator prelu.
+    : <dfn>averagePool2d</dfn>
+    :: Support limits for operator averagePool2d.
+    : <dfn>l2Pool2d</dfn>
+    :: Support limits for operator l2Pool2d.
+    : <dfn>maxPool2d</dfn>
+    :: Support limits for operator maxPool2d.
+    : <dfn>reduceL1</dfn>
+    :: Support limits for operator reduceL1.
+    : <dfn>reduceL2</dfn>
+    :: Support limits for operator reduceL2.
+    : <dfn>reduceLogSum</dfn>
+    :: Support limits for operator reduceLogSum.
+    : <dfn>reduceLogSumExp</dfn>
+    :: Support limits for operator reduceLogSumExp.
+    : <dfn>reduceMax</dfn>
+    :: Support limits for operator reduceMax.
+    : <dfn>reduceMean</dfn>
+    :: Support limits for operator reduceMean.
+    : <dfn>reduceMin</dfn>
+    :: Support limits for operator reduceMin.
+    : <dfn>reduceProduct</dfn>
+    :: Support limits for operator reduceProduct.
+    : <dfn>reduceSum</dfn>
+    :: Support limits for operator reduceSum.
+    : <dfn>reduceSumSquare</dfn>
+    :: Support limits for operator reduceSumSquare.
+    : <dfn>relu</dfn>
+    :: Support limits for operator relu.
+    : <dfn>resample2d</dfn>
+    :: Support limits for operator resample2d.
+    : <dfn>reshape</dfn>
+    :: Support limits for operator reshape.
+    : <dfn>sigmoid</dfn>
+    :: Support limits for operator sigmoid.
+    : <dfn>slice</dfn>
+    :: Support limits for operator slice.
+    : <dfn>softmax</dfn>
+    :: Support limits for operator softmax.
+    : <dfn>softplus</dfn>
+    :: Support limits for operator softplus.
+    : <dfn>softsign</dfn>
+    :: Support limits for operator softsign.
+    : <dfn>split</dfn>
+    :: Support limits for operator split.
+    : <dfn>tanh</dfn>
+    :: Support limits for operator tanh.
+    : <dfn>transpose</dfn>
+    :: Support limits for operator transpose.
+    : <dfn>triangular</dfn>
+    :: Support limits for operator triangular.
+    : <dfn>where</dfn>
+    :: Support limits for operator where.
+</dl>
+#### {{MLSupportLimits}} dictionary #### {#api-mlcontext-supportlimits-dictionary}
+<script type="idl">
+dictionary MLSupportLimits {
+  sequence<DOMString> dataTypes;
+};
+</script>
+<dl dfn-type=dict-member dfn-for=MLSupportLimits>
+    : <dfn>dataTypes</dfn>
+    :: Supported data types.
+</dl>
+#### {{MLBinarySupportLimits}} dictionary #### {#api-mlcontext-binarysupportlimits-dictionary}
+<script type="idl">
+dictionary MLBinarySupportLimits {
+  MLSupportLimits a;
+  MLSupportLimits b;
+  MLSupportLimits output;
+};
+</script>
+
+<dl dfn-type=dict-member dfn-for=MLBinarySupportLimits>
+    : <dfn>a</dfn>
+    :: {{MLSupportLimits}} for a operand.
+    : <dfn>b</dfn>
+    :: {{MLSupportLimits}} for b operand.
+    : <dfn>output</dfn>
+    :: {{MLSupportLimits}} for output operand.
+</dl>
+
+#### {{MLConcatSupportLimits}} dictionary #### {#api-mlcontext-concatsupportlimits-dictionary}
+<script type="idl">
+dictionary MLConcatSupportLimits {
+  MLSupportLimits inputs;
+  MLSupportLimits output;
+};
+</script>
+
+<dl dfn-type=dict-member dfn-for=MLConcatSupportLimits>
+    : <dfn>inputs</dfn>
+    :: {{MLSupportLimits}} for all input operands.
+    : <dfn>output</dfn>
+    :: {{MLSupportLimits}} for output operand.
+</dl>
+
+#### {{MLGatherSupportLimits}} dictionary #### {#api-mlcontext-gathersupportlimits-dictionary}
+<script type="idl">
+dictionary MLGatherSupportLimits {
+  MLSupportLimits input;
+  MLSupportLimits indices;
+  MLSupportLimits output;
+};
+</script>
+
+<dl dfn-type=dict-member dfn-for=MLGatherSupportLimits>
+    : <dfn>input</dfn>
+    :: {{MLSupportLimits}} for input operand.
+    : <dfn>indices</dfn>
+    :: {{MLSupportLimits}} for indices operand.
+    : <dfn>output</dfn>
+    :: {{MLSupportLimits}} for output operand.
+</dl>
+
+#### {{MLGemmSupportLimits}} dictionary #### {#api-mlcontext-gemmsupportlimits-dictionary}
+<script type="idl">
+dictionary MLGemmSupportLimits {
+  MLSupportLimits a;
+  MLSupportLimits b;
+  MLSupportLimits c;
+  MLSupportLimits output;
+};
+</script>
+
+<dl dfn-type=dict-member dfn-for=MLGemmSupportLimits>
+    : <dfn>a</dfn>
+    :: {{MLSupportLimits}} for a operand.
+    : <dfn>b</dfn>
+    :: {{MLSupportLimits}} for b operand.
+    : <dfn>c</dfn>
+    :: {{MLSupportLimits}} for c operand.
+    : <dfn>output</dfn>
+    :: {{MLSupportLimits}} for output operand.
+</dl>
+
+#### {{MLPreluSupportLimits}} dictionary #### {#api-mlcontext-prelusupportlimits-dictionary}
+<script type="idl">
+dictionary MLPreluSupportLimits {
+  MLSupportLimits input;
+  MLSupportLimits slope;
+  MLSupportLimits output;
+};
+</script>
+
+<dl dfn-type=dict-member dfn-for=MLPreluSupportLimits>
+    : <dfn>input</dfn>
+    :: {{MLSupportLimits}} for input operand.
+    : <dfn>slope</dfn>
+    :: {{MLSupportLimits}} for slope operand.
+    : <dfn>output</dfn>
+    :: {{MLSupportLimits}} for output operand.
+</dl>
+
+#### {{MLLogicalNotSupportLimits}} dictionary #### {#api-mlcontext-logicalnotsupportlimits-dictionary}
+<script type="idl">
+dictionary MLLogicalNotSupportLimits {
+  MLSupportLimits a;
+  MLSupportLimits output;
+};
+</script>
+
+<dl dfn-type=dict-member dfn-for=MLLogicalNotSupportLimits>
+    : <dfn>a</dfn>
+    :: {{MLSupportLimits}} for a operand.
+    : <dfn>output</dfn>
+    :: {{MLSupportLimits}} for output operand.
+</dl>
+
+#### {{MLSingleInputSupportLimits}} dictionary #### {#api-mlcontext-singleinputsupportlimits-dictionary}
+<script type="idl">
+dictionary MLSingleInputSupportLimits {
+  MLSupportLimits input;
+  MLSupportLimits output;
+};
+</script>
+
+<dl dfn-type=dict-member dfn-for=MLSingleInputSupportLimits>
+    : <dfn>input</dfn>
+    :: {{MLSupportLimits}} for input operand.
+    : <dfn>output</dfn>
+    :: {{MLSupportLimits}} for output operand.
+</dl>
+
+#### {{MLWhereSupportLimits}} dictionary #### {#api-mlcontext-wheresupportlimits-dictionary}
+<script type="idl">
+dictionary MLWhereSupportLimits {
+  MLSupportLimits condition;
+  MLSupportLimits trueValue;
+  MLSupportLimits falseValue;
+  MLSupportLimits output;
+};
+</script>
+
+<dl dfn-type=dict-member dfn-for=MLWhereSupportLimits>
+    : <dfn>condition</dfn>
+    :: {{MLSupportLimits}} for condition operand.
+    : <dfn>trueValue</dfn>
+    :: {{MLSupportLimits}} for trueValue operand.
+    : <dfn>falseValue</dfn>
+    :: {{MLSupportLimits}} for falseValue operand.
+    : <dfn>output</dfn>
+    :: {{MLSupportLimits}} for output operand.
+</dl>
 
 ## {{MLGraph}} interface ## {#api-mlgraph}
 The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
