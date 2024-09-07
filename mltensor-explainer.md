@@ -27,6 +27,7 @@ An `MLTensor` is an opaque tensor which may be created, written to, and read fro
 ## Non-Goals
 
 * Guarantee *zero-copy* buffer-sharing between WebNN and WebGPU
+* Synchronization of work between WebNN and WebGPU without CPU involvement
 * Provide partial views over an `MLTensor`
 
 ## Key Scenarios
@@ -55,13 +56,19 @@ await mlContext.compute(graph3, {'input': imageAsArrayBuffer}, {'output': output
 // Proposed approach to reuse a given input buffer, using an input MLTensor
 
 // Copy the image data into the required format.
-const imageAsMlTensor = await mlContext.createTensor({..., usage: MLTensorUsage.WRITE_TO});
-mlContext.writeBuffer(imageAsMlTensor, imageAsArrayBuffer);
+const imageAsMlTensor = await mlContext.createTensor({..., usage: MLTensorUsage.WRITE});
+mlContext.writeTensor(imageAsMlTensor, imageAsArrayBuffer);
 
 // Execute the graphs - no additional copies!
 mlContext.dispatch(graph1, {'input': imageAsMlTensor}, {'output': outputMlTensor1});
 mlContext.dispatch(graph2, {'input': imageAsMlTensor}, {'output': outputMlTensor2});
 mlContext.dispatch(graph3, {'input': imageAsMlTensor}, {'output': outputMlTensor3});
+
+await Promise.all([
+  mlContext.readTensor(outputMlTensor1, outputArrayBuffer1);
+  mlContext.readTensor(outputMlTensor2, outputArrayBuffer2);
+  mlContext.readTensor(outputMlTensor3, outputArrayBuffer3);
+]);
 ```
 
 ### Chained Inference
@@ -81,19 +88,19 @@ await mlContext.compute(graph2, {'input': imageAsArrayBuffer}, {'output': output
 await mlContext.compute(graph3, {'input': imageAsArrayBuffer}, {'output': outputArrayBuffer3});
 ```
 
-Using `MLTensor`s enables a programming model similar to [WebGPU's](https://www.w3.org/TR/webgpu/#programming-model). Tasks are posted to the ML context's [timeline](#timelines) and are executed as the ML context sees fit - so far as data dependencies are respected such that each `MLTensor` is guaranteed to be modified in the order the methods using the tensor are called from script. In this example, the ML context should be working continuously from the `writeBuffer()` call until the work for the last `readBuffer()` completes. Better utilization of the ML context will result in significantly better throughput.
+Using `MLTensor` enables a programming model similar to [WebGPU's](https://www.w3.org/TR/webgpu/#programming-model). Tasks are posted to the ML context's [timeline](#timelines) and are executed as the ML context sees fit - so far as data dependencies are respected such that each `MLTensor` is guaranteed to be modified in the order the methods using the tensor are called from script. In this example, the ML context should be working continuously from the `writeTensor()` call until the work for the last `readTensor()` completes. Better utilization of the ML context will result in significantly better throughput.
 
 ```js
 // Proposed approach to queue tasks to the ML context timeline
 
 // Post a task to the ML context timeline to allocate and zero out a tensor,
 // then return to script.
-const imageAsMlTensor = await mlContext.createTensor({..., usage: MLTensorUsage.WRITE_TO});
+const imageAsMlTensor = await mlContext.createTensor({..., usage: MLTensorUsage.WRITE});
 
 // Post a task to the ML context timeline to write to the tensor. Note that we do
 // not await completion of this write. The ML context will ensure any operations
 // which depend on the contents of `imageAsMlTensor` will queue behind this task.
-mlContext.writeBuffer(imageAsMlTensor, imageAsArrayBuffer);
+mlContext.writeTensor(imageAsMlTensor, imageAsArrayBuffer);
 
 // Post a task to the ML context timeline to execute the graph. The ML context will
 // ensure this queues behind the write above.
@@ -110,7 +117,7 @@ const outputs = await Promise.all([
     outputMlTensor1,
     outputMlTensor2,
     outputMlTensor3
-  ].map((tensor) => { return mlContext.readBuffer(tensor); }));
+  ].map((tensor) => { return mlContext.readTensor(tensor); }));
 ```
 
 Since the queueing mechanism respects data dependencies, chained inference allows an `MLTensor` to be passed as an output from one graph and then immediately as an input to the next. A collection of graphs and buffers may be repeatedly dispatched without the need for synchronization via script.
@@ -125,11 +132,11 @@ const add = builder.add(fn1, fn2);
 const graph = await builder.build({'F_n': add});
 
 const usages = [
-    MLTensorUsage.WRITE_TO,  // To initialize F_0
-    MLTensorUsage.WRITE_TO,  // To initialize F_1
+    MLTensorUsage.WRITE,  // To initialize F_0
+    MLTensorUsage.WRITE,  // To initialize F_1
     0
 ];
-usages[N % 3] |= MLTensorUsage.READ_FROM;  // To read the output
+usages[N % 3] |= MLTensorUsage.READ;  // To read the output
 
 const tensors = await Promise.all([
     mlContext.createTensor({dataType: "int32", shape: [1], usage: usages[0]}),
@@ -137,8 +144,8 @@ const tensors = await Promise.all([
     mlContext.createTensor({dataType: "int32", shape: [1], usage: usages[2]})
 ]);
 
-mlContext.writeBuffer(tensors[0], new Int32Array([0]));  // F_0 = 0
-mlContext.writeBuffer(tensors[1], new Int32Array([1]));  // F_1 = 1
+mlContext.writeTensor(tensors[0], new Int32Array([0]));  // F_0 = 0
+mlContext.writeTensor(tensors[1], new Int32Array([1]));  // F_1 = 1
 
 for (let n = 2; n <= N; n++) {
   // Each dispatch depends on tensors used in the previous dispatch.
@@ -147,7 +154,7 @@ for (let n = 2; n <= N; n++) {
                      {'F_n':   tensors[n % 3]});
 }
 
-const f_n = new Int32Array(await mlContext.readBuffer(tensors[N % 3]))[0];
+const f_n = new Int32Array(await mlContext.readTensor(tensors[N % 3]))[0];
 ```
 
 ### Resource Management
@@ -179,7 +186,8 @@ mlContext.dispatch(graph1, inputs, outputs);
 // Explicitly ask for its resources to be released!
 graph1.destroy();
 
-// We can selectively release only the resources we expect won't be needed.
+// We can selectively release only the resources we expect won't be needed
+// by calling destroy() on a subset of MLTensors.
 destroyBuffers(inputs);
 // Don't destroy the output tensors yet, in case we want to reuse them later.
 
@@ -193,9 +201,9 @@ const constant = builder.constant(descriptor, veryLargeBufferOfWeights);
 
 A privacy-conscious user wants to perform real-time selfie segmentation of a video feed on their local device.
 
-Currently, using WebNN for this task would require - for each frame - an expensive readback of `GPUBuffer` data to script, uploading the data to the ML context device (which may be the same GPU!), copying the result back to script, and then uploading the frame to be rendered back into a `GPUBuffer`. This is unlikely to be performed in real-time.
+Currently, using WebNN for this task would require - for each frame - an expensive readback of `GPUBuffer` data to script, uploading the data to the ML context device (which may be the same GPU!), copying the result back to script, and then uploading the frame to be rendered back into a `GPUBuffer`.
 
-An `MLTensor` may be imported into WebGPU, which in the best case provides zero-copy buffer sharing between the two APIs, and in all cases provides a synchronization mechanism between the respective WebNN and WebGPU [timelines](https://www.w3.org/TR/webgpu/#programming-model-timelines), avoiding the need for expensive synchronization via script.
+An `MLTensor` may be imported into WebGPU, minimizing the number of buffer copies required to render the results of some ML compute. Zero-copy buffer sharing between the two APIs may be supported in some cases.
 
 ```js
 // Create a couple MLTensors to be used to facilitate WebGPU interop.
@@ -205,8 +213,8 @@ const mlTensor2 = await mlContext.createTensor({..., usage: MLTensorUsage.WEBGPU
 const applyEffectToFrame = async () => {
   const gpuVideoTexture = gpuDevice.importExternalTexture({source: video});
 
-  // Rent out the MLTensor to WebGPU.  
-  const tensorizedGpuBuffer = gpuDevice.importExternalBuffer(mlTensor1);
+  // Wait for all ML work involving `mlTensor1` to complete, then rent it out to WebGPU.
+  const tensorizedGpuBuffer = await gpuDevice.importExternalBuffer(mlTensor1);
 
   // Create a bind group for `gpuVideoTexture`, create a command encoder, etc.
   // to "tensorize" `gpuVideoTexture` and store the result in `tensorizedGpuBuffer`
@@ -225,8 +233,8 @@ const applyEffectToFrame = async () => {
     /*outputs=*/{'output': mlTensor2},
   );
 
-  // Rent the other MLTensor out to WebGPU.
-  const tensorizedGpuBufferAfterInference = gpuDevice.importExternalBuffer(mlTensor2);
+  // Wait for all ML work involving `mlTensor2` to complete, then rent it out to WebGPU.
+  const tensorizedGpuBufferAfterInference = await gpuDevice.importExternalBuffer(mlTensor2);
 
   // Create a bind group for `tensorizedGpuBufferAfterInference`,
   // create a command encoder, etc to feed `tensorizedGpuBufferAfterInference`
@@ -258,21 +266,15 @@ The WebNN API requires the developer to declare how an `MLTensor` will be used (
 
 For example [an `MLContext` may be created with a `GPUDevice`](https://www.w3.org/TR/webnn/#dom-ml-createcontext-gpudevice), and creating an `MLTensor` from this context with the `MLTensorUsage.WEBGPU_INTEROP` flag expresses a clear intention to share the tensor with the given `GPUDevice`. However, there is no guarantee that sharing this tensor with WebGPU will be zero-copy.
 
-The `MLTensorUsage.READ_FROM` and `MLTensorUsage.WRITE_TO` flags likewise are hints to the user agent indicating that the underlying data will be read and written to, respectively, by script.
+The `MLTensorUsage.READ` and `MLTensorUsage.WRITE` flags likewise are hints to the user agent indicating that the underlying data will be read and written to, respectively, by script.
 
 ### Importing an `MLTensor` to WebGPU
 
-Any `MLTensor` created with the `MLTensorUsage.WEBGPU_INTEROP` flag may be imported into any `GPUDevice`, though cross-device buffer sharing may require expensive data copies. Sharing the tensor requires coordinating between the respective WebNN and WebGPU timelines. Below is an example of how the user agent may coordinate this handoff:
+Any `MLTensor` created with the `MLTensorUsage.WEBGPU_INTEROP` flag may be imported into any `GPUDevice`. In the best case, this requires no data copies. If the underlying buffer backing the `MLTensor` is not accessible to the `GPUDevice`, this will require copying the contents of the `MLTensor` to a new buffer, then copying the contents of this buffer back to the `MLTensor` once WebGPU releases its handle to the buffer.
 
-- Two fences are created:
-  1. a "start access" fence which is to be signaled by WebNN and waited on by WebGPU. A data copy may be required alongside the signaling of this fence
-  2. an "end access" fence which is to be signaled by WebGPU and waited on by WebNN. A data copy may be required alongside the signaling of this fence
-- The `GPUDevice` enqueues a command to its `GPUQueue` to wait for the "start access" fence to be signaled
-- WebNN will signal the "start access" fence after the completion of all currently-enqueued operations that use the `MLTensor` which is to be imported (this is very similar to how [`GPUBuffer.mapAsync()`](https://www.w3.org/TR/webgpu/#dom-gpubuffer-mapasync) works)
-- Until the "end access" fence is signaled:
-  - The `GPUDevice` has exclusive, read/write access to the imported buffer
-  - All WebNN work involving the imported `MLTensor` is blocked
-- When the `GPUBuffer` is destroyed, the "end access" fence is signaled and the `MLTensor` may be used again by WebNN
+While an `MLTensor` is rented to a `GPUDevice`, the `GPUDevice` has exclusive, read/write access to the imported buffer. All WebNN work depending - directly or indirectly - on the imported `MLTensor` is blocked until the `GPUDevice` returns the tensor.
+
+Importing and returning the `MLTensor` are each points of synchronization between the respective WebNN and WebGPU [timelines](https://www.w3.org/TR/webgpu/#programming-model-timelines). The `importExternalBuffer()` method is asynchronous to allow the user agent to await completion of WebNN operations before posting WebGPU commands with the imported buffer. This is to avoid making WebGPU workloads explicitly dependent on WebNN operations, which is may not be possible on platforms which [don't support enqueuing GPU work that waits on a fence to be later signaled by the CPU](https://github.com/webmachinelearning/webnn/pull/754#discussion_r1740841364) and/or don't express ML compute in terms of GPU commands.
 
 ### `compute()` vs. `dispatch()`
 
@@ -282,11 +284,12 @@ It's possible `compute()` may have a performance advantage on some platforms for
 
 ### Open Questions
 
-- How will errors be surfaced? Do we need a concept similar to [WebGPU's error scopes](https://www.w3.org/TR/webgpu/#error-scopes), or is [returning errors via a promise for select operations sufficient](https://github.com/webmachinelearning/webnn/issues/697#issuecomment-2195656878)? See [#477](https://github.com/webmachinelearning/webnn/issues/477)
-- On non-UMA systems, does the user agent have enough information to appropriately allocate an `MLTensor` if an `MLDeviceType` is not used for creating an `MLContext`? See [#350](https://github.com/webmachinelearning/webnn/issues/350) and [#749](https://github.com/webmachinelearning/webnn/issues/749)
-- Should the `dispatch()` method be a part of the `MLGraph` interface rather than `MLContext`? Should `readBuffer()` and `writeBuffer()` exist on an `MLTensor`? See [#697](https://github.com/webmachinelearning/webnn/issues/697).
+- How will errors be surfaced? Do we need a concept similar to [WebGPU's error scopes](https://www.w3.org/TR/webgpu/#error-scopes), or is [returning errors via a promise for select operations](https://github.com/webmachinelearning/webnn/issues/697#issuecomment-2195656878) and losing the `MLContext` sufficient? See [#477](https://github.com/webmachinelearning/webnn/issues/477)
+- Does the user agent have enough information to appropriately allocate an `MLTensor` if an `MLDeviceType` is not used for creating an `MLContext`? See [#350](https://github.com/webmachinelearning/webnn/issues/350) and [#749](https://github.com/webmachinelearning/webnn/issues/749)
+- Should the `dispatch()` method be a part of the `MLGraph` interface rather than `MLContext`? Should `readTensor()` and `writeTensor()` exist on an `MLTensor`? See [#697](https://github.com/webmachinelearning/webnn/issues/697).
 - If an `MLContext` is not created from a `GPUDevice`, does there need to be some mechanism - above and beyond the `MLTensorUsage.WEBGPU_INTEROP` flag - for identifying the specific `GPUDevice` with which interop is desired?
 - What are the usage flags of a `GPUBuffer` created from an `MLTensor`?
+- Is a sync variant of the `importExternalBuffer()` method feasible on platforms where the WebNN timeline _is_ the WebGPU timeline? (i.e. ML compute is expressed in terms of GPU commands on the same `GPUDevice`)
 
 ## Considered Alternatives
 
@@ -371,8 +374,8 @@ Many thanks for valuable feedback and advice from:
 typedef [EnforceRange] unsigned long MLTensorUsageFlags;
 
 namespace MLTensorUsage {
-    const MLFlagsConstant READ_FROM      = 0x0001;
-    const MLFlagsConstant WRITE_TO       = 0x0002;
+    const MLFlagsConstant READ           = 0x0001;
+    const MLFlagsConstant WRITE          = 0x0002;
     const MLFlagsConstant WEBGPU_INTEROP = 0x0004;
 };
 
@@ -393,12 +396,12 @@ interface MLTensor {
 partial interface MLContext {
   Promise<MLTensor> createTensor(MLTensorDescriptor descriptor);
 
-  void writeBuffer(MLTensor dstTensor, [AllowShared] ArrayBuffer srcData);
-  void writeBuffer(MLTensor dstTensor, [AllowShared] ArrayBufferView srcData);
+  void writeTensor(MLTensor tensor, [AllowShared] ArrayBuffer sourceData);
+  void writeTensor(MLTensor tensor, [AllowShared] ArrayBufferView sourceData);
   
-  Promise<ArrayBuffer> readBuffer(MLTensor srcTensor);
-  Promise<void> readBuffer(MLTensor srcTensor, [AllowShared] ArrayBuffer dstData);
-  Promise<void> readBuffer(MLTensor srcTensor, [AllowShared] ArrayBufferView dstData);
+  Promise<ArrayBuffer> readTensor(MLTensor tensor);
+  Promise<void> readTensor(MLTensor tensor, [AllowShared] ArrayBuffer outputData);
+  Promise<void> readTensor(MLTensor tensor, [AllowShared] ArrayBufferView outputData);
   
   void dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);
 };
@@ -414,7 +417,7 @@ dictionary GPUExternalBufferDescriptor
 };
 
 partial interface GPUDevice {
-  GPUExternalBuffer importExternalBuffer(GPUExternalBufferDescriptor descriptor);
+  Promise<GPUExternalBuffer> importExternalBuffer(GPUExternalBufferDescriptor descriptor);
 }
 
 partial interface ML {
