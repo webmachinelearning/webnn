@@ -223,7 +223,7 @@ const applyEffectToFrame = async () => {
   gpuDevice.queue.submit([tensorizationCommandEncoder.finish()]);
 
   // Return the buffer to WebNN.
-  tensorizedGpuBuffer.destroy();
+  tensorizedGpuBuffer.release();
 
   // Perform some inference described by `graph` on the frame
   // (e.g. selfie segmentation)
@@ -245,7 +245,7 @@ const applyEffectToFrame = async () => {
   gpuDevice.queue.submit([texturizeAndRenderCommandEncoder.finish()]);
 
   // Return the buffer to WebNN for the next frame.
-  tensorizedGpuBufferAfterInference.destroy();
+  tensorizedGpuBufferAfterInference.release();
 
   // Call this method for each frame.
   video.requestVideoFrameCallback(applyEffectToFrame);
@@ -272,7 +272,7 @@ The `MLTensorUsage.READ` and `MLTensorUsage.WRITE` flags likewise are hints to t
 
 Any `MLTensor` created with the `MLTensorUsage.WEBGPU_INTEROP` flag may be imported into any `GPUDevice`. In the best case, this requires no data copies. If the underlying buffer backing the `MLTensor` is not accessible to the `GPUDevice`, this will require copying the contents of the `MLTensor` to a new buffer, then copying the contents of this buffer back to the `MLTensor` once WebGPU releases its handle to the buffer.
 
-While an `MLTensor` is rented to a `GPUDevice`, the `GPUDevice` has exclusive, read/write access to the imported buffer. All WebNN work depending - directly or indirectly - on the imported `MLTensor` is blocked until the `GPUDevice` returns the tensor.
+While an `MLTensor` is rented to a `GPUDevice`, the `GPUDevice` has exclusive, read/write access to the imported buffer, which is created as a `GPUExternalBuffer` with `GPUBufferUsageFlags.STORAGE`. All WebNN work depending - directly or indirectly - on the imported `MLTensor` is blocked until the `GPUDevice` returns the tensor.
 
 Importing and returning the `MLTensor` are each points of synchronization between the respective WebNN and WebGPU [timelines](https://www.w3.org/TR/webgpu/#programming-model-timelines). The `importExternalBuffer()` method is asynchronous to allow the user agent to await completion of WebNN operations before posting WebGPU commands with the imported buffer. This is to avoid making WebGPU workloads explicitly dependent on WebNN operations, which is may not be possible on platforms which [don't support enqueuing GPU work that waits on a fence to be later signaled by the CPU](https://github.com/webmachinelearning/webnn/pull/754#discussion_r1740841364) and/or don't express ML compute in terms of GPU commands.
 
@@ -288,7 +288,6 @@ It's possible `compute()` may have a performance advantage on some platforms for
 - Does the user agent have enough information to appropriately allocate an `MLTensor` if an `MLDeviceType` is not used for creating an `MLContext`? See [#350](https://github.com/webmachinelearning/webnn/issues/350) and [#749](https://github.com/webmachinelearning/webnn/issues/749)
 - Should the `dispatch()` method be a part of the `MLGraph` interface rather than `MLContext`? Should `readTensor()` and `writeTensor()` exist on an `MLTensor`? See [#697](https://github.com/webmachinelearning/webnn/issues/697).
 - If an `MLContext` is not created from a `GPUDevice`, does there need to be some mechanism - above and beyond the `MLTensorUsage.WEBGPU_INTEROP` flag - for identifying the specific `GPUDevice` with which interop is desired?
-- What are the usage flags of a `GPUBuffer` created from an `MLTensor`?
 - Is a sync variant of the `importExternalBuffer()` method feasible on platforms where the WebNN timeline _is_ the WebGPU timeline? (i.e. ML compute is expressed in terms of GPU commands on the same `GPUDevice`)
 
 ## Considered Alternatives
@@ -408,7 +407,9 @@ partial interface MLContext {
 
 // For WebGPU Interop
 
-interface GPUExternalBuffer {};
+interface GPUExternalBuffer {
+  undefined release();
+};
 GPUExternalBuffer includes GPUObjectBase;
 
 dictionary GPUExternalBufferDescriptor
