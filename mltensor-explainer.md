@@ -395,8 +395,8 @@ interface MLTensor {
 partial interface MLContext {
   Promise<MLTensor> createTensor(MLTensorDescriptor descriptor);
 
-  void writeTensor(MLTensor tensor, [AllowShared] ArrayBuffer sourceData);
-  void writeTensor(MLTensor tensor, [AllowShared] ArrayBufferView sourceData);
+  void writeTensor(MLTensor tensor, [AllowShared] ArrayBuffer inputData);
+  void writeTensor(MLTensor tensor, [AllowShared] ArrayBufferView inputData);
   
   Promise<ArrayBuffer> readTensor(MLTensor tensor);
   Promise<void> readTensor(MLTensor tensor, [AllowShared] ArrayBuffer outputData);
