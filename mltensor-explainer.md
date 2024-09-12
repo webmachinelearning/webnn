@@ -285,9 +285,8 @@ It's possible `compute()` may have a performance advantage on some platforms for
 ### Open Questions
 
 - How will errors be surfaced? Do we need a concept similar to [WebGPU's error scopes](https://www.w3.org/TR/webgpu/#error-scopes), or is [returning errors via a promise for select operations](https://github.com/webmachinelearning/webnn/issues/697#issuecomment-2195656878) and losing the `MLContext` sufficient? See [#477](https://github.com/webmachinelearning/webnn/issues/477)
-- Does the user agent have enough information to appropriately allocate an `MLTensor` if an `MLDeviceType` is not used for creating an `MLContext`? See [#350](https://github.com/webmachinelearning/webnn/issues/350) and [#749](https://github.com/webmachinelearning/webnn/issues/749)
+- Does the user agent have enough information to appropriately allocate an `MLTensor` if an `MLDeviceType` or `GPUDevice` is not used to create an `MLContext`? See [#350](https://github.com/webmachinelearning/webnn/issues/350) and [#749](https://github.com/webmachinelearning/webnn/issues/749)
 - Should the `dispatch()` method be a part of the `MLGraph` interface rather than `MLContext`? Should `readTensor()` and `writeTensor()` exist on an `MLTensor`? See [#697](https://github.com/webmachinelearning/webnn/issues/697).
-- If an `MLContext` is not created from a `GPUDevice`, does there need to be some mechanism - above and beyond the `MLTensorUsage.WEBGPU_INTEROP` flag - for identifying the specific `GPUDevice` with which interop is desired?
 - Is a sync variant of the `importExternalBuffer()` method feasible on platforms where the WebNN timeline _is_ the WebGPU timeline? (i.e. ML compute is expressed in terms of GPU commands on the same `GPUDevice`)
 
 ## Considered Alternatives
