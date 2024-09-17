@@ -1104,7 +1104,7 @@ dictionary MLOperandDescriptor {
     :: The operand data type.
 
     : <dfn>shape</dfn>
-    :: The shape of the operand. It is empty for scalar operands, and non-empty for tensor operands.
+    :: The list of dimensions of the operand. It is empty for scalar operands.
 </dl>
 
 <details open algorithm>
@@ -2736,7 +2736,7 @@ partial interface MLGraphBuilder {
 </div>
 
 ### expand ### {#api-mlgraphbuilder-expand}
-Expand any dimension of size 1 of the input tensor to a larger size according to the new shape. The expansion is consistent with [[!numpy-broadcasting-rule]]. The input tensor must be [=unidirectionally broadcastable=] to the new shape; its shape must be of size 1 or match the sizes of the corresponding output dimensions according to the new shape.
+Expand any dimension of size 1 of the input tensor to a larger size according to the new shape. The expansion is consistent with [[!numpy-broadcasting-rule]]. The input tensor must be [=unidirectionally broadcastable=] to the new shape; each dimension must be of size 1 or match the sizes of the corresponding output dimensions according to the new shape.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand expand(MLOperand input,
@@ -3833,7 +3833,7 @@ partial interface MLGraphBuilder {
           builder.sub(input, mean), builder.constant(input.dataType(), 2)),
         reduceOptions);
 
-      // The scale and bias tensors are of the shape of the input shape
+      // The scale and bias tensors are of the shape of the input
       // specified by the values in the axes parameter (i.e. [1,2,3]).
       return builder.add(
         builder.mul(
@@ -6128,7 +6128,7 @@ Given the following build graph:
   </summary>
   <pre highlight="js">
     // Use tensors in 4 dimensions.
-    const TENSOR_DIMS = [1, 2, 2, 2];
+    const TENSOR_SHAPE = [1, 2, 2, 2];
     const TENSOR_SIZE = 8;
 
     const builder = new MLGraphBuilder(context);
@@ -6136,7 +6136,7 @@ Given the following build graph:
     // Create MLOperandDescriptor object.
     const desc = {
       dataType: 'float32',
-      shape: TENSOR_DIMS
+      shape: TENSOR_SHAPE
     };
 
     // constant1 is a constant MLOperand with the value 0.5.
