@@ -223,7 +223,7 @@ const applyEffectToFrame = async () => {
   gpuDevice.queue.submit([tensorizationCommandEncoder.finish()]);
 
   // Return the buffer to WebNN.
-  tensorizedGpuBuffer.release();
+  tensorizedGpuBuffer.destroy();
 
   // Perform some inference described by `graph` on the frame
   // (e.g. selfie segmentation)
@@ -272,7 +272,15 @@ The `MLTensorDescriptor.readable` and `MLTensorDescriptor.writable` flags likewi
 
 An `MLTensor` created with the `MLTensorDescriptor.importableToWebGPU` flag may be imported as a `GPUBuffer` to a `GPUDevice`. In the best case, this requires no data copies. If the underlying buffer backing the `MLTensor` is not accessible to the `GPUDevice`, this will require copying the contents of the `MLTensor` to a new buffer, then copying the contents of this buffer back to the `MLTensor` once WebGPU releases its handle to the buffer.
 
-While an `MLTensor` is rented to a `GPUDevice`, the `GPUDevice` has exclusive, read/write access to the imported buffer, which is created as a `GPUExternalBuffer` with `GPUBufferUsageFlags.STORAGE`, `GPUBufferUsageFlags.COPY_SRC`, and `GPUBufferUsageFlags.COPY_DST`. All WebNN work depending - directly or indirectly - on the imported `MLTensor` is blocked until the `GPUDevice` returns the tensor.
+While an `MLTensor` is rented to a `GPUDevice`, the `GPUDevice` has exclusive, read/write access to the imported buffer, which is created as a `GPUBuffer` with `GPUBufferUsageFlags.STORAGE`, `GPUBufferUsageFlags.COPY_SRC`, and `GPUBufferUsageFlags.COPY_DST`. All WebNN work depending - directly or indirectly - on the imported `MLTensor` is blocked until the `GPUDevice` returns the tensor.
+
+The `GPUBuffer` can be accessed as an `array<T>` in WGSL - a 1D packed array of type `T` in GPU memory. The size of the array is determined by the number of bytes of the packed `MLTensor` and `T`. For example, an `MLTensor` with `{dataType: 'int8', shape: [2, 3, 4]}` may be imported as an `array<u32>` of length 6.
+
+```
+// An example of how to declare the imported MLTensor as
+// a GPUBuffer in a WGSL shader. 
+@group(0) @binding(0) var<storage, read_write> tensor: array<f32>;
+```
 
 Importing and returning the `MLTensor` are each points of synchronization between the respective WebNN and WebGPU [timelines](https://www.w3.org/TR/webgpu/#programming-model-timelines). The `importExternalBuffer()` method is asynchronous to allow the user agent to await completion of WebNN operations before posting WebGPU commands with the imported buffer. This is to avoid making WebGPU workloads - which may involve compositing - explicitly dependent on WebNN operations, which may be inefficient (e.g. if ML compute is not expressed in terms of GPU commands) or impossible (e.g. [some platforms don't support enqueuing GPU work that waits on a fence to be later signaled by the CPU](https://github.com/webmachinelearning/webnn/pull/754#discussion_r1740841364)) on some platforms.
 
@@ -288,6 +296,7 @@ It's possible `compute()` may have a performance advantage on some platforms for
 - Does the user agent have enough information to appropriately allocate an `MLTensor` if an `MLDeviceType` or `GPUDevice` is not used to create an `MLContext`? See [#350](https://github.com/webmachinelearning/webnn/issues/350) and [#749](https://github.com/webmachinelearning/webnn/issues/749)
 - Should the `dispatch()` method be a part of the `MLGraph` interface rather than `MLContext`? Should `readTensor()` and `writeTensor()` exist on an `MLTensor`? See [#697](https://github.com/webmachinelearning/webnn/issues/697).
 - Is a sync variant of the `importExternalBuffer()` method feasible (1) on platforms where completion of ML compute can be signaled on a GPU timeline, or (2) when blocking WebGPU workloads which do not themselves block compositing.
+- The requirement that an imported `GPUBuffer` may be represented as an `array<T>` in WGSL is very restrictive. Could we instead create a `GPUImportendTensor` type which abstracts away the layout of the underlying tensor?
 
 ## Considered Alternatives
 
@@ -402,18 +411,13 @@ partial interface MLContext {
 
 // For WebGPU Interop
 
-interface GPUExternalBuffer {
-  undefined release();
-};
-GPUExternalBuffer includes GPUObjectBase;
-
-dictionary GPUExternalBufferDescriptor
+dictionary GPUImportedTensorDescriptor
          : GPUObjectDescriptorBase {
     required MLTensor source;
 };
 
 partial interface GPUDevice {
-  Promise<GPUExternalBuffer> importExternalBuffer(GPUExternalBufferDescriptor descriptor);
+  Promise<GPUBuffer> importExternalBuffer(GPUImportedTensorDescriptor descriptor);
 }
 
 partial interface ML {
