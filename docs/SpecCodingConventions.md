@@ -92,7 +92,8 @@ Example:
 * Bikeshed will automatically style linked terms appropriately, for example Web IDL types show up as `code`. Try to avoid manual styling wherever possible; if you're not getting the style you expect, you may have incorrect definitions or links.
 * Outside of examples, which should be appropriately styled automatically, literals such as numbers within spec prose are not JavaScript values and should not be styled as code.
 * Strings used internally (e.g. operator names) should not be styled as code.
-* When concisely defining a list's members or a tensor's layout, use the syntax `*[ ... ]*` (e.g. _"nchw" means the input tensor has the layout *[batches, inputChannels, height, width]*_)
+* When concisely defining a tensor's layout, use the syntax `*[ ... ]*` (e.g. _"nchw" means the input tensor has the layout *[batches, inputChannels, height, width]*_)
+* Format explanatory expressions using backticks, e.g. `` `max(0, x) + alpha * (exp(min(0, x)) - 1)` ``
 * In Web IDL `<pre class=idl>` blocks, wrap long lines to avoid horizontal scrollbars. 88 characters seems to be the magic number.
 
 
@@ -124,6 +125,8 @@ Example:
 * Do not include assertions about argument types. This is redundant with Web IDL declaration.
 * Do not include steps that test argument types if those types are guaranteed by WebIDL.
 * Do not refer to JavaScript or WebIDL types in method steps. Per the spec processing model, by the time a spec algorithm is invoked, JavaScript types (e.g. Numbers, Arrays) have been mapped to WebIDL types (e.g. unsigned longs, sequences) and those have been mapped to Infra types or general concepts (e.g. numbers, lists).
+    * In particular, avoid using "sequence" in prose, as recurrent operators deal with temporal sequences. Just use "list" in algorithms, or "array" in developer-facing examples.
+    * There is an exception to this rule: Referring to WebIDL types is necessary when dealing with unions. In this case, refer to the full WebIDL type, e.g. _If splits is an `unsigned long` ... Otherwise, if splits is a `sequence<unsigned long>` ..._
 * Do not repeat detaults provided by the WebIDL declaration.
 * For types like lists that can't be defaulted in WebIDL, define the default when missing as an explicit step. Example: _If options.padding does not exist, set options.padding to « 0, 0, 0, 0 »._
 

@@ -1,15 +1,22 @@
 #!/usr/bin/env node
 
-// Requires Node.js and:
-// * npm install node-html-parser
+// Requires Node.js; to install dependencies, run these steps:
+//   cd tools
+//   npm install
+//   cd ..
 //
-// Run script from top level of spec repo after building spec.
-// Example: bikeshed spec && node tools/lint.mjs
+// Run this script from top level of spec repo after building the spec:
+//   bikeshed --die-on=warning spec
+//   node tools/lint.mjs
 //
 // Note that the '.mjs' extension is necessary for Node.js to treat the file as
 // a module. There is an `--experimental-default-type=module` flag but
 // specifying that in the #! line requires trickery that confuses some editors.
-
+//
+// Options:
+//   --verbose                    Log progress.
+//   --bikeshed PATH_TO_BS_FILE   Bikeshed source path. (default: "index.bs")
+//   --html PATH_TO_HTML_FILE     Generated HTML path. (default: "index.html")
 
 'use strict';
 import fs from 'node:fs/promises';
@@ -21,14 +28,20 @@ import {parse} from 'node-html-parser';
 
 const options = {
   verbose: false,
+  bikeshed: 'index.bs',
+  html: 'index.html',
 };
 
 // First two args are interpreter and script
-globalThis.process.argv.slice(2).forEach(arg => {
+globalThis.process.argv.slice(2).forEach((arg, index, array) => {
   if (arg === '--verbose' || arg === '-v') {
     options.verbose = true;
+  } else if (arg === '--bikeshed' && array.length > index + 1) {
+    options.bikeshed = array.splice(index + 1, 1)[0];
+  } else if (arg === '--html' && array.length > index + 1) {
+    options.html = array.splice(index + 1, 1)[0];
   } else {
-    console.error(`Unknown argment: ${arg}`);
+    console.error(`Unknown or incomplete argument: ${arg}`);
     globalThis.process.exit(1);
   }
 });
@@ -43,9 +56,11 @@ function log(string) {
 // Load and parse file
 // --------------------------------------------------
 
-log('loading files...');
-const source = await fs.readFile('index.bs', 'utf8');
-let file = await fs.readFile('index.html', 'utf8');
+log(`loading Bikeshed source "${options.bikeshed}"...`);
+const source = await fs.readFile(options.bikeshed, 'utf8');
+
+log(`loading generated HTML "${options.html}"...`);
+let file = await fs.readFile(options.html, 'utf8');
 
 log('massaging HTML...');
 // node-html-parser doesn't understand that DT and DD are mutually self-closing;
@@ -104,6 +119,8 @@ const AsyncFunction = async function() {}.constructor;
 
 log('running checks...');
 
+const ALGORITHM_STEP_SELECTOR = '.algorithm li > p:not(.issue)';
+
 // Checks can operate on:
 // * `source` - raw Bikeshed markdown source
 // * `html` - HTML source, with style/script removed
@@ -111,7 +128,7 @@ log('running checks...');
 // * `root.querySelectorAll()` - operate on DOM-like nodes
 
 // Look for merge markers
-for (const match of text.matchAll(/[<=>]{7}/g)) {
+for (const match of source.matchAll(/<{7}|>{7}|^={7}$/mg)) {
   error(`Merge conflict marker: ${format(match)}`);
 }
 
@@ -169,8 +186,8 @@ for (const element of root.querySelectorAll('.idl dfn[data-dfn-type=dict-member]
   error(`Dictionary member missing dfn: ${element.innerText}`);
 }
 
-// Look for [] used in algorithm for anything but issues, indexing, slots, and refs
-for (const element of root.querySelectorAll('.algorithm li p:not(.issue)')) {
+// Look for [] used in algorithm steps for anything but indexing, slots, and refs
+for (const element of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   // Exclude \w[ for indexing (e.g. shape[n])
   // Exclude [[ for inner slots (e.g. [[name]])
   // Exclude [A for references (e.g. [WEBIDL])
@@ -258,18 +275,40 @@ for (const pre of root.querySelectorAll('pre.highlight:not(.idl)')) {
 }
 
 // Ensure algorithm steps end in '.' or ':'.
-for (const match of source.matchAll(/^ *\d+\. .*$/mg)) {
-  let str = match[0].trim();
-
-  // Strip asterisks from things like "1. *Make graph connections.*"
-  const match2 = str.match(/^(\d+\. )\*(.*)\*$/);
-  if (match2) {
-    str = match2[1] + match2[2];
+for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
+  const match = p.innerText.match(/[^.:]$/);
+  if (match) {
+    error(`Algorithm steps should end with '.' or ':': ${format(match)}`);
   }
+}
 
-  const match3 = str.match(/[^.:]$/);
-  if (match3) {
-    error(`Algorithm steps should end with '.' or ':': ${format(match3)}`);
+// Avoid incorrect links to list/empty.
+for (const match of source.matchAll(/is( not)? \[=(list\/|stack\/|queue\/|)empty=\]/g)) {
+  error(`Link to 'is empty' (adjective) not 'empty' (verb): ${format(match)}`);
+}
+
+// Ensure every method dfn is correctly associated with an interface.
+const interfaces = new Set(
+  root.querySelectorAll('dfn[data-dfn-type=interface]').map(e => e.innerText));
+for (const dfn of root.querySelectorAll('dfn[data-dfn-type=method]')) {
+  const dfnFor = dfn.getAttribute('data-dfn-for');
+  if (!dfnFor || !interfaces.has(dfnFor)) {
+    error(`Method definition '${dfn.innerText}' for undefined '${dfnFor}'`);
+  }
+}
+
+// Ensure every IDL argument is linked to a definition.
+for (const dfn of root.querySelectorAll('pre.idl dfn[data-dfn-type=argument]')) {
+  const dfnFor = dfn.getAttribute('data-dfn-for');
+  error(`Missing <dfn argument for="${dfnFor}">${dfn.innerText}</dfn> (or equivalent)`);
+}
+
+// Ensure every argument dfn is correctly associated with a method.
+// This tries to catch extraneous definitions, e.g. after an arg is removed.
+for (const dfn of root.querySelectorAll('dfn[data-dfn-type=argument]')) {
+  const dfnFor = dfn.getAttribute('data-dfn-for');
+  if (!dfnFor.split(/\b/).includes(dfn.innerText)) {
+    error(`Argument definition '${dfn.innerText}' doesn't appear in '${dfnFor}'`);
   }
 }
 

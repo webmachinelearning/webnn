@@ -5,7 +5,13 @@ This directory contains command line utilities intended for use by spec editors 
 
 The tools assume a POSIX-like command line environment, and have dependencies on various languages and libraries. Read the sources for more details.
 
-Node.js dependencies can be installed by running `npm install` from within the `tools/` directory.
+Node.js dependencies can be installed/updated by running `npm install` from within the `tools/` directory:
+
+```
+cd tools
+npm install
+cd ..
+```
 
 Spec editors can use a flow like the following:
 
