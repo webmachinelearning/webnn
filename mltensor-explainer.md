@@ -296,7 +296,7 @@ It's possible `compute()` may have a performance advantage on some platforms for
 - Does the user agent have enough information to appropriately allocate an `MLTensor` if an `MLDeviceType` or `GPUDevice` is not used to create an `MLContext`? See [#350](https://github.com/webmachinelearning/webnn/issues/350) and [#749](https://github.com/webmachinelearning/webnn/issues/749)
 - Should the `dispatch()` method be a part of the `MLGraph` interface rather than `MLContext`? Should `readTensor()` and `writeTensor()` exist on an `MLTensor`? See [#697](https://github.com/webmachinelearning/webnn/issues/697).
 - Is a sync variant of the `importExternalBuffer()` method feasible (1) on platforms where completion of ML compute can be signaled on a GPU timeline, or (2) when blocking WebGPU workloads which do not themselves block compositing.
-- The requirement that an imported `GPUBuffer` may be represented as an `array<T>` in WGSL is very restrictive. Could we instead create a `GPUImportendTensor` type which abstracts away the layout of the underlying tensor?
+- The requirement that an imported `GPUBuffer` may be represented as an `array<T>` in WGSL is very restrictive. Could we instead create a `GPUImportedTensor` type which abstracts away the layout of the underlying tensor?
 
 ## Considered Alternatives
 
