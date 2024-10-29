@@ -1229,8 +1229,8 @@ For instance, an {{MLOperand}} may represent a constant feeding to an operation 
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLOperand {
-  MLOperandDataType dataType();
-  sequence<unsigned long> shape();
+  readonly attribute MLOperandDataType dataType;
+  readonly attribute FrozenArray<unsigned long> shape;
 };
 
 dictionary MLOperatorOptions {
@@ -1315,8 +1315,7 @@ To <dfn for="MLGraphBuilder">validate operand</dfn> given {{MLGraphBuilder}} |bu
 
 Issue(whatwg/webidl#1388): Support for unions of {{bigint}} and [=numeric types=] is new in [[WEBIDL]], and implementation support is also limited. Prototype implementations are encouraged to provide feedback for this approach.
 
-### {{MLOperand/dataType()}} ### {#api-mloperand-datatype}
-Returns the data type of the {{MLOperand}}.
+### {{MLOperand/dataType}} attribute ### {#api-mloperand-datatype}
 
 <div>
     **Returns:** an {{MLOperandDataType}}. The data type of the operand.
@@ -1324,13 +1323,12 @@ Returns the data type of the {{MLOperand}}.
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLOperand>dataType()</dfn> method steps are:
+    The <dfn attribute for=MLOperand>dataType</dfn> method steps are:
   </summary>
     1. Return [=this=]'s [=MLOperand/dataType=].
 </details>
 
-### {{MLOperand/shape()}} ### {#api-mloperand-shape}
-Returns the shape of the {{MLOperand}}.
+### {{MLOperand/shape}} attribute ### {#api-mloperand-shape}
 
 <div>
     **Returns:** [=sequence=]<{{unsigned long}}>. The shape of the operand.
@@ -1338,7 +1336,7 @@ Returns the shape of the {{MLOperand}}.
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLOperand>shape()</dfn> method steps are:
+    The <dfn attribute for=MLOperand>shape</dfn> method steps are:
   </summary>
     1. Return [=this=]'s [=MLOperand/shape=].
 </details>
@@ -1744,7 +1742,7 @@ partial dictionary MLOpSupportLimits {
     </summary>
     <pre highlight="js">
     function batchNormalization(builder, input, mean, variance, options) {
-      const shape = [1, input.shape()[options.axis], 1, 1];
+      const shape = [1, input.shape[options.axis], 1, 1];
       return builder.add(
         builder.mul(
           builder.reshape(options.scale, shape),
@@ -1752,7 +1750,7 @@ partial dictionary MLOpSupportLimits {
             builder.sub(input, builder.reshape(mean, shape)),
             builder.sqrt(builder.add(
               builder.reshape(variance, shape),
-              builder.constant(input.dataType(), options.epsilon))))),
+              builder.constant(input.dataType, options.epsilon))))),
         builder.reshape(options.bias, shape));
     }
     </pre>
@@ -1938,17 +1936,17 @@ partial dictionary MLOpSupportLimits {
           return input;
         } else {
           return builder.min(
-            input, builder.constant(input.dataType(), options.maxValue));
+            input, builder.constant(input.dataType, options.maxValue));
         }
       } else {
         if (options.maxValue === undefined) {
           return builder.max(
-            input, builder.constant(input.dataType(), options.minValue));
+            input, builder.constant(input.dataType, options.minValue));
         } else {
           return builder.min(
             builder.max(
-              input, builder.constant(input.dataType(), options.minValue)),
-            builder.constant(input.dataType(), options.maxValue));
+              input, builder.constant(input.dataType, options.minValue)),
+            builder.constant(input.dataType, options.maxValue));
         }
       }
     }
@@ -3047,12 +3045,12 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function elu(builder, input, options) {
       return builder.add(
-        builder.max(builder.constant(input.dataType(), 0), input),
+        builder.max(builder.constant(input.dataType, 0), input),
         builder.mul(
-          builder.constant(input.dataType(), options.alpha),
+          builder.constant(input.dataType, options.alpha),
           builder.sub(
-            builder.exp(builder.min(builder.constant(input.dataType(), 0), input)),
-            builder.constant(input.dataType(), 1))));
+            builder.exp(builder.min(builder.constant(input.dataType, 0), input)),
+            builder.constant(input.dataType, 1))));
     }
     </pre>
   </details>
@@ -3311,11 +3309,11 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function gelu(builder, input) {
       return builder.mul(
-        builder.mul(input, builder.constant(input.dataType(), 0.5)),
+        builder.mul(input, builder.constant(input.dataType, 0.5)),
         builder.add(
-          builder.constant(input.dataType(), 1),
+          builder.constant(input.dataType, 1),
           builder.erf(builder.div(
-            input, builder.sqrt(builder.constant(input.dataType(), 2))))));
+            input, builder.sqrt(builder.constant(input.dataType, 2))))));
     }
     </pre>
   </details>
@@ -3443,12 +3441,12 @@ partial dictionary MLOpSupportLimits {
         b = builder.transpose(b);
 
       let ab = builder.matmul(
-        builder.mul(builder.constant(a.dataType(), options.alpha), a), b);
+        builder.mul(builder.constant(a.dataType, options.alpha), a), b);
       return (
         options.c ?
           builder.add(
             ab,
-            builder.mul(builder.constant(a.dataType(), options.beta), options.c)) :
+            builder.mul(builder.constant(a.dataType, options.beta), options.c)) :
           ab);
     }
   </pre>
@@ -3647,8 +3645,8 @@ partial dictionary MLOpSupportLimits {
   <pre highlight="js">
     function gru(
       builder, input, weight, recurrentWeight, steps, hiddenSize, options) {
-      const batchSize = input.shape()[1];
-      const inputSize = input.shape()[2];
+      const batchSize = input.shape[1];
+      const inputSize = input.shape[2];
       const numDirections = (options.direction == 'both' ? 2 : 1);
       let hiddenState = options.initialHiddenState;
 
@@ -3890,10 +3888,10 @@ partial dictionary MLOpSupportLimits {
   <pre highlight="js">
     function gruCell(
       builder, input, weight, recurrentWeight, hiddenState, hiddenSize, options) {
-      const one = builder.constant(input.dataType(), 1);
-      const zero = builder.constant(input.dataType(), 0);
+      const one = builder.constant(input.dataType, 1);
+      const zero = builder.constant(input.dataType, 0);
 
-      const inputSize = input.shape()[1];
+      const inputSize = input.shape[1];
 
       // update gate (z)
       let z = builder.sigmoid(builder.add(
@@ -4056,10 +4054,10 @@ partial dictionary MLOpSupportLimits {
       return builder.max(
         builder.min(
           builder.add(
-            builder.mul(builder.constant(input.dataType(), options.alpha), input),
-            builder.constant(input.dataType(), options.beta)),
-          builder.constant(input.dataType(), 1)),
-        builder.constant(input.dataType(), 0));
+            builder.mul(builder.constant(input.dataType, options.alpha), input),
+            builder.constant(input.dataType, options.beta)),
+          builder.constant(input.dataType, 1)),
+        builder.constant(input.dataType, 0));
     }
     </pre>
   </details>
@@ -4119,11 +4117,11 @@ partial dictionary MLOpSupportLimits {
         builder.mul(
           input,
           builder.max(
-            builder.constant(input.dataType(), 0),
+            builder.constant(input.dataType, 0),
             builder.min(
-              builder.constant(input.dataType(), 6),
-              builder.add(input, builder.constant(input.dataType(), 3))))),
-        builder.constant(input.dataType(), 6));
+              builder.constant(input.dataType, 6),
+              builder.add(input, builder.constant(input.dataType, 3))))),
+        builder.constant(input.dataType, 6));
     }
   </pre>
 </details>
@@ -4243,12 +4241,12 @@ partial dictionary MLOpSupportLimits {
       const mean = builder.reduceMean(input, reduceOptions);
       const variance = builder.reduceMean(
         builder.pow(
-          builder.sub(input, mean), builder.constant(input.dataType(), 2)),
+          builder.sub(input, mean), builder.constant(input.dataType, 2)),
         reduceOptions);
 
       // The scale and bias values are applied per input feature
       // e.g. axis 1 of the input tensor.
-      const shape = [1, input.shape()[1], 1, 1];
+      const shape = [1, input.shape[1], 1, 1];
       return builder.add(
         builder.mul(
           builder.reshape(options.scale, shape),
@@ -4363,7 +4361,7 @@ partial dictionary MLOpSupportLimits {
       const mean = builder.reduceMean(input, reduceOptions);
       const variance = builder.reduceMean(
         builder.pow(
-          builder.sub(input, mean), builder.constant(input.dataType(), 2)),
+          builder.sub(input, mean), builder.constant(input.dataType, 2)),
         reduceOptions);
 
       // The scale and bias tensors are of the shape of the input
@@ -4444,10 +4442,10 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function leakyRelu(builder, input, options) {
       return builder.add(
-        builder.max(builder.constant(input.dataType(), 0), input),
+        builder.max(builder.constant(input.dataType, 0), input),
         builder.mul(
-          builder.constant(input.dataType(), options.alpha),
-          builder.min(builder.constant(input.dataType(), 0), input)));
+          builder.constant(input.dataType, options.alpha),
+          builder.min(builder.constant(input.dataType, 0), input)));
     }
     </pre>
   </details>
@@ -4522,8 +4520,8 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function linear(builder, input, options) {
       return builder.add(
-        builder.mul(input, builder.constant(input.dataType(), options.alpha)),
-        builder.constant(input.dataType(), options.beta));
+        builder.mul(input, builder.constant(input.dataType, options.alpha)),
+        builder.constant(input.dataType, options.beta));
     }
     </pre>
   </details>
@@ -4731,8 +4729,8 @@ partial dictionary MLOpSupportLimits {
   <pre highlight="js">
     function lstm(
       builder, input, weight, recurrentWeight, steps, hiddenSize, options) {
-      const batchSize = input.shape()[1];
-      const inputSize = input.shape()[2];
+      const batchSize = input.shape[1];
+      const inputSize = input.shape[2];
       const numDirections = (options.direction == 'both' ? 2 : 1);
       let hiddenState = options.initialHiddenState;
       let cellState = options.initialCellState;
@@ -5025,9 +5023,9 @@ partial dictionary MLOpSupportLimits {
       cellState,
       hiddenSize,
       options) {
-      const zero = builder.constant(input.dataType(), 0);
+      const zero = builder.constant(input.dataType, 0);
 
-      const inputSize = input.shape()[1];
+      const inputSize = input.shape[1];
 
       // input gate (i)
       let i = builder.sigmoid(builder.add(
@@ -5651,9 +5649,9 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function prelu(builder, input, slope) {
       return builder.add(
-        builder.max(builder.constant(input.dataType(), 0), input),
+        builder.max(builder.constant(input.dataType, 0), input),
         builder.mul(
-          slope, builder.min(builder.constant(input.dataType(), 0), input)));
+          slope, builder.min(builder.constant(input.dataType, 0), input)));
     }
     </pre>
   </details>
@@ -5946,7 +5944,7 @@ partial dictionary MLOpSupportLimits {
     </summary>
     <pre highlight="js">
     function relu(builder, input) {
-      return builder.max(builder.constant(input.dataType(), 0), input);
+      return builder.max(builder.constant(input.dataType, 0), input);
     }
     </pre>
   </details>
@@ -6164,9 +6162,9 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function sigmoid(builder, input) {
       return builder.div(
-        builder.constant(input.dataType(), 1),
+        builder.constant(input.dataType, 1),
         builder.add(
-          builder.exp(builder.neg(input)), builder.constant(input.dataType(), 1)));
+          builder.exp(builder.neg(input)), builder.constant(input.dataType, 1)));
     }
     </pre>
   </details>
@@ -6348,7 +6346,7 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function softplus(builder, input) {
       return builder.log(
-        builder.add(builder.exp(input), builder.constant(input.dataType(), 1)));
+        builder.add(builder.exp(input), builder.constant(input.dataType, 1)));
     }
     </pre>
   </details>
@@ -6375,7 +6373,7 @@ partial dictionary MLOpSupportLimits {
     function softsign(builder, input) {
       return builder.div(
         input,
-        builder.add(builder.constant(input.dataType(), 1), builder.abs(input)));
+        builder.add(builder.constant(input.dataType, 1), builder.abs(input)));
     }
     </pre>
   </details>
@@ -6509,7 +6507,7 @@ partial dictionary MLOpSupportLimits {
     function split(builder, input, splits, options) {
       // This sample shows the case that the splits parameter is an array.
       const outputs = [];
-      const inputShape = input.shape();
+      const inputShape = input.shape;
       const inputRank = inputShape.length;
       let starts = Array(inputRank).fill(0);
       let sizes = inputShape;
@@ -6578,11 +6576,11 @@ partial dictionary MLOpSupportLimits {
     function tanh(builder, input) {
       return builder.div(
         builder.sub(
-          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
-          builder.constant(input.dataType(), 1)),
+          builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
+          builder.constant(input.dataType, 1)),
         builder.add(
-          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
-          builder.constant(input.dataType(), 1)));
+          builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
+          builder.constant(input.dataType, 1)));
     }
     </pre>
   </details>
@@ -6851,9 +6849,9 @@ partial dictionary MLOpSupportLimits {
     function where(builder, condition, trueValue, falseValue) {
       const c = builder.clamp(condition, {'minValue': 0, 'maxValue': 1});
       builder.add(
-        builder.mul(trueValue, builder.cast(c, trueValue.dataType())),
+        builder.mul(trueValue, builder.cast(c, trueValue.dataType)),
         builder.mul(
-          falseValue, builder.cast(builder.logicalNot(c), falseValue.dataType())));
+          falseValue, builder.cast(builder.logicalNot(c), falseValue.dataType)));
     }
     </pre>
   </details>
@@ -7126,10 +7124,10 @@ Operations present in other neural network inference APIs can often be emulated 
       if (!axes)
         axes = [];
       if (!axes.length)
-        input.shape().forEach((item, i) => {
+        input.shape.forEach((item, i) => {
           axes.push(i);
         });
-      const shape = Array.from(input.shape());
+      const shape = Array.from(input.shape);
       for (let axis in axes.sort().reverse())
         if (axis < shape.length && shape[axis] == 1)
           shape.splice(axis, 1);
@@ -7148,7 +7146,7 @@ Operations present in other neural network inference APIs can often be emulated 
     </summary>
     <pre highlight="js">
     function unsqueeze(builder, input, axes) {
-      const shape = Array.from(input.shape());
+      const shape = Array.from(input.shape);
       for (let axis in axes.sort())
         shape.splice(axis, 0, 1);
       return builder.reshape(input, shape);
@@ -7166,10 +7164,10 @@ Operations present in other neural network inference APIs can often be emulated 
     </summary>
     <pre highlight="js">
     function flatten(builder, input, axis) {
-      if (axis > input.shape().length)
+      if (axis > input.shape.length)
         return input;
       const before = axis.slice(0, axis).reduce((a, b) => a * b);
-      const after = axis.slice(axis, input.shape().length).reduce((a, b) => a * b);
+      const after = axis.slice(axis, input.shape.length).reduce((a, b) => a * b);
       return builder.reshape(input, [before, after]);
     }
     </pre>
