@@ -962,6 +962,9 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 </details>
 
 ### {{MLContext/compute()}}  ### {#api-mlcontext-compute}
+
+ISSUE: {{MLContext/compute()}} will be deprecated and removed in favor of <code>[dispatch()](https://github.com/webmachinelearning/webnn/blob/main/mltensor-explainer.md#compute-vs-dispatch)</code>.
+
 Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU/NPU timeline for submitting a workload onto the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it [=exception/throws=] an "{{OperationError}}" {{DOMException}}.
 
 <div class="note">
@@ -2235,45 +2238,21 @@ partial dictionary MLOpSupportLimits {
         1. Switch on |options|.{{MLConv2dOptions/inputLayout}}:
             <dl class=switch>
                 : {{MLInputOperandLayout/"nchw"}}
-                ::
-                    1. Let |batches| be |inputShape|[0].
-                    1. Let |inputChannels| be |inputShape|[1].
-                    1. Let |inputHeight| be |inputShape|[2].
-                    1. Let |inputWidth| be |inputShape|[3].
+                :: Let « |batches|, |inputChannels|, |inputHeight|, |inputWidth| » be |inputShape|.
                 : {{MLInputOperandLayout/"nhwc"}}
-                ::
-                    1. Let |batches| be |inputShape|[0].
-                    1. Let |inputHeight| be |inputShape|[1].
-                    1. Let |inputWidth| be |inputShape|[2].
-                    1. Let |inputChannels| be |inputShape|[3].
+                :: Let « |batches|, |inputHeight|, |inputWidth|, |inputChannels| » be |inputShape|.
             </dl>
         1. Let |filterShape| be |filter|'s [=MLOperand/shape=].
         1. Switch on |options|.{{MLConv2dOptions/filterLayout}}:
             <dl class=switch>
                 : {{MLConv2dFilterOperandLayout/"hwio"}}
-                ::
-                    1. Let |filterHeight| be |filterShape|[0].
-                    1. Let |filterWidth| be |filterShape|[1].
-                    1. Let |filterInputChannels| be |filterShape|[2].
-                    1. Let |outputChannels| be |filterShape|[3].
+                :: Let « |filterHeight|, |filterWidth|, |filterInputChannels|, |outputChannels| » be |filterShape|.
                 : {{MLConv2dFilterOperandLayout/"ohwi"}}
-                ::
-                    1. Let |outputChannels| be |filterShape|[0].
-                    1. Let |filterHeight| be |filterShape|[1].
-                    1. Let |filterWidth| be |filterShape|[2].
-                    1. Let |filterInputChannels| be |filterShape|[3].
+                :: Let « |outputChannels|, |filterHeight|, |filterWidth|, |filterInputChannels| » be |filterShape|.
                 : {{MLConv2dFilterOperandLayout/"ihwo"}}
-                ::
-                    1. Let |filterInputChannels| be |filterShape|[0].
-                    1. Let |filterHeight| be |filterShape|[1].
-                    1. Let |filterWidth| be |filterShape|[2].
-                    1. Let |outputChannels| be |filterShape|[3].
+                :: Let « |filterInputChannels|, |filterHeight|, |filterWidth|, |outputChannels| » be |filterShape|.
                 : {{MLConv2dFilterOperandLayout/"oihw"}}
-                ::
-                    1. Let |outputChannels| be |filterShape|[0].
-                    1. Let |filterInputChannels| be |filterShape|[1].
-                    1. Let |filterHeight| be |filterShape|[2].
-                    1. Let |filterWidth| be |filterShape|[3].
+                :: Let « |outputChannels|, |filterInputChannels|, |filterHeight|, |filterWidth| » be |filterShape|.
             </dl>
         1. If |inputChannels| % |options|.{{MLConv2dOptions/groups}} is not 0, then [=exception/throw=] a {{TypeError}}.
         1. Otherwise, if |inputChannels| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
@@ -2485,39 +2464,19 @@ partial dictionary MLOpSupportLimits {
         1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
             <dl class=switch>
                 : {{MLInputOperandLayout/"nchw"}}
-                ::
-                    1. Let |batches| be |inputShape|[0].
-                    1. Let |inputChannels| be |inputShape|[1].
-                    1. Let |inputHeight| be |inputShape|[2].
-                    1. Let |inputWidth| be |inputShape|[3].
+                :: Let « |batches|, |inputChannels|, |inputHeight|, |inputWidth| » be |inputShape|.
                 : {{MLInputOperandLayout/"nhwc"}}
-                ::
-                    1. Let |batches| be |inputShape|[0].
-                    1. Let |inputHeight| be |inputShape|[1].
-                    1. Let |inputWidth| be |inputShape|[2].
-                    1. Let |inputChannels| be |inputShape|[3].
+                :: Let « |batches|, |inputHeight|, |inputWidth|, |inputChannels| » be |inputShape|.
             </dl>
         1. Let |filterShape| be |filter|'s [=MLOperand/shape=].
         1. Switch on |options|.{{MLConvTranspose2dOptions/filterLayout}}:
             <dl class=switch>
                 : {{MLConvTranspose2dFilterOperandLayout/"iohw"}}
-                ::
-                    1. Let |filterInputChannels| be |filterShape|[0].
-                    1. Let |filterOutputChannels| be |filterShape[1].
-                    1. Let |filterHeight| be |filterShape|[2].
-                    1. Let |filterWidth| be |filterShape|[3].
+                :: Let « |filterInputChannels|, |filterOutputChannels|, |filterHeight|, |filterWidth| » be |filterShape|.
                 : {{MLConvTranspose2dFilterOperandLayout/"hwoi"}}
-                ::
-                    1. Let |filterHeight| be |filterShape|[0].
-                    1. Let |filterWidth| be |filterShape|[1].
-                    1. Let |filterOutputChannels| be |filterShape[2].
-                    1. Let |filterInputChannels| be |filterShape|[3].
+                :: Let « |filterHeight|, |filterWidth|, |filterOutputChannels|, |filterInputChannels| » be |filterShape|.
                 : {{MLConvTranspose2dFilterOperandLayout/"ohwi"}}
-                ::
-                    1. Let |filterOutputChannels| be |filterShape[0].
-                    1. Let |filterHeight| be |filterShape|[1].
-                    1. Let |filterWidth| be |filterShape|[2].
-                    1. Let |filterInputChannels| be |filterShape|[3].
+                :: Let « |filterOutputChannels|, |filterHeight|, |filterWidth|, |filterInputChannels| » be |filterShape|.
             </dl>
         1. If |inputChannels| is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
         1. Let |outputChannels| be |filterOutputChannels| * |options|.{{MLConvTranspose2dOptions/groups}}.
@@ -5903,25 +5862,14 @@ partial dictionary MLOpSupportLimits {
     1. Switch on |layout|:
         <dl class=switch>
             : {{MLInputOperandLayout/"nchw"}}
-            ::
-                1. Let |batches| be |inputShape|[0].
-                1. Let |channels| be |inputShape|[1].
-                1. Let |inputHeight| be |inputShape|[2].
-                1. Let |inputWidth| be |inputShape|[3].
+            :: Let « |batches|, |channels|, |inputHeight|, |inputWidth| » be |inputShape|.
             : {{MLInputOperandLayout/"nhwc"}}
-            ::
-                1. Let |batches| be |inputShape|[0].
-                1. Let |inputHeight| be |inputShape|[1].
-                1. Let |inputWidth| be |inputShape|[2].
-                1. Let |channels| be |inputShape|[3].
+            :: Let « |batches|, |inputHeight|, |inputWidth|, |channels| » be |inputShape|.
         </dl>
-    1. If |outputSizes| is not given, then:
-        1. Let |outputHeight| be |outputSizes|[0].
-        1. Let |outputWidth| be |outputSizes|[1].
+    1. If |outputSizes| is given, then let « |outputHeight|, |outputWidth| » be |outputSizes|.
     1. Otherwise:
         1. Let |outputSizes| be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |windowDimensions|[0], |windowDimensions|[1], |padding|, |strides|, and |dilations|.
-        1. Let |outputHeight| be |outputSizes|[0].
-        1. Let |outputWidth| be |outputSizes|[1].
+        1. Let « |outputHeight|, |outputWidth| » be |outputSizes|.
         1. Switch on |roundingType|:
             <dl class=switch>
                 : {{MLRoundingType/"floor"}}

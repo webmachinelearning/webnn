@@ -221,6 +221,9 @@ for (const algorithm of root.querySelectorAll('.algorithm')) {
         // "Let var given ... be ..." (for lambdas)
         'let ' + name + ' given .* be',
 
+        // "Let « ..., var, ... » be ..."
+        'let «( .*,)? ' + name + '(, .*)? » be',
+
         // "For each var ..."
         // "For each ...  → var ..."
         'for each( \\w+ →)? ' + name,
