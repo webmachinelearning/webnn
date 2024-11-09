@@ -95,6 +95,7 @@ Example:
 * When concisely defining a tensor's layout, use the syntax `*[ ... ]*` (e.g. _"nchw" means the input tensor has the layout *[batches, inputChannels, height, width]*_)
 * Format explanatory expressions using backticks, e.g. `` `max(0, x) + alpha * (exp(min(0, x)) - 1)` ``
 * In Web IDL `<pre class=idl>` blocks, wrap long lines to avoid horizontal scrollbars. 88 characters seems to be the magic number.
+* Avoid `<var>v</var>` or `|v|` outside of algorithms; Bikeshed interprets these as global variables which can mask errors. Just use `*v*`.
 
 
 ### Algorithms

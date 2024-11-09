@@ -251,6 +251,13 @@ for (const algorithm of root.querySelectorAll('.algorithm')) {
   }
 }
 
+// Eschew vars outside of algorithms.
+const algorithmVars = new Set(root.querySelectorAll('.algorithm var'));
+for (const v of root.querySelectorAll('var').filter(v => !algorithmVars.has(v))) {
+  error(`Variable outside of algorithm: ${v.innerText}`);
+}
+
+
 // Prevent accidental normative references to other specs. This reports an error
 // if there is a normative reference to any spec *other* than these ones. This
 // helps avoid an autolink like [=object=] adding an unexpected reference to
