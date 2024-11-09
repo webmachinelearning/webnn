@@ -96,6 +96,7 @@ Example:
 * Format explanatory expressions using backticks, e.g. `` `max(0, x) + alpha * (exp(min(0, x)) - 1)` ``
 * In Web IDL `<pre class=idl>` blocks, wrap long lines to avoid horizontal scrollbars. 88 characters seems to be the magic number.
 * Avoid `<var>v</var>` or `|v|` outside of algorithms; Bikeshed interprets these as global variables which can mask errors. Just use `*v*`.
+    * Format each term separately; that is, `*splits*[*i*]` not `*splits[i]*`.
 
 
 ### Algorithms
