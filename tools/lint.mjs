@@ -175,6 +175,9 @@ for (const match of source.matchAll(/1\. Else/ig)) {
 for (const match of text.matchAll(/ not the same as /g)) {
   error(`Prefer "not equal to": ${format(match)}`);
 }
+for (const match of text.matchAll(/\bthe \S+ argument\b/g)) {
+  error(`Drop 'the' and 'argument': ${format(match)}`);
+}
 
 // Look for incorrect use of shape for an MLOperandDescriptor
 for (const match of source.matchAll(/(\|\w*desc\w*\|)'s \[=MLOperand\/shape=\]/ig)) {

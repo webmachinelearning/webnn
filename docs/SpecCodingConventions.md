@@ -129,6 +129,7 @@ Example:
     * There is an exception to this rule: Referring to WebIDL types is necessary when dealing with unions. In this case, refer to the full WebIDL type, e.g. _If splits is an `unsigned long` ... Otherwise, if splits is a `sequence<unsigned long>` ..._
 * Do not repeat detaults provided by the WebIDL declaration.
 * For types like lists that can't be defaulted in WebIDL, define the default when missing as an explicit step. Example: _If options.padding does not exist, set options.padding to « 0, 0, 0, 0 »._
+* When referring to arguments and options in prose, avoid the wordier `the *foo* argument` or `the *bar* value` forms; just use the name alone.
 
 
 ### Internal Algorithms
