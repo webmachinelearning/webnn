@@ -2495,7 +2495,7 @@ partial dictionary MLOpSupportLimits {
 </dl>
 
 <div class="note">
-    A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options.groups* = inputChannels = outputChannels and the shape of filter tensor is *[options.groups, 1, height, width]*
+    A *depthwise* conv2d operation is a variant of grouped convolution, used in models like the MobileNet, where the *options*.{{MLConv2dOptions/groups}} = inputChannels = outputChannels and the shape of filter tensor is *[options.groups, 1, height, width]*
     for {{MLConv2dFilterOperandLayout/"oihw"}} layout, *[height, width, 1, options.groups]* for {{MLConv2dFilterOperandLayout/"hwio"}} layout, *[options.groups, height, width, 1]* for {{MLConv2dFilterOperandLayout/"ohwi"}} layout and *[1, height, width, options.groups]* for {{MLConv2dFilterOperandLayout/"ihwo"}} layout.
 </div>
 
@@ -3587,7 +3587,7 @@ partial dictionary MLOpSupportLimits {
 <div dfn-for="MLGraphBuilder/gather(input, indices, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor from which the values are gathered.
-        - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
+        - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options*.{{MLGatherOptions/axis}}, and a negative index means indexing from the end of the dimension.
         - <dfn>options</dfn>: an optional {{MLGatherOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input* + the [=MLOperand/rank=] of *indices* - 1.
@@ -3849,7 +3849,7 @@ partial dictionary MLOpSupportLimits {
 <dl dfn-type=dict-member dfn-for=MLGemmOptions>
     : <dfn>c</dfn>
     ::
-        The third input tensor. It is either a scalar, or of the shape that is [=unidirectionally broadcastable=] to the shape *[M, N]*. When it is not specified, the computation is done as if *c* is a scalar 0.0.
+        The third input tensor. It is either a scalar, or of the shape that is [=unidirectionally broadcastable=] to the shape *[M, N]*. When it is not specified, the computation is done as if {{MLGemmOptions/c}} is a scalar 0.0.
 
     : <dfn>alpha</dfn>
     ::
@@ -3870,8 +3870,8 @@ partial dictionary MLOpSupportLimits {
 
 <div dfn-for="MLGraphBuilder/gemm(a, b, options)" dfn-type=argument>
     **Arguments:**
-        - <dfn>a</dfn>: an {{MLOperand}}. The first input 2-D tensor with shape *[M, K]* if *aTranspose* is false, or *[K, M]* if *aTranspose* is true.
-        - <dfn>b</dfn>: an {{MLOperand}}. The second input 2-D tensor with shape *[K, N]* if *bTranspose* is false, or *[N, K]* if *bTranspose* is true.
+        - <dfn>a</dfn>: an {{MLOperand}}. The first input 2-D tensor with shape *[M, K]* if {{MLGemmOptions/aTranspose}} is false, or *[K, M]* if {{MLGemmOptions/aTranspose}} is true.
+        - <dfn>b</dfn>: an {{MLOperand}}. The second input 2-D tensor with shape *[K, N]* if {{MLGemmOptions/bTranspose}} is false, or *[N, K]* if {{MLGemmOptions/bTranspose}} is true.
         - <dfn>options</dfn>: an optional {{MLGemmOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output 2-D tensor of shape *[M, N]* that contains the calculated product of all the inputs.
@@ -4979,7 +4979,7 @@ partial dictionary MLOpSupportLimits {
 
     : <dfn>axes</dfn>
     ::
-        The indices to the input dimensions to reduce. When this member is not present, it is treated as if all dimensions except the first were given (e.g. for a 4-D input tensor, axes = [1,2,3]). That is, the reduction for the mean and variance values are calculated across all the input features for each independent batch. If empty, no dimensions are reduced.
+        The indices to the input dimensions to reduce. When this member is not present, it is treated as if all dimensions except the first were given (e.g. for a 4-D input tensor, {{MLLayerNormalizationOptions/axes}} = [1,2,3]). That is, the reduction for the mean and variance values are calculated across all the input features for each independent batch. If empty, no dimensions are reduced.
     : <dfn>epsilon</dfn>
     ::
         A small value to prevent computational error due to divide-by-zero.
@@ -6346,16 +6346,16 @@ partial dictionary MLOpSupportLimits {
 <div dfn-for="MLGraphBuilder/averagePool2d(input, options), MLGraphBuilder/l2Pool2d(input, options), MLGraphBuilder/maxPool2d(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input 4-D tensor. The logical shape
-            is interpreted according to the value of *options.layout*.
+            is interpreted according to the value of *options*.{{MLPool2dOptions/layout}}.
         - <dfn>options</dfn>: an optional {{MLPool2dOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
-    value of *layout*. More specifically, if the *options.roundingType* is {{MLRoundingType/"floor"}}, the spatial dimensions of the output tensor can be calculated as follows:
+    value of {{MLPool2dOptions/layout}}. More specifically, if the *options*.{{MLPool2dOptions/roundingType}} is {{MLRoundingType/"floor"}}, the spatial dimensions of the output tensor can be calculated as follows:
 
     `output size = floor(1 + (input size - filter size + beginning padding + ending padding) / stride)`
 
-    or if *options.roundingType* is {{MLRoundingType/"ceil"}}:
+    or if *options*.{{MLPool2dOptions/roundingType}} is {{MLRoundingType/"ceil"}}:
 
     `output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)`
 </div>
@@ -6994,7 +6994,7 @@ partial dictionary MLOpSupportLimits {
     : <dfn>sizes</dfn>
     ::
         A list of length 2.
-        Specifies the target sizes for each input dimension from {{MLResample2dOptions/axes}} : *[sizeForFirstAxis, sizeForSecondAxis]*. When the target sizes are specified, {{MLResample2dOptions/scales}} is ignored, since the scaling factor values are derived from the target sizes of the input.
+        Specifies the target sizes for each input dimension from {{MLResample2dOptions/axes}}: *[sizeForFirstAxis, sizeForSecondAxis]*. When {{MLResample2dOptions/sizes}} is specified, {{MLResample2dOptions/scales}} is ignored, since the scaling factor values are derived from the target sizes of the input.
 
     : <dfn>axes</dfn>
     ::
@@ -7582,7 +7582,7 @@ partial dictionary MLOpSupportLimits {
 <div dfn-for="MLGraphBuilder/split(input, splits, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
-        - <dfn>splits</dfn>: an {{unsigned long}} or [=sequence=]<{{unsigned long}}>. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options.axis*. If a [=sequence=]<{{unsigned long}}>, it specifies the sizes of each output tensor along the *options.axis*. The sum of sizes must equal to the dimension size of *input* along *options.axis*.
+        - <dfn>splits</dfn>: an {{unsigned long}} or [=sequence=]<{{unsigned long}}>. If an {{unsigned long}}, it specifies the number of output tensors along the axis. The number must evenly divide the dimension size of *input* along *options*.{{MLSplitOptions/axis}}. If a [=sequence=]<{{unsigned long}}>, it specifies the sizes of each output tensor along the *options*.{{MLSplitOptions/axis}}. The sum of sizes must equal to the dimension size of *input* along *options*.{{MLSplitOptions/axis}}.
         - <dfn>options</dfn>: an optional {{MLSplitOptions}}. The optional parameters of the operation.
 
     **Returns:** [=sequence=]<{{MLOperand}}>. The split output tensors. If *splits* is an {{unsigned long}}, the [=list/size=] of the output is equal to *splits*. The shape of each output tensor is the same as *input* except the dimension size of *axis* equals to the quotient of dividing the dimension size of *input* along *axis* by *splits*. If *splits* is a [=sequence=]<{{unsigned long}}>, the [=list/size=] of the output equals the [=list/size=] of *splits*. The shape of the i-th output tensor is the same as *input* except along *axis* where the dimension size is *splits[i]*.
