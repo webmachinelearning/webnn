@@ -97,6 +97,7 @@ Example:
 * In Web IDL `<pre class=idl>` blocks, wrap long lines to avoid horizontal scrollbars. 88 characters seems to be the magic number.
 * Avoid `<var>v</var>` or `|v|` outside of algorithms; Bikeshed interprets these as global variables which can mask errors. Just use `*v*`.
     * Format each term separately; that is, `*splits*[*i*]` not `*splits[i]*`.
+* When referencing an argument in prose steps, link to it rather than just using formatted text e.g. `{{MLGraphBuilder/split(input, splits*, options)/splits}}` rather than `*splits*`.
 
 
 ### Algorithms
