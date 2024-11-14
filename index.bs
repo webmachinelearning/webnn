@@ -13,8 +13,7 @@ Abstract: This document describes a dedicated low-level API for neural network i
 Repository: https://github.com/webmachinelearning/webnn
 Test Suite: https://github.com/web-platform-tests/wpt/tree/master/webnn
 Implementation Report: https://wpt.fyi/results/webnn?label=master&label=experimental&aligned&q=webnn
-!Explainer: <a href="https://github.com/webmachinelearning/webnn/blob/master/explainer.md">explainer.md</a>
-!Polyfill: <a href="https://github.com/webmachinelearning/webnn-polyfill">webnn-polyfill</a> / <a href="https://github.com/webmachinelearning/webnn-samples">webnn-samples</a>
+!Other: <a href="https://webmachinelearning.github.io/webnn-status/">Implementation Status</a>, <a href="https://github.com/webmachinelearning/webnn/blob/master/explainer.md">Explainer</a>, <a href="https://github.com/webmachinelearning/webnn-samples">Samples</a>
 Markup Shorthands: markdown yes
 Markup Shorthands: dfn yes
 Markup Shorthands: idl yes
@@ -28,7 +27,7 @@ Status Text: <p>
   This document is maintained and
   updated at any time. Some parts of this document are work in progress and
   further improvements are expected to be reflected in revised Candidate
-  Recommendation Drafts and Snaphots.
+  Recommendation Drafts and Snapshots.
   </p>
   <p>Before requesting transition to <a href="https://www.w3.org/standards/types#PR">Proposed Recommendation</a>, the Working Group will seek to demonstrate that:</p>
   <ul>
@@ -609,6 +608,8 @@ This API is disabled by default in all cross-origin frames using the [[#permissi
 
 This API allows creation of an {{MLContext}} from a {{GPUDevice}} defined by WebGPU specification. See <a href="https://gpuweb.github.io/gpuweb/#security-considerations">WebGPU Security Considerations</a> for more information regarding security characteristics of this context.
 
+This API provides an abstraction across GPU, CPU, and dedicated ML accelerator hardware. When using a GPU, <a href="https://www.w3.org/TR/webgpu/#security-dos">denial of service</a> considerations similar to WebGPU apply. When using a CPU or a dedicated ML accelerator, the types of potential resource contention are different and mitigations will be implementation and configuration dependent. Implementations should use whatever mechanisms are available from the platform to prevent sites from using an unfair amount of system resources. These compute units are shared resources, and the use of any compute API will affect overall performance on a fully-loaded system.
+
 Once the graph is fully constructed and compiled, the input shapes into each of the operations in the graph are inferred and finalized. The bounds checking occurs when the compute method is invoked that executes the graph against the actual data. No actual data is bound to the compiled graph before this stage. It is the implementation's responsibility to make sure proper bounds checking occurs against the shapes of the data already inferred by that time.
 
 Issue: Document operations susceptible to out-of-bounds access as a guidance to implementers.
@@ -961,6 +962,9 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 </details>
 
 ### {{MLContext/compute()}}  ### {#api-mlcontext-compute}
+
+ISSUE: {{MLContext/compute()}} will be deprecated and removed in favor of <code>[dispatch()](https://github.com/webmachinelearning/webnn/blob/main/mltensor-explainer.md#compute-vs-dispatch)</code>.
+
 Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU/NPU timeline for submitting a workload onto the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it [=exception/throws=] an "{{OperationError}}" {{DOMException}}.
 
 <div class="note">
@@ -1049,7 +1053,7 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
 The {{MLContext/opSupportLimits()}} exposes level of support that differs across implementations at operator level. Consumers of the WebNN API are encouraged to probe feature support level by using {{MLContext/opSupportLimits()}} to determine the optimal model architecture to be deployed for each target platform.
 
 #### {{MLOpSupportLimits}} dictionary #### {#api-mlcontext-opsupportlimits-dictionary}
-The {{MLOpSupportLimits}} has following top level members, aside from these, each [=operator=] has a corresponding member defined in its builder method.
+The {{MLOpSupportLimits}} has the following top level members, aside from these, each [=operator=] has a corresponding member defined in its builder method.
 <script type="idl">
 dictionary MLOpSupportLimits {
   MLInputOperandLayout preferredInputLayout;
@@ -1228,8 +1232,8 @@ For instance, an {{MLOperand}} may represent a constant feeding to an operation 
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLOperand {
-  MLOperandDataType dataType();
-  sequence<unsigned long> shape();
+  readonly attribute MLOperandDataType dataType;
+  readonly attribute FrozenArray<unsigned long> shape;
 };
 
 dictionary MLOperatorOptions {
@@ -1260,11 +1264,15 @@ typedef (bigint or unrestricted double) MLNumber;
   </dl>
 </div>
 
+An {{MLOperand}}'s <dfn for=MLOperand>dataType</dfn> is its {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
+
 An {{MLOperand}}'s <dfn for=MLOperand>shape</dfn> is its {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/shape}}.
 
 An {{MLOperand}}'s <dfn for=MLOperand>rank</dfn> is its [=MLOperand/shape=]'s [=list/size=].
 
-An {{MLOperand}}'s <dfn for=MLOperand>dataType</dfn> is its {{MLOperand/[[descriptor]]}}.{{MLOperandDescriptor/dataType}}.
+The <dfn attribute for=MLOperand>dataType</dfn> [=getter steps=] are to return [=this=]'s [=MLOperand/dataType=].
+
+The <dfn attribute for=MLOperand>shape</dfn> [=getter steps=] are to return [=this=]'s [=MLOperand/shape=].
 
 Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
 
@@ -1313,34 +1321,6 @@ To <dfn for="MLGraphBuilder">validate operand</dfn> given {{MLGraphBuilder}} |bu
 </div>
 
 Issue(whatwg/webidl#1388): Support for unions of {{bigint}} and [=numeric types=] is new in [[WEBIDL]], and implementation support is also limited. Prototype implementations are encouraged to provide feedback for this approach.
-
-### {{MLOperand/dataType()}} ### {#api-mloperand-datatype}
-Returns the data type of the {{MLOperand}}.
-
-<div>
-    **Returns:** an {{MLOperandDataType}}. The data type of the operand.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLOperand>dataType()</dfn> method steps are:
-  </summary>
-    1. Return [=this=]'s [=MLOperand/dataType=].
-</details>
-
-### {{MLOperand/shape()}} ### {#api-mloperand-shape}
-Returns the shape of the {{MLOperand}}.
-
-<div>
-    **Returns:** [=sequence=]<{{unsigned long}}>. The shape of the operand.
-</div>
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLOperand>shape()</dfn> method steps are:
-  </summary>
-    1. Return [=this=]'s [=MLOperand/shape=].
-</details>
 
 ## {{MLGraphBuilder}} interface ## {#api-mlgraphbuilder}
 
@@ -1579,7 +1559,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type |options|.{{MLArgMinMaxOptions/outputDataType}} in the range [0, N-1] where N is the size of the input dimension specified by axis.
 </div>
 
-{{MLOpSupportLimits}} has following members for {{MLGraphBuilder/argMin()}} and {{MLGraphBuilder/argMax()}}:
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/argMin()}} and {{MLGraphBuilder/argMax()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>argMin</dfn>
     :: Support limits for operator {{MLGraphBuilder/argMin()}}.
@@ -1684,7 +1664,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The batch-normalized N-D tensor of the same shape as *input*.
 </div>
 
-{{MLBatchNormalizationSupportLimits}} has following members:
+{{MLBatchNormalizationSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLBatchNormalizationSupportLimits>
     : <dfn>input</dfn>
     :: {{MLSupportLimits}} for input operand.
@@ -1700,7 +1680,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has following members for {{MLGraphBuilder/batchNormalization()}}:
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/batchNormalization()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>batchNormalization</dfn>
     :: Support limits for operator {{MLGraphBuilder/batchNormalization()}}.
@@ -1743,7 +1723,7 @@ partial dictionary MLOpSupportLimits {
     </summary>
     <pre highlight="js">
     function batchNormalization(builder, input, mean, variance, options) {
-      const shape = [1, input.shape()[options.axis], 1, 1];
+      const shape = [1, input.shape[options.axis], 1, 1];
       return builder.add(
         builder.mul(
           builder.reshape(options.scale, shape),
@@ -1751,7 +1731,7 @@ partial dictionary MLOpSupportLimits {
             builder.sub(input, builder.reshape(mean, shape)),
             builder.sqrt(builder.add(
               builder.reshape(variance, shape),
-              builder.constant(input.dataType(), options.epsilon))))),
+              builder.constant(input.dataType, options.epsilon))))),
         builder.reshape(options.bias, shape));
     }
     </pre>
@@ -1781,7 +1761,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The N-D tensor of the same shape as *input* with each element casted to the target data type.
 </div>
 
-{{MLOpSupportLimits}} has following members for {{MLGraphBuilder/cast()}}:
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/cast()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>cast</dfn>
     :: Support limits for operator {{MLGraphBuilder/cast()}}.
@@ -1900,7 +1880,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/clamp()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/clamp()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>clamp</dfn>
     :: Support limits for operator {{MLGraphBuilder/clamp()}}.
@@ -1937,17 +1917,17 @@ partial dictionary MLOpSupportLimits {
           return input;
         } else {
           return builder.min(
-            input, builder.constant(input.dataType(), options.maxValue));
+            input, builder.constant(input.dataType, options.maxValue));
         }
       } else {
         if (options.maxValue === undefined) {
           return builder.max(
-            input, builder.constant(input.dataType(), options.minValue));
+            input, builder.constant(input.dataType, options.minValue));
         } else {
           return builder.min(
             builder.max(
-              input, builder.constant(input.dataType(), options.minValue)),
-            builder.constant(input.dataType(), options.maxValue));
+              input, builder.constant(input.dataType, options.minValue)),
+            builder.constant(input.dataType, options.maxValue));
         }
       }
     }
@@ -1986,7 +1966,7 @@ partial dictionary MLOpSupportLimits {
     computed as the sum of all the input sizes of the same dimension.
 </div>
 
-{{MLConcatSupportLimits}} has following members:
+{{MLConcatSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLConcatSupportLimits>
     : <dfn>inputs</dfn>
     :: {{MLSupportLimits}} for all input operands.
@@ -1994,7 +1974,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/concat()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/concat()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>concat</dfn>
     :: Support limits for operator {{MLGraphBuilder/concat()}}.
@@ -2130,7 +2110,7 @@ partial dictionary MLOpSupportLimits {
     `outputSize = 1 + (inputSize - (filterSize - 1) * dilation - 1 + beginningPadding + endingPadding) / stride`
 </div>
 
-{{MLConv2dSupportLimits}} has following members:
+{{MLConv2dSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLConv2dSupportLimits>
     : <dfn>input</dfn>
     :: {{MLSupportLimits}} for input operand.
@@ -2142,7 +2122,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/conv2d()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/conv2d()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>conv2d</dfn>
     :: Support limits for operator {{MLGraphBuilder/conv2d()}}.
@@ -2195,45 +2175,21 @@ partial dictionary MLOpSupportLimits {
         1. Switch on |options|.{{MLConv2dOptions/inputLayout}}:
             <dl class=switch>
                 : {{MLInputOperandLayout/"nchw"}}
-                ::
-                    1. Let |batches| be |inputShape|[0].
-                    1. Let |inputChannels| be |inputShape|[1].
-                    1. Let |inputHeight| be |inputShape|[2].
-                    1. Let |inputWidth| be |inputShape|[3].
+                :: Let « |batches|, |inputChannels|, |inputHeight|, |inputWidth| » be |inputShape|.
                 : {{MLInputOperandLayout/"nhwc"}}
-                ::
-                    1. Let |batches| be |inputShape|[0].
-                    1. Let |inputHeight| be |inputShape|[1].
-                    1. Let |inputWidth| be |inputShape|[2].
-                    1. Let |inputChannels| be |inputShape|[3].
+                :: Let « |batches|, |inputHeight|, |inputWidth|, |inputChannels| » be |inputShape|.
             </dl>
         1. Let |filterShape| be |filter|'s [=MLOperand/shape=].
         1. Switch on |options|.{{MLConv2dOptions/filterLayout}}:
             <dl class=switch>
                 : {{MLConv2dFilterOperandLayout/"hwio"}}
-                ::
-                    1. Let |filterHeight| be |filterShape|[0].
-                    1. Let |filterWidth| be |filterShape|[1].
-                    1. Let |filterInputChannels| be |filterShape|[2].
-                    1. Let |outputChannels| be |filterShape|[3].
+                :: Let « |filterHeight|, |filterWidth|, |filterInputChannels|, |outputChannels| » be |filterShape|.
                 : {{MLConv2dFilterOperandLayout/"ohwi"}}
-                ::
-                    1. Let |outputChannels| be |filterShape|[0].
-                    1. Let |filterHeight| be |filterShape|[1].
-                    1. Let |filterWidth| be |filterShape|[2].
-                    1. Let |filterInputChannels| be |filterShape|[3].
+                :: Let « |outputChannels|, |filterHeight|, |filterWidth|, |filterInputChannels| » be |filterShape|.
                 : {{MLConv2dFilterOperandLayout/"ihwo"}}
-                ::
-                    1. Let |filterInputChannels| be |filterShape|[0].
-                    1. Let |filterHeight| be |filterShape|[1].
-                    1. Let |filterWidth| be |filterShape|[2].
-                    1. Let |outputChannels| be |filterShape|[3].
+                :: Let « |filterInputChannels|, |filterHeight|, |filterWidth|, |outputChannels| » be |filterShape|.
                 : {{MLConv2dFilterOperandLayout/"oihw"}}
-                ::
-                    1. Let |outputChannels| be |filterShape|[0].
-                    1. Let |filterInputChannels| be |filterShape|[1].
-                    1. Let |filterHeight| be |filterShape|[2].
-                    1. Let |filterWidth| be |filterShape|[3].
+                :: Let « |outputChannels|, |filterInputChannels|, |filterHeight|, |filterWidth| » be |filterShape|.
             </dl>
         1. If |inputChannels| % |options|.{{MLConv2dOptions/groups}} is not 0, then [=exception/throw=] a {{TypeError}}.
         1. Otherwise, if |inputChannels| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
@@ -2366,7 +2322,7 @@ partial dictionary MLOpSupportLimits {
     `outputSize = (inputSize - 1) * stride + (filterSize - 1) * dilation + 1 - beginningPadding - endingPadding + outputPadding`
 </div>
 
-{{MLOpSupportLimits}} has following member for :
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/convTranspose2d()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>convTranspose2d</dfn>
     :: Support limits for operator {{MLGraphBuilder/convTranspose2d()}}.
@@ -2420,39 +2376,19 @@ partial dictionary MLOpSupportLimits {
         1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
             <dl class=switch>
                 : {{MLInputOperandLayout/"nchw"}}
-                ::
-                    1. Let |batches| be |inputShape|[0].
-                    1. Let |inputChannels| be |inputShape|[1].
-                    1. Let |inputHeight| be |inputShape|[2].
-                    1. Let |inputWidth| be |inputShape|[3].
+                :: Let « |batches|, |inputChannels|, |inputHeight|, |inputWidth| » be |inputShape|.
                 : {{MLInputOperandLayout/"nhwc"}}
-                ::
-                    1. Let |batches| be |inputShape|[0].
-                    1. Let |inputHeight| be |inputShape|[1].
-                    1. Let |inputWidth| be |inputShape|[2].
-                    1. Let |inputChannels| be |inputShape|[3].
+                :: Let « |batches|, |inputHeight|, |inputWidth|, |inputChannels| » be |inputShape|.
             </dl>
         1. Let |filterShape| be |filter|'s [=MLOperand/shape=].
         1. Switch on |options|.{{MLConvTranspose2dOptions/filterLayout}}:
             <dl class=switch>
                 : {{MLConvTranspose2dFilterOperandLayout/"iohw"}}
-                ::
-                    1. Let |filterInputChannels| be |filterShape|[0].
-                    1. Let |filterOutputChannels| be |filterShape[1].
-                    1. Let |filterHeight| be |filterShape|[2].
-                    1. Let |filterWidth| be |filterShape|[3].
+                :: Let « |filterInputChannels|, |filterOutputChannels|, |filterHeight|, |filterWidth| » be |filterShape|.
                 : {{MLConvTranspose2dFilterOperandLayout/"hwoi"}}
-                ::
-                    1. Let |filterHeight| be |filterShape|[0].
-                    1. Let |filterWidth| be |filterShape|[1].
-                    1. Let |filterOutputChannels| be |filterShape[2].
-                    1. Let |filterInputChannels| be |filterShape|[3].
+                :: Let « |filterHeight|, |filterWidth|, |filterOutputChannels|, |filterInputChannels| » be |filterShape|.
                 : {{MLConvTranspose2dFilterOperandLayout/"ohwi"}}
-                ::
-                    1. Let |filterOutputChannels| be |filterShape[0].
-                    1. Let |filterHeight| be |filterShape|[1].
-                    1. Let |filterWidth| be |filterShape|[2].
-                    1. Let |filterInputChannels| be |filterShape|[3].
+                :: Let « |filterOutputChannels|, |filterHeight|, |filterWidth|, |filterInputChannels| » be |filterShape|.
             </dl>
         1. If |inputChannels| is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
         1. Let |outputChannels| be |filterOutputChannels| * |options|.{{MLConvTranspose2dOptions/groups}}.
@@ -2527,7 +2463,7 @@ partial dictionary MLOpSupportLimits {
         - *pow*: Compute the values of the values of the first input tensor to the power of the values of the second input tensor, element-wise.
 </div>
 
-{{MLOpSupportLimits}} has following members for eleemntwise-binary operations:
+{{MLOpSupportLimits}} has the following members for elementwise-binary operations:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>add</dfn>
     :: Support limits for operator {{MLGraphBuilder/add()}}.
@@ -2668,7 +2604,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of element-wise comparison of the two input tensors.
 </div>
 
-{{MLLogicalNotSupportLimits}} has following members:
+{{MLLogicalNotSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLogicalNotSupportLimits>
     : <dfn>a</dfn>
     :: {{MLSupportLimits}} for a operand.
@@ -2676,7 +2612,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has following members for element-wise logical operations:
+{{MLOpSupportLimits}} has the following members for element-wise logical operations:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>equal</dfn>
     :: Support limits for operator {{MLGraphBuilder/equal()}}.
@@ -2823,7 +2759,7 @@ partial dictionary MLOpSupportLimits {
     tensor is the same as the shape of input tensor.
 </div>
 
-{{MLOpSupportLimits}} has following members for element-wise unary operations:
+{{MLOpSupportLimits}} has the following members for element-wise unary operations:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>abs</dfn>
     :: Support limits for operator {{MLGraphBuilder/abs()}}.
@@ -3015,7 +2951,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following members for {{MLGraphBuilder/elu()}}:
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/elu()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>elu</dfn>
     :: Support limits for operator {{MLGraphBuilder/elu()}}.
@@ -3046,12 +2982,12 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function elu(builder, input, options) {
       return builder.add(
-        builder.max(builder.constant(input.dataType(), 0), input),
+        builder.max(builder.constant(input.dataType, 0), input),
         builder.mul(
-          builder.constant(input.dataType(), options.alpha),
+          builder.constant(input.dataType, options.alpha),
           builder.sub(
-            builder.exp(builder.min(builder.constant(input.dataType(), 0), input)),
-            builder.constant(input.dataType(), 1))));
+            builder.exp(builder.min(builder.constant(input.dataType, 0), input)),
+            builder.constant(input.dataType, 1))));
     }
     </pre>
   </details>
@@ -3079,7 +3015,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The tensor with expanded size shape.
 </div>
 
-{{MLOpSupportLimits}} has following members for {{MLGraphBuilder/expand()}}:
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/expand()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>expand</dfn>
     :: Support limits for operator {{MLGraphBuilder/expand()}}.
@@ -3143,7 +3079,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input* + the [=MLOperand/rank=] of *indices* - 1.
 </div>
 
-{{MLGatherSupportLimits}} has following members:
+{{MLGatherSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGatherSupportLimits>
     : <dfn>input</dfn>
     :: {{MLSupportLimits}} for input operand.
@@ -3153,7 +3089,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has following members for {{MLGraphBuilder/gather()}}:
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/gather()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>gather</dfn>
     :: Support limits for operator {{MLGraphBuilder/gather()}}.
@@ -3280,7 +3216,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/gelu()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gelu()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>gelu</dfn>
     :: Support limits for operator {{MLGraphBuilder/gelu()}}.
@@ -3310,11 +3246,11 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function gelu(builder, input) {
       return builder.mul(
-        builder.mul(input, builder.constant(input.dataType(), 0.5)),
+        builder.mul(input, builder.constant(input.dataType, 0.5)),
         builder.add(
-          builder.constant(input.dataType(), 1),
+          builder.constant(input.dataType, 1),
           builder.erf(builder.div(
-            input, builder.sqrt(builder.constant(input.dataType(), 2))))));
+            input, builder.sqrt(builder.constant(input.dataType, 2))))));
     }
     </pre>
   </details>
@@ -3380,7 +3316,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output 2-D tensor of shape *[M, N]* that contains the calculated product of all the inputs.
 </div>
 
-{{MLGemmSupportLimits}} has following members:
+{{MLGemmSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGemmSupportLimits>
     : <dfn>a</dfn>
     :: {{MLSupportLimits}} for a operand.
@@ -3392,7 +3328,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/gemm()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gemm()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>gemm</dfn>
     :: Support limits for operator {{MLGraphBuilder/gemm()}}.
@@ -3442,12 +3378,12 @@ partial dictionary MLOpSupportLimits {
         b = builder.transpose(b);
 
       let ab = builder.matmul(
-        builder.mul(builder.constant(a.dataType(), options.alpha), a), b);
+        builder.mul(builder.constant(a.dataType, options.alpha), a), b);
       return (
         options.c ?
           builder.add(
             ab,
-            builder.mul(builder.constant(a.dataType(), options.beta), options.c)) :
+            builder.mul(builder.constant(a.dataType, options.beta), options.c)) :
           ab);
     }
   </pre>
@@ -3557,7 +3493,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** [=sequence=]<{{MLOperand}}>. The first element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the cell output from the last time step of the network. Additionally, if |options|.{{MLGruOptions/returnSequence}} is set to true, the second element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every cell outputs from each time step in the temporal sequence.
 </div>
 
-{{MLGruSupportLimits}} has following members:
+{{MLGruSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGruSupportLimits>
     : <dfn>input</dfn>
     :: {{MLSupportLimits}} for input operand.
@@ -3575,7 +3511,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for all the output operands.
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/gru()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gru()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>gru</dfn>
     :: Support limits for operator {{MLGraphBuilder/gru()}}.
@@ -3646,8 +3582,8 @@ partial dictionary MLOpSupportLimits {
   <pre highlight="js">
     function gru(
       builder, input, weight, recurrentWeight, steps, hiddenSize, options) {
-      const batchSize = input.shape()[1];
-      const inputSize = input.shape()[2];
+      const batchSize = input.shape[1];
+      const inputSize = input.shape[2];
       const numDirections = (options.direction == 'both' ? 2 : 1);
       let hiddenState = options.initialHiddenState;
 
@@ -3814,7 +3750,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The 2-D tensor of shape *[batchSize, hiddenSize]*, the cell output hidden state of a single time step of the recurrent network.
 </div>
 
-{{MLGruCellSupportLimits}} has following members;
+{{MLGruCellSupportLimits}} has the following members;
 <dl dfn-type=dict-member dfn-for=MLGruCellSupportLimits>
     : <dfn>input</dfn>
     :: {{MLSupportLimits}} for input operand.
@@ -3832,7 +3768,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/gruCell()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gruCell()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>gruCell</dfn>
     :: Support limits for operator {{MLGraphBuilder/gruCell()}}.
@@ -3889,10 +3825,10 @@ partial dictionary MLOpSupportLimits {
   <pre highlight="js">
     function gruCell(
       builder, input, weight, recurrentWeight, hiddenState, hiddenSize, options) {
-      const one = builder.constant(input.dataType(), 1);
-      const zero = builder.constant(input.dataType(), 0);
+      const one = builder.constant(input.dataType, 1);
+      const zero = builder.constant(input.dataType, 0);
 
-      const inputSize = input.shape()[1];
+      const inputSize = input.shape[1];
 
       // update gate (z)
       let z = builder.sigmoid(builder.add(
@@ -4021,7 +3957,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/hardSigmoid()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/hardSigmoid()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>hardSigmoid</dfn>
     :: Support limits for operator {{MLGraphBuilder/hardSigmoid()}}.
@@ -4055,10 +3991,10 @@ partial dictionary MLOpSupportLimits {
       return builder.max(
         builder.min(
           builder.add(
-            builder.mul(builder.constant(input.dataType(), options.alpha), input),
-            builder.constant(input.dataType(), options.beta)),
-          builder.constant(input.dataType(), 1)),
-        builder.constant(input.dataType(), 0));
+            builder.mul(builder.constant(input.dataType, options.alpha), input),
+            builder.constant(input.dataType, options.beta)),
+          builder.constant(input.dataType, 1)),
+        builder.constant(input.dataType, 0));
     }
     </pre>
   </details>
@@ -4085,7 +4021,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/hardSwish()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/hardSwish()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>hardSwish</dfn>
     :: Support limits for operator {{MLGraphBuilder/hardSwish()}}.
@@ -4118,11 +4054,11 @@ partial dictionary MLOpSupportLimits {
         builder.mul(
           input,
           builder.max(
-            builder.constant(input.dataType(), 0),
+            builder.constant(input.dataType, 0),
             builder.min(
-              builder.constant(input.dataType(), 6),
-              builder.add(input, builder.constant(input.dataType(), 3))))),
-        builder.constant(input.dataType(), 6));
+              builder.constant(input.dataType, 6),
+              builder.add(input, builder.constant(input.dataType, 3))))),
+        builder.constant(input.dataType, 6));
     }
   </pre>
 </details>
@@ -4184,7 +4120,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The instance-normalized 4-D tensor of the same shape as *input*.
 </div>
 
-{{MLNormalizationSupportLimits}} has following members:
+{{MLNormalizationSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLNormalizationSupportLimits>
     : <dfn>input</dfn>
     :: {{MLSupportLimits}} for input operand.
@@ -4196,7 +4132,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/instanceNormalization()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/instanceNormalization()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>instanceNormalization</dfn>
     :: Support limits for operator {{MLGraphBuilder/instanceNormalization()}}.
@@ -4242,12 +4178,12 @@ partial dictionary MLOpSupportLimits {
       const mean = builder.reduceMean(input, reduceOptions);
       const variance = builder.reduceMean(
         builder.pow(
-          builder.sub(input, mean), builder.constant(input.dataType(), 2)),
+          builder.sub(input, mean), builder.constant(input.dataType, 2)),
         reduceOptions);
 
       // The scale and bias values are applied per input feature
       // e.g. axis 1 of the input tensor.
-      const shape = [1, input.shape()[1], 1, 1];
+      const shape = [1, input.shape[1], 1, 1];
       return builder.add(
         builder.mul(
           builder.reshape(options.scale, shape),
@@ -4307,7 +4243,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The layer-normalized N-D tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/layerNormalization()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/layerNormalization()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>layerNormalization</dfn>
     :: Support limits for operator {{MLGraphBuilder/layerNormalization()}}.
@@ -4362,7 +4298,7 @@ partial dictionary MLOpSupportLimits {
       const mean = builder.reduceMean(input, reduceOptions);
       const variance = builder.reduceMean(
         builder.pow(
-          builder.sub(input, mean), builder.constant(input.dataType(), 2)),
+          builder.sub(input, mean), builder.constant(input.dataType, 2)),
         reduceOptions);
 
       // The scale and bias tensors are of the shape of the input
@@ -4412,7 +4348,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/leakyRelu()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/leakyRelu()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>leakyRelu</dfn>
     :: Support limits for operator {{MLGraphBuilder/leakyRelu()}}.
@@ -4443,10 +4379,10 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function leakyRelu(builder, input, options) {
       return builder.add(
-        builder.max(builder.constant(input.dataType(), 0), input),
+        builder.max(builder.constant(input.dataType, 0), input),
         builder.mul(
-          builder.constant(input.dataType(), options.alpha),
-          builder.min(builder.constant(input.dataType(), 0), input)));
+          builder.constant(input.dataType, options.alpha),
+          builder.min(builder.constant(input.dataType, 0), input)));
     }
     </pre>
   </details>
@@ -4489,7 +4425,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/linear()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/linear()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>linear</dfn>
     :: Support limits for operator {{MLGraphBuilder/linear()}}.
@@ -4521,8 +4457,8 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function linear(builder, input, options) {
       return builder.add(
-        builder.mul(input, builder.constant(input.dataType(), options.alpha)),
-        builder.constant(input.dataType(), options.beta));
+        builder.mul(input, builder.constant(input.dataType, options.alpha)),
+        builder.constant(input.dataType, options.beta));
     }
     </pre>
   </details>
@@ -4627,7 +4563,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** [=sequence=]<{{MLOperand}}>. The first element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output cell state from the last time step of the network. Additionally, if |options|.{{MLLstmOptions/returnSequence}} is set to true, the third element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every output from each time step in the temporal sequence.
 </div>
 
-{{MLLstmSupportLimits}} has following members:
+{{MLLstmSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLstmSupportLimits>
     : <dfn>input</dfn>
     :: {{MLSupportLimits}} for input operand.
@@ -4649,7 +4585,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for all the output operands.
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/lstm()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/lstm()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>lstm</dfn>
     :: Support limits for operator {{MLGraphBuilder/lstm()}}.
@@ -4730,8 +4666,8 @@ partial dictionary MLOpSupportLimits {
   <pre highlight="js">
     function lstm(
       builder, input, weight, recurrentWeight, steps, hiddenSize, options) {
-      const batchSize = input.shape()[1];
-      const inputSize = input.shape()[2];
+      const batchSize = input.shape[1];
+      const inputSize = input.shape[2];
       const numDirections = (options.direction == 'both' ? 2 : 1);
       let hiddenState = options.initialHiddenState;
       let cellState = options.initialCellState;
@@ -4929,7 +4865,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** [=sequence=]<{{MLOperand}}>. The first element is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape *[batchSize, hiddenSize]*.
 </div>
 
-{{MLLstmCellSupportLimits}} has following members:
+{{MLLstmCellSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLstmCellSupportLimits>
     : <dfn>input</dfn>
     :: {{MLSupportLimits}} for input operand.
@@ -4951,7 +4887,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for all the output operands.
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/lstmCell()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/lstmCell()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>lstmCell</dfn>
     :: Support limits for operator {{MLGraphBuilder/lstmCell()}}.
@@ -5024,9 +4960,9 @@ partial dictionary MLOpSupportLimits {
       cellState,
       hiddenSize,
       options) {
-      const zero = builder.constant(input.dataType(), 0);
+      const zero = builder.constant(input.dataType, 0);
 
-      const inputSize = input.shape()[1];
+      const inputSize = input.shape[1];
 
       // input gate (i)
       let i = builder.sigmoid(builder.add(
@@ -5163,7 +5099,7 @@ partial dictionary MLOpSupportLimits {
         - If either *a* or *b* is `N`-dimensional where `N > 2`, it is treated as a stack of matrices with dimensions corresponding to the last two indices. The matrix multiplication will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The shapes of *a* and *b*, except the last two dimensions, must be [=bidirectionally broadcastable=]. The output is a `N`-dimensional tensor whose rank is the maximum [=MLOperand/rank=] of the input tensors. For each dimension, except the last two, of the output tensor, its size is the maximum size along that dimension of the input tensors.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/matmul()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/matmul()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>matmul</dfn>
     :: Support limits for operator {{MLGraphBuilder/matmul()}}.
@@ -5260,7 +5196,7 @@ partial dictionary MLOpSupportLimits {
     `output size = beginning padding + input size + ending padding`
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/pad()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/pad()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>pad</dfn>
     :: Support limits for operator {{MLGraphBuilder/pad()}}.
@@ -5429,7 +5365,7 @@ partial dictionary MLOpSupportLimits {
     the spatial sizes from *outputSizes*.
 </div>
 
-{{MLOpSupportLimits}} has following members for pooling operations:
+{{MLOpSupportLimits}} has the following members for pooling operations:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>averagePool2d</dfn>
     :: Support limits for operator {{MLGraphBuilder/averagePool2d()}}.
@@ -5454,20 +5390,11 @@ partial dictionary MLOpSupportLimits {
     1. Switch on |layout|:
         <dl class=switch>
             : {{MLInputOperandLayout/"nchw"}}
-            ::
-                1. Let |batches| be |inputShape|[0].
-                1. Let |channels| be |inputShape|[1].
-                1. Let |inputHeight| be |inputShape|[2].
-                1. Let |inputWidth| be |inputShape|[3].
+            :: Let « |batches|, |channels|, |inputHeight|, |inputWidth| » be |inputShape|.
             : {{MLInputOperandLayout/"nhwc"}}
-            ::
-                1. Let |batches| be |inputShape|[0].
-                1. Let |inputHeight| be |inputShape|[1].
-                1. Let |inputWidth| be |inputShape|[2].
-                1. Let |channels| be |inputShape|[3].
+            :: Let « |batches|, |inputHeight|, |inputWidth|, |channels| » be |inputShape|.
         </dl>
-    1. Let |outputHeight| be |outputSizes|[0].
-    1. Let |outputWidth| be |outputSizes|[1].
+    1. Let « |outputHeight|, |outputWidth| » be |outputSizes|.
     1. Switch on |layout|:
         <dl class=switch>
             : {{MLInputOperandLayout/"nchw"}}
@@ -5580,7 +5507,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLPreluSupportLimits}} has following members:
+{{MLPreluSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLPreluSupportLimits>
     : <dfn>input</dfn>
     :: {{MLSupportLimits}} for input operand.
@@ -5590,7 +5517,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/prelu()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/prelu()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>prelu</dfn>
     :: Support limits for operator {{MLGraphBuilder/prelu()}}.
@@ -5624,9 +5551,9 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function prelu(builder, input, slope) {
       return builder.add(
-        builder.max(builder.constant(input.dataType(), 0), input),
+        builder.max(builder.constant(input.dataType, 0), input),
         builder.mul(
-          slope, builder.min(builder.constant(input.dataType(), 0), input)));
+          slope, builder.min(builder.constant(input.dataType, 0), input)));
     }
     </pre>
   </details>
@@ -5693,7 +5620,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The reduced output tensor. If the input operand is a scalar, the reduction function is applied to the scalar value, and the output is also a scalar.
 </div>
 
-{{MLOpSupportLimits}} has following members for reduction operations:
+{{MLOpSupportLimits}} has the following members for reduction operations:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>reduceL1</dfn>
     :: Support limits for operator {{MLGraphBuilder/reduceL1()}}.
@@ -5890,7 +5817,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/relu()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/relu()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>relu</dfn>
     :: Support limits for operator {{MLGraphBuilder/relu()}}.
@@ -5919,7 +5846,7 @@ partial dictionary MLOpSupportLimits {
     </summary>
     <pre highlight="js">
     function relu(builder, input) {
-      return builder.max(builder.constant(input.dataType(), 0), input);
+      return builder.max(builder.constant(input.dataType, 0), input);
     }
     </pre>
   </details>
@@ -5965,13 +5892,13 @@ partial dictionary MLOpSupportLimits {
     : <dfn>scales</dfn>
     ::
         A list of length 2.
-        Specifies the scaling factor for each input dimension from {{MLResample2dOptions/axes}} : *[scaleForFirstAxis, scaleForSecondAxis]*.
+        Specifies the scaling factor for each input dimension from {{MLResample2dOptions/axes}}: *[scaleForFirstAxis, scaleForSecondAxis]*.
         The default value is [1.0, 1.0].
 
     : <dfn>sizes</dfn>
     ::
         A list of length 2.
-        Specifies the target sizes for each input dimension from {{MLResample2dOptions/axes}} : *[sizeForFirstAxis, ForSecondAxis]*. When the target sizes are specified, the {{MLResample2dOptions/scales}} argument is ignored, since the scaling factor values are derived from the target sizes of the input.
+        Specifies the target sizes for each input dimension from {{MLResample2dOptions/axes}}: *[sizeForFirstAxis, sizeForSecondAxis]*. When the target sizes are specified, the {{MLResample2dOptions/scales}} argument is ignored, since the scaling factor values are derived from the target sizes of the input.
 
     : <dfn>axes</dfn>
     ::
@@ -5980,7 +5907,7 @@ partial dictionary MLOpSupportLimits {
         The default value is [2, 3].
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/resample2d()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/resample2d()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>resample2d</dfn>
     :: Support limits for operator {{MLGraphBuilder/resample2d()}}.
@@ -6057,7 +5984,7 @@ partial dictionary MLOpSupportLimits {
     tensor is specified by the *newShape* argument.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/reshape()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/reshape()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>reshape</dfn>
     :: Support limits for operator {{MLGraphBuilder/reshape()}}.
@@ -6107,7 +6034,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/sigmoid()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/sigmoid()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>sigmoid</dfn>
     :: Support limits for operator {{MLGraphBuilder/sigmoid()}}.
@@ -6137,9 +6064,9 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function sigmoid(builder, input) {
       return builder.div(
-        builder.constant(input.dataType(), 1),
+        builder.constant(input.dataType, 1),
         builder.add(
-          builder.exp(builder.neg(input)), builder.constant(input.dataType(), 1)));
+          builder.exp(builder.neg(input)), builder.constant(input.dataType, 1)));
     }
     </pre>
   </details>
@@ -6169,7 +6096,7 @@ partial  dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/slice()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/slice()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>slice</dfn>
     :: Support limits for operator {{MLGraphBuilder/slice()}}.
@@ -6224,7 +6151,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output N-D tensor that contains the softmax results, of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/softmax()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/softmax()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>softmax</dfn>
     :: Support limits for operator {{MLGraphBuilder/softmax()}}.
@@ -6291,7 +6218,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/softplus()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/softplus()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>softplus</dfn>
     :: Support limits for operator {{MLGraphBuilder/softplus()}}.
@@ -6321,7 +6248,7 @@ partial dictionary MLOpSupportLimits {
     <pre highlight="js">
     function softplus(builder, input) {
       return builder.log(
-        builder.add(builder.exp(input), builder.constant(input.dataType(), 1)));
+        builder.add(builder.exp(input), builder.constant(input.dataType, 1)));
     }
     </pre>
   </details>
@@ -6348,7 +6275,7 @@ partial dictionary MLOpSupportLimits {
     function softsign(builder, input) {
       return builder.div(
         input,
-        builder.add(builder.constant(input.dataType(), 1), builder.abs(input)));
+        builder.add(builder.constant(input.dataType, 1), builder.abs(input)));
     }
     </pre>
   </details>
@@ -6363,7 +6290,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/softsign()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/softsign()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>softsign</dfn>
     :: Support limits for operator {{MLGraphBuilder/softsign()}}.
@@ -6405,7 +6332,7 @@ dictionary MLSplitSupportLimits {
 };
 
 partial dictionary MLOpSupportLimits {
-  MLSingleInputSupportLimits split;
+  MLSplitSupportLimits split;
 };
 </script>
 
@@ -6426,7 +6353,7 @@ partial dictionary MLOpSupportLimits {
 </dl>
 
 
-{{MLSplitSupportLimits}} has following members:
+{{MLSplitSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLSplitSupportLimits>
     : <dfn>input</dfn>
     :: {{MLSupportLimits}} for input operand.
@@ -6434,7 +6361,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for all the output operands.
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/split()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/split()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>split</dfn>
     :: Support limits for operator {{MLGraphBuilder/split()}}.
@@ -6482,7 +6409,7 @@ partial dictionary MLOpSupportLimits {
     function split(builder, input, splits, options) {
       // This sample shows the case that the splits parameter is an array.
       const outputs = [];
-      const inputShape = input.shape();
+      const inputShape = input.shape;
       const inputRank = inputShape.length;
       let starts = Array(inputRank).fill(0);
       let sizes = inputShape;
@@ -6520,7 +6447,7 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/tanh()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/tanh()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>tanh</dfn>
     :: Support limits for operator {{MLGraphBuilder/tanh()}}.
@@ -6551,11 +6478,11 @@ partial dictionary MLOpSupportLimits {
     function tanh(builder, input) {
       return builder.div(
         builder.sub(
-          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
-          builder.constant(input.dataType(), 1)),
+          builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
+          builder.constant(input.dataType, 1)),
         builder.add(
-          builder.exp(builder.mul(builder.constant(input.dataType(), 2), input)),
-          builder.constant(input.dataType(), 1)));
+          builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
+          builder.constant(input.dataType, 1)));
     }
     </pre>
   </details>
@@ -6594,7 +6521,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/transpose()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/transpose()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>transpose</dfn>
     :: Support limits for operator {{MLGraphBuilder/transpose()}}.
@@ -6656,7 +6583,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output tensor representing a triangular matrix, or batch of matrices which is the same shape as the input.
 </div>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/triangular()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/triangular()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>triangular</dfn>
     :: Support limits for operator {{MLGraphBuilder/triangular()}}.
@@ -6774,7 +6701,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output tensor that contains the values selected element-wise from either the trueValue or the falseValue tensor.
 </div>
 
-{{MLWhereSupportLimits}} has following members:
+{{MLWhereSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLWhereSupportLimits>
     : <dfn>condition</dfn>
     :: {{MLSupportLimits}} for condition operand.
@@ -6786,7 +6713,7 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has following member for {{MLGraphBuilder/where()}}:
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/where()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>where</dfn>
     :: Support limits for operator {{MLGraphBuilder/where()}}.
@@ -6824,9 +6751,9 @@ partial dictionary MLOpSupportLimits {
     function where(builder, condition, trueValue, falseValue) {
       const c = builder.clamp(condition, {'minValue': 0, 'maxValue': 1});
       builder.add(
-        builder.mul(trueValue, builder.cast(c, trueValue.dataType())),
+        builder.mul(trueValue, builder.cast(c, trueValue.dataType)),
         builder.mul(
-          falseValue, builder.cast(builder.logicalNot(c), falseValue.dataType())));
+          falseValue, builder.cast(builder.logicalNot(c), falseValue.dataType)));
     }
     </pre>
   </details>
@@ -7099,10 +7026,10 @@ Operations present in other neural network inference APIs can often be emulated 
       if (!axes)
         axes = [];
       if (!axes.length)
-        input.shape().forEach((item, i) => {
+        input.shape.forEach((item, i) => {
           axes.push(i);
         });
-      const shape = Array.from(input.shape());
+      const shape = Array.from(input.shape);
       for (let axis in axes.sort().reverse())
         if (axis < shape.length && shape[axis] == 1)
           shape.splice(axis, 1);
@@ -7121,7 +7048,7 @@ Operations present in other neural network inference APIs can often be emulated 
     </summary>
     <pre highlight="js">
     function unsqueeze(builder, input, axes) {
-      const shape = Array.from(input.shape());
+      const shape = Array.from(input.shape);
       for (let axis in axes.sort())
         shape.splice(axis, 0, 1);
       return builder.reshape(input, shape);
@@ -7139,10 +7066,10 @@ Operations present in other neural network inference APIs can often be emulated 
     </summary>
     <pre highlight="js">
     function flatten(builder, input, axis) {
-      if (axis > input.shape().length)
+      if (axis > input.shape.length)
         return input;
       const before = axis.slice(0, axis).reduce((a, b) => a * b);
-      const after = axis.slice(axis, input.shape().length).reduce((a, b) => a * b);
+      const after = axis.slice(axis, input.shape.length).reduce((a, b) => a * b);
       return builder.reshape(input, [before, after]);
     }
     </pre>
