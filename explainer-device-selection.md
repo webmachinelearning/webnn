@@ -74,7 +74,7 @@ Examples for user scenarios:
 // simple context creation with implementation defaults
 context = await navigator.ml.createContext();
 
-// create a context that will likely map to NPU
+// create a context that will likely map to NPU, or NPU+CPU
 context =
   await navigator.ml.createContext({powerPreference: 'low-power'});
 
@@ -107,4 +107,37 @@ Should we expose a similar adapter API for NPUs? Or could NPUs be represented as
 How should we extend the context options?
 What exactly is best to pass as context options? Op support limits? Supported features, similar to [GPUSupportedFeatures](https://gpuweb.github.io/gpuweb/#gpusupportedfeatures)? Others?
 
-Update the security and privacy section. Would the proposals here increase the fingerprinting vector? If yes, what mitigations can be made? The current understanding is that any extra information exposed to web apps in these proposals could be obtained by other methods as well. However, security hardening and relevant mitigations are recommended. For instance, implementations could choose the level of information (e.g. op support limits) exposed to a given origin.
+Update the security and privacy section. Would the proposals here increase the fingerprinting surface? If yes, what mitigations can be made? The current understanding is that any extra information exposed to web apps in these proposals could be obtained by other methods as well. However, security hardening and relevant mitigations are recommended. For instance, implementations could choose the level of information (e.g. op support limits) exposed to a given origin.
+
+## Background thoughts
+
+### Representing NPUs
+
+Earlier there have been ideas to represent NPUs in a similar way as WebGPU [adapters](https://gpuweb.github.io/gpuweb/#gpuadapter), basically exposing basic string information, features, limits, and whether they can be used as a fallback device.
+
+However, this would likely be premature standardization, as NPUs are very heterogeneous in their implementations, for instance memory and processing unit architecture can be significantly different. Also, they can be either standalone devices (e.g. TPUs), or integrated as SoC modules, together with CPUs, and even GPUs.
+
+There is a fundamental difference vs. programming GPUs. From programming point of view, NPUs are very specific and need specialized drivers, which integrate into libraries and frameworks. Therefore they don't need explicitly exposed abstractions like in [WebGPU](https://gpuweb.github.io/gpuweb/), but they might have specific quantization requirements and limitations.
+
+The main use cases for NPUs is to offload more general purpose computing devices (CPU and even GPU) from machine learning compute loads. Power efficient performance is the main characteristic.
+
+Therefore, use cases that include NPUs could be euphemistically represented by the `"low-power"` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), which could mean the following (depending on the underlying platform):
+- pure NPU execution,
+- NPU preferred, fallback to CPU,
+- combined [multiple] NPU and CPU execution controlled by the underlying platform.
+
+### Selecting from multiple [types] of NPUs
+
+The proposal above uses [Web GPU](https://gpuweb.github.io/gpuweb) mechanisms to select a GPU device for a context. This covers support for multiple GPUs, even with different type and capabilities.
+
+We lack such mechanisms to select NPUs. Earlier there have been ideas to use a similar approach as Web GPU.
+
+However, enumerating and managing adapters are not very webby designs. For instance, to avoid complexity and to minimize fingerprinting surfaces, the [Presentation API](https://www.w3.org/TR/presentation-api/) outsources selecting the target device to the user agent, so that the web app can achieve the use case without being exposed with platform specific details.
+
+In Web NN case, we cannot use such mechanisms, because the API is used by frameworks, not by web pages.
+
+Currently the handling of multiple NPUs (e.g. single model on multiple NPUs, or multiple models on multiple NPUs) is delegated to the implementation and underlying platform.
+
+### Hybrid execution scenarios using NPU, CPU and GPU
+
+Many platforms support various hybrid execution scenarios involving NPU, CPU, and GPU (e.g. NPU-CPU, NPU-GPU, NPU-CPU-GPU), but these are not explicitly exposed and controlled in Web NN.
