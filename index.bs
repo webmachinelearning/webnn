@@ -926,7 +926,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
   <summary>
     To <dfn>validate buffer with descriptor</dfn> given {{ArrayBufferView}} |bufferView| and {{MLOperandDescriptor}} |descriptor|, run the following steps:
   </summary>
-    1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/dataType}}  according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility), return false.
+    1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility), return false.
     1. If |bufferView|.\[[ByteLength]] is not equal to |descriptor|'s [=MLOperandDescriptor/byte length=], return false.
 </details>
 
@@ -1316,13 +1316,16 @@ The <dfn attribute for=MLOperand>shape</dfn> [=getter steps=] are to return [=th
 
 Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
 
+If an operation supports only a subset of {{MLOperandDataType}}s, the <dfn>allowed data types</dfn> for each of the operation's input operands, including both positional arguments and options, are given as either an explicit list of {{MLOperandDataType}}s, or a constraint that the operand's [=MLOperand/dataType=] must be the <dfn lt="same as">same type as</dfn> the [=MLOperand/dataType=] of another input operand, or <dfn lt="any data type">any</dfn> to allow any {{MLOperandDataType}}.
+
+If an operation requires input operands with a particular [=MLOperand/rank=], the <dfn>allowed ranks</dfn> for each of the operation's input operands, including both positional arguments and options, are given as an explicit rank (e.g. 1), or <dfn lt="any rank">N</dfn> to allow any dimensionality. More specific constraints are common, such as when an input operand's shape must be [=/unidirectionally broadcastable=] to or [=/bidirectionally broadcastable=] with another input operand; in these cases, the [=/allowed ranks=] are listed as a range, with specific validation given as steps in the operation.
+
 {{MLOperatorOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLOperatorOptions>
     : <dfn>label</dfn>
     ::
         Optionally provided when an [=operator=] is created using {{MLGraphBuilder}} methods that create {{MLOperand}}s. The implementation may use this value to initialize the [=operator=]'s [=operator/label=].
 </dl>
-
 
 ### Creating an {{MLOperand}} ### {#api-mloperand-create}
 The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, internally using the following algorithms.
@@ -1607,6 +1610,22 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The N-D tensor of the reduced shape. The values must be of type |options|.{{MLArgMinMaxOptions/outputDataType}} in the range [0, N-1] where N is the size of the input dimension specified by axis.
 </div>
 
+<table id=constraints-argMin-argMax class='data' link-for="MLGraphBuilder/argMin(input, axis, options), MLGraphBuilder/argMax(input, axis, options)">
+  <caption>Constraints for {{MLGraphBuilder/argMin()}}/{{MLGraphBuilder/argMax()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/argMin()}} and {{MLGraphBuilder/argMax()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>argMin</dfn>
@@ -1712,6 +1731,42 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The batch-normalized N-D tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-batchNormalization class='data' link-for="MLGraphBuilder/batchNormalization(input, mean, variance, options)">
+  <caption>Constraints for {{MLGraphBuilder/batchNormalization()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>{{mean}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>{{variance}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>{{MLBatchNormalizationOptions/scale}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>{{MLBatchNormalizationOptions/bias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+</table>
+
 {{MLBatchNormalizationSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLBatchNormalizationSupportLimits>
     : <dfn>input</dfn>
@@ -1740,18 +1795,18 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |mean|, |variance|, |options|.{{MLBatchNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLBatchNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/axis}} is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
-    1. If |mean|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+    1. If |mean|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
     1. If |mean|'s [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
-    1. If |variance|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+    1. If |variance|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
     1. If |variance|'s [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLBatchNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLBatchNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
     1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "batchNormalization" operation, given |input|, |mean|, |variance| and |options|.
@@ -1808,6 +1863,22 @@ partial dictionary MLOpSupportLimits {
 
     **Returns:** an {{MLOperand}}. The N-D tensor of the same shape as *input* with each element casted to the target data type.
 </div>
+
+<table id=constraints-cast class='data' link-for="MLGraphBuilder/cast(input, type, options)">
+  <caption>Constraints for {{MLGraphBuilder/cast()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
 
 {{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/cast()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
@@ -1928,6 +1999,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-clamp class='data' link-for="MLGraphBuilder/clamp(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/clamp()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/clamp()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>clamp</dfn>
@@ -2013,6 +2100,22 @@ partial dictionary MLOpSupportLimits {
     that all the inputs concatenated along. The size of that dimension is
     computed as the sum of all the input sizes of the same dimension.
 </div>
+
+<table id=constraints-concat class='data' link-for="MLGraphBuilder/concat(inputs, axis, options)">
+  <caption>Constraints for {{MLGraphBuilder/concat()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{inputs}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
 
 {{MLConcatSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLConcatSupportLimits>
@@ -2158,6 +2261,32 @@ partial dictionary MLOpSupportLimits {
     `outputSize = 1 + (inputSize - (filterSize - 1) * dilation - 1 + beginningPadding + endingPadding) / stride`
 </div>
 
+<table id=constraints-conv2d class='data' link-for="MLGraphBuilder/conv2d(input, filter, options)">
+  <caption>Constraints for {{MLGraphBuilder/conv2d()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
+  </tr>
+  <tr>
+    <td>{{filter}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>4</td>
+  </tr>
+  <tr>
+    <td>{{MLConv2dOptions/bias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+</table>
+
 {{MLConv2dSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLConv2dSupportLimits>
     : <dfn>input</dfn>
@@ -2205,10 +2334,10 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConv2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |filter|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |filter|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-conv2d)), then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
+    1. If |filter|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
+    1. If |filter|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-conv2d)), then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
     1. Otherwise, if |options|.{{MLConv2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
@@ -2243,7 +2372,7 @@ partial dictionary MLOpSupportLimits {
         1. Otherwise, if |inputChannels| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
             1. If its [=MLOperand/shape=] is not equal to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
-            1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+            1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-conv2d)), then [=exception/throw=] a {{TypeError}}.
         1. Let |outputSizes| be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConv2dOptions/padding}}, |options|.{{MLConv2dOptions/strides}}, and |options|.{{MLConv2dOptions/dilations}}.
         1. Switch on |options|.{{MLConv2dOptions/inputLayout}}:
             <dl class=switch>
@@ -2370,6 +2499,32 @@ partial dictionary MLOpSupportLimits {
     `outputSize = (inputSize - 1) * stride + (filterSize - 1) * dilation + 1 - beginningPadding - endingPadding + outputPadding`
 </div>
 
+<table id=constraints-convTranspose2d class='data' link-for="MLGraphBuilder/convTranspose2d(input, filter, options)">
+  <caption>Constraints for {{MLGraphBuilder/convTranspose2d()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
+  </tr>
+  <tr>
+    <td>{{filter}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>4</td>
+  </tr>
+  <tr>
+    <td>{{MLConv2dOptions/bias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/convTranspose2d()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>convTranspose2d</dfn>
@@ -2400,10 +2555,10 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConvTranspose2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |filter|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |filter|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
+    1. If |filter|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
+    1. If |filter|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/strides}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
@@ -2442,7 +2597,7 @@ partial dictionary MLOpSupportLimits {
         1. Let |outputChannels| be |filterOutputChannels| * |options|.{{MLConvTranspose2dOptions/groups}}.
         1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
             1. If its [=MLOperand/shape=] is not equal to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
-            1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+            1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=], let |outputSizes| be |options|.{{MLConvTranspose2dOptions/outputSizes}}.
         1. Otherwise, let |outputSizes| be the result of [=MLGraphBuilder/calculating convtranspose2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConvTranspose2dOptions/padding}}, |options|.{{MLConvTranspose2dOptions/strides}}, |options|.{{MLConvTranspose2dOptions/dilations}}, and |options|.{{MLConvTranspose2dOptions/outputPadding}}.
         1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
@@ -2511,7 +2666,28 @@ partial dictionary MLOpSupportLimits {
         - *pow*: Compute the values of the values of the first input tensor to the power of the values of the second input tensor, element-wise.
 </div>
 
-{{MLOpSupportLimits}} has the following members for elementwise-binary operations:
+<table id=constraints-elementwise-binary class='data' link-for="MLGraphBuilder/add(a, b, options), MLGraphBuilder/sub(a, b, options), MLGraphBuilder/mul(a, b, options), MLGraphBuilder/div(a, b, options), MLGraphBuilder/max(a, b, options), MLGraphBuilder/min(a, b, options), MLGraphBuilder/pow(a, b, options)">
+  <caption>Constraints for element-wise binary options</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{a}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>{{b}}</td>
+    <td>[=/same as=] {{a}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
+{{MLOpSupportLimits}} has the following members for element-wise binary operations:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>add</dfn>
     :: Support limits for operator {{MLGraphBuilder/add()}}.
@@ -2651,6 +2827,28 @@ partial dictionary MLOpSupportLimits {
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of element-wise comparison of the two input tensors.
 </div>
+
+<table id=constraints-elementwise-logical class='data' link-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options)">
+  <caption>Constraints for element-wise logical options</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{a}}</td>
+    <td>specified as part of operation steps</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>{{b}}</td>
+    <td>[=/same as=] {{a}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 
 {{MLLogicalNotSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLogicalNotSupportLimits>
@@ -2806,6 +3004,23 @@ partial dictionary MLOpSupportLimits {
     element-wise unary operation of the input tensor. The shape of the output
     tensor is the same as the shape of input tensor.
 </div>
+
+<table id=constraints-elementwise-unary class='data' link-for="MLGraphBuilder/abs(input, options), MLGraphBuilder/ceil(input, options), MLGraphBuilder/cos(input, options), MLGraphBuilder/erf(input, options), MLGraphBuilder/exp(input, options), MLGraphBuilder/floor(input, options), MLGraphBuilder/identity(input, options), MLGraphBuilder/log(input, options), MLGraphBuilder/neg(input, options), MLGraphBuilder/reciprocal(input, options), MLGraphBuilder/sin(input, options), MLGraphBuilder/sqrt(input, options), MLGraphBuilder/tan(input, options)">
+  <caption>Constraints for element-wise unary options</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>specified as part of operation steps</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 
 {{MLOpSupportLimits}} has the following members for element-wise unary operations:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
@@ -2999,6 +3214,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-elu class='data' link-for="MLGraphBuilder/elu(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/elu()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/elu()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>elu</dfn>
@@ -3011,7 +3242,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-elu)), then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLEluOptions/alpha}} to the result of [=casting=] |options|.{{MLEluOptions/alpha}} to |input|'s [=MLOperand/dataType=].
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -3062,6 +3293,22 @@ partial dictionary MLOpSupportLimits {
 
     **Returns:** an {{MLOperand}}. The tensor with expanded size shape.
 </div>
+
+<table id=constraints-expand class='data' link-for="MLGraphBuilder/expand(input, newShape, options)">
+  <caption>Constraints for {{MLGraphBuilder/expand()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
 
 {{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/expand()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
@@ -3127,6 +3374,31 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input* + the [=MLOperand/rank=] of *indices* - 1.
 </div>
 
+<div class="note">
+  The {{MLGraphBuilder/gather(input, indices, options)/indices}} parameter to {{MLGraphBuilder/gather()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
+</div>
+
+<table id=constraints-gather class='data' link-for="MLGraphBuilder/gather(input, indices, options)">
+  <caption>Constraints for {{MLGraphBuilder/gather()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>{{indices}}</td>
+    <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLGatherSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGatherSupportLimits>
     : <dfn>input</dfn>
@@ -3143,17 +3415,13 @@ partial dictionary MLOpSupportLimits {
     :: Support limits for operator {{MLGraphBuilder/gather()}}.
 </dl>
 
-<div class="note">
-  The {{MLGraphBuilder/gather(input, indices, options)/indices}} parameter to {{MLGraphBuilder/gather()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
-</div>
-
 <details open algorithm>
   <summary>
     The <dfn method for=MLGraphBuilder>gather(|input|, |indices|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |indices| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |indices|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |indices|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gather)), then [=exception/throw=] a {{TypeError}}.
     1. Let |shapeInput| be |input|'s [=MLOperand/shape=] and |rankInput| be |shapeInput|'s [=MLOperand/rank=].
     1. Let |shapeIndices| be |indices|'s [=MLOperand/shape=].
     1. Let |axis| be |options|.{{MLGatherOptions/axis}}.
@@ -3264,6 +3532,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-gelu class='data' link-for="MLGraphBuilder/gelu(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/gelu()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gelu()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>gelu</dfn>
@@ -3276,7 +3560,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gelu)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "gelu" operation given |options|.
@@ -3364,6 +3648,32 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output 2-D tensor of shape *[M, N]* that contains the calculated product of all the inputs.
 </div>
 
+<table id=constraints-gemm class='data' link-for="MLGraphBuilder/gemm(a, b, options)">
+  <caption>Constraints for {{MLGraphBuilder/gemm()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{a}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{b}}</td>
+    <td>[=/same as=] {{a}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{MLGemmOptions/c}}</td>
+    <td>[=/same as=] {{a}}</td>
+    <td>0 to 2</td>
+  </tr>
+</table>
+
 {{MLGemmSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGemmSupportLimits>
     : <dfn>a</dfn>
@@ -3388,9 +3698,8 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |b|'s [=MLOperand/dataType=] is not equal to |a|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. If |a|'s [=MLOperand/rank=] is not 2 or |b|'s [=MLOperand/rank=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/dataType=] of any of |a| or |b| is not one of its [=/allowed data types=] (according to [this table](#constraints-gemm)), then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/rank=] of any of |a| or |b| is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLGemmOptions/alpha}} to the result of [=casting=] |options|.{{MLGemmOptions/alpha}} to |a|'s [=MLOperand/dataType=].
     1. Set |options|.{{MLGemmOptions/beta}} to the result of [=casting=] |options|.{{MLGemmOptions/beta}} to |a|'s [=MLOperand/dataType=].
     1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
@@ -3400,7 +3709,7 @@ partial dictionary MLOpSupportLimits {
     1. If |shapeA|[1] is not equal to |shapeB|[0], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGemmOptions/c}} [=map/exists=]:
         1. If it is not [=unidirectionally broadcastable=] to the shape « |shapeA|[0], |shapeB|[1] », then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/dataType=] is not equal to |a|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gemm)), then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and « |shapeA|[0], |shapeB|[1] ».
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
@@ -3541,6 +3850,47 @@ partial dictionary MLOpSupportLimits {
     **Returns:** [=sequence=]<{{MLOperand}}>. The first element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the cell output from the last time step of the network. Additionally, if |options|.{{MLGruOptions/returnSequence}} is set to true, the second element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every cell outputs from each time step in the temporal sequence.
 </div>
 
+<table id=constraints-gru class='data' link-for="MLGraphBuilder/gru(input, weight, recurrentWeight, steps, hiddenSize, options)">
+  <caption>Constraints for {{MLGraphBuilder/gru()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td>{{weight}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td>{{recurrentWeight}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td>{{MLGruOptions/bias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{MLGruOptions/recurrentBias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{MLGruOptions/initialHiddenState}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>3</td>
+  </tr>
+</table>
+
 {{MLGruSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGruSupportLimits>
     : <dfn>input</dfn>
@@ -3571,9 +3921,8 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLGruOptions/bias}} (if it [=map/exists=]), |options|.{{MLGruOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLGruOptions/initialHiddenState}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/rank=] is not 3, then [=exception/throw=] a {{TypeError}}.
-    1. If the [=MLOperand/dataType=] of either |weight| or |recurrentWeight| is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/dataType=] of any of |input|, |weight| or |recurrentWeight| is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/rank=] of any of |input|, |weight| or |recurrentWeight| is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/shape=][0] is not equal to |steps|, then [=exception/throw=] a {{TypeError}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][1].
     1. Let |inputSize| be |input|'s [=MLOperand/shape=][2].
@@ -3586,13 +3935,13 @@ partial dictionary MLOpSupportLimits {
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruOptions/bias}} and {{MLGruOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| must also be a [=valid dimension=].
         </details>
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
@@ -3798,6 +4147,42 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The 2-D tensor of shape *[batchSize, hiddenSize]*, the cell output hidden state of a single time step of the recurrent network.
 </div>
 
+<table id=constraints-gruCell class='data' link-for="MLGraphBuilder/gruCell(input, weight, recurrentWeight, hiddenState, hiddenSize, options)">
+  <caption>Constraints for {{MLGraphBuilder/gruCell()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{weight}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{recurrentWeight}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{MLGruCellOptions/bias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>{{MLGruCellOptions/recurrentBias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+</table>
+
 {{MLGruCellSupportLimits}} has the following members;
 <dl dfn-type=dict-member dfn-for=MLGruCellSupportLimits>
     : <dfn>input</dfn>
@@ -3828,11 +4213,10 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |options|.{{MLGruCellOptions/bias}} (if it [=map/exists=]), and |options|.{{MLGruCellOptions/recurrentBias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/rank=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/dataType=] of any of |input|, |weight|, |recurrentWeight|, or |hiddenState| is not one of its [=/allowed data types=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/rank=] of any of |input|, |weight|, |recurrentWeight| or |hiddenState| is not its [=/allowed ranks=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][0].
     1. Let |inputSize| be |input|'s [=MLOperand/shape=][1].
-    1. If the [=MLOperand/dataType=] of any of |weight|, |recurrentWeight|, or |hiddenState| is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |weight|'s [=MLOperand/shape=] is not equal to « 3 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |recurrentWeight|'s [=MLOperand/shape=] is not equal to « 3 * |hiddenSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |hiddenState|'s [=MLOperand/shape=] is not equal to « |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
@@ -3842,10 +4226,10 @@ partial dictionary MLOpSupportLimits {
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruCellOptions/bias}} and {{MLGruCellOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| must also be a [=valid dimension=].
         </details>
     1. If |options|.{{MLGruCellOptions/bias}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruCellOptions/recurrentBias}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
@@ -4005,6 +4389,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-hardSigmoid class='data' link-for="MLGraphBuilder/hardSigmoid(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/hardSigmoid()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/hardSigmoid()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>hardSigmoid</dfn>
@@ -4017,7 +4417,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-hardSigmoid)), then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLHardSigmoidOptions/alpha}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/alpha}} to |input|'s [=MLOperand/dataType=].
     1. Set |options|.{{MLHardSigmoidOptions/beta}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/beta}} to |input|'s [=MLOperand/dataType=].
     1. *Make graph connections:*
@@ -4069,6 +4469,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-hardSwish class='data' link-for="MLGraphBuilder/hardSwish(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/hardSwish()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/hardSwish()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>hardSwish</dfn>
@@ -4081,7 +4497,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-hardSwish)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "hardSwish" operation, given |options|.
@@ -4168,6 +4584,32 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The instance-normalized 4-D tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-instanceNormalization class='data' link-for="MLGraphBuilder/instanceNormalization(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/instanceNormalization()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
+  </tr>
+  <tr>
+    <td>{{MLInstanceNormalizationOptions/scale}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>{{MLInstanceNormalizationOptions/bias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+</table>
+
 {{MLNormalizationSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLNormalizationSupportLimits>
     : <dfn>input</dfn>
@@ -4192,15 +4634,15 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLInstanceNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLInstanceNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-instanceNormalization)), then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLInstanceNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLInstanceNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
     1. Let |axis| be 1 if |options|.{{MLInstanceNormalizationOptions/layout}} is {{MLInputOperandLayout/"nchw"}}, and 3 otherwise.
     1. If |options|.{{MLInstanceNormalizationOptions/scale}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-instanceNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLInstanceNormalizationOptions/bias}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-instanceNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -4291,6 +4733,32 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The layer-normalized N-D tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-layerNormalization class='data' link-for="MLGraphBuilder/layerNormalization(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/layerNormalization()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>{{MLLayerNormalizationOptions/scale}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+  </tr>
+  <tr>
+    <td>{{MLLayerNormalizationOptions/bias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/layerNormalization()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>layerNormalization</dfn>
@@ -4303,15 +4771,15 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLLayerNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLLayerNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-layerNormalization)), then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either equal to [=the range=] from 1 to |input|'s [=MLOperand/rank=], exclusive, if |input|'s [=MLOperand/rank=] is greater than 1, or an empty [=/list=] otherwise.
     1. Otherwise, if |options|.{{MLLayerNormalizationOptions/axes}} contains duplicate values, or if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then return failure.
     1. Set |options|.{{MLLayerNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLLayerNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
     1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-layerNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLayerNormalizationOptions/bias}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-layerNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a {{TypeError}}.
     1. [=list/For each=] |index| in [=the range=] 0 to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], exclusive:
         1. Let |axis| be |options|.{{MLLayerNormalizationOptions/axes}}[|index|].
@@ -4396,6 +4864,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-leakyRelu class='data' link-for="MLGraphBuilder/leakyRelu(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/leakyRelu()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/leakyRelu()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>leakyRelu</dfn>
@@ -4408,7 +4892,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-leakyRelu)), then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLLeakyReluOptions/alpha}} to the result of [=casting=] |options|.{{MLLeakyReluOptions/alpha}} to |input|'s [=MLOperand/dataType=].
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -4473,6 +4957,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-linear class='data' link-for="MLGraphBuilder/linear(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/linear()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/linear()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>linear</dfn>
@@ -4485,7 +4985,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-linear)), then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLLinearOptions/alpha}} to the result of [=casting=] |options|.{{MLLinearOptions/alpha}} to |input|'s [=MLOperand/dataType=].
     1. Set |options|.{{MLLinearOptions/beta}} to the result of [=casting=] |options|.{{MLLinearOptions/beta}} to |input|'s [=MLOperand/dataType=].
     1. *Make graph connections:*
@@ -4611,6 +5111,57 @@ partial dictionary MLOpSupportLimits {
     **Returns:** [=sequence=]<{{MLOperand}}>. The first element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output hidden state from the last time step of the network. The second element is a 3-D tensor of shape *[numDirections, batchSize, hiddenSize]*, the output cell state from the last time step of the network. Additionally, if |options|.{{MLLstmOptions/returnSequence}} is set to true, the third element is the 4-D output tensor of shape *[steps, numDirections, batchSize, hiddenSize]* containing every output from each time step in the temporal sequence.
 </div>
 
+<table id=constraints-lstm class='data' link-for="MLGraphBuilder/lstm(input, weight, recurrentWeight, steps, hiddenSize, options)">
+  <caption>Constraints for {{MLGraphBuilder/lstm()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td>{{weight}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td>{{recurrentWeight}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td>{{MLLstmOptions/bias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{MLLstmOptions/recurrentBias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{MLLstmOptions/peepholeWeight}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{MLLstmOptions/initialHiddenState}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td>{{MLLstmOptions/initialCellState}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>3</td>
+  </tr>
+</table>
+
 {{MLLstmSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLstmSupportLimits>
     : <dfn>input</dfn>
@@ -4646,13 +5197,11 @@ partial dictionary MLOpSupportLimits {
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLLstmOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/recurrentBias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/peepholeWeight}} (if it [=map/exists=]), |options|.{{MLLstmOptions/initialHiddenState}} (if it [=map/exists=]), and |options|.{{MLLstmOptions/initialCellState}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |numDirections| be 2 if |options|.{{MLLstmOptions/direction}} is {{MLRecurrentNetworkDirection/"both"}}, or 1 otherwise.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/rank=] is not 3, then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/dataType=] of any of |input|, |weight| or |recurrentWeight| is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/rank=] of any of |input|, |weight| or |recurrentWeight| is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/shape=][0] is not equal to |steps|, then [=exception/throw=] a {{TypeError}}.
-    1. If the [=MLOperand/dataType=] of either |weight| or |recurrentWeight| is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][1].
     1. Let |inputSize| be |input|'s [=MLOperand/shape=][2].
-    1. If the [=MLOperand/dataType=] of either |weight| or |recurrentWeight| is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |weight|'s [=MLOperand/shape=] is not equal to « |numDirections|, 4 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |recurrentWeight|'s [=MLOperand/shape=] is not equal to « |numDirections|, 4 * |hiddenSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |hiddenSize| * 8 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
@@ -4661,19 +5210,19 @@ partial dictionary MLOpSupportLimits {
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmOptions/bias}} and {{MLLstmOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| must also be a [=valid dimension=].
         </details>
     1. If |options|.{{MLLstmOptions/bias}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |numDirections|, 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |numDirections|, 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
@@ -4913,6 +5462,57 @@ partial dictionary MLOpSupportLimits {
     **Returns:** [=sequence=]<{{MLOperand}}>. The first element is the output hidden state of the current time step of the recurrent network. The following element is the output cell state. Both elements are 2-D tensors of shape *[batchSize, hiddenSize]*.
 </div>
 
+<table id=constraints-lstmCell class='data' link-for="MLGraphBuilder/lstmCell(input, weight, recurrentWeight, hiddenState, cellState, hiddenSize, options)">
+  <caption>Constraints for {{MLGraphBuilder/lstmCell()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{weight}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{recurrentWeight}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{hiddenState}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{cellState}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>{{MLLstmCellOptions/bias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>{{MLLstmCellOptions/recurrentBias}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+  <tr>
+    <td>{{MLLstmCellOptions/peepholeWeight}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>1</td>
+  </tr>
+</table>
+
 {{MLLstmCellSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLstmCellSupportLimits>
     : <dfn>input</dfn>
@@ -4947,9 +5547,8 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |options|.{{MLLstmCellOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmCellOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLLstmCellOptions/peepholeWeight}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/rank=] is not equal to 2, then [=exception/throw=] a {{TypeError}}.
-    1. If the [=MLOperand/dataType=] of any of |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/dataType=] of any of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/rank=] of any of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][0].
     1. Let |inputSize| be |input|'s [=MLOperand/shape=][1].
     1. If |weight|'s [=MLOperand/shape=] is not equal to « 4 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
@@ -4962,13 +5561,13 @@ partial dictionary MLOpSupportLimits {
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmCellOptions/bias}} and {{MLLstmCellOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| must also be a [=valid dimension=].
         </details>
     1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=]:
-        1. If its [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not equal to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
@@ -5147,6 +5746,27 @@ partial dictionary MLOpSupportLimits {
         - If either *a* or *b* is `N`-dimensional where `N > 2`, it is treated as a stack of matrices with dimensions corresponding to the last two indices. The matrix multiplication will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The shapes of *a* and *b*, except the last two dimensions, must be [=bidirectionally broadcastable=]. The output is a `N`-dimensional tensor whose rank is the maximum [=MLOperand/rank=] of the input tensors. For each dimension, except the last two, of the output tensor, its size is the maximum size along that dimension of the input tensors.
 </div>
 
+<table id=constraints-matmul class='data' link-for="MLGraphBuilder/matmul(a, b, options)">
+  <caption>Constraints for {{MLGraphBuilder/matmul()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{a}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2 or greater</td>
+  </tr>
+  <tr>
+    <td>{{b}}</td>
+    <td>[=/same as=] {{a}}</td>
+    <td>2 or greater</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/matmul()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>matmul</dfn>
@@ -5180,8 +5800,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |b|'s [=MLOperand/dataType=] is not equal to |a|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/dataType=] of any of |a| or |b| is not one of its [=/allowed data types=] (according to [this table](#constraints-matmul)), then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating matmul output sizes=] given |a| and |b|.
         1. If that throws an error, re-[=exception/throw=] the error.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and |outputShape|.
@@ -5243,6 +5862,22 @@ partial dictionary MLOpSupportLimits {
 
     `output size = beginning padding + input size + ending padding`
 </div>
+
+<table id=constraints-pad class='data' link-for="MLGraphBuilder/pad(input, beginningPadding, endingPadding, options)">
+  <caption>Constraints for {{MLGraphBuilder/pad()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/pad()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
@@ -5423,6 +6058,22 @@ partial dictionary MLOpSupportLimits {
     `output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)`
 </div>
 
+<table id=constraints-pooling class='data' link-for="MLGraphBuilder/averagePool2d(input, options), MLGraphBuilder/l2Pool2d(input, options), MLGraphBuilder/maxPool2d(input, options)">
+  <caption>Constraints for pooling operations</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>specified as part of operation steps</td>
+    <td>4</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following members for pooling operations:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>averagePool2d</dfn>
@@ -5579,6 +6230,26 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-prelu class='data' link-for="MLGraphBuilder/prelu(input, slope, options)">
+  <caption>Constraints for {{MLGraphBuilder/prelu()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>[=/any rank|N=]</td>
+  <tr>
+    <td>{{slope}}</td>
+    <td>[=/same as=] {{input}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLPreluSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLPreluSupportLimits>
     : <dfn>input</dfn>
@@ -5601,8 +6272,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |slope| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, or {{MLOperandDataType/"int8"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |slope|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/dataType=] of any of |input| or |slope| is not one of its [=/allowed data types=] (according to [this table](#constraints-prelu)), then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be to the result of [=bidirectionally broadcasting=] |slope|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
@@ -5691,6 +6361,22 @@ partial dictionary MLOpSupportLimits {
 
     **Returns:** an {{MLOperand}}. The reduced output tensor. If the input operand is a scalar, the reduction function is applied to the scalar value, and the output is also a scalar.
 </div>
+
+<table id=constraints-reduction class='data' link-for="MLGraphBuilder/reduceL1(input, options), MLGraphBuilder/reduceL2(input, options), MLGraphBuilder/reduceLogSum(input, options), MLGraphBuilder/reduceLogSumExp(input, options), MLGraphBuilder/reduceMax(input, options), MLGraphBuilder/reduceMean(input, options), MLGraphBuilder/reduceMin(input, options), MLGraphBuilder/reduceProduct(input, options), MLGraphBuilder/reduceSum(input, options), MLGraphBuilder/reduceSumSquare(input, options)">
+  <caption>Constraints for reduction-operations</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>specified as part of operation steps</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
 
 {{MLOpSupportLimits}} has the following members for reduction operations:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
@@ -5889,6 +6575,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-relu class='data' link-for="MLGraphBuilder/relu(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/relu()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/relu()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>relu</dfn>
@@ -5901,7 +6603,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, or {{MLOperandDataType/"int8"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-relu)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "relu" operation, given |options|.
@@ -5979,6 +6681,22 @@ partial dictionary MLOpSupportLimits {
         The default value is [2, 3].
 </dl>
 
+<table id=constraints-resample2d class='data' link-for="MLGraphBuilder/resample2d(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/resample2d()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/resample2d()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>resample2d</dfn>
@@ -6017,8 +6735,8 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-resample2d)), then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. If [=MLGraphBuilder/checking resample options=] given |options| and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=MLGraphBuilder/calculating resample output sizes=] given |input| and |options|. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -6055,6 +6773,22 @@ partial dictionary MLOpSupportLimits {
     tensor are the same as values of the input tensor. The shape of the output
     tensor is specified by the *newShape* argument.
 </div>
+
+<table id=constraints-reshape class='data' link-for="MLGraphBuilder/reshape(input, newShape, options)">
+  <caption>Constraints for {{MLGraphBuilder/reshape()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/reshape()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
@@ -6106,6 +6840,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-sigmoid class='data' link-for="MLGraphBuilder/sigmoid(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/sigmoid()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/sigmoid()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>sigmoid</dfn>
@@ -6118,7 +6868,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-sigmoid)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "sigmoid" operation, given |options|.
@@ -6167,6 +6917,22 @@ partial  dictionary MLOpSupportLimits {
 
     **Returns:** an {{MLOperand}}. The output tensor of the same rank as the input tensor with tensor values stripped to the specified starting and ending indices in each dimension.
 </div>
+
+<table id=constraints-slice class='data' link-for="MLGraphBuilder/slice(input, starts, sizes, options)">
+  <caption>Constraints for {{MLGraphBuilder/slice()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/slice()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
@@ -6223,6 +6989,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output N-D tensor that contains the softmax results, of the same shape as *input*.
 </div>
 
+<table id=constraints-softmax class='data' link-for="MLGraphBuilder/softmax(input, axis, options)">
+  <caption>Constraints for {{MLGraphBuilder/softmax()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/softmax()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>softmax</dfn>
@@ -6235,7 +7017,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-softmax)), then [=exception/throw=] a {{TypeError}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -6290,6 +7072,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-softplus class='data' link-for="MLGraphBuilder/softplus(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/softplus()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/softplus()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>softplus</dfn>
@@ -6302,7 +7100,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-softplus)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "softplus" operation and |options|.
@@ -6362,6 +7160,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-softsign class='data' link-for="MLGraphBuilder/softsign(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/softsign()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/softsign()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>softsign</dfn>
@@ -6374,7 +7188,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-softsign)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "softsign" operation and |options|.
@@ -6424,6 +7238,21 @@ partial dictionary MLOpSupportLimits {
         The dimension along which to split. Its value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor.
 </dl>
 
+<table id=constraints-split class='data' link-for="MLGraphBuilder/split(input, splits, options)">
+  <caption>Constraints for {{MLGraphBuilder/split()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
 
 {{MLSplitSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLSplitSupportLimits>
@@ -6519,6 +7348,22 @@ partial dictionary MLOpSupportLimits {
         - an {{MLOperand}}. The output tensor of the same shape as *input*.
 </div>
 
+<table id=constraints-tanh class='data' link-for="MLGraphBuilder/tanh(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/tanh()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/tanh()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>tanh</dfn>
@@ -6531,7 +7376,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-tanh)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "tanh" operation, given |options|.
@@ -6592,6 +7437,22 @@ partial dictionary MLOpSupportLimits {
 
     **Returns:** an {{MLOperand}}. The permuted or transposed N-D tensor.
 </div>
+
+<table id=constraints-transpose class='data' link-for="MLGraphBuilder/transpose(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/transpose()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/transpose()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
@@ -6655,6 +7516,22 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output tensor representing a triangular matrix, or batch of matrices which is the same shape as the input.
 </div>
 
+<table id=constraints-triangular class='data' link-for="MLGraphBuilder/triangular(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/triangular()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>2 or greater</td>
+  </tr>
+</table>
+
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/triangular()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>triangular</dfn>
@@ -6667,7 +7544,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/rank=] is less than 2, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/rank=] is not one of its [=/allowed ranks=] (according to [this table](#constraints-triangular)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "triangular" operation, given |options|.
@@ -6773,6 +7650,32 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output tensor that contains the values selected element-wise from either the trueValue or the falseValue tensor.
 </div>
 
+<table id=constraints-where class='data' link-for="MLGraphBuilder/where(condition, trueValue, falseValue, options)">
+  <caption>Constraints for {{MLGraphBuilder/where()}}</caption>
+  <thead>
+    <tr>
+      <th>input operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{condition}}</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>{{trueValue}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>{{falseValue}}</td>
+    <td>[=/same as=] {{trueValue}}</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+</table>
+
 {{MLWhereSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLWhereSupportLimits>
     : <dfn>condition</dfn>
@@ -6798,8 +7701,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |condition|, |trueValue|, and |falseValue| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |condition|'s [=MLOperand/dataType=] is not equal to {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |trueValue|'s [=MLOperand/dataType=] is not equal to |falseValue|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/dataType=] of any of |condition|, |trueValue|, or |falseValue| is not one of its [=/allowed data types=] (according to [this table](#constraints-where)), then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |trueValue|'s [=MLOperand/shape=] and |falseValue|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Set |outputShape| to the result of [=bidirectionally broadcasting=] |condition|'s [=MLOperand/shape=] and |outputShape].
@@ -7154,35 +8056,37 @@ Operations present in other neural network inference APIs can often be emulated 
 ## {{MLOperandDataType}} and {{ArrayBufferView}} compatibility ## {#appendices-mloperanddatatype-arraybufferview-compatibility}
 
 <table class='data'>
-    <thead class=stickyheader>
-        <tr>
-            <th>{{MLOperandDataType}}
-            <th>{{ArrayBufferView}}
-    </thead>
+  <thead class=stickyheader>
     <tr>
-        <td>{{MLOperandDataType/float32}}
-        <td>{{Float32Array}}
-    <tr>
-        <td>{{MLOperandDataType/float16}}
-        <td>{{Float16Array}}
-    <tr>
-        <td>{{MLOperandDataType/int64}}
-        <td>{{BigInt64Array}}
-    <tr>
-        <td>{{MLOperandDataType/uint64}}
-        <td>{{BigUint64Array}}
-    <tr>
-        <td>{{MLOperandDataType/int32}}
-        <td>{{Int32Array}}
-    <tr>
-        <td>{{MLOperandDataType/uint32}}
-        <td>{{Uint32Array}}
-    <tr>
-        <td>{{MLOperandDataType/int8}}
-        <td>{{Int8Array}}
-    <tr>
-        <td>{{MLOperandDataType/uint8}}
-        <td>{{Uint8Array}}
+      <th>{{MLOperandDataType}}</th>
+      <th>{{ArrayBufferView}}</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{MLOperandDataType/float32}}</td>
+    <td>{{Float32Array}}</td>
+  <tr>
+    <td>{{MLOperandDataType/float16}}</td>
+    <td>{{Float16Array}}</td>
+  <tr>
+    <td>{{MLOperandDataType/int64}}</td>
+    <td>{{BigInt64Array}}</td>
+  <tr>
+    <td>{{MLOperandDataType/uint64}}</td>
+    <td>{{BigUint64Array}}</td>
+  <tr>
+    <td>{{MLOperandDataType/int32}}</td>
+    <td>{{Int32Array}}</td>
+  <tr>
+    <td>{{MLOperandDataType/uint32}}</td>
+    <td>{{Uint32Array}}</td>
+  <tr>
+    <td>{{MLOperandDataType/int8}}</td>
+    <td>{{Int8Array}}</td>
+  <tr>
+    <td>{{MLOperandDataType/uint8}}</td>
+    <td>{{Uint8Array}}</td>
+  </tr>
 </table>
 
 <p class="note">{{Float16Array}} is at <a href="https://tc39.es/process-document/">ECMA Stage 3</a> signaling its design is finished. Implementers wanting to enable this type ahead native implementations can emulate the type by passing raw bits via {{Uint16Array}}. <a href="https://github.com/webmachinelearning/webnn/issues/373">[Issue webnn#373]</a></p>
