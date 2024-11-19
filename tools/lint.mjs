@@ -186,13 +186,18 @@ for (const element of root.querySelectorAll('.idl dfn[data-dfn-type=dict-member]
   error(`Dictionary member missing dfn: ${element.innerText}`);
 }
 
-// Look for [] used in algorithm steps for anything but indexing, slots, and refs
+// Look for suspicious stuff in algorithm steps
 for (const element of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
+  // [] used for anything but indexing, slots, and refs
   // Exclude \w[ for indexing (e.g. shape[n])
   // Exclude [[ for inner slots (e.g. [[name]])
   // Exclude [A for references (e.g. [WEBIDL])
   for (const match of element.innerText.matchAll(/(?<!\w|\[|\]|«)\[(?!\[|[A-Z])/g)) {
     error(`Non-index use of [] in algorithm: ${format(match)}`);
+  }
+  // | is likely an unclosed variable
+  for (const match of element.innerText.matchAll(/\|/g)) {
+    error(`Unclosed variable in algorithm: ${format(match)}`);
   }
 }
 
