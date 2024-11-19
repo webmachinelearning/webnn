@@ -1276,9 +1276,9 @@ The <dfn attribute for=MLOperand>shape</dfn> [=getter steps=] are to return [=th
 
 Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/constructor()}} constructor to an {{MLContext}} object, an {{MLOperand}} is also always bound to the same {{MLContext}} object.
 
-If an operation supports only a subset of {{MLOperandDataType}}s, the <dfn>allowed data types</dfn> for each of the operation's input operands, including both positional arguments and options, are given as either an explicit list of {{MLOperandDataType}}s, or a constraint that the operand's [=MLOperand/dataType=] must be the <dfn lt="same as">same type as</dfn> the [=MLOperand/dataType=] of another input operand, or <dfn lt="any data type">any</dfn> to allow any {{MLOperandDataType}}.
+If an operation supports only a subset of {{MLOperandDataType}}s, the <dfn>allowed data types</dfn> for each of the operation's input operands, including both positional arguments and options, are given as either an explicit list of {{MLOperandDataType}}s, or a constraint that the operand's [=MLOperand/dataType=] must be the <dfn lt="same type as">same as</dfn> the [=MLOperand/dataType=] of another input operand, or <dfn lt="any data type">any</dfn> to allow any {{MLOperandDataType}}.
 
-If an operation requires input operands with a particular [=MLOperand/rank=], the <dfn>allowed ranks</dfn> for each of the operation's input operands, including both positional arguments and options, are given as an explicit rank (e.g. 1), or <dfn lt="any rank">N</dfn> to allow any dimensionality. More specific constraints are common, such as when an input operand's shape must be [=/unidirectionally broadcastable=] to or [=/bidirectionally broadcastable=] with another input operand; in these cases, the [=/allowed ranks=] are listed as a range, with specific validation given as steps in the operation.
+If an operation requires input operands with a particular [=MLOperand/rank=], the <dfn>allowed ranks</dfn> for each of the operation's input operands, including both positional arguments and options, are given as an explicit rank (e.g. 1), or <dfn lt="any rank">N</dfn> to allow any dimensionality, or the <dfn lt="same rank as">same as</dfn> another operand. More specific constraints are common, such as when an input operand's shape must be [=/unidirectionally broadcastable=] to or [=/bidirectionally broadcastable=] with another input operand; in these cases, the [=/allowed ranks=] are listed as a range, with specific validation given as steps in the operation.
 
 {{MLOperatorOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLOperatorOptions>
@@ -1566,7 +1566,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/argMin()}}/{{MLGraphBuilder/argMax()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -1575,6 +1575,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>{{MLArgMinMaxOptions/outputDataType}}</td>
+    <td>{{input}}'s [=MLOperand/rank=] - 1 to {{input}}'s [=MLOperand/rank=]</td>
   </tr>
 </table>
 
@@ -1687,7 +1692,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/batchNormalization()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -1699,23 +1704,28 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{mean}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{variance}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLBatchNormalizationOptions/scale}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLBatchNormalizationOptions/bias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -1820,7 +1830,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/cast()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -1829,6 +1839,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>{{type}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -1955,7 +1970,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/clamp()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -1964,6 +1979,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -2057,15 +2077,20 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/concat()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
   </thead>
   <tr>
-    <td>{{inputs}}</td>
+    <td>{{inputs}}'s [=list/items=]</td>
     <td>[=/any data type|any=]</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{inputs}}'s [=list/items=]</td>
+    <td>[=/same rank as|same as=] {{inputs}}'s [=list/items=]</td>
   </tr>
 </table>
 
@@ -2217,7 +2242,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/conv2d()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -2229,13 +2254,18 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{filter}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>4</td>
   </tr>
   <tr>
     <td>{{MLConv2dOptions/bias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>4</td>
   </tr>
 </table>
 
@@ -2455,7 +2485,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/convTranspose2d()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -2467,13 +2497,18 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{filter}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>4</td>
   </tr>
   <tr>
     <td>{{MLConv2dOptions/bias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>4</td>
   </tr>
 </table>
 
@@ -2622,7 +2657,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for element-wise binary options</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -2634,8 +2669,13 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{b}}</td>
-    <td>[=/same as=] {{a}}</td>
+    <td>[=/same type as|same as=] {{a}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{a}}</td>
+    <td>maximum of {{a}}'s [=MLOperand/rank=] and {{b}}'s [=MLOperand/rank=]</td>
   </tr>
 </table>
 
@@ -2784,7 +2824,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for element-wise logical options</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -2796,8 +2836,13 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{b}}</td>
-    <td>[=/same as=] {{a}}</td>
+    <td>[=/same type as|same as=] {{a}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{a}}</td>
+    <td>maximum of {{a}}'s [=MLOperand/rank=] and {{b}}'s [=MLOperand/rank=]</td>
   </tr>
 </table>
 
@@ -2961,7 +3006,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for element-wise unary options</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -2970,6 +3015,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>specified as part of operation steps</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -3170,7 +3220,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/elu()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -3179,6 +3229,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -3250,7 +3305,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/expand()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -3259,6 +3314,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{newShape}}'s [=list/size=]</td>
   </tr>
 </table>
 
@@ -3334,7 +3394,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/gather()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -3348,6 +3408,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{indices}}</td>
     <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{input}}'s [=MLOperand/rank=] + {{indices}}'s [=MLOperand/rank=] - 1</td>
   </tr>
 </table>
 
@@ -3488,7 +3553,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/gelu()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -3497,6 +3562,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -3604,7 +3674,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/gemm()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -3616,13 +3686,18 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{b}}</td>
-    <td>[=/same as=] {{a}}</td>
+    <td>[=/same type as|same as=] {{a}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLGemmOptions/c}}</td>
-    <td>[=/same as=] {{a}}</td>
+    <td>[=/same type as|same as=] {{a}}</td>
     <td>0 to 2</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{a}}</td>
+    <td>2</td>
   </tr>
 </table>
 
@@ -3806,7 +3881,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/gru()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -3818,28 +3893,38 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{weight}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{recurrentWeight}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{MLGruOptions/bias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLGruOptions/recurrentBias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLGruOptions/initialHiddenState}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>3</td>
+  </tr>
+  <tr>
+    <td>*outputs[0]*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td>*outputs[1]* if {{MLGruOptions/returnSequence}} is true</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>4</td>
   </tr>
 </table>
 
@@ -4103,7 +4188,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/gruCell()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -4115,23 +4200,28 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{weight}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{recurrentWeight}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLGruCellOptions/bias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLGruCellOptions/recurrentBias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>2</td>
   </tr>
 </table>
 
@@ -4345,7 +4435,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/hardSigmoid()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -4354,6 +4444,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -4425,7 +4520,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/hardSwish()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -4434,6 +4529,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -4540,7 +4640,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/instanceNormalization()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -4552,13 +4652,18 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{MLInstanceNormalizationOptions/scale}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLInstanceNormalizationOptions/bias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>4</td>
   </tr>
 </table>
 
@@ -4689,7 +4794,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/layerNormalization()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -4701,13 +4806,18 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{MLLayerNormalizationOptions/scale}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>0 to {{input}}'s [=MLOperand/rank=]</td>
   </tr>
   <tr>
     <td>{{MLLayerNormalizationOptions/bias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -4820,7 +4930,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/leakyRelu()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -4829,6 +4939,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -4913,7 +5028,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/linear()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -4922,6 +5037,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -5067,7 +5187,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/lstm()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -5079,38 +5199,53 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{weight}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{recurrentWeight}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{MLLstmOptions/bias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLLstmOptions/recurrentBias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLLstmOptions/peepholeWeight}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLLstmOptions/initialHiddenState}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{MLLstmOptions/initialCellState}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>3</td>
+  </tr>
+  <tr>
+    <td>*outputs[0]*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td>*outputs[1]*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td>*outputs[2]* if {{MLLstmOptions/returnSequence}} is true</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>4</td>
   </tr>
 </table>
 
@@ -5418,7 +5553,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/lstmCell()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -5430,38 +5565,48 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{weight}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{recurrentWeight}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{hiddenState}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{cellState}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLLstmCellOptions/bias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLLstmCellOptions/recurrentBias}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLLstmCellOptions/peepholeWeight}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>1</td>
+  </tr>
+  <tr>
+    <td>*outputs[0]*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>2</td>
+  </tr>
+  <tr>
+    <td>*outputs[1]*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>2</td>
   </tr>
 </table>
 
@@ -5702,7 +5847,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/matmul()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -5714,8 +5859,13 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{b}}</td>
-    <td>[=/same as=] {{a}}</td>
+    <td>[=/same type as|same as=] {{a}}</td>
     <td>2 or greater</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{a}}</td>
+    <td>maximum of {{a}}'s [=MLOperand/rank=] and {{b}}'s [=MLOperand/rank=]</td>
   </tr>
 </table>
 
@@ -5819,7 +5969,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/pad()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -5828,6 +5978,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -6014,7 +6169,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for pooling operations</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -6022,6 +6177,11 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>specified as part of operation steps</td>
+    <td>4</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>4</td>
   </tr>
 </table>
@@ -6186,7 +6346,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/prelu()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -6197,8 +6357,13 @@ partial dictionary MLOpSupportLimits {
     <td>[=/any rank|N=]</td>
   <tr>
     <td>{{slope}}</td>
-    <td>[=/same as=] {{input}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>maximum of {{input}}'s [=MLOperand/rank=] and {{slope}}'s [=MLOperand/rank=]</td>
   </tr>
 </table>
 
@@ -6318,7 +6483,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for reduction-operations</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -6327,6 +6492,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>specified as part of operation steps</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>0 to {{input}}'s [=MLOperand/rank=], depending on {{MLReduceOptions/axes}} and {{MLReduceOptions/keepDimensions}}</td>
   </tr>
 </table>
 
@@ -6531,7 +6701,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/relu()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -6540,6 +6710,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -6637,7 +6812,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/resample2d()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -6645,6 +6820,11 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
     <td>4</td>
   </tr>
 </table>
@@ -6730,7 +6910,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/reshape()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -6739,6 +6919,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{newShape}}'s [=list/size=]</td>
   </tr>
 </table>
 
@@ -6796,7 +6981,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/sigmoid()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -6805,6 +6990,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -6874,7 +7064,7 @@ partial  dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/slice()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -6883,6 +7073,11 @@ partial  dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -6945,7 +7140,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/softmax()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -6954,6 +7149,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -7028,7 +7228,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/softplus()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -7037,6 +7237,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -7116,7 +7321,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/softsign()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -7125,6 +7330,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -7194,7 +7404,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/split()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -7203,6 +7413,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*outputs*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -7304,7 +7519,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/tanh()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -7313,6 +7528,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -7394,7 +7614,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/transpose()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -7403,6 +7623,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -7472,7 +7697,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/triangular()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -7481,6 +7706,11 @@ partial dictionary MLOpSupportLimits {
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
     <td>2 or greater</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -7606,7 +7836,7 @@ partial dictionary MLOpSupportLimits {
   <caption>Constraints for {{MLGraphBuilder/where()}}</caption>
   <thead>
     <tr>
-      <th>input operand</th>
+      <th>operand</th>
       <th>[=/allowed data types=]</th>
       <th>[=/allowed ranks=]</th>
     </tr>
@@ -7623,8 +7853,13 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{falseValue}}</td>
-    <td>[=/same as=] {{trueValue}}</td>
+    <td>[=/same type as|same as=] {{trueValue}}</td>
     <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{trueValue}}</td>
+    <td>maximum of {{condition}}'s [=MLOperand/rank=], {{trueValue}}'s [=MLOperand/rank=] and {{falseValue}}'s [=MLOperand/rank=]</td>
   </tr>
 </table>
 
@@ -7656,7 +7891,7 @@ partial dictionary MLOpSupportLimits {
     1. If the [=MLOperand/dataType=] of any of |condition|, |trueValue|, or |falseValue| is not one of its [=/allowed data types=] (according to [this table](#constraints-where)), then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |trueValue|'s [=MLOperand/shape=] and |falseValue|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. Set |outputShape| to the result of [=bidirectionally broadcasting=] |condition|'s [=MLOperand/shape=] and |outputShape].
+    1. Set |outputShape| to the result of [=bidirectionally broadcasting=] |condition|'s [=MLOperand/shape=] and |outputShape|.
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |trueValue|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
