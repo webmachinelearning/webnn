@@ -1250,12 +1250,12 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
         1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
         1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
         1. Otherwise, [=queue an ML task=] with |global| and the following steps:
+            1. If |outputData| is [=BufferSource/detached=], [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+
+                Note: [=Validating buffer with descriptor=] above will fail if |outputData| is detached, but it's possible |outputData| may detach between then and now.
+
             1. [=ArrayBuffer/write=] |bytes| to |outputData|.
-            1. If that fails, [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
-
-                Note: Writing to |outputData| may fail if the buffer has been detached between when it was [=validating buffer with descriptor|validated=] above and these steps.
-
-            1. Otherwise, [=resolve=] |promise| with {{undefined}}.
+            1. [=Resolve=] |promise| with {{undefined}}.
     1. Return |promise|.
 </details>
 
