@@ -861,7 +861,7 @@ The {{MLContext}} interface represents a global state of neural network compute 
 
 <script type=idl>
 typedef record<USVString, ArrayBufferView> MLNamedArrayBufferViews;
-typedef record<DOMString, MLTensor> MLNamedTensors;
+typedef record<USVString, MLTensor> MLNamedTensors;
 
 dictionary MLComputeResult {
   MLNamedArrayBufferViews inputs;
@@ -870,6 +870,7 @@ dictionary MLComputeResult {
 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLContext {
+  // ISSUE(791): compute() will soon be removed in favor of dispatch().
   Promise<MLComputeResult> compute(
       MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
   undefined dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);  
@@ -930,7 +931,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
     To <dfn>validate buffer with descriptor</dfn> given {{AllowSharedBufferSource}} |bufferSource| and {{MLOperandDescriptor}} |descriptor|, run the following steps:
   </summary>
     1. If |bufferSource|'s [=BufferSource/byte length=] is not equal to |descriptor|'s [=MLOperandDescriptor/byte length=] return false.
-    1. Switch on |bufferSource|:
+    1. Switch on the type of |bufferSource|:
         <dl class=switch>
             : {{ArrayBuffer}}
             :: Return true.
@@ -972,7 +973,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
         1. If the byte length of |outputTensor| is not equal to |outputDesc|'s [=MLOperandDescriptor/byte length=], then return a {{TypeError}}.
         1. If |outputTensor|'s [=element type=] doesn't match |outputValue|'s [=element type=], then return a {{TypeError}}.
         1. Request the underlying implementation of |graph| to set the values of elements in |outputValue| to the values of elements in |outputTensor|.
-    1. Return undefined.
+    1. Return {{undefined}}.
 </details>
 
 ### {{MLNamedArrayBufferViews}} transfer algorithm ### {#mlnamedarraybufferviews-transfer-alg}
@@ -996,7 +997,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 
 ### {{MLContext/compute()}}  ### {#api-mlcontext-compute}
 
-ISSUE: {{MLContext/compute()}} will be deprecated and removed in favor of <code>[dispatch()](https://github.com/webmachinelearning/webnn/blob/main/mltensor-explainer.md#compute-vs-dispatch)</code>.
+ISSUE(791): {{MLContext/compute()}} will be deprecated and removed in favor of <code>[dispatch()](https://github.com/webmachinelearning/webnn/blob/main/mltensor-explainer.md#compute-vs-dispatch)</code>.
 
 Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU/NPU timeline for submitting a workload onto the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it [=exception/throws=] an "{{OperationError}}" {{DOMException}}.
 
@@ -1104,16 +1105,16 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
     1. Let |allTensors| be a [=/list=] of {{MLTensor}}s consisting of |inputs|'s [=map/values=] [=list/extended=] by |outputs|'s [=map/values=].
     1. If |allTensors| contains any duplicate [=list/items=], then [=exception/throw=] a {{TypeError}}.
     1. [=list/For each=] |tensor| of |allTensors|:
-      1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
-      1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
-    1. If [=validating tensors with descriptors=] given |inputs| and |graph|. {{MLGraph/[[inputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If [=validating tensors with descriptors=] given |outputs| and |graph|. {{MLGraph/[[outputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
+        1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
+        1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
+    1. If [=validating tensors with descriptors=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=validating tensors with descriptors=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |inputs| and |outputs|.
 
             Issue(778): Add a mechanism for reporting errors during graph execution.
 
-    1. Return undefined.
+    1. Return {{undefined}}.
 </details>
 
 #### Examples #### {#api-mlcontext-dispatch-examples}
@@ -1254,7 +1255,7 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
 
                 Note: [=Validating buffer with descriptor=] above will fail if |outputData| is detached, but it's possible |outputData| may detach between then and now.
 
-            1. [=ArrayBuffer/write=] |bytes| to |outputData|.
+            1. [=ArrayBuffer/Write=] |bytes| to |outputData|.
             1. [=Resolve=] |promise| with {{undefined}}.
     1. Return |promise|.
 </details>
@@ -1286,10 +1287,10 @@ Writes data to the {{MLTensor/[[data]]}} of an {{MLTensor}} on the {{MLContext}}
 
             Issue(778): Add a mechanism for reporting errors while writing to a tensor.
 
-    1. Return undefined.
+    1. Return {{undefined}}.
 </details>
 
-Note: similar to `dispatch()`, `writeTensor()` itself provides no signal that the write has completed. To inspect the contents of a tensor, callers should await the results of reading back the tensor.
+Note: Similar to `dispatch()`, `writeTensor()` itself provides no signal that the write has completed. To inspect the contents of a tensor, callers should await the results of reading back the tensor.
 
 ### {{MLContext/opSupportLimits()}}  ### {#api-mlcontext-opsupportlimits}
 The {{MLContext/opSupportLimits()}} exposes level of support that differs across implementations at operator level. Consumers of the WebNN API are encouraged to probe feature support level by using {{MLContext/opSupportLimits()}} to determine the optimal model architecture to be deployed for each target platform.
@@ -1667,7 +1668,7 @@ Releases the resources associated with the {{MLTensor}}. This method is idempote
     1. Set [=this=].{{MLTensor/[[isDestroyed]]}} to true.
     1. Enqueue the following steps to [=this=].{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Release [=this=].{{MLTensor/[[data]]}}.
-    1. Return undefined.
+    1. Return {{undefined}}.
 </details>
 
 Note: Since no further operations can be enqueued using this tensor, implementations can free any additional resource allocations associated with this tensor once all previously submitted operations using it are complete.
