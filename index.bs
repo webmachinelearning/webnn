@@ -861,6 +861,7 @@ The {{MLContext}} interface represents a global state of neural network compute 
 
 <script type=idl>
 typedef record<USVString, ArrayBufferView> MLNamedArrayBufferViews;
+typedef record<USVString, MLTensor> MLNamedTensors;
 
 dictionary MLComputeResult {
   MLNamedArrayBufferViews inputs;
@@ -869,9 +870,18 @@ dictionary MLComputeResult {
 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLContext {
+  // ISSUE(791): compute() will soon be removed in favor of dispatch().
   Promise<MLComputeResult> compute(
       MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
-  
+  undefined dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);  
+
+  Promise<MLTensor> createTensor(MLTensorDescriptor descriptor);
+
+  Promise<ArrayBuffer> readTensor(MLTensor tensor);
+  Promise<undefined> readTensor(MLTensor tensor, AllowSharedBufferSource outputData);
+
+  undefined writeTensor(MLTensor tensor, AllowSharedBufferSource inputData);
+
   MLOpSupportLimits opSupportLimits();
 };
 </script>
@@ -888,6 +898,11 @@ interface MLContext {
     : <dfn>\[[powerPreference]]</dfn> of type {{MLPowerPreference}}.
     ::
         The {{MLContext}}'s {{MLPowerPreference}}.
+    : <dfn>\[[timeline]]</dfn>
+    ::
+        A timeline associated with the execution of operations on the compute units of the {{MLContext}}. These operations include inferencing on [=computational graphs=] and modifying the {{MLTensor/[[data]]}} of {{MLTensor}}s.
+
+        Issue(529): More rigorously define this timeline.
   </dl>
 </div>
 
@@ -913,10 +928,29 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 
 <details open algorithm>
   <summary>
-    To <dfn>validate buffer with descriptor</dfn> given {{ArrayBufferView}} |bufferView| and {{MLOperandDescriptor}} |descriptor|, run the following steps:
+    To <dfn>validate buffer with descriptor</dfn> given {{AllowSharedBufferSource}} |bufferSource| and {{MLOperandDescriptor}} |descriptor|, run the following steps:
   </summary>
-    1. If |bufferView|'s [=element type=] does not match to |descriptor|.{{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility), return false.
-    1. If |bufferView|.\[[ByteLength]] is not equal to |descriptor|'s [=MLOperandDescriptor/byte length=], return false.
+    1. If |bufferSource|'s [=BufferSource/byte length=] is not equal to |descriptor|'s [=MLOperandDescriptor/byte length=] return false.
+    1. Switch on the type of |bufferSource|:
+        <dl class=switch>
+            : {{ArrayBuffer}}
+            :: Return true.
+            : {{SharedArrayBuffer}}
+            :: Return true.
+            : {{ArrayBufferView}}
+            :: If |bufferSource|'s [=element type=] matches |descriptor|'s {{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility) return true, otherwise return false.
+        </dl>
+</details>
+
+<details open algorithm>
+  <summary>
+    To <dfn>validate tensors with descriptors</dfn> given an {{MLNamedTensors}} |namedTensors| with [=record=]&lt;{{USVString}}, {{MLOperandDescriptor}}&gt; |namedDescriptors|:
+  </summary>
+    1. If |namedTensors|'s [=map/size=] is not equal to |namedDescriptors|'s [=map/size=], then return false.
+    1. [=map/For each=] |name| → |tensor| of |namedTensors|:
+        1. If |namedDescriptors|[|name|] does not [=map/exist=], then return false.
+        1. If |tensor|.{{MLTensor/[[descriptor]]}} is not equal to |namedDescriptors|[|name|], then return false.
+    1. Return true.
 </details>
 
 <details open algorithm>
@@ -963,7 +997,7 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
 
 ### {{MLContext/compute()}}  ### {#api-mlcontext-compute}
 
-ISSUE: {{MLContext/compute()}} will be deprecated and removed in favor of <code>[dispatch()](https://github.com/webmachinelearning/webnn/blob/main/mltensor-explainer.md#compute-vs-dispatch)</code>.
+ISSUE(791): {{MLContext/compute()}} will be deprecated and removed in favor of <code>[dispatch()](https://github.com/webmachinelearning/webnn/blob/main/mltensor-explainer.md#compute-vs-dispatch)</code>.
 
 Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU/NPU timeline for submitting a workload onto the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it [=exception/throws=] an "{{OperationError}}" {{DOMException}}.
 
@@ -1048,6 +1082,215 @@ Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext
   </pre>
 </details>
 </div>
+
+### {{MLContext/dispatch()}}  ### {#api-mlcontext-dispatch}
+
+Schedules the computational workload of a compiled {{MLGraph}} on the {{MLContext}}'s {{MLContext/[[timeline]]}}.
+
+<div dfn-for="MLContext/dispatch(graph, inputs, outputs)" dfn-type=argument>
+    **Arguments:**
+      - <dfn>graph</dfn>: an {{MLGraph}}. The computational graph to be executed.
+      - <dfn>inputs</dfn>: an {{MLNamedTensors}}. The inputs to the computational graph.
+      - <dfn>outputs</dfn>: an {{MLNamedTensors}}. The outputs of the computational graph.
+
+    **Returns:** {{undefined}}.
+</div>
+
+Note: `dispatch()` itself provides no signal that graph execution has completed. Rather, callers should await the results of reading back the output tensors. See [[#api-mlcontext-dispatch-examples]] below.
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLContext>dispatch(|graph|, |inputs|, |outputs|)</dfn> method steps are:
+  </summary>
+    1. Let |allTensors| be a [=/list=] of {{MLTensor}}s consisting of |inputs|'s [=map/values=] [=list/extended=] by |outputs|'s [=map/values=].
+    1. If |allTensors| contains any duplicate [=list/items=], then [=exception/throw=] a {{TypeError}}.
+    1. [=list/For each=] |tensor| of |allTensors|:
+        1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
+        1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
+    1. If [=validating tensors with descriptors=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=validating tensors with descriptors=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
+    1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
+        1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |inputs| and |outputs|.
+
+            Issue(778): Add a mechanism for reporting errors during graph execution.
+
+    1. Return {{undefined}}.
+</details>
+
+#### Examples #### {#api-mlcontext-dispatch-examples}
+<div class="example">
+<details open>
+  <summary>
+    The following code showcases executing an {{MLGraph}} using {{MLTensor}}s.
+  </summary>
+  <pre highlight="js">
+    const descriptor = {dataType: 'float32', shape: [2, 2]};
+    const context = await navigator.ml.createContext();
+    const builder = new MLGraphBuilder(context);
+
+    // 1. Create a computational graph 'C = 0.2 * A + B'.
+    const constant = builder.constant(descriptor, new Float32Array(4).fill(0.2));
+    const A = builder.input('A', descriptor);
+    const B = builder.input('B', descriptor);
+    const C = builder.add(builder.mul(A, constant), B);
+
+    // 2. Compile the graph.
+    const graph = await builder.build({'C': C});
+
+    // 3. Create reusable input and output tensors.
+    const [inputTensorA, inputTensorB, outputTensorC] =
+        await Promise.all([
+          context.createTensor({
+            dataType: A.dataType, shape: A.shape, writable: true
+          }),
+          context.createTensor({
+            dataType: B.dataType, shape: B.shape, writable: true
+          }),
+          context.createTensor({
+            dataType: C.dataType, shape: C.shape, readable: true
+          })
+        ]);
+
+    // 4. Initialize the inputs.
+    context.writeTensor(inputTensorA, new Float32Array(4).fill(1.0));
+    context.writeTensor(inputTensorB, new Float32Array(4).fill(0.8));
+
+    // 5. Execute the graph.
+    const inputs = {
+      'A': inputTensorA,
+      'B': inputTensorB
+    };
+    const outputs = {
+      'C': outputTensorC
+    };
+    context.dispatch(graph, inputs, outputs);
+    
+    // 6. Read back the computed result.
+    const result = await context.readTensor(outputTensorC);
+    console.log('Output value:', new Float32Array(result));  // [1, 1, 1, 1]
+  </pre>
+</details>
+</div>
+
+### {{MLContext/createTensor()}}  ### {#api-mlcontext-createtensor}
+
+Creates an {{MLTensor}} associated with this {{MLContext}}.
+
+<div dfn-for="MLContext/createTensor(descriptor)" dfn-type=argument>
+    **Arguments:**
+      - <dfn>descriptor</dfn>: an {{MLTensorDescriptor}}.
+
+    **Returns:** {{Promise}}<{{MLTensor}}>.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLContext>createTensor(|descriptor|)</dfn> method steps are:
+  </summary>
+    1. Let |global| be [=this=]'s [=relevant global object=].
+    1. Let |tensor| be the result of [=creating an MLTensor=] given [=this=], and |descriptor|.
+    1. Let |promise| be [=a new promise=].
+    1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
+        1. Create |tensor|.{{MLTensor/[[data]]}} given |descriptor| and initialize all bytes to zeros.
+        1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+        1. Otherwise, [=queue an ML task=] with |global| to [=resolve=] |promise| with |tensor|.
+    1. Return |promise|.
+</details>
+
+### {{MLContext/readTensor(tensor)}}  ### {#api-mlcontext-readtensor}
+
+Reads back the {{MLTensor/[[data]]}} of an {{MLTensor}} from the {{MLContext}}.{{MLContext/[[timeline]]}} to script.
+
+<div dfn-for="MLContext/readTensor(tensor)" dfn-type=argument>
+    **Arguments:**
+      - <dfn>tensor</dfn>: an {{MLTensor}}. The tensor to be read.
+
+    **Returns:** {{Promise}}<{{ArrayBuffer}}>. A buffer containing the result of the read.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLContext>readTensor(|tensor|)</dfn> method steps are:
+  </summary>
+    1. Let |global| be [=this=]'s [=relevant global object=].
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If |tensor|.{{MLGraph/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. Let |promise| be [=a new promise=].
+    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
+        1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
+        1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+        1. Otherwise, [=queue an ML task=] with |global| to [=ArrayBuffer/create=] an {{ArrayBuffer}} |result| given |bytes| and |realm| and then [=resolve=] |promise| with |result|.
+    1. Return |promise|.
+</details>
+
+### {{MLContext/readTensor(tensor, outputData)}}  ### {#api-mlcontext-readtensor-byob}
+
+Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back the {{MLTensor/[[data]]}} of an {{MLTensor}} into the provided buffer. 
+
+<div dfn-for="MLContext/readTensor(tensor, outputData)" dfn-type=argument>
+    **Arguments:**
+      - <dfn>tensor</dfn>: an {{MLTensor}}. The tensor to be read.
+      - <dfn>outputData</dfn>: an {{AllowSharedBufferSource}}. The buffer to read the result into.
+
+    **Returns:** {{Promise}}<{{undefined}}>.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLContext>readTensor(|tensor|, |outputData|)</dfn> method steps are:
+  </summary>
+    1. Let |global| be [=this=]'s [=relevant global object=].
+    1. If |tensor|.{{MLGraph/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If [=validating buffer with descriptor=] given |outputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. Let |promise| be [=a new promise=].
+    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
+        1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
+        1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+        1. Otherwise, [=queue an ML task=] with |global| and the following steps:
+            1. If |outputData| is [=BufferSource/detached=], [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+
+                Note: [=Validating buffer with descriptor=] above will fail if |outputData| is detached, but it's possible |outputData| may detach between then and now.
+
+            1. [=ArrayBuffer/Write=] |bytes| to |outputData|.
+            1. [=Resolve=] |promise| with {{undefined}}.
+    1. Return |promise|.
+</details>
+
+### {{MLContext/writeTensor()}}  ### {#api-mlcontext-writetensor}
+
+Writes data to the {{MLTensor/[[data]]}} of an {{MLTensor}} on the {{MLContext}}'s {{MLContext/[[timeline]]}}.
+
+<div dfn-for="MLContext/writeTensor(tensor, inputData)" dfn-type=argument>
+    **Arguments:**
+      - <dfn>tensor</dfn>: an {{MLTensor}}. The tensor to be written to.
+      - <dfn>inputData</dfn>: an {{AllowSharedBufferSource}}. The buffer whose bytes will be written into the tensor.
+
+    **Returns:** {{undefined}}.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLContext>writeTensor(|tensor|, |inputData|)</dfn> method steps are:
+  </summary>
+    1. If |tensor|.{{MLGraph/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/writable}} is false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=validating buffer with descriptor=] given |inputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then [=exception/throw=] a {{TypeError}}.
+    1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |inputData|.
+    1. [=Assert=]: |bytes|'s [=byte sequence/length=] is equal to |tensor|.{{MLTensor/[[descriptor]]}}'s [=MLOperandDescriptor/byte length=].
+    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
+        1. Copy |bytes| to |tensor|.{{MLTensor/[[data]]}}.
+
+            Issue(778): Add a mechanism for reporting errors while writing to a tensor.
+
+    1. Return {{undefined}}.
+</details>
+
+Note: Similar to `dispatch()`, `writeTensor()` itself provides no signal that the write has completed. To inspect the contents of a tensor, callers should await the results of reading back the tensor.
 
 ### {{MLContext/opSupportLimits()}}  ### {#api-mlcontext-opsupportlimits}
 The {{MLContext/opSupportLimits()}} exposes level of support that differs across implementations at operator level. Consumers of the WebNN API are encouraged to probe feature support level by using {{MLContext/opSupportLimits()}} to determine the optimal model architecture to be deployed for each target platform.
@@ -1324,6 +1567,111 @@ To <dfn for="MLGraphBuilder">validate operand</dfn> given {{MLGraphBuilder}} |bu
 </div>
 
 Issue(whatwg/webidl#1388): Support for unions of {{bigint}} and [=numeric types=] is new in [[WEBIDL]], and implementation support is also limited. Prototype implementations are encouraged to provide feedback for this approach.
+
+## {{MLTensorDescriptor}} dictionary ## {#api-mltensordescriptor}
+
+An {{MLTensorDescriptor}} describes the characteristics and capabilities of an {{MLTensor}}.
+
+<script type=idl>
+dictionary MLTensorDescriptor : MLOperandDescriptor {
+  boolean readable = false;
+  boolean writable = false;
+};
+</script>
+
+<dl dfn-type=dict-member dfn-for=MLTensorDescriptor>
+    : <dfn>readable</dfn>
+    :: Whether the tensor's contents can be read via {{MLContext/readTensor(tensor)}} or {{MLContext/readTensor(tensor, outputData)}}.
+
+    : <dfn>writable</dfn>
+    :: Whether the tensor's contents can be written to via {{MLContext/writeTensor()}}.
+</dl>
+
+## {{MLTensor}} interface ## {#api-mltensor}
+
+The {{MLTensor}} interface represents a tensor which may be used as an input or output to an {{MLGraph}}. The memory backing an {{MLTensor}} should be allocated in an [=implementation-defined=] fashion according to the requirements of the {{MLContext}} and the {{MLTensorDescriptor}} used to create it. Operations involving the {{MLTensor/[[data]]}} of an {{MLTensor}} occur on the {{MLContext/[[timeline]]}} of its associated {{MLContext}}. 
+
+Note: The [=implementation-defined=] requirements of how an {{MLTensor}} is allocated may include constraints such as that the memory is allocated with a particular byte alignment or in a particular memory pool.
+
+<script type=idl>
+[SecureContext, Exposed=(Window, DedicatedWorker)]
+interface MLTensor {
+  readonly attribute MLOperandDataType dataType;
+  readonly attribute FrozenArray<unsigned long> shape;
+  readonly attribute boolean readable;
+  readonly attribute boolean writable;
+
+  undefined destroy();
+};
+</script>
+
+<div class=internal-slots>
+{{MLTensor}} has the following internal slots:
+  <dl dfn-type=attribute dfn-for="MLTensor">
+    : <dfn>\[[context]]</dfn> of type {{MLContext}}
+    ::
+        The {{MLTensor}}'s associated context.
+
+    : <dfn>\[[descriptor]]</dfn> of type {{MLTensorDescriptor}}
+    ::
+        The {{MLTensor}}'s descriptor.
+
+    : <dfn>\[[isDestroyed]]</dfn> of type {{boolean}}
+    ::
+        Whether {{MLTensor}}.{{MLTensor/destroy()}} has been called. Once destroyed, the {{MLTensor}} can no longer be used.
+
+    : <dfn>\[[data]]</dfn> of an [=implementation-defined=] type
+    ::
+        The bytes backing the {{MLTensor}}. This data may only be accessed or modified from the {{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}.
+  </dl>
+</div>
+
+An {{MLTensor}}'s <dfn for=MLTensor>dataType</dfn> is its {{MLTensor/[[descriptor]]}}'s {{MLOperandDescriptor/dataType}}.
+
+An {{MLTensor}}'s <dfn for=MLTensor>shape</dfn> is its {{MLTensor/[[descriptor]]}}'s {{MLOperandDescriptor/shape}}.
+
+The <dfn attribute for=MLTensor>dataType</dfn> [=getter steps=] are to return [=this=]'s [=MLTensor/dataType=].
+
+The <dfn attribute for=MLTensor>shape</dfn> [=getter steps=] are to return [=this=]'s [=MLTensor/shape=].
+
+The <dfn attribute for=MLTensor>readable</dfn> [=getter steps=] are to return [=this=].{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}}.
+
+The <dfn attribute for=MLTensor>writable</dfn> [=getter steps=] are to return [=this=].{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/writable}}.
+
+### Creating an {{MLTensor}} ### {#api-mltensor-create}
+
+An {{MLTensor}} is created by its associated {{MLContext}}.
+
+<details open algorithm>
+  <summary>
+    To <dfn>create an MLTensor</dfn> given {{MLContext}} |context| and {{MLTensorDescriptor}} |descriptor|, run the following steps:
+  </summary>
+    1. Let |tensor| be a new {{MLTensor}}.
+    1. Set |tensor|.{{MLTensor/[[context]]}} to |context|.
+    1. Set |tensor|.{{MLTensor/[[descriptor]]}} to |descriptor|.
+    1. Set |tensor|.{{MLTensor/[[isDestroyed]]}} to false.
+    1. Return |tensor|.
+</details>
+
+### {{MLTensor/destroy()}} ### {#api-mltensor-destroy}
+
+Releases the resources associated with the {{MLTensor}}. This method is idempotent.
+
+<div dfn-for="MLTensor/destroy()" dfn-type=argument>
+    **Returns:** {{undefined}}.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLTensor>destroy()</dfn> method steps are:
+  </summary>
+    1. Set [=this=].{{MLTensor/[[isDestroyed]]}} to true.
+    1. Enqueue the following steps to [=this=].{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
+        1. Release [=this=].{{MLTensor/[[data]]}}.
+    1. Return {{undefined}}.
+</details>
+
+Note: Since no further operations can be enqueued using this tensor, implementations can free any additional resource allocations associated with this tensor once all previously submitted operations using it are complete.
 
 ## {{MLGraphBuilder}} interface ## {#api-mlgraphbuilder}
 
