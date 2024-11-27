@@ -624,7 +624,7 @@ In order to not allow an attacker to target a specific implementation that may c
 
 Issue: Hinting partially mitigates the concern. Investigate additional mitigations.
 
-The API design minimizes the attack surface for the compiled computational graph. The {{MLGraphBuilder}} interface that hosts the various operations is a data definition API and as such doesn't execute anything, only constructs data. What follows, is that the potential for an attack is limited to when binding the data to the graph before executing it by invoking the {{MLContext}}.{{MLContext/compute()}} method. This enables implementers to focus on hardening the {{MLContext}}.{{MLContext/compute()}} method. For example, by making sure it honors the boundary of data and fails appropriately when the bounds are not respected.
+The API design minimizes the attack surface for the compiled computational graph. The {{MLGraphBuilder}} interface that hosts the various operations is a data definition API and as such doesn't execute anything, only constructs data. What follows, is that the potential for an attack is limited to when binding the data to the graph before executing it by invoking the {{MLContext}}.{{MLContext/dispatch()}} method. This enables implementers to focus on hardening the {{MLContext}}.{{MLContext/dispatch()}} method. For example, by making sure it honors the boundary of data and fails appropriately when the bounds are not respected.
 
 Purpose-built Web APIs for measuring high-resolution time mitigate against timing attacks using techniques such as resolution reduction, adding jitter, detection of abuse and API call throttling [[hr-time-3]]. The practical deployment of WebNN implementations are likely to bring enough jitter to make timing attacks impractical (e.g. because they would use IPC) but implementers are advised to consider and test their implementations against timing attacks.
 
@@ -694,7 +694,7 @@ A key part of the {{MLGraphBuilder}} interface are methods such as {{MLGraphBuil
 
 An [=operator=] has a <dfn for=operator>label</dfn>, a string which may be included in diagnostics such as [=exception=] messages. When an [=operator=] is created its [=operator/label=] is initialized in an [=implementation-defined=] manner and may include the passed {{MLOperatorOptions/label}}.
 
-Note: Implementations are encouraged to use the {{MLOperatorOptions/label}} provided by developers to enhance error messages and improve debuggability, including both synchronous errors during graph construction and for errors that occur during asynchronous {{MLGraphBuilder/build()}} or {{MLContext/compute()}} operations.
+Note: Implementations are encouraged to use the {{MLOperatorOptions/label}} provided by developers to enhance error messages and improve debuggability, including both synchronous errors during graph construction and for errors that occur during asynchronous {{MLGraphBuilder/build()}} or {{MLContext/dispatch()}} operations.
 
 At inference time, every {{MLOperand}} will be bound to a tensor (the actual data), which are essentially multidimensional arrays. The representation of the tensors is implementation dependent, but it typically includes the array data stored in some buffer (memory) and some metadata describing the array data (such as its shape).
 
@@ -711,7 +711,7 @@ The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph in t
 
 The {{MLGraph}} underlying implementation will be composed of platform-specific representations of operators and operands which correspond to the {{MLGraphBuilder}}'s [=operators=] and {{MLOperand}}s, but which are not script-visible and may be compositions or decompositions of the graph as constructed by script.
 
-Once the {{MLGraph}} is constructed, the {{MLContext}}.{{MLContext/compute()}} method performs the execution of the graph asynchronously either on a parallel timeline in a separate worker thread for the CPU execution or on a GPU timeline in a GPU command queue. This method returns immediately without blocking the calling thread while the actual execution is offloaded to a different timeline. The caller supplies the input values using {{MLNamedArrayBufferViews}}, binding the input {{MLOperand}}s to their values. The caller then supplies pre-allocated buffers for output {{MLOperand}}s using {{MLNamedArrayBufferViews}}. The execution produces the results of the computation from all the inputs bound to the graph. The computation results will be placed at the bound outputs at the time the operation is successfully completed on the offloaded timeline at which time the calling thread is signaled. This type of execution supports both the CPU and GPU device.
+Once the {{MLGraph}} is constructed, the {{MLContext}}.{{MLContext/dispatch()}} method performs the execution of the graph asynchronously either on a parallel timeline in a separate worker thread for the CPU execution or on a GPU timeline in a GPU command queue. This method returns immediately without blocking the calling thread while the actual execution is offloaded to a different timeline. The caller supplies the input values using {{MLNamedTensors}}, binding the input {{MLOperand}}s to their values. The caller also supplies {{MLNamedTensors}} for output {{MLOperand}}s which will contain the result of graph execution, if successful, which may be read back to script using the {{MLContext}}.{{MLContext/readTensor(tensor)}} method. This type of execution supports both the CPU and GPU device.
 
 ## Device Selection ## {#programming-model-device-selection}
 
@@ -860,19 +860,10 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], {{MLDeviceType}} and {{MLPowerPreference}}.
 
 <script type=idl>
-typedef record<USVString, ArrayBufferView> MLNamedArrayBufferViews;
 typedef record<USVString, MLTensor> MLNamedTensors;
-
-dictionary MLComputeResult {
-  MLNamedArrayBufferViews inputs;
-  MLNamedArrayBufferViews outputs;
-};
 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLContext {
-  // ISSUE(791): compute() will soon be removed in favor of dispatch().
-  Promise<MLComputeResult> compute(
-      MLGraph graph, MLNamedArrayBufferViews inputs, MLNamedArrayBufferViews outputs);
   undefined dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);  
 
   Promise<MLTensor> createTensor(MLTensorDescriptor descriptor);
@@ -915,16 +906,8 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
 </dl>
 
 <div class="note">
-When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with the {{MLContextOptions}}.{{MLContextOptions/deviceType}} set to {{MLDeviceType/"gpu"}}, the user agent is responsible for creating an internal GPU device that operates within the context and is capable of ML workload submission on behalf of the calling application. In this setting however, only {{ArrayBufferView}} inputs and outputs are allowed in and out of the graph execution since the application has no way to know what type of internal GPU device is being created on their behalf. In this case, the user agent is responsible for automatic uploads and downloads of the inputs and outputs to and from the GPU memory using this said internal device.
+When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with the {{MLContextOptions}}.{{MLContextOptions/deviceType}} set to {{MLDeviceType/"gpu"}}, the user agent is responsible for creating an internal GPU device that operates within the context and is capable of ML workload submission on behalf of the calling application.
 </div>
-
-<dl dfn-type=dict-member dfn-for=MLComputeResult>
-    : <dfn>inputs</dfn>
-    :: An object where the keys are the graph input names, and the values are the transferred {{ArrayBufferView}}s for the supplied input tensor values.
-
-    : <dfn>outputs</dfn>
-    :: An object where the keys are the graph output names, and the values are the transferred {{ArrayBufferView}}s for the computed output tensor values.
-</dl>
 
 <details open algorithm>
   <summary>
@@ -952,136 +935,6 @@ When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with t
         1. If |tensor|.{{MLTensor/[[descriptor]]}} is not equal to |namedDescriptors|[|name|], then return false.
     1. Return true.
 </details>
-
-<details open algorithm>
-  <summary>
-    To <dfn>execute graph</dfn>, given {{MLGraph}} |graph|, {{MLNamedArrayBufferViews}} |inputs| and {{MLNamedArrayBufferViews}} |outputs|, run the following steps. They return {{undefined}}, or an error.
-  </summary>
-    1. Let |inputResources| be the input resources of |graph|.{{MLGraph/[[implementation]]}}.
-    1. [=map/For each=] |name| → |inputValue| of |inputs|:
-        1. Let |inputDescriptor| be |graph|.{{MLGraph/[[inputDescriptors]]}}[|name|].
-        1. Let |inputTensor| be a new tensor for |graph|.{{MLGraph/[[implementation]]}} as follows:
-            1. Set the data type of |inputTensor| to the one that matches |inputValue|'s [=element type=].
-            1. Set the shape of |inputTensor| to |inputDescriptor|.{{MLOperandDescriptor/shape}}.
-            1. Set the values of elements in |inputTensor| to the values of elements in |inputValue|.
-        1. Request the underlying implementation of |graph| to bind |inputResources|[|name|] to |inputTensor|.
-    1. [=map/For each=] |name| → |outputValue| of |outputs|:
-        1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |name| and |inputResources| and wait for completion.
-            1. If that returns an error, then return an "{{OperationError}}" {{DOMException}}.
-            1. Otherwise, let |outputTensor| be the result.
-        1. Let |outputDesc| be |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|].
-        1. If the byte length of |outputTensor| is not equal to |outputDesc|'s [=MLOperandDescriptor/byte length=], then return a {{TypeError}}.
-        1. If |outputTensor|'s [=element type=] doesn't match |outputValue|'s [=element type=], then return a {{TypeError}}.
-        1. Request the underlying implementation of |graph| to set the values of elements in |outputValue| to the values of elements in |outputTensor|.
-    1. Return {{undefined}}.
-</details>
-
-### {{MLNamedArrayBufferViews}} transfer algorithm ### {#mlnamedarraybufferviews-transfer-alg}
-
-<details open algorithm>
-  <summary>
-    To <dfn for="MLNamedArrayBufferViews">transfer</dfn> an {{MLNamedArrayBufferViews}} |views| with [=realm=] |realm|:
-  </summary>
-    1. [=map/For each=] |name| → |view| of |views|:
-        1. If |view| is not [=BufferSource/transferable=], then throw a {{TypeError}}.
-    1. Let |transferredViews| be a new {{MLNamedArrayBufferViews}}.
-    1. [=map/For each=] |name| → |view| of |views|:
-        1. Let |transferredBuffer| be the result of [=ArrayBuffer/transfer|transferring=] |view|'s [=BufferSource/underlying buffer=].
-        1. [=Assert=]: The above step never throws an exception.
-        1. Let |constructor| be the appropriate [=view constructor=] for the type of {{ArrayBufferView}} |view| from |realm|.
-        1. Let |elementsNumber| be the result of |view|'s [=BufferSource/byte length=] / |view|'s [=element size=].
-        1. Let |transferredView| be [$Construct$](|constructor|, |transferredBuffer|, |view|.\[[ByteOffset]], |elementsNumber|).
-        1. Set |transferredViews|[|name|] to |transferredView|.
-    1. Return |transferredViews|.
-</details>
-
-### {{MLContext/compute()}}  ### {#api-mlcontext-compute}
-
-ISSUE(791): {{MLContext/compute()}} will be deprecated and removed in favor of <code>[dispatch()](https://github.com/webmachinelearning/webnn/blob/main/mltensor-explainer.md#compute-vs-dispatch)</code>.
-
-Asynchronously carries out the computational workload of a compiled graph {{MLGraph}} on a separate timeline, either on a worker thread for the CPU execution, or on a GPU/NPU timeline for submitting a workload onto the command queue. The asynchronous nature of this call avoids blocking the calling thread while the computation for result is ongoing. This method of execution requires an {{MLContext}} created with {{MLContextOptions}}. Otherwise, it [=exception/throws=] an "{{OperationError}}" {{DOMException}}.
-
-<div class="note">
-In accordance with the [=ArrayBufferView/write|Web IDL warning=], to prevent the calling thread from modifying the input and output resources while the computation is ongoing, this method [=MLNamedArrayBufferViews/transfer|transfers=] the input and output {{MLNamedArrayBufferViews}} to new views that share the same backing memory allocations. The transferred views are returned to the caller via the promise fulfillment with the computation result written into the backing memory of the output views.
-</div>
-
-<div dfn-for="MLContext/compute(graph, inputs, outputs)" dfn-type=argument>
-    **Arguments:**
-      - <dfn>graph</dfn>: an {{MLGraph}}. The compiled graph to be executed.
-      - <dfn>inputs</dfn>: an {{MLNamedArrayBufferViews}}. The resources of inputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
-      - <dfn>outputs</dfn>: an {{MLNamedArrayBufferViews}}. The pre-allocated resources of required outputs. Will be [=MLNamedArrayBufferViews/transfer|transferred=] if there are no validation errors.
-
-    **Returns:** {{Promise}}<{{MLComputeResult}}>.
-</div>
-
-Note: Invocations of {{MLContext/compute()}} will fail if any of the {{MLContext/compute(graph, inputs, outputs)/graph}}'s inputs are not provided as {{MLContext/compute(graph, inputs, outputs)/inputs}}, or if any requested {{MLContext/compute(graph, inputs, outputs)/outputs}} do not match the {{MLContext/compute(graph, inputs, outputs)/graph}}'s outputs.
-
-<details open algorithm>
-  <summary>
-    The <dfn method for=MLContext>compute(|graph|, |inputs|, |outputs|)</dfn> method steps are:
-  </summary>
-    1. Let |global| be [=this=]'s [=relevant global object=].
-    1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[contextType]]}} is not "[=context type/default=]", then return [=a new promise=] [=rejected=] with an "{{OperationError}}" {{DOMException}}.
-    1. [=map/For each=] |name| → |descriptor| of |graph|.{{MLGraph/[[inputDescriptors]]}}:
-        1. If |inputs|[|name|] does not [=map/exist=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-        1. If [=validating buffer with descriptor=] given |inputs|[|name|] and |descriptor| returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. [=map/For each=] |name| → |resource| of |outputs|:
-        1. If |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] does not [=map/exist=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-        1. If [=validating buffer with descriptor=] given |resource| and |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. Let |transferredInputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |inputs| with |realm|. If that threw an exception, then return [=a new promise=] [=rejected=] with that exception.
-    1. Let |transferredOutputs| be the result of [=MLNamedArrayBufferViews/transfer|transferring=] {{MLNamedArrayBufferViews}} |outputs| with |realm|. If that threw an exception, then return [=a new promise=] [=rejected=] with that exception.
-    1. Let |promise| be [=a new promise=].
-    1. Run the following steps [=in parallel=]:
-        1. Invoke [=execute graph=] given |graph|, |transferredInputs| and |transferredOutputs|. If that returns an error, then [=queue an ML task=] with |global| to [=reject=] |promise| with an equivalent error in |realm| and abort these steps.
-        1. Let |result| be a new {{MLComputeResult}} with |realm|.
-        1. Set |result|.{{MLComputeResult/inputs}} to |transferredInputs|.
-        1. Set |result|.{{MLComputeResult/outputs}} to |transferredOutputs|.
-        1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |result|.
-    1. Return |promise|.
-</details>
-
-#### Examples #### {#api-mlcontext-compute-examples}
-<div class="example">
-<details open>
-  <summary>
-    The following code showcases the asynchronous computation.
-  </summary>
-  <pre highlight="js">
-    const operandType = {
-      dataType: 'float32',
-      shape: [2, 2]
-    };
-    const context = await navigator.ml.createContext();
-    const builder = new MLGraphBuilder(context);
-    // 1. Create a computational graph 'C = 0.2 * A + B'.
-    const constant = builder.constant(operandType.dataType, 0.2);
-    const A = builder.input('A', operandType);
-    const B = builder.input('B', operandType);
-    const C = builder.add(builder.mul(A, constant), B);
-    // 2. Compile it into an executable.
-    const graph = await builder.build({'C': C});
-    // 3. Bind inputs to the graph and execute for the result.
-    const bufferA = new Float32Array(4).fill(1.0);
-    const bufferB = new Float32Array(4).fill(0.8);
-    const bufferC = new Float32Array(4);
-    const inputs = {
-      'A': bufferA,
-      'B': bufferB
-    };
-    const outputs = {
-      'C': bufferC
-    };
-    const result = await context.compute(graph, inputs, outputs);
-    // The computed result of [[1, 1], [1, 1]] is in the buffer associated with
-    // the output operand.
-    console.log('Output value: ' + result.outputs.C);
-    // Note: the result.outputs.C buffer is different from the bufferC, but it
-    // shares the same backing memory allocation.
-  </pre>
-</details>
-</div>
 
 ### {{MLContext/dispatch()}}  ### {#api-mlcontext-dispatch}
 
@@ -8486,33 +8339,6 @@ Compile the graph up to the output operand.
     // Compile the constructed graph.
     const graph = await builder.build({'output': output});
 </pre>
-</div>
-
-<div class="example">
-<details open>
-  <summary>
-    The following code executes the compiled graph.
-  </summary>
-  <pre highlight="js">
-    // Setup the input buffers with value 1.
-    const inputBuffer1 = new Float32Array(TENSOR_SIZE).fill(1);
-    const inputBuffer2 = new Float32Array(TENSOR_SIZE).fill(1);
-    const outputBuffer = new Float32Array(TENSOR_SIZE);
-
-    // Execute the compiled graph with the specified inputs.
-    const inputs = {
-      'input1': inputBuffer1,
-      'input2': inputBuffer2,
-    };
-    const outputs = {
-      'output': outputBuffer
-    };
-    const result = await context.compute(graph, inputs, outputs);
-
-    console.log('Output value: ' + result.outputs.output);
-    // Output value: 2.25,2.25,2.25,2.25,2.25,2.25,2.25,2.25
-  </pre>
-</details>
 </div>
 
 Operator Emulation {#emulation}
