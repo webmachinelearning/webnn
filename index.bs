@@ -1342,7 +1342,7 @@ interface MLGraphBuilder {
 
   // Create an operand for a graph constant.
   MLOperand constant(MLOperandDescriptor descriptor,
-                     AllowSharedBufferSource bufferSource);
+                     AllowSharedBufferSource buffer);
 
   // Create a scalar operand from the specified number of the specified type.
   MLOperand constant(MLOperandDataType type, MLNumber value);
@@ -1353,7 +1353,7 @@ interface MLGraphBuilder {
 </script>
 
 <div class="note">
-The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, bufferSource)|constant()}} method as constant operands during graph construction time.
+The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph builder state up to the specified output operands into a compiled graph according to the type of {{MLContext}} that creates it. When the {{MLContext/[[contextType]]}} of the {{MLContext}} is set to "[=context type/default=]", the compiled graph is initialized right before the {{MLGraph}} is returned. This graph initialization stage is important for optimal performance of the subsequent graph executions. It typically involves a process known as "weight preprocessing" where all the constant inputs to the graph are preprocessed and cached at the operating system level for subsequent graph execution calls. The initializing inputs are typically the constant weight data specified through the {{MLGraphBuilder/constant(descriptor, buffer)|constant()}} method as constant operands during graph construction time.
 </div>
 
 <div class=internal-slots>
@@ -1417,26 +1417,26 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
 ### constant operands ### {#api-mlgraphbuilder-constant}
 Create a constant {{MLOperand}} that can be used in {{MLGraphBuilder}} methods.
 
-#### {{MLGraphBuilder/constant(descriptor, bufferSource)}} #### {#api-mlgraphbuilder-constant-buffersource}
+#### {{MLGraphBuilder/constant(descriptor, buffer)}} #### {#api-mlgraphbuilder-constant-buffer}
 Create a constant {{MLOperand}} of the specified data type and shape that contains the initializing data.
 
-<div dfn-for="MLGraphBuilder/constant(descriptor, bufferSource)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/constant(descriptor, buffer)" dfn-type=argument>
     **Arguments:**
         - <dfn>descriptor</dfn>: an {{MLOperandDescriptor}}. The descriptor of the output tensor.
-        - <dfn>bufferSource</dfn>: an {{AllowSharedBufferSource}}. The buffer containing the initializing data.
+        - <dfn>buffer</dfn>: an {{AllowSharedBufferSource}}. The buffer containing the initializing data.
     **Returns:** an {{MLOperand}}. The constant output tensor.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>constant(|descriptor|, |bufferSource|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>constant(|descriptor|, |buffer|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If [=validating buffer with descriptor=] given |bufferSource| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=validating buffer with descriptor=] given |buffer| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
-        1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |bufferSource|.
+        1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |buffer|.
         1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |bytes| as value.
     1. Return |operand|.
 </details>
