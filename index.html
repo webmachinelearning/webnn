@@ -7,7 +7,7 @@
   <link href="https://www.w3.org/StyleSheets/TR/2021/W3C-ED" rel="stylesheet">
   <meta content="Bikeshed version 742f3d674, updated Mon Nov 4 14:56:54 2024 -0800" name="generator">
   <link href="https://www.w3.org/TR/webnn/" rel="canonical">
-  <meta content="4e80205952cc79ee567596ebc68166d894e2e751" name="revision">
+  <meta content="df555e1b0a6beb2deaf4b98e2642492ff00e98f4" name="revision">
   <meta content="dark light" name="color-scheme">
   <link href="https://www.w3.org/StyleSheets/TR/2021/dark.css" media="(prefers-color-scheme: dark)" rel="stylesheet" type="text/css">
 <style>
@@ -1018,7 +1018,7 @@ var[data-var-color="6"] { --var-vg: #FFBCF2; }
   <div class="head">
    <p data-fill-with="logo"><a class="logo" href="https://www.w3.org/"> <img alt="W3C" height="48" src="https://www.w3.org/StyleSheets/TR/2021/logos/W3C" width="72"> </a> </p>
    <h1 class="p-name no-ref" id="title">Web Neural Network API</h1>
-   <p id="w3c-state"><a href="https://www.w3.org/standards/types/#ED">Editor’s Draft</a>, <time class="dt-updated" datetime="2024-12-02">2 December 2024</time></p>
+   <p id="w3c-state"><a href="https://www.w3.org/standards/types/#ED">Editor’s Draft</a>, <time class="dt-updated" datetime="2024-12-04">4 December 2024</time></p>
    <details open>
     <summary>More details about this document</summary>
     <div data-fill-with="spec-metadata">
@@ -1344,7 +1344,7 @@ Recommendation Drafts and Snapshots. </p>
    <p>This section illustrates application-level use cases for neural network
 inference hardware acceleration. All applications in those use cases can be
 built on top of pre-trained deep neural network (DNN) <a data-link-type="biblio" href="#biblio-models" title="The first-wave models">[models]</a>.</p>
-   <p class="note" role="note"><span class="marker">Note:</span> Please be aware that some of the use cases described here, are by their very nature, privacy-invasive. Developers who are planning to use the API for such use cases should ensure that the API is being used to benefit users, for purposes that users understand, and approve. They should apply the Ethical Principles for Web Machine Learning <a data-link-type="biblio" href="#biblio-webmachinelearning-ethics" title="Ethical Principles for Web Machine Learning">[webmachinelearning-ethics]</a> and implement appropriate privacy risk mitigations such as transparency, data minimisation, and users controls.</p>
+   <p class="note" role="note"><span class="marker">Note:</span> Please be aware that some of the use cases described here, are by their very nature, privacy-invasive. Developers who are planning to use the API for such use cases <span class="allow-2119">should</span> ensure that the API is being used to benefit users, for purposes that users understand, and approve. They <span class="allow-2119">should</span> apply the Ethical Principles for Web Machine Learning <a data-link-type="biblio" href="#biblio-webmachinelearning-ethics" title="Ethical Principles for Web Machine Learning">[webmachinelearning-ethics]</a> and implement appropriate privacy risk mitigations such as transparency, data minimisation, and users controls.</p>
    <h4 class="heading settled" data-level="2.1.1" id="usecase-person-detection"><span class="secno">2.1.1. </span><span class="content">Person Detection</span><a class="self-link" href="#usecase-person-detection"></a></h4>
    <p>A user opens a web-based video conferencing application, but she temporarily
 leaves from her room. The application is watching whether she is in front of her
@@ -1507,34 +1507,37 @@ so that the application loads the tiny model in the case of CPU-only devices.</p
    <p>The API design minimizes the attack surface for the compiled computational graph. The <code class="idl"><a data-link-type="idl" href="#mlgraphbuilder" id="ref-for-mlgraphbuilder">MLGraphBuilder</a></code> interface that hosts the various operations is a data definition API and as such doesn’t execute anything, only constructs data. What follows, is that the potential for an attack is limited to when binding the data to the graph before executing it by invoking the <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①">MLContext</a></code>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-dispatch" id="ref-for-dom-mlcontext-dispatch">dispatch()</a></code> method. This enables implementers to focus on hardening the <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext②">MLContext</a></code>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-dispatch" id="ref-for-dom-mlcontext-dispatch①">dispatch()</a></code> method. For example, by making sure it honors the boundary of data and fails appropriately when the bounds are not respected.</p>
    <p>Purpose-built Web APIs for measuring high-resolution time mitigate against timing attacks using techniques such as resolution reduction, adding jitter, detection of abuse and API call throttling <a data-link-type="biblio" href="#biblio-hr-time-3" title="High Resolution Time">[hr-time-3]</a>. The practical deployment of WebNN implementations are likely to bring enough jitter to make timing attacks impractical (e.g. because they would use IPC) but implementers are advised to consider and test their implementations against timing attacks.</p>
    <h3 class="heading settled" data-level="3.1" id="security-new-ops"><span class="secno">3.1. </span><span class="content">Guidelines for new operations</span><a class="self-link" href="#security-new-ops"></a></h3>
-   <p>To ensure operations defined in this specification are shaped in a way they can be implemented securely, this section includes guidelines on how operations are expected to be defined to reduce potential for implementation problems. These guidelines are expected to evolve over time to align with industry best practices:</p>
-   <ul>
-    <li data-md>
-     <p>Prefer simplicity of arguments</p>
-    <li data-md>
-     <p>Don’t use parsers for complex data formats</p>
-    <li data-md>
-     <p>If an operation can be decomposed to low level primitives:</p>
-     <ul>
-      <li data-md>
-       <p>Add an informative emulation path</p>
-      <li data-md>
-       <p>Prefer primitives over new high level operations but consider performance consequences</p>
-     </ul>
-    <li data-md>
-     <p>Operations should follow a consistent style for inputs and attributes</p>
-    <li data-md>
-     <p>Operation families such as pooling and reduction should share API shape and options</p>
-    <li data-md>
-     <p>Formalize failure cases into test cases whenever possible</p>
-    <li data-md>
-     <p>When in doubt, leave it out: API surface should be as small as possible required to satisfy the use cases, but no smaller</p>
-    <li data-md>
-     <p>Try to keep the API free of implementation details that might inhibit future evolution, do not overspecify</p>
-    <li data-md>
-     <p>Fail fast: the sooner the web developer is informed of an issue, the better</p>
-   </ul>
-   <p>In general, always consider the security and privacy implications as documented in <a data-link-type="biblio" href="#biblio-security-privacy-questionnaire" title="Self-Review Questionnaire: Security and Privacy">[security-privacy-questionnaire]</a> by the Technical Architecture Group and the Privacy Interest Group when adding new features.</p>
+   <p><em>This section is non-normative.</em></p>
+   <div class="informative">
+    <p>To ensure operations defined in this specification are shaped in a way they can be implemented securely, this section includes guidelines on how operations are expected to be defined to reduce potential for implementation problems. These guidelines are expected to evolve over time to align with industry best practices:</p>
+    <ul>
+     <li data-md>
+      <p>Prefer simplicity of arguments</p>
+     <li data-md>
+      <p>Don’t use parsers for complex data formats</p>
+     <li data-md>
+      <p>If an operation can be decomposed to low level primitives:</p>
+      <ul>
+       <li data-md>
+        <p>Add an informative emulation path</p>
+       <li data-md>
+        <p>Prefer primitives over new high level operations but consider performance consequences</p>
+      </ul>
+     <li data-md>
+      <p>Follow a consistent style for operation inputs and attributes</p>
+     <li data-md>
+      <p>Share API shape and options for operation families such as pooling and reduction</p>
+     <li data-md>
+      <p>Formalize failure cases into test cases whenever possible</p>
+     <li data-md>
+      <p>When in doubt, leave it out: keep the API surface as small as possible to satisfy the use cases, but no smaller</p>
+     <li data-md>
+      <p>Try to keep the API free of implementation details that might inhibit future evolution, do not overspecify</p>
+     <li data-md>
+      <p>Fail fast: the sooner the web developer is informed of an issue, the better</p>
+    </ul>
+    <p>In general, always consider the security and privacy implications as documented in <a data-link-type="biblio" href="#biblio-security-privacy-questionnaire" title="Self-Review Questionnaire: Security and Privacy">[security-privacy-questionnaire]</a> by the Technical Architecture Group and the Privacy Interest Group when adding new features.</p>
+   </div>
    <h2 class="heading settled" data-level="4" id="privacy"><span class="secno">4. </span><span class="content">Privacy Considerations</span><a class="self-link" href="#privacy"></a></h2>
    <p>This API enhances privacy compared to cloud-based inference, since input data such as locally sourced images or video streams stay within the browser’s sandbox.</p>
    <p>This API exposes the minimum amount of information necessary to address the identified <a href="#usecases">§ 2 Use cases</a> for the best performance and reliability of results.</p>
@@ -1544,7 +1547,7 @@ so that the application loads the tiny model in the case of CPU-only devices.</p
    <p>The WebGPU API identifies <a href="https://gpuweb.github.io/gpuweb/#privacy-machine-artifacts">machine-specific artifacts</a> as a privacy consideration. Similarly, the WebNN API’s compute unit scheduling may under certain circumstances introduce a fingerprint. However, similarly to WebGPU, such fingerprints are identical across most or all of the devices of each vendor, mitigating the concern. Furthermore, software implementations can be used to further eliminate such artifacts.</p>
    <p>The WebNN API defines two developer-settable preferences to help inform <a href="#programming-model-device-selection">§ 6.2 Device Selection</a> and allow the implementation to better select the most appropriate underlying execution device for the workload. An <code class="idl"><a data-link-type="idl" href="#enumdef-mldevicetype" id="ref-for-enumdef-mldevicetype">MLDeviceType</a></code> normatively indicates the kind of device and is one of: <code class="idl"><a data-link-type="idl" href="#dom-mldevicetype-cpu" id="ref-for-dom-mldevicetype-cpu">"cpu"</a></code>, <code class="idl"><a data-link-type="idl" href="#dom-mldevicetype-gpu" id="ref-for-dom-mldevicetype-gpu">"gpu"</a></code>, <code class="idl"><a data-link-type="idl" href="#dom-mldevicetype-npu" id="ref-for-dom-mldevicetype-npu">"npu"</a></code>. If this type cannot be satisfied, an "<code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#operationerror" id="ref-for-operationerror">OperationError</a></code>" <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#idl-DOMException" id="ref-for-idl-DOMException">DOMException</a></code> is thrown, thus this type can in some cases add two bits of entropy to the fingerprint. An <code class="idl"><a data-link-type="idl" href="#enumdef-mlpowerpreference" id="ref-for-enumdef-mlpowerpreference">MLPowerPreference</a></code> indicates preference as related to the power consumption and is considered a hint only and as such does not increase entropy of the fingerprint.</p>
    <p class="issue" id="issue-bc8cc5bc"><a class="self-link" href="#issue-bc8cc5bc"></a> <code class="idl"><a data-link-type="idl" href="#dictdef-mlcontextoptions" id="ref-for-dictdef-mlcontextoptions">MLContextOptions</a></code> is under active development, and the design is expected to change, informed by further implementation experience and new use cases from the wider web community. <a href="https://github.com/webmachinelearning/webnn/issues/623">[Issue #623]</a></p>
-   <p>If a future version of this specification introduces support for a new <code class="idl"><a data-link-type="idl" href="#enumdef-mldevicetype" id="ref-for-enumdef-mldevicetype①">MLDeviceType</a></code> that can only support a subset of <code class="idl"><a data-link-type="idl" href="#enumdef-mloperanddatatype" id="ref-for-enumdef-mloperanddatatype">MLOperandDataType</a></code>s, that may introduce a new fingerprint.</p>
+   <p>If a future version of this specification introduces support for a new <code class="idl"><a data-link-type="idl" href="#enumdef-mldevicetype" id="ref-for-enumdef-mldevicetype①">MLDeviceType</a></code> that can only support a subset of <code class="idl"><a data-link-type="idl" href="#enumdef-mloperanddatatype" id="ref-for-enumdef-mloperanddatatype">MLOperandDataType</a></code>s, that could introduce a new fingerprint.</p>
    <p>In general, implementers of this API are expected to apply <a href="https://gpuweb.github.io/gpuweb/#privacy-considerations">WebGPU Privacy Considerations</a> to their implementations where applicable.</p>
    <h2 class="heading settled" data-level="5" id="ethics"><span class="secno">5. </span><span class="content">Ethical Considerations</span><a class="self-link" href="#ethics"></a></h2>
    <p>The Working Group has started documenting ethical issues associated with using Machine Learning on the Web, to help identify what mitigations its normative specifications should take into account. The Working Group publishes and maintains an Ethical Principles for Web Machine Learning document <a data-link-type="biblio" href="#biblio-webmachinelearning-ethics" title="Ethical Principles for Web Machine Learning">[webmachinelearning-ethics]</a> open to contributions from the wider community via a dedicated <a href="https://github.com/webmachinelearning/webmachinelearning-ethics">GitHub repository</a>.</p>
@@ -1822,7 +1825,7 @@ Its <a data-link-type="dfn" href="https://w3c.github.io/webappsec-permissions-po
     </ul>
     <p><strong>Returns:</strong> <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#idl-undefined" id="ref-for-idl-undefined③">undefined</a></code>.</p>
    </div>
-   <p class="note" role="note"><span class="marker">Note:</span> <code>dispatch()</code> itself provides no signal that graph execution has completed. Rather, callers should await the results of reading back the output tensors. See <a href="#api-mlcontext-dispatch-examples">§ 7.3.1.1 Examples</a> below.</p>
+   <p class="note" role="note"><span class="marker">Note:</span> <code>dispatch()</code> itself provides no signal that graph execution has completed. Rather, callers can <code>await</code> the results of reading back the output tensors. See <a href="#api-mlcontext-dispatch-examples">§ 7.3.1.1 Examples</a> below.</p>
    <details class="algorithm" data-algorithm="dispatch(graph, inputs, outputs)" data-algorithm-for="MLContext" open>
     <summary> The <dfn class="dfn-paneled idl-code" data-dfn-for="MLContext" data-dfn-type="method" data-export id="dom-mlcontext-dispatch"><code>dispatch(<var>graph</var>, <var>inputs</var>, <var>outputs</var>)</code></dfn> method steps are: </summary>
     <ol>
@@ -2016,7 +2019,7 @@ console<c- p>.</c->log<c- p>(</c-><c- t>'Output value:'</c-><c- p>,</c-> <c- ow>
         <ol>
          <li data-md>
           <p>If <var>outputData</var> is <a data-link-type="dfn" href="https://webidl.spec.whatwg.org/#buffersource-detached" id="ref-for-buffersource-detached">detached</a>, <a data-link-type="dfn" href="https://webidl.spec.whatwg.org/#reject" id="ref-for-reject①④">reject</a> <var>promise</var> with a <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#exceptiondef-typeerror" id="ref-for-exceptiondef-typeerror①②">TypeError</a></code>, and abort these steps.</p>
-          <p class="note" role="note"><span class="marker">Note:</span> <a data-link-type="dfn" href="#validate-buffer-with-descriptor" id="ref-for-validate-buffer-with-descriptor①">Validating buffer with descriptor</a> above will fail if <var>outputData</var> is detached, but it’s possible <var>outputData</var> may detach between then and now.</p>
+          <p class="note" role="note"><span class="marker">Note:</span> <a data-link-type="dfn" href="#validate-buffer-with-descriptor" id="ref-for-validate-buffer-with-descriptor①">Validating buffer with descriptor</a> above will fail if <var>outputData</var> is detached, but it is possible that <var>outputData</var> could be detached between that step and this one.</p>
          <li data-md>
           <p><a data-link-type="dfn" href="https://webidl.spec.whatwg.org/#arraybuffer-write" id="ref-for-arraybuffer-write">Write</a> <var>bytes</var> to <var>outputData</var>.</p>
          <li data-md>
@@ -2065,7 +2068,7 @@ console<c- p>.</c->log<c- p>(</c-><c- t>'Output value:'</c-><c- p>,</c-> <c- ow>
       <p>Return <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#idl-undefined" id="ref-for-idl-undefined⑧">undefined</a></code>.</p>
     </ol>
    </details>
-   <p class="note" role="note"><span class="marker">Note:</span> Similar to <code>dispatch()</code>, <code>writeTensor()</code> itself provides no signal that the write has completed. To inspect the contents of a tensor, callers should await the results of reading back the tensor.</p>
+   <p class="note" role="note"><span class="marker">Note:</span> Similar to <code>dispatch()</code>, <code>writeTensor()</code> itself provides no signal that the write has completed. To inspect the contents of a tensor, callers can <code>await</code> the results of reading back the tensor.</p>
    <h4 class="heading settled" data-level="7.3.6" id="api-mlcontext-opsupportlimits"><span class="secno">7.3.6. </span><span class="content"><code class="idl"><a data-link-type="idl" href="#dom-mlcontext-opsupportlimits" id="ref-for-dom-mlcontext-opsupportlimits">opSupportLimits()</a></code></span><a class="self-link" href="#api-mlcontext-opsupportlimits"></a></h4>
     The <code class="idl"><a data-link-type="idl" href="#dom-mlcontext-opsupportlimits" id="ref-for-dom-mlcontext-opsupportlimits①">opSupportLimits()</a></code> exposes level of support that differs across implementations at operator level. Consumers of the WebNN API are encouraged to probe feature support level by using <code class="idl"><a data-link-type="idl" href="#dom-mlcontext-opsupportlimits" id="ref-for-dom-mlcontext-opsupportlimits②">opSupportLimits()</a></code> to determine the optimal model architecture to be deployed for each target platform. 
    <h5 class="heading settled" data-level="7.3.6.1" id="api-mlcontext-opsupportlimits-dictionary"><span class="secno">7.3.6.1. </span><span class="content"><code class="idl"><a data-link-type="idl" href="#dictdef-mlopsupportlimits" id="ref-for-dictdef-mlopsupportlimits①">MLOpSupportLimits</a></code> dictionary</span><a class="self-link" href="#api-mlcontext-opsupportlimits-dictionary"></a></h5>
@@ -2234,7 +2237,7 @@ console<c- p>.</c->log<c- p>(</c-><c- t>'Output value:'</c-><c- p>,</c-> <c- ow>
    </details>
    <h3 class="heading settled" data-level="7.6" id="api-mloperand"><span class="secno">7.6. </span><span class="content"><code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand①⑨">MLOperand</a></code> interface</span><a class="self-link" href="#api-mloperand"></a></h3>
    <p>An <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand②⓪">MLOperand</a></code> represents an intermediary graph being constructed as a result of compositing parts of an operation into a fully composed operation.</p>
-   <p>For instance, an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand②①">MLOperand</a></code> may represent a constant feeding to an operation or the result from combining multiple constants together into an operation. See also <a href="#programming-model">§ 6 Programming Model</a>.</p>
+   <p>For instance, an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand②①">MLOperand</a></code> can represent a constant feeding to an operation or the result from combining multiple constants together into an operation. See also <a href="#programming-model">§ 6 Programming Model</a>.</p>
 <pre class="idl highlight def">[<a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#SecureContext" id="ref-for-SecureContext④"><c- g>SecureContext</c-></a>, <a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#Exposed" id="ref-for-Exposed③"><c- g>Exposed</c-></a>=(<c- n>Window</c->, <c- n>DedicatedWorker</c->)]
 <c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="mloperand"><code><c- g>MLOperand</c-></code></dfn> {
   <c- b>readonly</c-> <c- b>attribute</c-> <a data-link-type="idl-name" href="#enumdef-mloperanddatatype" id="ref-for-enumdef-mloperanddatatype⑥"><c- n>MLOperandDataType</c-></a> <a class="idl-code" data-link-type="attribute" data-readonly data-type="MLOperandDataType" href="#dom-mloperand-datatype" id="ref-for-dom-mloperand-datatype"><c- g>dataType</c-></a>;
@@ -2330,7 +2333,7 @@ console<c- p>.</c->log<c- p>(</c-><c- t>'Output value:'</c-><c- p>,</c-> <c- ow>
    </dl>
    <h3 class="heading settled" data-level="7.8" id="api-mltensor"><span class="secno">7.8. </span><span class="content"><code class="idl"><a data-link-type="idl" href="#mltensor" id="ref-for-mltensor①⑦">MLTensor</a></code> interface</span><a class="self-link" href="#api-mltensor"></a></h3>
    <p>The <code class="idl"><a data-link-type="idl" href="#mltensor" id="ref-for-mltensor①⑧">MLTensor</a></code> interface represents a tensor which may be used as an input or output to an <code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph②①">MLGraph</a></code>. The memory backing an <code class="idl"><a data-link-type="idl" href="#mltensor" id="ref-for-mltensor①⑨">MLTensor</a></code> should be allocated in an <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#implementation-defined" id="ref-for-implementation-defined①">implementation-defined</a> fashion according to the requirements of the <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext②⑨">MLContext</a></code> and the <code class="idl"><a data-link-type="idl" href="#dictdef-mltensordescriptor" id="ref-for-dictdef-mltensordescriptor④">MLTensorDescriptor</a></code> used to create it. Operations involving the <code class="idl"><a data-link-type="idl" href="#dom-mltensor-data-slot" id="ref-for-dom-mltensor-data-slot⑧">[[data]]</a></code> of an <code class="idl"><a data-link-type="idl" href="#mltensor" id="ref-for-mltensor②⓪">MLTensor</a></code> occur on the <code class="idl"><a data-link-type="idl" href="#dom-mlcontext-timeline-slot" id="ref-for-dom-mlcontext-timeline-slot⑧">[[timeline]]</a></code> of its associated <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext③⓪">MLContext</a></code>.</p>
-   <p class="note" role="note"><span class="marker">Note:</span> The <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#implementation-defined" id="ref-for-implementation-defined②">implementation-defined</a> requirements of how an <code class="idl"><a data-link-type="idl" href="#mltensor" id="ref-for-mltensor②①">MLTensor</a></code> is allocated may include constraints such as that the memory is allocated with a particular byte alignment or in a particular memory pool.</p>
+   <p>The <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#implementation-defined" id="ref-for-implementation-defined②">implementation-defined</a> requirements of how an <code class="idl"><a data-link-type="idl" href="#mltensor" id="ref-for-mltensor②①">MLTensor</a></code> is allocated may include constraints such as that the memory is allocated with a particular byte alignment or in a particular memory pool.</p>
 <pre class="idl highlight def">[<a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#SecureContext" id="ref-for-SecureContext⑤"><c- g>SecureContext</c-></a>, <a class="idl-code" data-link-type="extended-attribute" href="https://webidl.spec.whatwg.org/#Exposed" id="ref-for-Exposed④"><c- g>Exposed</c-></a>=(<c- n>Window</c->, <c- n>DedicatedWorker</c->)]
 <c- b>interface</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="interface" data-export id="mltensor"><code><c- g>MLTensor</c-></code></dfn> {
   <c- b>readonly</c-> <c- b>attribute</c-> <a data-link-type="idl-name" href="#enumdef-mloperanddatatype" id="ref-for-enumdef-mloperanddatatype①②"><c- n>MLOperandDataType</c-></a> <a class="idl-code" data-link-type="attribute" data-readonly data-type="MLOperandDataType" href="#dom-mltensor-datatype" id="ref-for-dom-mltensor-datatype"><c- g>dataType</c-></a>;
@@ -2491,7 +2494,7 @@ console<c- p>.</c->log<c- p>(</c-><c- t>'Output value:'</c-><c- p>,</c-> <c- ow>
       <p>Return <var>operand</var>.</p>
     </ol>
    </details>
-   <div class="note" role="note"> The <code class="idl"><a data-link-type="idl" href="#mlgraphbuilder" id="ref-for-mlgraphbuilder②⓪">MLGraphBuilder</a></code> API allows creating an <code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph②⑤">MLGraph</a></code> without input operands. If the underlying platform doesn’t support that, implementations may add a stub input, or pass constants as inputs to the graph. </div>
+   <div class="note" role="note"> The <code class="idl"><a data-link-type="idl" href="#mlgraphbuilder" id="ref-for-mlgraphbuilder②⓪">MLGraphBuilder</a></code> API allows creating an <code class="idl"><a data-link-type="idl" href="#mlgraph" id="ref-for-mlgraph②⑤">MLGraph</a></code> without input operands. If the underlying platform doesn’t support that, implementations can add a stub input, or pass constants as inputs to the graph. </div>
    <h4 class="heading settled" data-level="7.9.3" id="api-mlgraphbuilder-constant"><span class="secno">7.9.3. </span><span class="content">constant operands</span><a class="self-link" href="#api-mlgraphbuilder-constant"></a></h4>
     Create a constant <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand④⑦">MLOperand</a></code> that can be used in <code class="idl"><a data-link-type="idl" href="#mlgraphbuilder" id="ref-for-mlgraphbuilder②①">MLGraphBuilder</a></code> methods. 
    <h5 class="heading settled" data-level="7.9.3.1" id="api-mlgraphbuilder-constant-buffer"><span class="secno">7.9.3.1. </span><span class="content"><code class="idl"><a data-link-type="idl" href="#dom-mlgraphbuilder-constant" id="ref-for-dom-mlgraphbuilder-constant②">constant(descriptor, buffer)</a></code></span><a class="self-link" href="#api-mlgraphbuilder-constant-buffer"></a></h5>
@@ -3725,7 +3728,7 @@ interpreted according to the value of <em>options</em>.<code class="idl"><a data
      <li data-md>
       <p><dfn class="dfn-paneled idl-code" data-dfn-for="MLGraphBuilder/convTranspose2d(input, filter, options)" data-dfn-type="argument" data-export id="dom-mlgraphbuilder-convtranspose2d-input-filter-options-options"><code>options</code></dfn>: an optional <code class="idl"><a data-link-type="idl" href="#dictdef-mlconvtranspose2doptions" id="ref-for-dictdef-mlconvtranspose2doptions②">MLConvTranspose2dOptions</a></code>.</p>
     </ul>
-    <p><strong>Returns:</strong> an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand⑨⑨">MLOperand</a></code>. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the <em>options</em>.<code class="idl"><a data-link-type="idl" href="#dom-mlconvtranspose2doptions-inputlayout" id="ref-for-dom-mlconvtranspose2doptions-inputlayout②">inputLayout</a></code> value. More specifically, unless the <em>options</em>.<code class="idl"><a data-link-type="idl" href="#dom-mlconvtranspose2doptions-outputsizes" id="ref-for-dom-mlconvtranspose2doptions-outputsizes①">outputSizes</a></code> values are explicitly specified, the <em>options</em>.<code class="idl"><a data-link-type="idl" href="#dom-mlconvtranspose2doptions-outputpadding" id="ref-for-dom-mlconvtranspose2doptions-outputpadding②">outputPadding</a></code> may be needed to compute the spatial dimension values of the output tensor as follows:</p>
+    <p><strong>Returns:</strong> an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand⑨⑨">MLOperand</a></code>. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the <em>options</em>.<code class="idl"><a data-link-type="idl" href="#dom-mlconvtranspose2doptions-inputlayout" id="ref-for-dom-mlconvtranspose2doptions-inputlayout②">inputLayout</a></code> value. More specifically, unless the <em>options</em>.<code class="idl"><a data-link-type="idl" href="#dom-mlconvtranspose2doptions-outputsizes" id="ref-for-dom-mlconvtranspose2doptions-outputsizes①">outputSizes</a></code> values are explicitly specified, the <em>options</em>.<code class="idl"><a data-link-type="idl" href="#dom-mlconvtranspose2doptions-outputpadding" id="ref-for-dom-mlconvtranspose2doptions-outputpadding②">outputPadding</a></code> is needed to compute the spatial dimension values of the output tensor as follows:</p>
     <p><code>outputSize = (inputSize - 1) * stride + (filterSize - 1) * dilation + 1 - beginningPadding - endingPadding + outputPadding</code></p>
    </div>
    <table class="data" id="constraints-convTranspose2d">
@@ -4945,7 +4948,7 @@ interpreted according to the value of <em>options</em>.<code class="idl"><a data
     </ul>
     <p><strong>Returns:</strong> an <code class="idl"><a data-link-type="idl" href="#mloperand" id="ref-for-mloperand①⑨⓪">MLOperand</a></code>. The output N-D tensor of <a data-link-type="dfn" href="#mloperand-rank" id="ref-for-mloperand-rank②④">rank</a> equal to the <a data-link-type="dfn" href="#mloperand-rank" id="ref-for-mloperand-rank②⑤">rank</a> of <em>input</em> + the <a data-link-type="dfn" href="#mloperand-rank" id="ref-for-mloperand-rank②⑥">rank</a> of <em>indices</em> - 1.</p>
    </div>
-   <div class="note" role="note"> The <code class="idl"><a data-link-type="idl" href="#dom-mlgraphbuilder-gather-input-indices-options-indices" id="ref-for-dom-mlgraphbuilder-gather-input-indices-options-indices①">indices</a></code> parameter to <code class="idl"><a data-link-type="idl" href="#dom-mlgraphbuilder-gather" id="ref-for-dom-mlgraphbuilder-gather①">gather()</a></code> can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce <code class="idl"><a data-link-type="idl" href="#dom-mlgraphbuilder-clamp" id="ref-for-dom-mlgraphbuilder-clamp⑤">clamp()</a></code> in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index. </div>
+   <div class="note" role="note"> The <code class="idl"><a data-link-type="idl" href="#dom-mlgraphbuilder-gather-input-indices-options-indices" id="ref-for-dom-mlgraphbuilder-gather-input-indices-options-indices①">indices</a></code> parameter to <code class="idl"><a data-link-type="idl" href="#dom-mlgraphbuilder-gather" id="ref-for-dom-mlgraphbuilder-gather①">gather()</a></code> can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce <code class="idl"><a data-link-type="idl" href="#dom-mlgraphbuilder-clamp" id="ref-for-dom-mlgraphbuilder-clamp⑤">clamp()</a></code> in the compiled graph if the specified clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index. </div>
    <table class="data" id="constraints-gather">
     <caption>Constraints for <code class="idl"><a data-link-type="idl" href="#dom-mlgraphbuilder-gather" id="ref-for-dom-mlgraphbuilder-gather②">gather()</a></code></caption>
     <thead>
@@ -5206,7 +5209,7 @@ interpreted according to the value of <em>options</em>.<code class="idl"><a data
     </details>
    </div>
    <h4 class="heading settled" data-level="7.9.19" id="api-mlgraphbuilder-gemm"><span class="secno">7.9.19. </span><span class="content">gemm</span><a class="self-link" href="#api-mlgraphbuilder-gemm"></a></h4>
-    Calculate the <a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3">general matrix multiplication of the Basic Linear Algebra Subprograms</a>. The calculation follows the expression <code>alpha * A * B + beta * C</code>, where <code>A</code> is a 2-D tensor with shape <em>[M, K]</em> or <em>[K, M]</em>, <code>B</code> is a 2-D tensor with shape <em>[K, N]</em> or <em>[N, K]</em>, and <code>C</code> is <a data-link-type="dfn" href="#unidirectionally-broadcastable" id="ref-for-unidirectionally-broadcastable②">unidirectionally broadcastable</a> to the shape <em>[M, N]</em>. <code>A</code> and <code>B</code> may optionally be transposed prior to the calculation. 
+    Calculate the <a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3">general matrix multiplication of the Basic Linear Algebra Subprograms</a>. The calculation follows the expression <code>alpha * A * B + beta * C</code>, where <code>A</code> is a 2-D tensor with shape <em>[M, K]</em> or <em>[K, M]</em>, <code>B</code> is a 2-D tensor with shape <em>[K, N]</em> or <em>[N, K]</em>, and <code>C</code> is <a data-link-type="dfn" href="#unidirectionally-broadcastable" id="ref-for-unidirectionally-broadcastable②">unidirectionally broadcastable</a> to the shape <em>[M, N]</em>. <code>A</code> and <code>B</code> can optionally be transposed prior to the calculation. 
 <pre class="idl highlight def"><c- b>dictionary</c-> <dfn class="dfn-paneled idl-code" data-dfn-type="dictionary" data-export id="dictdef-mlgemmoptions"><code><c- g>MLGemmOptions</c-></code></dfn> : <a data-link-type="idl-name" href="#dictdef-mloperatoroptions" id="ref-for-dictdef-mloperatoroptions④⑦"><c- n>MLOperatorOptions</c-></a> {
   <a data-link-type="idl-name" href="#mloperand" id="ref-for-mloperand①⑨⑤"><c- n>MLOperand</c-></a> <a class="idl-code" data-link-type="dict-member" data-type="MLOperand" href="#dom-mlgemmoptions-c" id="ref-for-dom-mlgemmoptions-c"><c- g>c</c-></a>;
   <a class="idl-code" data-link-type="interface" href="https://webidl.spec.whatwg.org/#idl-double" id="ref-for-idl-double⑤"><c- b>double</c-></a> <a class="idl-code" data-default="1.0" data-link-type="dict-member" data-type="double" href="#dom-mlgemmoptions-alpha" id="ref-for-dom-mlgemmoptions-alpha"><c- g>alpha</c-></a> = 1.0;
@@ -5243,10 +5246,10 @@ interpreted according to the value of <em>options</em>.<code class="idl"><a data
      <p>A multiplier for the third input <code class="idl"><a data-link-type="idl" href="#dom-mlgemmoptions-c" id="ref-for-dom-mlgemmoptions-c①">c</a></code>.</p>
     <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLGemmOptions" data-dfn-type="dict-member" data-export id="dom-mlgemmoptions-atranspose"><code>aTranspose</code></dfn>, <span> of type <a data-link-type="idl-name" href="https://webidl.spec.whatwg.org/#idl-boolean" id="ref-for-idl-boolean①②">boolean</a>, defaulting to <code>false</code></span>
     <dd data-md>
-     <p>Indicates if the first input should be transposed prior to calculating the output.</p>
+     <p>Indicates if the first input is transposed prior to calculating the output.</p>
     <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLGemmOptions" data-dfn-type="dict-member" data-export id="dom-mlgemmoptions-btranspose"><code>bTranspose</code></dfn>, <span> of type <a data-link-type="idl-name" href="https://webidl.spec.whatwg.org/#idl-boolean" id="ref-for-idl-boolean①③">boolean</a>, defaulting to <code>false</code></span>
     <dd data-md>
-     <p>Indicates if the second input should be transposed prior to calculating the output.</p>
+     <p>Indicates if the second input is transposed prior to calculating the output.</p>
    </dl>
    <div>
      <strong>Arguments:</strong> 
@@ -5447,7 +5450,7 @@ interpreted according to the value of <em>options</em>.<code class="idl"><a data
     <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLGruOptions" data-dfn-type="dict-member" data-export id="dom-mlgruoptions-initialhiddenstate"><code>initialHiddenState</code></dfn>, <span> of type <a data-link-type="idl-name" href="#mloperand" id="ref-for-mloperand②①②">MLOperand</a></span>
     <dd data-md>
      <p>The 3-D initial hidden state tensor of shape <em>[numDirections, batchSize, hiddenSize]</em>.
-When not specified, implementations SHOULD use a tensor filled with zero.</p>
+When not specified, implementations must use a tensor filled with zero.</p>
     <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLGruOptions" data-dfn-type="dict-member" data-export id="dom-mlgruoptions-resetafter"><code>resetAfter</code></dfn>, <span> of type <a data-link-type="idl-name" href="https://webidl.spec.whatwg.org/#idl-boolean" id="ref-for-idl-boolean①⑥">boolean</a>, defaulting to <code>true</code></span>
     <dd data-md>
      <p>Indicates whether to apply the reset gate after or before matrix multiplication.</p>
@@ -5580,7 +5583,7 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
       <p>If <var>hiddenSize</var> * 6 is not a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension④">valid dimension</a>, then <a data-link-type="dfn" href="https://webidl.spec.whatwg.org/#dfn-throw" id="ref-for-dfn-throw①⑦⑨">throw</a> a <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#exceptiondef-typeerror" id="ref-for-exceptiondef-typeerror①①⑤">TypeError</a></code>.</p>
       <details class="note">
        <summary>Why <var>hiddenSize</var> * 6 ?</summary>
-        Some underlying platforms operate on a single bias tensor which is a concatenation of <code class="idl"><a data-link-type="idl" href="#dom-mlgruoptions-bias" id="ref-for-dom-mlgruoptions-bias③">bias</a></code> and <code class="idl"><a data-link-type="idl" href="#dom-mlgruoptions-recurrentbias" id="ref-for-dom-mlgruoptions-recurrentbias③">recurrentBias</a></code>. Therefore, 3 * <var>hiddenSize</var> + 3 * <var>hiddenSize</var> must also be a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension⑤">valid dimension</a>. 
+        Some underlying platforms operate on a single bias tensor which is a concatenation of <code class="idl"><a data-link-type="idl" href="#dom-mlgruoptions-bias" id="ref-for-dom-mlgruoptions-bias③">bias</a></code> and <code class="idl"><a data-link-type="idl" href="#dom-mlgruoptions-recurrentbias" id="ref-for-dom-mlgruoptions-recurrentbias③">recurrentBias</a></code>. Therefore, 3 * <var>hiddenSize</var> + 3 * <var>hiddenSize</var> also needs to be a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension⑤">valid dimension</a>. 
       </details>
      <li data-md>
       <p>If <var>options</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlgruoptions-bias" id="ref-for-dom-mlgruoptions-bias④">bias</a></code> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#map-exists" id="ref-for-map-exists③⓪">exists</a>:</p>
@@ -5929,7 +5932,7 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
       <p>If <var>hiddenSize</var> * 6 is not a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension⑥">valid dimension</a>, then <a data-link-type="dfn" href="https://webidl.spec.whatwg.org/#dfn-throw" id="ref-for-dfn-throw①⑨④">throw</a> a <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#exceptiondef-typeerror" id="ref-for-exceptiondef-typeerror①②⑨">TypeError</a></code>.</p>
       <details class="note">
        <summary>Why <var>hiddenSize</var> * 6 ?</summary>
-        Some underlying platforms operate on a single bias tensor which is a concatenation of <code class="idl"><a data-link-type="idl" href="#dom-mlgrucelloptions-bias" id="ref-for-dom-mlgrucelloptions-bias③">bias</a></code> and <code class="idl"><a data-link-type="idl" href="#dom-mlgrucelloptions-recurrentbias" id="ref-for-dom-mlgrucelloptions-recurrentbias③">recurrentBias</a></code>. Therefore, 3 * <var>hiddenSize</var> + 3 * <var>hiddenSize</var> must also be a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension⑦">valid dimension</a>. 
+        Some underlying platforms operate on a single bias tensor which is a concatenation of <code class="idl"><a data-link-type="idl" href="#dom-mlgrucelloptions-bias" id="ref-for-dom-mlgrucelloptions-bias③">bias</a></code> and <code class="idl"><a data-link-type="idl" href="#dom-mlgrucelloptions-recurrentbias" id="ref-for-dom-mlgrucelloptions-recurrentbias③">recurrentBias</a></code>. Therefore, 3 * <var>hiddenSize</var> + 3 * <var>hiddenSize</var> also needs to be a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension⑦">valid dimension</a>. 
       </details>
      <li data-md>
       <p>If <var>options</var>.<code class="idl"><a data-link-type="idl" href="#dom-mlgrucelloptions-bias" id="ref-for-dom-mlgrucelloptions-bias④">bias</a></code> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#map-exists" id="ref-for-map-exists③⑨">exists</a>:</p>
@@ -6895,10 +6898,10 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
      <p>The 2-D weight tensor for peepholes of shape <em>[numDirections, 3 * hiddenSize]</em>. The pack ordering of the weight vectors is for the <code>input (i)</code>, <code>output (o)</code>, and <code>forget (f)</code> gate, respectively.</p>
     <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLLstmOptions" data-dfn-type="dict-member" data-export id="dom-mllstmoptions-initialhiddenstate"><code>initialHiddenState</code></dfn>, <span> of type <a data-link-type="idl-name" href="#mloperand" id="ref-for-mloperand②⑦⑤">MLOperand</a></span>
     <dd data-md>
-     <p>The 3-D initial hidden state tensor of shape <em>[numDirections, batchSize, hiddenSize]</em>. When not specified, implementations SHOULD use a tensor filled with zero.</p>
+     <p>The 3-D initial hidden state tensor of shape <em>[numDirections, batchSize, hiddenSize]</em>. When not specified, implementations must use a tensor filled with zero.</p>
     <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLLstmOptions" data-dfn-type="dict-member" data-export id="dom-mllstmoptions-initialcellstate"><code>initialCellState</code></dfn>, <span> of type <a data-link-type="idl-name" href="#mloperand" id="ref-for-mloperand②⑦⑥">MLOperand</a></span>
     <dd data-md>
-     <p>The 3-D initial hidden state tensor of shape <em>[numDirections, batchSize, hiddenSize]</em>. When not specified, implementations SHOULD use a tensor filled with zero.</p>
+     <p>The 3-D initial hidden state tensor of shape <em>[numDirections, batchSize, hiddenSize]</em>. When not specified, implementations must use a tensor filled with zero.</p>
     <dt data-md><dfn class="dfn-paneled idl-code" data-dfn-for="MLLstmOptions" data-dfn-type="dict-member" data-export id="dom-mllstmoptions-returnsequence"><code>returnSequence</code></dfn>, <span> of type <a data-link-type="idl-name" href="https://webidl.spec.whatwg.org/#idl-boolean" id="ref-for-idl-boolean②①">boolean</a>, defaulting to <code>false</code></span>
     <dd data-md>
      <p>Indicates whether to also return the entire sequence with every output from each time step in it in addition to the output of the last time step.</p>
@@ -7046,7 +7049,7 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
       <p>If <var>hiddenSize</var> * 8 is not a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension⑧">valid dimension</a>, then <a data-link-type="dfn" href="https://webidl.spec.whatwg.org/#dfn-throw" id="ref-for-dfn-throw②③⑦">throw</a> a <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#exceptiondef-typeerror" id="ref-for-exceptiondef-typeerror①⑥⑤">TypeError</a></code>.</p>
       <details class="note">
        <summary>Why <var>hiddenSize</var> * 8 ?</summary>
-        Some underlying platforms operate on a single bias tensor which is a concatenation of <code class="idl"><a data-link-type="idl" href="#dom-mllstmoptions-bias" id="ref-for-dom-mllstmoptions-bias③">bias</a></code> and <code class="idl"><a data-link-type="idl" href="#dom-mllstmoptions-recurrentbias" id="ref-for-dom-mllstmoptions-recurrentbias③">recurrentBias</a></code>. Therefore, 4 * <var>hiddenSize</var> + 4 * <var>hiddenSize</var> must also be a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension⑨">valid dimension</a>. 
+        Some underlying platforms operate on a single bias tensor which is a concatenation of <code class="idl"><a data-link-type="idl" href="#dom-mllstmoptions-bias" id="ref-for-dom-mllstmoptions-bias③">bias</a></code> and <code class="idl"><a data-link-type="idl" href="#dom-mllstmoptions-recurrentbias" id="ref-for-dom-mllstmoptions-recurrentbias③">recurrentBias</a></code>. Therefore, 4 * <var>hiddenSize</var> + 4 * <var>hiddenSize</var> also needs to be a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension⑨">valid dimension</a>. 
       </details>
      <li data-md>
       <p>If <var>options</var>.<code class="idl"><a data-link-type="idl" href="#dom-mllstmoptions-bias" id="ref-for-dom-mllstmoptions-bias④">bias</a></code> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#map-exists" id="ref-for-map-exists⑥④">exists</a>:</p>
@@ -7470,7 +7473,7 @@ When not specified, implementations SHOULD use a tensor filled with zero.</p>
       <p>If <var>hiddenSize</var> * 8 is not a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension①⓪">valid dimension</a>, then <a data-link-type="dfn" href="https://webidl.spec.whatwg.org/#dfn-throw" id="ref-for-dfn-throw②⑤⑦">throw</a> a <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#exceptiondef-typeerror" id="ref-for-exceptiondef-typeerror①⑧④">TypeError</a></code>.</p>
       <details class="note">
        <summary>Why <var>hiddenSize</var> * 8 ?</summary>
-        Some underlying platforms operate on a single bias tensor which is a concatenation of <code class="idl"><a data-link-type="idl" href="#dom-mllstmcelloptions-bias" id="ref-for-dom-mllstmcelloptions-bias③">bias</a></code> and <code class="idl"><a data-link-type="idl" href="#dom-mllstmcelloptions-recurrentbias" id="ref-for-dom-mllstmcelloptions-recurrentbias③">recurrentBias</a></code>. Therefore, 4 * <var>hiddenSize</var> + 4 * <var>hiddenSize</var> must also be a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension①①">valid dimension</a>. 
+        Some underlying platforms operate on a single bias tensor which is a concatenation of <code class="idl"><a data-link-type="idl" href="#dom-mllstmcelloptions-bias" id="ref-for-dom-mllstmcelloptions-bias③">bias</a></code> and <code class="idl"><a data-link-type="idl" href="#dom-mllstmcelloptions-recurrentbias" id="ref-for-dom-mllstmcelloptions-recurrentbias③">recurrentBias</a></code>. Therefore, 4 * <var>hiddenSize</var> + 4 * <var>hiddenSize</var> also needs to be a <a data-link-type="dfn" href="#valid-dimension" id="ref-for-valid-dimension①①">valid dimension</a>. 
       </details>
      <li data-md>
       <p>If <var>options</var>.<code class="idl"><a data-link-type="idl" href="#dom-mllstmcelloptions-bias" id="ref-for-dom-mllstmcelloptions-bias④">bias</a></code> <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#map-exists" id="ref-for-map-exists⑦⑧">exists</a>:</p>
