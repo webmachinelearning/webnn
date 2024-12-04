@@ -21,6 +21,7 @@ Markup Shorthands: css no
 Logo: https://webmachinelearning.github.io/webmachinelearning-logo.png
 Deadline: 2023-10-01
 Assume Explicit For: yes
+Complain About: accidental-2119 yes
 Status Text: <p>
   Since the <a href="https://www.w3.org/TR/2023/CR-webnn-20230330/">initial Candidate Recommendation Snapshot</a> the Working Group has gathered further <a href="https://webmachinelearning.github.io/webnn-status/">implementation experience</a> and added new operations and data types needed for well-known <a href="https://github.com/webmachinelearning/webnn/issues/375">transformers to support generative AI use cases</a>. In addition, informed by this implementation experience, the group removed <code>MLCommandEncoder</code>, support for synchronous execution, and higher-level operations that can be expressed in terms of lower-level primitives in a performant manner. The group has also updated the specification to use modern authoring conventions to improve interoperability and precision of normative definitions.
   The group is developing a new feature, a <a href="https://github.com/webmachinelearning/webnn/issues/482">backend-agnostic storage type</a>, to improve performance and interoperability between the WebNN, WebGPU APIs and purpose-built hardware for ML and expects to republish this document as a Candidate Recommendation Snapshot when ready for implementation.
@@ -401,7 +402,7 @@ This section illustrates application-level use cases for neural network
 inference hardware acceleration. All applications in those use cases can be
 built on top of pre-trained deep neural network (DNN) [[models]].
 
-Note: Please be aware that some of the use cases described here, are by their very nature, privacy-invasive. Developers who are planning to use the API for such use cases should ensure that the API is being used to benefit users, for purposes that users understand, and approve. They should apply the Ethical Principles for Web Machine Learning [[webmachinelearning-ethics]] and implement appropriate privacy risk mitigations such as transparency, data minimisation, and users controls.
+Note: Please be aware that some of the use cases described here, are by their very nature, privacy-invasive. Developers who are planning to use the API for such use cases <span class=allow-2119>should</span> ensure that the API is being used to benefit users, for purposes that users understand, and approve. They <span class=allow-2119>should</span> apply the Ethical Principles for Web Machine Learning [[webmachinelearning-ethics]] and implement appropriate privacy risk mitigations such as transparency, data minimisation, and users controls.
 
 ### Person Detection ### {#usecase-person-detection}
 
@@ -630,6 +631,10 @@ Purpose-built Web APIs for measuring high-resolution time mitigate against timin
 
 ## Guidelines for new operations ## {#security-new-ops}
 
+*This section is non-normative.*
+
+<div class=informative>
+
 To ensure operations defined in this specification are shaped in a way they can be implemented securely, this section includes guidelines on how operations are expected to be defined to reduce potential for implementation problems. These guidelines are expected to evolve over time to align with industry best practices:
 
 - Prefer simplicity of arguments
@@ -637,14 +642,16 @@ To ensure operations defined in this specification are shaped in a way they can 
 - If an operation can be decomposed to low level primitives:
     - Add an informative emulation path
     - Prefer primitives over new high level operations but consider performance consequences
-- Operations should follow a consistent style for inputs and attributes
-- Operation families such as pooling and reduction should share API shape and options
+- Follow a consistent style for operation inputs and attributes
+- Share API shape and options for operation families such as pooling and reduction
 - Formalize failure cases into test cases whenever possible
-- When in doubt, leave it out: API surface should be as small as possible required to satisfy the use cases, but no smaller
+- When in doubt, leave it out: keep the API surface as small as possible to satisfy the use cases, but no smaller
 - Try to keep the API free of implementation details that might inhibit future evolution, do not overspecify
 - Fail fast: the sooner the web developer is informed of an issue, the better
 
 In general, always consider the security and privacy implications as documented in [[security-privacy-questionnaire]] by the Technical Architecture Group and the Privacy Interest Group when adding new features.
+
+</div>
 
 Privacy Considerations {#privacy}
 ===================================
@@ -665,7 +672,7 @@ The WebNN API defines two developer-settable preferences to help inform [[#progr
 
 Issue(623): {{MLContextOptions}} is under active development, and the design is expected to change, informed by further implementation experience and new use cases from the wider web community.
 
-If a future version of this specification introduces support for a new {{MLDeviceType}} that can only support a subset of {{MLOperandDataType}}s, that may introduce a new fingerprint.
+If a future version of this specification introduces support for a new {{MLDeviceType}} that can only support a subset of {{MLOperandDataType}}s, that could introduce a new fingerprint.
 
 In general, implementers of this API are expected to apply <a href="https://gpuweb.github.io/gpuweb/#privacy-considerations">WebGPU Privacy Considerations</a> to their implementations where applicable.
 
@@ -951,7 +958,7 @@ Schedules the computational workload of a compiled {{MLGraph}} on the {{MLContex
     **Returns:** {{undefined}}.
 </div>
 
-Note: `dispatch()` itself provides no signal that graph execution has completed. Rather, callers should await the results of reading back the output tensors. See [[#api-mlcontext-dispatch-examples]] below.
+Note: `dispatch()` itself provides no signal that graph execution has completed. Rather, callers can `await` the results of reading back the output tensors. See [[#api-mlcontext-dispatch-examples]] below.
 
 <details open algorithm>
   <summary>
@@ -1108,7 +1115,7 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
         1. Otherwise, [=queue an ML task=] with |global| and the following steps:
             1. If |outputData| is [=BufferSource/detached=], [=reject=] |promise| with a {{TypeError}}, and abort these steps.
 
-                Note: [=Validating buffer with descriptor=] above will fail if |outputData| is detached, but it's possible |outputData| may detach between then and now.
+                Note: [=Validating buffer with descriptor=] above will fail if |outputData| is detached, but it is possible that |outputData| could be detached between that step and this one.
 
             1. [=ArrayBuffer/Write=] |bytes| to |outputData|.
             1. [=Resolve=] |promise| with {{undefined}}.
@@ -1145,7 +1152,7 @@ Writes data to the {{MLTensor/[[data]]}} of an {{MLTensor}} on the {{MLContext}}
     1. Return {{undefined}}.
 </details>
 
-Note: Similar to `dispatch()`, `writeTensor()` itself provides no signal that the write has completed. To inspect the contents of a tensor, callers should await the results of reading back the tensor.
+Note: Similar to `dispatch()`, `writeTensor()` itself provides no signal that the write has completed. To inspect the contents of a tensor, callers can `await` the results of reading back the tensor.
 
 ### {{MLContext/opSupportLimits()}}  ### {#api-mlcontext-opsupportlimits}
 The {{MLContext/opSupportLimits()}} exposes level of support that differs across implementations at operator level. Consumers of the WebNN API are encouraged to probe feature support level by using {{MLContext/opSupportLimits()}} to determine the optimal model architecture to be deployed for each target platform.
@@ -1325,7 +1332,7 @@ Issue(391): Should 0-size dimensions be supported?
 
 An {{MLOperand}} represents an intermediary graph being constructed as a result of compositing parts of an operation into a fully composed operation.
 
-For instance, an {{MLOperand}} may represent a constant feeding to an operation or the result from combining multiple constants together into an operation. See also [[#programming-model]].
+For instance, an {{MLOperand}} can represent a constant feeding to an operation or the result from combining multiple constants together into an operation. See also [[#programming-model]].
 
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
@@ -1446,7 +1453,7 @@ dictionary MLTensorDescriptor : MLOperandDescriptor {
 
 The {{MLTensor}} interface represents a tensor which may be used as an input or output to an {{MLGraph}}. The memory backing an {{MLTensor}} should be allocated in an [=implementation-defined=] fashion according to the requirements of the {{MLContext}} and the {{MLTensorDescriptor}} used to create it. Operations involving the {{MLTensor/[[data]]}} of an {{MLTensor}} occur on the {{MLContext/[[timeline]]}} of its associated {{MLContext}}. 
 
-Note: The [=implementation-defined=] requirements of how an {{MLTensor}} is allocated may include constraints such as that the memory is allocated with a particular byte alignment or in a particular memory pool.
+The [=implementation-defined=] requirements of how an {{MLTensor}} is allocated may include constraints such as that the memory is allocated with a particular byte alignment or in a particular memory pool.
 
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
@@ -1614,7 +1621,7 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
 </details>
 
 <div class="note">
-  The {{MLGraphBuilder}} API allows creating an {{MLGraph}} without input operands. If the underlying platform doesn't support that, implementations may add a stub input, or pass constants as inputs to the graph.
+  The {{MLGraphBuilder}} API allows creating an {{MLGraph}} without input operands. If the underlying platform doesn't support that, implementations can add a stub input, or pass constants as inputs to the graph.
 </div>
 
 ### constant operands ### {#api-mlgraphbuilder-constant}
@@ -2676,7 +2683,7 @@ partial dictionary MLOpSupportLimits {
             interpreted according to the value of *options*.{{MLConvTranspose2dOptions/filterLayout}} and {{MLConvTranspose2dOptions/groups}}.
         - <dfn>options</dfn>: an optional {{MLConvTranspose2dOptions}}.
 
-    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options*.{{MLConvTranspose2dOptions/inputLayout}} value. More specifically, unless the *options*.{{MLConvTranspose2dOptions/outputSizes}} values are explicitly specified, the *options*.{{MLConvTranspose2dOptions/outputPadding}} may be needed to compute the spatial dimension values of the output tensor as follows:
+    **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the transposed convolution result. The output shape is interpreted according to the *options*.{{MLConvTranspose2dOptions/inputLayout}} value. More specifically, unless the *options*.{{MLConvTranspose2dOptions/outputSizes}} values are explicitly specified, the *options*.{{MLConvTranspose2dOptions/outputPadding}} is needed to compute the spatial dimension values of the output tensor as follows:
 
     `outputSize = (inputSize - 1) * stride + (filterSize - 1) * dilation + 1 - beginningPadding - endingPadding + outputPadding`
 </div>
@@ -3587,7 +3594,7 @@ partial dictionary MLOpSupportLimits {
 </div>
 
 <div class="note">
-  The {{MLGraphBuilder/gather(input, indices, options)/indices}} parameter to {{MLGraphBuilder/gather()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
+  The {{MLGraphBuilder/gather(input, indices, options)/indices}} parameter to {{MLGraphBuilder/gather()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the specified clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
 </div>
 
 <table id=constraints-gather class='data' link-for="MLGraphBuilder/gather(input, indices, options)">
@@ -3811,7 +3818,7 @@ partial dictionary MLOpSupportLimits {
 </div>
 
 ### gemm ### {#api-mlgraphbuilder-gemm}
-Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape *[M, K]* or *[K, M]*, `B` is a 2-D tensor with shape *[K, N]* or *[N, K]*, and `C` is [=unidirectionally broadcastable=] to the shape *[M, N]*. `A` and `B` may optionally be transposed prior to the calculation.
+Calculate the [general matrix multiplication of the Basic Linear Algebra Subprograms](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3). The calculation follows the expression `alpha * A * B + beta * C`, where `A` is a 2-D tensor with shape *[M, K]* or *[K, M]*, `B` is a 2-D tensor with shape *[K, N]* or *[N, K]*, and `C` is [=unidirectionally broadcastable=] to the shape *[M, N]*. `A` and `B` can optionally be transposed prior to the calculation.
 
 <script type=idl>
 dictionary MLGemmOptions : MLOperatorOptions {
@@ -3854,11 +3861,11 @@ partial dictionary MLOpSupportLimits {
 
     : <dfn>aTranspose</dfn>
     ::
-        Indicates if the first input should be transposed prior to calculating the output.
+        Indicates if the first input is transposed prior to calculating the output.
 
     : <dfn>bTranspose</dfn>
     ::
-        Indicates if the second input should be transposed prior to calculating the output.
+        Indicates if the second input is transposed prior to calculating the output.
 </dl>
 
 <div dfn-for="MLGraphBuilder/gemm(a, b, options)" dfn-type=argument>
@@ -4042,7 +4049,7 @@ partial dictionary MLOpSupportLimits {
     : <dfn>initialHiddenState</dfn>
     ::
         The 3-D initial hidden state tensor of shape *[numDirections, batchSize, hiddenSize]*.
-        When not specified, implementations SHOULD use a tensor filled with zero.
+        When not specified, implementations must use a tensor filled with zero.
 
     : <dfn>resetAfter</dfn>
     ::
@@ -4169,7 +4176,7 @@ partial dictionary MLOpSupportLimits {
     1. If |hiddenSize| * 6 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         <details class=note>
           <summary>Why |hiddenSize| * 6 ?</summary>
-          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruOptions/bias}} and {{MLGruOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| must also be a [=valid dimension=].
+          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruOptions/bias}} and {{MLGruOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
@@ -4462,7 +4469,7 @@ partial dictionary MLOpSupportLimits {
     1. If |hiddenSize| * 6 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         <details class=note>
           <summary>Why |hiddenSize| * 6 ?</summary>
-          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruCellOptions/bias}} and {{MLGruCellOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| must also be a [=valid dimension=].
+          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruCellOptions/bias}} and {{MLGruCellOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
     1. If |options|.{{MLGruCellOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
@@ -5343,11 +5350,11 @@ partial dictionary MLOpSupportLimits {
 
     : <dfn>initialHiddenState</dfn>
     ::
-        The 3-D initial hidden state tensor of shape *[numDirections, batchSize, hiddenSize]*. When not specified, implementations SHOULD use a tensor filled with zero.
+        The 3-D initial hidden state tensor of shape *[numDirections, batchSize, hiddenSize]*. When not specified, implementations must use a tensor filled with zero.
 
     : <dfn>initialCellState</dfn>
     ::
-        The 3-D initial hidden state tensor of shape *[numDirections, batchSize, hiddenSize]*. When not specified, implementations SHOULD use a tensor filled with zero.
+        The 3-D initial hidden state tensor of shape *[numDirections, batchSize, hiddenSize]*. When not specified, implementations must use a tensor filled with zero.
 
     : <dfn>returnSequence</dfn>
     ::
@@ -5489,7 +5496,7 @@ partial dictionary MLOpSupportLimits {
     1. If |hiddenSize| * 8 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         <details class=note>
           <summary>Why |hiddenSize| * 8 ?</summary>
-          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmOptions/bias}} and {{MLLstmOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| must also be a [=valid dimension=].
+          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmOptions/bias}} and {{MLLstmOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
     1. If |options|.{{MLLstmOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
@@ -5844,7 +5851,7 @@ partial dictionary MLOpSupportLimits {
     1. If |hiddenSize| * 8 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         <details class=note>
           <summary>Why |hiddenSize| * 8 ?</summary>
-          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmCellOptions/bias}} and {{MLLstmCellOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| must also be a [=valid dimension=].
+          Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmCellOptions/bias}} and {{MLLstmCellOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
     1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
