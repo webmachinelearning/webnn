@@ -230,8 +230,9 @@ for (const algorithm of root.querySelectorAll('.algorithm')) {
         'let «( .*,)? ' + name + '(, .*)? » be',
 
         // "For each var ..."
-        // "For each ...  → var ..."
-        'for each( \\w+ →)? ' + name,
+        // "For each type var ..."
+        // "For each key → var ..."
+        'for each( \\w+| \\w+ →)? ' + name,
       ];
       if (patterns.some(p => new RegExp('\\b' + p + '\\b', 'i').test(text))) {
         // Variable declaration/initialization
