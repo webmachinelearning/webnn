@@ -879,7 +879,7 @@ dictionary MLContextLostInfo {
 
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLContext {
-  undefined dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);  
+  undefined dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);
 
   Promise<MLTensor> createTensor(MLTensorDescriptor descriptor);
 
@@ -889,7 +889,9 @@ interface MLContext {
   undefined writeTensor(MLTensor tensor, AllowSharedBufferSource inputData);
 
   MLOpSupportLimits opSupportLimits();
-  
+
+  undefined destroy();
+
   readonly attribute Promise<MLContextLostInfo> lost;
 };
 </script>
@@ -975,6 +977,8 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
   <summary>
     The <dfn method for=MLContext>dispatch(|graph|, |inputs|, |outputs|)</dfn> method steps are:
   </summary>
+    1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If |graph|.{{MLGraph/[[isDestroyed]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. Let |allTensors| be a [=/list=] of {{MLTensor}}s consisting of |inputs|'s [=map/values=] [=list/extended=] by |outputs|'s [=map/values=].
     1. If |allTensors| contains any duplicate [=list/items=], then [=exception/throw=] a {{TypeError}}.
     1. [=list/For each=] |tensor| of |allTensors|:
@@ -1062,6 +1066,7 @@ Creates an {{MLTensor}} associated with this {{MLContext}}.
     The <dfn method for=MLContext>createTensor(|descriptor|)</dfn> method steps are:
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
+    1. If [=this=] [=MLContext/is lost=], then return [=a new promise=] [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
     1. Let |tensor| be the result of [=creating an MLTensor=] given [=this=], and |descriptor|.
     1. Let |promise| be [=a new promise=].
     1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
@@ -1234,6 +1239,22 @@ dictionary MLSingleInputSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
+### {{MLContext/destroy()}}  ### {#api-mlcontext-destroy}
+
+The {{MLContext/destroy()}} method can be called to release all resources associated with the context. Any scheduled compute requests will fail.
+
+<details open algorithm>
+<summary>
+    The <dfn method for=MLContext>destroy()</dfn> method steps are:
+</summary>
+    1. If [=this=] [=MLContext/is lost=], then abort these steps.
+    1. For every {{MLGraph}} |graph| where |graph|.{{MLTensor/[[context]]}} equals [=this=]:
+        1. Run the {{MLGraph/destroy()}} method steps for |graph|.
+    1. Run the steps to [=context lost|lose=] [=this=].
+    1. For every {{MLTensor}} |tensor| where |tensor|.{{MLTensor/[[context]]}} equals [=this=]:
+        1. Run the {{MLTensor/destroy()}} method steps for |tensor|.
+</details>
+
 ### Errors ### {#api-mlcontext-errors}
 
 When a user agent determines that an {{MLContext}} is no longer available to fulfill requests, it must run the [=context lost=] steps for it.
@@ -1265,7 +1286,9 @@ The {{MLGraph}} interface represents a compiled computational graph. A compiled 
 
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLGraph {};
+interface MLGraph {
+  undefined destroy();
+};
 </script>
 
 <div class=internal-slots>
@@ -1286,8 +1309,25 @@ interface MLGraph {};
     : <dfn>\[[implementation]]</dfn>
     ::
         The underlying implementation provided by the User Agent.
+
+    : <dfn>\[[isDestroyed]]</dfn> of type {{boolean}}
+    ::
+        Whether the {{MLGraph}}.{{MLGraph/destroy()}} method steps have been run. Once destroyed, the {{MLGraph}} can no longer be used.
   </dl>
 </div>
+
+### {{MLGraph/destroy()}}  ### {#api-mlgraph-destroy}
+
+The {{MLGraph/destroy()}} method can be called to release all resources associated with the graph.
+
+<details open algorithm>
+<summary>
+    The <dfn method for=MLGraph>destroy()</dfn> method steps are:
+</summary>
+    1. If [=this=].{{MLGraph/[[isDestroyed]]}} is true, then abort these steps.
+    1. Set [=this=].{{MLGraph/[[isDestroyed]]}} to true.
+</details>
+
 
 ## {{MLOperandDescriptor}} dictionary ## {#api-mloperanddescriptor}
 
@@ -1517,7 +1557,7 @@ interface MLTensor {
 
     : <dfn>\[[isDestroyed]]</dfn> of type {{boolean}}
     ::
-        Whether {{MLTensor}}.{{MLTensor/destroy()}} has been called. Once destroyed, the {{MLTensor}} can no longer be used.
+        Whether the {{MLTensor}}.{{MLTensor/destroy()}} steps have been run. Once destroyed, the {{MLTensor}} can no longer be used.
 
     : <dfn>\[[data]]</dfn> of an [=implementation-defined=] type
     ::
@@ -1755,18 +1795,18 @@ Build a composed graph up to a given output operand into a computational graph a
     1. Let |realm| be [=this=]'s [=relevant realm=].
     1. Let |graph| be a new {{MLGraph}} with |realm|.
     1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
+    1. Set |graph|.{{MLGraph/[[isDestroyed]]}} to false.
     1. [=set/For each=] |operand| in |inputs|:
         1. Set |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}] to |operand|.{{MLOperand/[[descriptor]]}}.
     1. [=map/For each=] |name| → |operand| of |outputs|:
         1. Set |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] to |operand|.{{MLOperand/[[descriptor]]}}.
     1. Let |promise| be [=a new promise=].
-    1. Run the following steps [=in parallel=]:
+    1. Run the following steps [=in parallel=], but [=/abort when=] |graph|.{{MLGraph/[[context]]}} [=MLContext/is lost=]:
         1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
-        1. If the previous step failed:
-            1. If |graph|.{{MLGraph/[[context]]}} is no longer available to fulfill requests, then run the [=context lost=] steps for it.
-            1. [=Queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
+        1. If the previous step failed, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
         1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
+    1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
     1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
     1. Return |promise|.
 </details>
