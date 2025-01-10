@@ -977,7 +977,7 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
   <summary>
     The <dfn method for=MLContext>dispatch(|graph|, |inputs|, |outputs|)</dfn> method steps are:
   </summary>
-    1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
     1. If |graph|.{{MLGraph/[[isDestroyed]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. Let |allTensors| be a [=/list=] of {{MLTensor}}s consisting of |inputs|'s [=map/values=] [=list/extended=] by |outputs|'s [=map/values=].
     1. If |allTensors| contains any duplicate [=list/items=], then [=exception/throw=] a {{TypeError}}.
@@ -1248,11 +1248,7 @@ The {{MLContext/destroy()}} method can be called to release all resources associ
     The <dfn method for=MLContext>destroy()</dfn> method steps are:
 </summary>
     1. If [=this=] [=MLContext/is lost=], then abort these steps.
-    1. For each {{MLGraph}} |graph| where |graph|.{{MLTensor/[[context]]}} equals [=this=]:
-        1. Run the {{MLGraph/destroy()}} method steps for |graph|.
     1. Run the steps to [=context lost|lose=] [=this=].
-    1. For each {{MLTensor}} |tensor| where |tensor|.{{MLTensor/[[context]]}} equals [=this=]:
-        1. Run the {{MLTensor/destroy()}} method steps for |tensor|.
 </details>
 
 ### Errors ### {#api-mlcontext-errors}
@@ -1268,6 +1264,10 @@ To <dfn lt="context lost">lose</dfn> the {{MLContext}} |context|, run these step
         1. Let |info| be a new {{MLContextLostInfo}}.
         1. Set |info|.{{MLContextLostInfo/message}} to an [=implementation-defined=] value.
         1. [=Resolve=] |context|.{{MLContext/[[lost]]}} with |info|.
+        1. For each {{MLGraph}} |graph| where |graph|.{{MLTensor/[[context]]}} equals [=this=]:
+            1. Run the {{MLGraph/destroy()}} method steps for |graph|.
+        1. For each {{MLTensor}} |tensor| where |tensor|.{{MLTensor/[[context]]}} equals [=this=]:
+            1. Run the {{MLTensor/destroy()}} method steps for |tensor|.
 </details>
 
 <dl dfn-type=dict-member dfn-for=MLContextLostInfo>
@@ -1806,7 +1806,7 @@ Build a composed graph up to a given output operand into a computational graph a
         1. If the previous step failed, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
         1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
-    1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
+    1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}, and abort these steps.
     1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
     1. Return |promise|.
 </details>
