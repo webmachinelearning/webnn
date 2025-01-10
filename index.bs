@@ -986,8 +986,7 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
         1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
     1. If [=validating tensors with descriptors=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. If [=validating tensors with descriptors=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
-        1. If |graph|.{{MLGraph/[[context]]}} is no longer available to fulfill requests, then run the [=context lost=] steps for it.
+    1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}, which [=/abort when=] [=this=] [=MLContext/is lost=]:
         1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |inputs| and |outputs|.
 
             Issue(778): Add a mechanism for reporting errors during graph execution.
@@ -1251,7 +1250,9 @@ The {{MLContext/destroy()}} method can be called to release all resources associ
     The <dfn method for=MLContext>destroy()</dfn> method steps are:
 </summary>
     1. If [=this=] [=MLContext/is lost=], then abort these steps.
-    1. Run the steps to [=context lost|lose=] [=this=].
+    1. Run the steps to [=MLContext/lose=] [=this=] with an [=/implementation-defined=] message.
+
+        Note: A message indicating that `destroy()` was called can help developers distinguish the cause of the context loss.
 </details>
 
 ### Errors ### {#api-mlcontext-errors}
@@ -1260,17 +1261,24 @@ When a user agent determines that an {{MLContext}} is no longer available to ful
 
 <details open algorithm>
 <summary>
-To <dfn lt="context lost">lose</dfn> the {{MLContext}} |context|, run these steps:
+The <dfn>context lost</dfn> steps for {{MLContext}} |context|, are:
 </summary>
     1. Let |global| be |context|'s [=relevant global object=].
     1. [=Queue an ML task=] with |global| to run these steps:
-        1. Let |info| be a new {{MLContextLostInfo}}.
-        1. Set |info|.{{MLContextLostInfo/message}} to an [=implementation-defined=] value.
-        1. [=Resolve=] |context|.{{MLContext/[[lost]]}} with |info|.
-        1. For each {{MLGraph}} |graph| where |graph|.{{MLTensor/[[context]]}} equals [=this=]:
-            1. Run the {{MLGraph/destroy()}} method steps for |graph|.
-        1. For each {{MLTensor}} |tensor| where |tensor|.{{MLTensor/[[context]]}} equals [=this=]:
-            1. Run the {{MLTensor/destroy()}} method steps for |tensor|.
+        1. [=MLContext/Lose=] |context|, with an [=/implementation-defined=] message.
+</details>
+
+<details open algorithm>
+<summary>
+To <dfn for=MLContext>lose</dfn> {{MLContext}} |context| with {{DOMString}} |message|:
+</summary>
+    1. Let |info| be a new {{MLContextLostInfo}}.
+    1. Set |info|.{{MLContextLostInfo/message}} to |message|.
+    1. [=Resolve=] |context|.{{MLContext/[[lost]]}} with |info|.
+    1. For each {{MLGraph}} |graph| where |graph|.{{MLTensor/[[context]]}} equals [=this=]:
+        1. Run the {{MLGraph/destroy()}} method steps for |graph| with |graph| as [=this=].
+    1. For each {{MLTensor}} |tensor| where |tensor|.{{MLTensor/[[context]]}} equals [=this=]:
+        1. Run the {{MLTensor/destroy()}} method steps for |tensor| with |tensor| as [=this=].
 </details>
 
 <dl dfn-type=dict-member dfn-for=MLContextLostInfo>
