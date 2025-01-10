@@ -1069,10 +1069,11 @@ Creates an {{MLTensor}} associated with this {{MLContext}}.
     1. If [=this=] [=MLContext/is lost=], then return [=a new promise=] [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
     1. Let |tensor| be the result of [=creating an MLTensor=] given [=this=], and |descriptor|.
     1. Let |promise| be [=a new promise=].
-    1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
+    1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}, which [=/abort when=] [=this=] [=MLContext/is lost=]:
         1. Create |tensor|.{{MLTensor/[[data]]}} given |descriptor| and initialize all bytes to zeros.
         1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
         1. Otherwise, [=queue an ML task=] with |global| to [=resolve=] |promise| with |tensor|.
+    1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Return |promise|.
 </details>
 
@@ -1097,10 +1098,11 @@ Reads back the {{MLTensor/[[data]]}} of an {{MLTensor}} from the {{MLContext}}.{
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. Let |promise| be [=a new promise=].
-    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
+    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}, which [=/abort when=] [=this=] [=MLContext/is lost=]:
         1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
         1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
         1. Otherwise, [=queue an ML task=] with |global| to [=ArrayBuffer/create=] an {{ArrayBuffer}} |result| given |bytes| and |realm| and then [=resolve=] |promise| with |result|.
+    1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Return |promise|.
 </details>
 
@@ -1126,7 +1128,7 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |outputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. Let |promise| be [=a new promise=].
-    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
+    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}, which [=/abort when=] [=this=] [=MLContext/is lost=]:
         1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
         1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
         1. Otherwise, [=queue an ML task=] with |global| and the following steps:
@@ -1136,6 +1138,7 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
 
             1. [=ArrayBuffer/Write=] |bytes| to |outputData|.
             1. [=Resolve=] |promise| with {{undefined}}.
+    1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Return |promise|.
 </details>
 
@@ -1800,14 +1803,14 @@ Build a composed graph up to a given output operand into a computational graph a
         1. Set |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}] to |operand|.{{MLOperand/[[descriptor]]}}.
     1. [=map/For each=] |name| → |operand| of |outputs|:
         1. Set |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] to |operand|.{{MLOperand/[[descriptor]]}}.
+    1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
     1. Let |promise| be [=a new promise=].
     1. Run the following steps [=in parallel=], but [=/abort when=] |graph|.{{MLGraph/[[context]]}} [=MLContext/is lost=]:
         1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
         1. If the previous step failed, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
         1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
-    1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}, and abort these steps.
-    1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
+    1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Return |promise|.
 </details>
 
