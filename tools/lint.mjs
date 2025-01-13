@@ -321,4 +321,23 @@ for (const dfn of root.querySelectorAll('dfn[data-dfn-type=argument]')) {
   }
 }
 
+// Try to catch type mismatches like |tensor|.{{MLGraph/...}}. Note that the
+// test is keyed on the variable name; variables listed here are not validated.
+for (const match of source.matchAll(/\|(\w+)\|\.{{(\w+)\/.*?}}/g)) {
+  const [_, v, i] = match;
+  [['MLTensor', ['tensor']],
+   ['MLGraph', ['graph']],
+   ['MLOperand', ['operand', 'input', 'output0', 'output1', 'output2']],
+   ['MLOperandDescriptor', ['descriptor', 'desc', 'inputDescriptor']],
+  ].forEach(pair => {
+    const [iname, vnames] = pair;
+    vnames.forEach(vname => {
+      if (v === vname && i !== iname) {
+        error(`Variable name '${v}' and type '${i}' do not match: ${
+          format(match)}`);
+      }
+    });
+  });
+}
+
 globalThis.process.exit(exitCode);

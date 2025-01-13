@@ -1093,11 +1093,11 @@ Reads back the {{MLTensor/[[data]]}} of an {{MLTensor}} from the {{MLContext}}.{
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. If |tensor|.{{MLGraph/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. Let |promise| be [=a new promise=].
-    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}, which [=/abort when=] [=this=] [=MLContext/is lost=]:
+    1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}, which [=/abort when=] [=this=] [=MLContext/is lost=]:
         1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
         1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
         1. Otherwise, [=queue an ML task=] with |global| to [=ArrayBuffer/create=] an {{ArrayBuffer}} |result| given |bytes| and |realm| and then [=resolve=] |promise| with |result|.
@@ -1122,12 +1122,12 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
     The <dfn method for=MLContext>readTensor(|tensor|, |outputData|)</dfn> method steps are:
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. If |tensor|.{{MLGraph/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |outputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. Let |promise| be [=a new promise=].
-    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}, which [=/abort when=] [=this=] [=MLContext/is lost=]:
+    1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}, which [=/abort when=] [=this=] [=MLContext/is lost=]:
         1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
         1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
         1. Otherwise, [=queue an ML task=] with |global| and the following steps:
@@ -1157,13 +1157,13 @@ Writes data to the {{MLTensor/[[data]]}} of an {{MLTensor}} on the {{MLContext}}
   <summary>
     The <dfn method for=MLContext>writeTensor(|tensor|, |inputData|)</dfn> method steps are:
   </summary>
-    1. If |tensor|.{{MLGraph/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/writable}} is false, then [=exception/throw=] a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |inputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |inputData|.
     1. [=Assert=]: |bytes|'s [=byte sequence/length=] is equal to |tensor|.{{MLTensor/[[descriptor]]}}'s [=MLOperandDescriptor/byte length=].
-    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
+    1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}, which [=/abort when=] [=this=] [=MLContext/is lost=]:
         1. Copy |bytes| to |tensor|.{{MLTensor/[[data]]}}.
 
             Issue(778): Add a mechanism for reporting errors while writing to a tensor.
@@ -1243,7 +1243,7 @@ dictionary MLSingleInputSupportLimits {
 
 ### {{MLContext/destroy()}}  ### {#api-mlcontext-destroy}
 
-The {{MLContext/destroy()}} method can be called to release all resources associated with the context. Any scheduled compute requests will fail.
+The {{MLContext/destroy()}} method can be called to release all resources associated with the context. Any outstanding compute requests and {{MLTensor}} read/write requests will fail.
 
 <details open algorithm>
 <summary>
@@ -1275,7 +1275,7 @@ To <dfn for=MLContext>lose</dfn> {{MLContext}} |context| with {{DOMString}} |mes
     1. Let |info| be a new {{MLContextLostInfo}}.
     1. Set |info|.{{MLContextLostInfo/message}} to |message|.
     1. [=Resolve=] |context|.{{MLContext/[[lost]]}} with |info|.
-    1. For each {{MLGraph}} |graph| where |graph|.{{MLTensor/[[context]]}} equals [=this=]:
+    1. For each {{MLGraph}} |graph| where |graph|.{{MLGraph/[[context]]}} equals [=this=]:
         1. Run the {{MLGraph/destroy()}} method steps for |graph| with |graph| as [=this=].
     1. For each {{MLTensor}} |tensor| where |tensor|.{{MLTensor/[[context]]}} equals [=this=]:
         1. Run the {{MLTensor/destroy()}} method steps for |tensor| with |tensor| as [=this=].
@@ -1338,6 +1338,8 @@ The {{MLGraph/destroy()}} method can be called to release all resources associat
     1. If [=this=].{{MLGraph/[[isDestroyed]]}} is true, then abort these steps.
     1. Set [=this=].{{MLGraph/[[isDestroyed]]}} to true.
 </details>
+
+Note: Since no further workloads can be enqueued using this graph, implementations can free any additional resource allocations associated with this graph once all previously submitted workloads using it are complete.
 
 
 ## {{MLOperandDescriptor}} dictionary ## {#api-mloperanddescriptor}
