@@ -60,13 +60,6 @@ Design decisions should take the following into account:
 
 7. As a corollary to 6, allow creating a context using also options for [OpSupportLimits](https://webmachinelearning.github.io/webnn/#api-mlcontext-opsupportlimits-dictionary).
 
-## Considered alternatives
-
-1. Keep the current [MLDeviceType](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) as a context option, but improve the device type names and specify an algorithm for a mapping these names to various real adaptors (with their given characteristics). However, this would be more limited than being able to specify device specific limits to context creation.
-
-2. Remove [MLDeviceType](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype), but define a set of [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) that map well to GPU adapter/device selection and also to NPU device selection.
-
-3. Follow this [proposal](https://github.com/webmachinelearning/webnn/issues/749#issuecomment-2429821928), also tracked in [[MLOpSupportLimits should be opt-in #759]](https://github.com/webmachinelearning/webnn/issues/759). That is, allow listing op support limits outside of a context, which would return all available devices with their op support limits. Then the web app could choose one of them to initialize a context with.
 
 ## Scenarios, examples, design discussion
 
@@ -111,6 +104,7 @@ What exactly is best to pass as context options? Op support limits? Supported fe
 
 Update the security and privacy section. Would the proposals here increase the fingerprinting surface? If yes, what mitigations can be made? The current understanding is that any extra information exposed to web apps in these proposals could be obtained by other methods as well. However, security hardening and relevant mitigations are recommended. For instance, implementations could choose the level of information (e.g. op support limits) exposed to a given origin.
 
+
 ## Background thoughts
 
 ### Representing NPUs
@@ -146,11 +140,23 @@ Many platforms support various hybrid execution scenarios involving NPU, CPU, an
 
 As an example for handling hybrid execution as well as the underlying challenges, take a look at [OpenVINO device selection](https://blog.openvino.ai/blog-posts/automatic-device-selection-and-configuration).
 
-## Minimum Viable Solution
+## Considered alternatives
 
-Based on the discussion above, the best starting point would be a simple solution that can be extended and refined later. Namely,
+1. Keep the current [MLDeviceType](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) as a context option, but improve the device type names and specify an algorithm for a mapping these names to various real adaptors (with their given characteristics). However, this would be more limited than being able to specify device specific limits to context creation. (This is the current approach).
+
+2. Remove [MLDeviceType](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype), but define a set of [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) that map well to GPU adapter/device selection and also to NPU device selection. (This is the proposed first approach.)
+
+3. Follow this [proposal](https://github.com/webmachinelearning/webnn/issues/749#issuecomment-2429821928), also tracked in [[MLOpSupportLimits should be opt-in #759]](https://github.com/webmachinelearning/webnn/issues/759). That is, allow listing op support limits outside of a context, which would return all available devices with their op support limits. Then the web app could choose one of them to initialize a context with. (This is a suggested longer term discussion topic.)
+
+
+## Proposed Minimum Viable Solution
+
+Based on the discussion above, the best starting point would be a simple solution that can be extended and refined later. A first contribution could include the following changes:
 - Remove [MLDeviceType](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) as explicit [context option](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions).
 - Update [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext) so that it becomes device agnostic, or _default_/_generic_ context. Allow supporting multiple devices with one context.
-- Add notes to implementations on how to map [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference) to devices.
-- Improve the device selection hints in [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) and define their implementation mappings. For instance, should we also include `"low-latency"` as a performance option, or should we rename `"default"` to `"auto"` (alluding to an underlying process, rather than a default setting).
+- Add algorithmic steps or notes to implementations on how to map [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference) to devices.
+
+Also, the following topics could be discussed already now, but decided later:
+- Improve the device selection hints in [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) and define their implementation mappings. For instance, discuss whether should we also include a `"low-latency"` performance option. Also, discuss whether to rename `"default"` to `"auto"` (alluding to an underlying process, rather than a default setting).
 - Document the valid use cases for requesting a certain device type or combination of devices, and within what error conditions. Currently, after these changes there remains explicit support for GPU-only context when an [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext) is created from a [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice) in [createContext()](https://webmachinelearning.github.io/webnn/#api-ml-createcontext).
+- Discuss option #3 from [Considered alternatives](#considered-alternatives).
