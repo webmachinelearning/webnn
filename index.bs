@@ -2416,6 +2416,83 @@ partial dictionary MLOpSupportLimits {
     1. Return |output|.
 </details>
 
+### cumulativeSum ### {#api-mlgraphbuilder-sign}
+Compute the accumulated sum of a series of values along the given axis, either including or excluding the current value.
+
+<script type=idl>
+dictionary MLCumulativeSumOptions : MLOperatorOptions
+{
+    bool exclusive = false;
+    bool reversed = false;
+}
+partial interface MLGraphBuilder {
+  MLOperand cumulativeSum(MLOperand input,
+                          unsigned long axis,
+                          optional MLCumulativeSumOptions options = {});
+};
+
+partial dictionary MLOpSupportLimits {
+  MLSingleInputSupportLimits cumulativeSum;
+};
+</script>
+
+{{MLConvTranspose2dOptions}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLCumulativeSumOptions>
+    : <dfn>exclusive</dfn>
+    ::
+        Whether to include or exclude the current value in the output, meaning inclusive presum addition (see https://en.wikipedia.org/wiki/Prefix_sum) or exclusive post-sum addition. Given input [1,2,3,4], inclusive addition would yield an output of [1,3,6,10] whereas exclusive would yield [0,1,3,6]. The default is inclusive.
+
+    : <dfn>reversed</dfn>
+    ::
+        Whether to reverse the summation direction along the active axis to instead start from the high coordinate to low coordinate. Given input *[1,2,3,4]*, inclusive forward addition would yield an output of *[1,3,6,10]* whereas backward summation would yield *[10,9,7,4]*. The default is exclusive.
+</dl>
+
+<div dfn-for="MLGraphBuilder/cumulativeSum(input, options)" dfn-type=argument>
+    **Arguments:**
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
+        - <dfn>options</dfn>: an {{MLCumulativeSumOptions}}. Specifies the optional parameters of the operation.
+
+    **Returns:**
+        - an {{MLOperand}}. The output tensor of the same shape as *input*.
+</div>
+
+{{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/cumulativeSum()}}:
+<dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
+    : <dfn>cumulativeSum</dfn>
+    :: Support limits for operator {{MLGraphBuilder/cumulativeSum()}}.
+</dl>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>cumulativeSum(|input|, |options|)</dfn> method steps are:
+  </summary>
+    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"float32"}} or {{MLOperandDataType/"float16"}}, then [=exception/throw=] a {{TypeError}}.
+    1. *Make graph connections:*
+        1. Let |output| be the result of [=copying an MLOperand=] given |input|.
+        1. Let |operator| be an [=operator=] for the "softplus" operation and |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
+    1. Return |output|.
+</details>
+
+<div class="note">
+  <details open>
+    <summary>
+    The behavior of this operation can be [EMULATED]
+    </summary>
+    <pre highlight="js">
+    function softplus(builder, input) {
+      return builder.log(
+        builder.add(builder.exp(input), builder.constant(input.dataType, 1)));
+    }
+    </pre>
+  </details>
+</div>
+
+
 ### Element-wise binary operations ### {#api-mlgraphbuilder-binary}
 Compute the element-wise binary addition, subtraction, multiplication, division, power, maximum and minimum of the two input tensors.
 
@@ -3443,24 +3520,14 @@ partial dictionary MLOpSupportLimits {
 ### gatherElements ### {#api-mlgraphbuilder-gatherelements}
 !!!Gather values of the input tensor along an axis according to the indices.
 <script type=idl>
-dictionary MLGatherOptions : MLOperatorOptions {
-  [EnforceRange] unsigned long axis = 0;
-};
-
 partial interface MLGraphBuilder {
-  MLOperand gather(MLOperand input,
-                   MLOperand indices,
-                   optional MLGatherOptions options = {});
-};
-
-dictionary MLGatherSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits indices;
-  MLSupportLimits output;
+  MLOperand gatherElements(MLOperand input,
+                           MLOperand indices,
+                           optional MLGatherOptions options = {});
 };
 
 partial dictionary MLOpSupportLimits {
-  MLGatherSupportLimits gather;
+  MLGatherSupportLimits gatherElements;
 };
 </script>
 
@@ -3598,57 +3665,30 @@ partial dictionary MLOpSupportLimits {
 ### gatherNd ### {#api-mlgraphbuilder-gathernd}
 !!!Gather values of the input tensor along an axis according to the indices.
 <script type=idl>
-dictionary MLGatherOptions : MLOperatorOptions {
-  [EnforceRange] unsigned long axis = 0;
-};
-
 partial interface MLGraphBuilder {
-  MLOperand gather(MLOperand input,
-                   MLOperand indices,
-                   optional MLGatherOptions options = {});
-};
-
-dictionary MLGatherSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits indices;
-  MLSupportLimits output;
+  MLOperand gatherND(MLOperand input,
+                     MLOperand indices,
+                     optional MLOperatorOptions options = {});
 };
 
 partial dictionary MLOpSupportLimits {
-  MLGatherSupportLimits gather;
+  MLGatherNdSupportLimits gather;
 };
 </script>
-
-{{MLGatherOptions}} has the following members:
-<dl dfn-type=dict-member dfn-for=MLGatherOptions>
-    : <dfn>axis</dfn>
-    ::
-        The axis along which the gathered values are obtained. Its value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor.
-</dl>
 
 <div dfn-for="MLGraphBuilder/gather(input, indices, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor from which the values are gathered.
         - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
-        - <dfn>options</dfn>: an optional {{MLGatherOptions}}. The optional parameters of the operation.
+        - <dfn>options</dfn>: an optional {{MLOperatorOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input* + the [=MLOperand/rank=] of *indices* - 1.
 </div>
 
-{{MLGatherSupportLimits}} has the following members:
-<dl dfn-type=dict-member dfn-for=MLGatherSupportLimits>
-    : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
-    : <dfn>indices</dfn>
-    :: {{MLSupportLimits}} for indices operand.
-    : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
-</dl>
-
-{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/gather()}}:
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/gatherNd()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
-    : <dfn>gather</dfn>
-    :: Support limits for operator {{MLGraphBuilder/gather()}}.
+    : <dfn>gatherNd</dfn>
+    :: Support limits for operator {{MLGraphBuilder/gatherNd()}}.
 </dl>
 
 <div class="note">
