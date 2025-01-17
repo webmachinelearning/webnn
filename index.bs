@@ -2973,10 +2973,10 @@ partial dictionary MLOpSupportLimits {
         Whether to reverse the summation direction along the active axis to instead start from the high coordinate to low coordinate. Given input *[1,2,3,4]*, inclusive forward addition would yield an output of *[1,3,6,10]* whereas backward summation would yield *[10,9,7,4]*. The default is exclusive.
 </dl>
 
-<div dfn-for="MLGraphBuilder/cumulativeSum(input, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/cumulativeSum(input, axis, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
-        - <dfn>axis</dfn>: an {{unsigned long}} scalar. The dimension the reduction will be performed on.
+        - <dfn>axis</dfn>: an {{unsigned long}} scalar. The axis the summation will be performed on. Its value must be in the range [0, N-1] where N is *input*'s [=MLOperand/rank=].
         - <dfn>options</dfn>: an {{MLCumulativeSumOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
@@ -2991,7 +2991,7 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>cumulativeSum(|input|, |options|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>cumulativeSum(|input|, |axis|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -3391,22 +3391,22 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>logicalAnd(|a|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalAnd", |a|, and |options|.
+    The <dfn method for=MLGraphBuilder>logicalAnd(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalAnd", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>logicalOr(|a|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalOr", |a|, and |options|.
+    The <dfn method for=MLGraphBuilder>logicalOr(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalOr", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
-    The <dfn method for=MLGraphBuilder>logicalXor(|a|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalXor", |a|, and |options|.
+    The <dfn method for=MLGraphBuilder>logicalXor(|a|, |b|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalXor", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -3669,7 +3669,7 @@ partial dictionary MLOpSupportLimits {
         builder.where(
           builder.lesser(input, zero),
           negativeOne,
-          positiveOne));
+          zero));
     }
     </pre>
   </details>
@@ -3679,7 +3679,7 @@ partial dictionary MLOpSupportLimits {
 ### dequantizeLinear ### {#api-mlgraphbuilder-dequantizelinear}
 Dequantizes an integer tensor to floating point space using the scale and zero-point bias, where `output = (input - zeroPoint) * scale`.
 
-The operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors, and each dimension must be blockwise compatible with the output (e.g. given an input shape [12], scales of the following shapes are blockwise compatible {[1], [3], [4], [6], [12]} as they are all multiples of the input dimensions, but a shape of [5] would not be).
+TODO: Elaborate on blockwise broadcasting - The operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors, and each dimension must be blockwise compatible with the output (e.g. given an input shape *[12]*, scales of the following shapes are blockwise compatible {*[1]*, *[3]*, *[4]*, *[6]*, *[12]*} as they are all multiples of the input dimensions, but a shape of *[5]* would not be).
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -3703,13 +3703,44 @@ partial dictionary MLOpSupportLimits {
 
 <div dfn-for="MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)" dfn-type=argument>
     **Arguments:**
-        - <dfn>input</dfn>: an {{MLOperand}}. The condition tensor.
+        - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
         - <dfn>scale</dfn>: an {{MLOperand}}. The scale tensor to multiply each input value by after adjusting by the zero point.
         - <dfn>zeroPoint</dfn>: an {{MLOperand}}. The zero point tensor to subtract from each input value.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output tensor that contains the values selected element-wise from either the trueValue or the falseValue tensor.
+    **Returns:** an {{MLOperand}}. The output tensor that contains the dequantized values.
 </div>
+
+<table id=constraints-dequantizelinear class='data' link-for="MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)">
+  <caption>Constraints for {{MLGraphBuilder/dequantizeLinear()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"uint4"}}, {{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>N</td>
+  </tr>
+  <tr>
+    <td>{{scale}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+  </tr>
+  <tr>
+    <td>{{zeroPoint}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{scale}}</td>
+    <td>4</td>
+  </tr>
+</table>
 
 {{MLQuantizationSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLQuantizationSupportLimits>
@@ -3731,7 +3762,7 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>where(|input|, |scale|, |zeroPoint|, |options|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>dequantizeLinear(|input|, |scale|, |zeroPoint|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |scale|, and |zeroPoint| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -3753,7 +3784,7 @@ partial dictionary MLOpSupportLimits {
 ### quantizeLinear ### {#api-mlgraphbuilder-quantizelinear}
 Quantizes a floating point tensor to integer point space using the scale and zero-point bias, where `output = clamp(roundToNearestEvens(input / scale) + zeroPoint, 0, 255)`.
 
-The operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors, and each dimension must be blockwise compatible with the output (e.g. given an input shape [12], scales of the following shapes are blockwise compatible {[1], [3], [4], [6], [12]} as they are all multiples of the input dimensions, but a shape of [5] would not be).
+TODO: Elaborate on blockwise broadcasting - The operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors, and each dimension must be blockwise compatible with the output (e.g. given an input shape *[12]*, scales of the following shapes are blockwise compatible {*[1]*, *[3]*, *[4]*, *[6]*, *[12]*} as they are all multiples of the input dimensions, but a shape of *[5]* would not be).
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -3782,8 +3813,39 @@ partial dictionary MLOpSupportLimits {
         - <dfn>zeroPoint</dfn>: an {{MLOperand}}. The zero point tensor to subtract from each input value.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output tensor that contains the values computed from the quantization.
+    **Returns:** an {{MLOperand}}. The output tensor that contains the quantized values.
 </div>
+
+<table id=constraints-quantizelinear class='data' link-for="MLGraphBuilder/quantizeLinear(input, scale, zeroPoint, options)">
+  <caption>Constraints for {{MLGraphBuilder/quantizeLinear()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>N</td>
+  </tr>
+  <tr>
+    <td>{{scale}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+  </tr>
+  <tr>
+    <td>{{zeroPoint}}</td>
+    <td>{{MLOperandDataType/"uint4"}}, {{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{zeroPoint}}</td>
+    <td>4</td>
+  </tr>
+</table>
 
 {{MLQuantizationSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLQuantizationSupportLimits>
@@ -3806,7 +3868,7 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>where(|input|, |scale|, |zeroPoint|, |options|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>quantizeLinear(|input|, |scale|, |zeroPoint|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |scale|, and |zeroPoint| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -3986,7 +4048,6 @@ partial dictionary MLOpSupportLimits {
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
-
 
 ### gather ### {#api-mlgraphbuilder-gather}
 Gather values of the input tensor along an axis according to the indices.
@@ -4184,20 +4245,13 @@ partial dictionary MLOpSupportLimits {
 };
 </script>
 
-{{MLGatherOptions}} has the following members:
-<dl dfn-type=dict-member dfn-for=MLGatherOptions>
-    : <dfn>axis</dfn>
-    ::
-        The axis along which the gathered values are obtained. Its value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor.
-</dl>
-
-<div dfn-for="MLGraphBuilder/gather(input, indices, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/gatherElements(input, indices, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor from which the values are gathered.
         - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
         - <dfn>options</dfn>: an optional {{MLGatherOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input* + the [=MLOperand/rank=] of *indices* - 1.
+    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input*.
 </div>
 
 {{MLGatherSupportLimits}} has the following members:
@@ -4210,14 +4264,40 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/gather()}}:
+<table id=constraints-gatherelements class='data' link-for="MLGraphBuilder/gatherElements(input, indices, options)">
+  <caption>Constraints for {{MLGraphBuilder/gatherElements()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>&gt; 1</td>
+  </tr>
+  <tr>
+    <td>{{indices}}</td>
+    <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>*input*'s [=MLOperand/rank=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>*input*'s [=MLOperand/rank=]</td>
+  </tr>
+</table>
+
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/gatherElements()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
-    : <dfn>gather</dfn>
-    :: Support limits for operator {{MLGraphBuilder/gather()}}.
+    : <dfn>gatherElements</dfn>
+    :: Support limits for operator {{MLGraphBuilder/gatherElements()}}.
 </dl>
 
 <div class="note">
-  The {{MLGraphBuilder/gather(input, indices, options)/indices}} parameter to {{MLGraphBuilder/gather()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
+  The {{MLGraphBuilder/gatherElements(input, indices, options)/indices}} parameter to {{MLGraphBuilder/gatherElements()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
 </div>
 
 <details open algorithm>
@@ -4230,60 +4310,15 @@ partial dictionary MLOpSupportLimits {
 <div class="example">
 <details open>
   <summary>
-    Examples of how gather works in different slicing schemes.
+    Examples of how gatherElements works in different slicing schemes.
   </summary>
   <pre highlight="js">
-    // input of shape [4,3]:
-    //   [[ 0,  1,  2],
-    //    [10, 11, 12],
-    //    [20, 21, 22],
-    //    [30, 31, 32]]
-    const input = builder.constant(
-      {shape: [4, 3]},
-      new Float32Array([0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32]));
-
-    const indices1 = builder.constant(
-      {dataType: 'uint32', shape: [2]}, new Uint32Array([3, 1]));
-
-    const indices2 = builder.constant(
-      {dataType: 'uint32', shape: [3]}, new Uint32Array([2, 1, 1]));
-
-    const indices3 = builder.constant(
-      {dataType: 'uint32', shape: [2, 2]}, new Uint32Array([0, 1, 1, 2]));
-
-    // axis = 0 (default)
-    // indices of shape [2]:
-    //   [3,1]
-    // output of shape [2,3]:
-    //   [[30, 31, 32],
-    //    [10, 11, 12]]
-    const output1 = builder.gather(input, indices1);
-
-    // axis = 1
-    // indices of shape [3]:
-    //   [2,1,1]
-    // output of shape [4,3]:
-    //   [[ 2,  1,  1],
-    //    [12, 11, 11],
-    //    [22, 21, 21],
-    //    [32, 31, 31]]
-    const output2 = builder.gather(input, indices2, {axis: 1});
-
-    // axis = 1
-    // indices of shape [2,2]:
-    //   [[0, 1],
-    //    [1, 2]]
-    // output of shape [4,2,2]:
-    //   [[[ 0,  1], [ 1,  2]],
-    //    [[10, 11], [11, 12]],
-    //    [[20, 21], [21, 22]],
-    //    [[30, 31], [31, 32]]]
-    const output3 = builder.gather(input, indices3, {axis: 1});
+    TODO:
   </pre>
 </details>
 </div>
 
-### gatherNd ### {#api-mlgraphbuilder-gathernd}
+### gatherND ### {#api-mlgraphbuilder-gathernd}
 Gather values of the input tensor along an axis according to the indices.
 
 <script type=idl>
@@ -4294,32 +4329,58 @@ partial interface MLGraphBuilder {
 };
 
 partial dictionary MLOpSupportLimits {
-  MLGatherNdSupportLimits gather;
+  MLGatherSupportLimits gatherND;
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/gather(input, indices, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/gatherND(input, indices, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor from which the values are gathered.
         - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
         - <dfn>options</dfn>: an optional {{MLOperatorOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input* + the [=MLOperand/rank=] of *indices* - 1.
+    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the *input*'s [=MLOperand/rank=] + *indices*'s [=MLOperand/rank=] - *indices*'s [=MLOperand/shape=][-1] - 1.
 </div>
 
-{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/gatherNd()}}:
+<table id=constraints-gathernd class='data' link-for="MLGraphBuilder/gatherND(input, indices, options)">
+  <caption>Constraints for {{MLGraphBuilder/gatherND()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>&gt; 1</td>
+  </tr>
+  <tr>
+    <td>{{indices}}</td>
+    <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>&gt; 1</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>*input*'s [=MLOperand/rank=] + *indices*'s [=MLOperand/rank=] - *indices*'s [=MLOperand/shape=][-1] - 1</td>
+  </tr>
+</table>
+
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/gatherND()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
-    : <dfn>gatherNd</dfn>
-    :: Support limits for operator {{MLGraphBuilder/gatherNd()}}.
+    : <dfn>gatherND</dfn>
+    :: Support limits for operator {{MLGraphBuilder/gatherND()}}.
 </dl>
 
 <div class="note">
-  The {{MLGraphBuilder/gather(input, indices, options)/indices}} parameter to {{MLGraphBuilder/gather()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
+  The {{MLGraphBuilder/gatherND(input, indices, options)/indices}} parameter to {{MLGraphBuilder/gatherND()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>gather(|input|, |indices|, |options|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>gatherND(|input|, |indices|, |options|)</dfn> method steps are:
   </summary>
   TODO:
 </details>
@@ -4327,55 +4388,10 @@ partial dictionary MLOpSupportLimits {
 <div class="example">
 <details open>
   <summary>
-    Examples of how gather works in different slicing schemes.
+    Examples of how gatherND works in different slicing schemes.
   </summary>
   <pre highlight="js">
-    // input of shape [4,3]:
-    //   [[ 0,  1,  2],
-    //    [10, 11, 12],
-    //    [20, 21, 22],
-    //    [30, 31, 32]]
-    const input = builder.constant(
-      {shape: [4, 3]},
-      new Float32Array([0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32]));
-
-    const indices1 = builder.constant(
-      {dataType: 'uint32', shape: [2]}, new Uint32Array([3, 1]));
-
-    const indices2 = builder.constant(
-      {dataType: 'uint32', shape: [3]}, new Uint32Array([2, 1, 1]));
-
-    const indices3 = builder.constant(
-      {dataType: 'uint32', shape: [2, 2]}, new Uint32Array([0, 1, 1, 2]));
-
-    // axis = 0 (default)
-    // indices of shape [2]:
-    //   [3,1]
-    // output of shape [2,3]:
-    //   [[30, 31, 32],
-    //    [10, 11, 12]]
-    const output1 = builder.gather(input, indices1);
-
-    // axis = 1
-    // indices of shape [3]:
-    //   [2,1,1]
-    // output of shape [4,3]:
-    //   [[ 2,  1,  1],
-    //    [12, 11, 11],
-    //    [22, 21, 21],
-    //    [32, 31, 31]]
-    const output2 = builder.gather(input, indices2, {axis: 1});
-
-    // axis = 1
-    // indices of shape [2,2]:
-    //   [[0, 1],
-    //    [1, 2]]
-    // output of shape [4,2,2]:
-    //   [[[ 0,  1], [ 1,  2]],
-    //    [[10, 11], [11, 12]],
-    //    [[20, 21], [21, 22]],
-    //    [[30, 31], [31, 32]]]
-    const output3 = builder.gather(input, indices3, {axis: 1});
+    TODO:
   </pre>
 </details>
 </div>
@@ -7814,7 +7830,7 @@ partial dictionary MLOpSupportLimits {
 };
 </script>
 
-{{MLLayerNormalizationOptions}} has the following members:
+{{MLReverseOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLReverseOptions>
     : <dfn>axes</dfn>
     ::
@@ -7874,7 +7890,7 @@ partial dictionary MLOpSupportLimits {
 </details>
 
 ### scatterElements ### {#api-mlgraphbuilder-scatterelements}
-Scatter values of the input tensor along an axis according to the indices.
+Scatter values from the updates tensor along an axis according to the indices in place of the input tensor.
 
 <script type=idl>
 dictionary MLScatterOptions : MLOperatorOptions {
@@ -7891,6 +7907,7 @@ partial interface MLGraphBuilder {
 dictionary MLScatterSupportLimits {
   MLSupportLimits input;
   MLSupportLimits indices;
+  MLSupportLimits updates;
   MLSupportLimits output;
 };
 
@@ -7909,12 +7926,43 @@ partial dictionary MLOpSupportLimits {
 <div dfn-for="MLGraphBuilder/scatterElements(input, indices, updates, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor from which the values are scattered.
-        - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to scatter. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
-        - <dfn>updates</dfn>: an {{MLOperand}}. TODO:.
+        - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to scatter over. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
+        - <dfn>updates</dfn>: an {{MLOperand}}. New values to replace atop the input.
         - <dfn>options</dfn>: an optional {{MLScatterOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input* + the [=MLOperand/rank=] of *indices* - 1.
+    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to *input*'s [=MLOperand/rank=].
 </div>
+
+<table id=constraints-scatterelements class='data' link-for="MLGraphBuilder/scatterElements(input, indices, updates, options)">
+  <caption>Constraints for {{MLGraphBuilder/scatterElements()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>&gt; 1</td>
+  </tr>
+  <tr>
+    <td>{{indices}}</td>
+    <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>{{input}}'s [=MLOperand/rank=]</td>
+  </tr>
+  <tr>
+    <td>{{updates}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{input}}'s [=MLOperand/rank=] and {{indices}}'s [=MLOperand/shape=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{input}}'s [=MLOperand/rank=]</td>
+  </tr>
+</table>
 
 {{MLScatterSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLScatterSupportLimits>
@@ -7922,6 +7970,8 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for input operand.
     : <dfn>indices</dfn>
     :: {{MLSupportLimits}} for indices operand.
+    : <dfn>updates</dfn>
+    :: {{MLSupportLimits}} for updates operand.
     : <dfn>output</dfn>
     :: {{MLSupportLimits}} for output operand.
 </dl>
@@ -7933,7 +7983,7 @@ partial dictionary MLOpSupportLimits {
 </dl>
 
 <div class="note">
-  The {{MLGraphBuilder/scatterElements(input, indices, options)/indices}} parameter to {{MLGraphBuilder/scatterElements()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
+  The {{MLGraphBuilder/scatterElements(input, indices, updates, options)/indices}} parameter to {{MLGraphBuilder/scatterElements()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
 </div>
 
 <details open algorithm>
@@ -7955,7 +8005,7 @@ partial dictionary MLOpSupportLimits {
 </div>
 
 
-### scatterNd ### {#api-mlgraphbuilder-scatternd}
+### scatterND ### {#api-mlgraphbuilder-scatternd}
 Scatter values of the input tensor along an axis according to the indices.
 
 <script type=idl>
@@ -7970,31 +8020,19 @@ partial interface MLGraphBuilder {
                       optional MLOperatorOptions options = {});
 };
 
-dictionary MLScatterSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits indices;
-  MLSupportLimits output;
-};
-
 partial dictionary MLOpSupportLimits {
-  MLScatterSupportLimits scatterNd;
+  MLScatterSupportLimits scatterND;
 };
 </script>
 
-{{MLScatterOptions}} has the following members:
-<dl dfn-type=dict-member dfn-for=MLScatterOptions>
-    : <dfn>axis</dfn>
-    ::
-        The axis along which the scattered values are obtained. Its value must be in the range [0, N-1] where N is the [=MLOperand/rank=] of the input tensor.
-</dl>
-
-<div dfn-for="MLGraphBuilder/scatterNd(input, indices, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/scatterND(input, indices, updates, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor from which the values are scattered.
-        - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to scatter. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
+        - <dfn>indices</dfn>: an {{MLOperand}}. TODO: Elaborate on indices coordinate order. The indices N-D tensor of the input values to scatter. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
+        - <dfn>updates</dfn>: an {{MLOperand}}. New values to replace atop the input.
         - <dfn>options</dfn>: an optional {{MLScatterOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input* + the [=MLOperand/rank=] of *indices* - 1.
+    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input*'s [=MLOperand/rank=] + *indices*'s [=MLOperand/rank=] - *indices*'s [=MLOperand/shape=][-1] - 1.
 </div>
 
 {{MLScatterSupportLimits}} has the following members:
@@ -8003,23 +8041,56 @@ partial dictionary MLOpSupportLimits {
     :: {{MLSupportLimits}} for input operand.
     : <dfn>indices</dfn>
     :: {{MLSupportLimits}} for indices operand.
+    : <dfn>updates</dfn>
+    :: {{MLSupportLimits}} for updates operand.
     : <dfn>output</dfn>
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
-{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/scatterNd()}}:
+<table id=constraints-scatternd class='data' link-for="MLGraphBuilder/scatterND(input, indices, updates, options)">
+  <caption>Constraints for {{MLGraphBuilder/scatterND()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>&gt; 1</td>
+  </tr>
+  <tr>
+    <td>{{indices}}</td>
+    <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>&gt; 1</td>
+  </tr>
+  <tr>
+    <td>{{updates}}</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>*input*'s [=MLOperand/rank=] + *indices*'s [=MLOperand/rank=] - *indices*'s [=MLOperand/shape=][-1] - 1</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>&gt; 1</td>
+  </tr>
+</table>
+
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/scatterND()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
-    : <dfn>scatterNd</dfn>
-    :: Support limits for operator {{MLGraphBuilder/scatterNd()}}.
+    : <dfn>scatterND</dfn>
+    :: Support limits for operator {{MLGraphBuilder/scatterND()}}.
 </dl>
 
 <div class="note">
-  The {{MLGraphBuilder/scatterNd(input, indices, options)/indices}} parameter to {{MLGraphBuilder/scatterNd()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
+  The {{MLGraphBuilder/scatterND(input, indices, options)/indices}} parameter to {{MLGraphBuilder/scatterND()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>scatterNd(|input|, |indices|, |updates|, |options|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>scatterND(|input|, |indices|, |updates|, |options|)</dfn> method steps are:
   </summary>
     TODO:
 </details>
@@ -8027,7 +8098,7 @@ partial dictionary MLOpSupportLimits {
 <div class="example">
 <details open>
   <summary>
-    Examples of how scatterNd works in different slicing schemes.
+    Examples of how scatterND works in different slicing schemes.
   </summary>
   <pre highlight="js">
     TODO:
@@ -8191,6 +8262,8 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If any of |sizes|'s [=list/items=] are 0, then [=exception/throw=] a {{TypeError}}.
     1. If |starts|'s [=list/size=] and |sizes|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLSliceOptions/strides}} [=map/exists=]:
+        1. If |options|.{{MLSliceOptions/strides}}'s [=list/size=] is not equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. [=list/For each=] |index| in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive:
         1. If |sizes|[|index|] is 0, then [=exception/throw=] a {{TypeError}}.
 
@@ -8198,7 +8271,8 @@ partial dictionary MLOpSupportLimits {
 
         1. If |starts|[|index|] is greater than or equal to |input|'s [=MLOperand/shape=][|index|], then [=exception/throw=] a {{TypeError}}.
         1. If |starts|[|index|] + |sizes|[|index|] is greater than |input|'s [=MLOperand/shape=][|index|], then [=exception/throw=] a {{TypeError}}.
-        1. TODO: Validate steps.
+        1. If |options|.{{MLSliceOptions/strides}} [=map/exists=]:
+            1. If |options|.{{MLSliceOptions/strides}}[|index|] is less than 1, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "slice" operation, given |starts|, |sizes|, and |options|.
@@ -8675,7 +8749,7 @@ partial dictionary MLOpSupportLimits {
 </div>
 
 ### tile ### {#api-mlgraphbuilder-tile}
-Repeat a tensor the number of times along each dimension.
+Repeat a tensor the given number of times along each dimension.
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -8689,14 +8763,35 @@ partial dictionary MLOpSupportLimits {
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/tile(input, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/tile(input, repetitions, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
-        - <dfn>repetitions</dfn>: A count per each dimension of how many times to repeat that dimension. The repetitions count must match the input rank, using 1's for any axis that should retain the same size.
+        - <dfn>repetitions</dfn>: A count per dimension of how many times to repeat that dimension. The |repetitions| [=list/size=] must match the |input|'s [=MLOperand/rank=], using 1's for any axis that should retain the same size.
         - <dfn>options</dfn>: an optional {{MLOperatorOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The reversed N-D tensor.
 </div>
+
+<table id=constraints-transpose class='data' link-for="MLGraphBuilder/tile(input, options)">
+  <caption>Constraints for {{MLGraphBuilder/tile()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/allowed ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>[=/any rank|N=]</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
+  </tr>
+</table>
 
 {{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/tile()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
@@ -8710,7 +8805,18 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    TODO:
+    1. If |repetitions|'s [=list/size=] is not equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
+    1. If |repetitions|'s values contain 0's, then [=exception/throw=] a {{TypeError}}.
+
+        Issue(391): If 0-size dimensions are allowed, revise these steps.
+
+    1. *Make graph connections:*
+        1. Let |output| be the result of [=copying an MLOperand=] given |input|.
+        1. Let |operator| be an [=operator=] for the "tile" operation, given |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
+    1. Return |output|.
 </details>
 
 ### transpose ### {#api-mlgraphbuilder-transpose}
