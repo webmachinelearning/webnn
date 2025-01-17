@@ -23,10 +23,10 @@ Previous discussion covered the following main topics:MLContext
 - CPU vs GPU device selection, including handling multiple GPUs;
 - how to handle NPU devices, quantization/dequantization.
 
-In [[Simplify MLContext creation #322]](https://github.com/webmachinelearning/webnn/pull/322), the proposal was to always use an explicit [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice) object to initialize a context and remove the `"gpu"` [context option](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions).
-Also, remove the `'high-performance"` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), since it was used for the GPU option, which now becomes explicit.
+In [[Simplify MLContext creation #322]](https://github.com/webmachinelearning/webnn/pull/322), the proposal was to always use an explicit [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice) object to initialize a context and remove the `"gpu"` [context option](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions). Also, remove the `'high-performance"` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), since it was used for the GPU option, which now becomes explicit.
+
 Explicit GPU selection also provides clarity when there are multiple GPU devices, as implementations need to use [WebGPU](https://gpuweb.github.io/gpuweb/) in order to select a [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter), from where they can request a [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice) object.
-A counter-argument was that it becomes more complex to use an implementation selected default GPU, as there is no simple way any more to tell implementations to use any GPU device for creating an [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext). This concern could eventually be alleviated by keeping the `'high-performance"` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference).
+A counter-argument was that it becomes more complex to use an implementation selected default GPU, as there is no simple way any more to tell implementations to use any GPU device for creating an [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext). This concern could eventually be alleviated by keeping the `'high-performance"` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), but on some devices the NPU might be faster than the GPU.
 
 In [[Need to understand how WebNN supports implementation that involves multiple devices and timelines #350]](https://github.com/webmachinelearning/webnn/issues/350) it was pointed out that [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext) supports only a single device, while there are frameworks that support working with a single graph over multiple devices (e.g. CoreML). The proposal was to create a _default_ context that has no explicitly associated device (it could be also named a _generic_ context), where the implementation may choose the underlying device(s).
 
@@ -95,42 +95,40 @@ const context = await navigator.ml.createContext({ fallback: ['npu', 'cpu'] });
 
 ## Open questions
 
-[WebGPU](https://gpuweb.github.io/gpuweb/) provides a way to select a GPU device, called [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter). Should we align the naming between GPU adapter and WebNN device?
+- [WebGPU](https://gpuweb.github.io/gpuweb/) provides a way to select a GPU device, called [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter). Should we align the naming between GPU adapter and WebNN device?
 
-Should we expose a similar adapter API for NPUs? Or could NPUs be represented as [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter) (basically a few text attributes)?
+- Should we expose a similar adapter API for NPUs? Or could NPUs be represented as [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter) (basically a few text attributes)?
 
-How should we extend the context options?
+- How should we extend the context options?
 What exactly is best to pass as context options? Op support limits? Supported features, similar to [GPUSupportedFeatures](https://gpuweb.github.io/gpuweb/#gpusupportedfeatures)? Others?
 
-Update the security and privacy section. Would the proposals here increase the fingerprinting surface? If yes, what mitigations can be made? The current understanding is that any extra information exposed to web apps in these proposals could be obtained by other methods as well. However, security hardening and relevant mitigations are recommended. For instance, implementations could choose the level of information (e.g. op support limits) exposed to a given origin.
+- Concerning security and privacy, would the proposals here increase the fingerprinting surface? If yes, what mitigations can be made? The current understanding is that any extra information exposed to web apps in these proposals could be obtained by other methods as well. However, security hardening and relevant mitigations are recommended. For instance, implementations could choose the level of information (e.g. op support limits) exposed to a given origin.
 
 
 ## Background thoughts
 
 ### Representing NPUs
 
-Earlier there have been ideas to represent NPUs in a similar way as WebGPU [adapters](https://gpuweb.github.io/gpuweb/#gpuadapter), basically exposing basic string information, features, limits, and whether they can be used as a fallback device.
+There have been ideas to represent NPUs in a similar way as WebGPU [adapters](https://gpuweb.github.io/gpuweb/#gpuadapter), basically exposing basic string information, features, limits, and whether they can be used as a fallback device.
 
 However, this would likely be premature standardization, as NPUs are very heterogeneous in their implementations, for instance memory and processing unit architecture can be significantly different. Also, they can be either standalone devices (e.g. TPUs), or integrated as SoC modules, together with CPUs, and even GPUs.
 
-There is a fundamental difference between programming NPUs vs. programming GPUs. From programming point of view, NPUs are very specific and need specialized drivers, which integrate into libraries and frameworks. Therefore they don't need explicitly exposed abstractions like in [WebGPU](https://gpuweb.github.io/gpuweb/), but they might have specific quantization requirements and limitations.
+There is a fundamental difference between programming NPUs vs. programming GPUs. From programming point of view, NPUs are very specific and need specialized drivers, which integrate into AI libraries and frameworks. Therefore they don't need explicitly exposed abstractions like in [WebGPU](https://gpuweb.github.io/gpuweb/), but they might have specific quantization requirements and limitations.
 
-The main use case for NPUs currently is mainly to offload more general purpose computing devices (CPU and even GPU) from machine learning compute loads. Power efficient performance is the main characteristic.
+Currently the main use case for NPUs is to offload the more general purpose computing devices (CPU and GPU) from machine learning compute loads. Power efficient performance is the main characteristic.
 
 Therefore, use cases that include NPUs could be euphemistically represented by the `"low-power"` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), which could mean the following mappings (controlled by the underlying platform):
 - pure NPU execution,
 - NPU preferred, fallback to CPU,
-- combined [multiple] NPU and CPU execution.
+- combined [multiple] NPU and CPU or GPU execution.
 
 ### Selecting from multiple [types] of NPUs
 
 The proposal above uses [Web GPU](https://gpuweb.github.io/gpuweb) mechanisms to select a GPU device for a context. This covers support for multiple GPUs, even with different type and capabilities.
 
-We don't have such mechanisms to select NPUs. Earlier there have been ideas to use a similar, if not the same approach as Web GPU.
+We don't have such mechanisms to select NPUs. Also, enumerating and managing adapters are not very web'ish designs. For instance, in order to avoid this complexity and also to minimize fingerprinting surface, the [Presentation API](https://www.w3.org/TR/presentation-api/) outsourced selecting the target device to the user agent, so that the web app can achieve the use case without being exposed with platform specific details.
 
-However, enumerating and managing adapters are not very web'ish designs. For instance, to avoid complexity and to minimize fingerprinting surfaces, the [Presentation API](https://www.w3.org/TR/presentation-api/) outsourced selecting the target device to the user agent, so that the web app can achieve the use case without being exposed with platform specific details.
-
-In the Web NN case, we cannot use such mechanisms, because the API is used by frameworks, not by web pages.
+In the Web NN case, we cannot use such selection mechanisms delegated to the user agent, because the API is used by frameworks, not by web pages.
 
 As such, currently the handling of multiple NPUs (e.g. single model on multiple NPUs, or multiple models on multiple NPUs) is delegated to the implementations and underlying platforms.
 
