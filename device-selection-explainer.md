@@ -2,11 +2,11 @@
 
 ## Introduction
 
-This explainer summarizes the discussion and background on [Web NN device selection](https://webmachinelearning.github.io/webnn/#programming-model-device-selection).
+This explainer summarizes the discussion and background on [WebNN device selection](https://webmachinelearning.github.io/webnn/#programming-model-device-selection).
 
-The goal is to help making design decisions on how to handle compute device selection for a Web NN [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext).
+The goal is to help making design decisions on how to handle compute device selection for a WebNN [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext).
 
-A context represents the global state of Web NN model graph execution, including the compute devices (e.g. CPU, GPU, NPU) the [Web NN graph](https://webmachinelearning.github.io/webnn/#mlgraph) is executed on.
+A context represents the global state of WebNN model graph execution, including the compute devices (e.g. CPU, GPU, NPU) the [WebNN graph](https://webmachinelearning.github.io/webnn/#mlgraph) is executed on.
 
 When creating a context, an application may want to provide hints to the implementation on what device(s) are preferred for execution.
 
@@ -128,13 +128,13 @@ The proposal above uses [Web GPU](https://gpuweb.github.io/gpuweb) mechanisms to
 
 We don't have such mechanisms to select NPUs. Also, enumerating and managing adapters are not very web'ish designs. For instance, in order to avoid this complexity and also to minimize fingerprinting surface, the [Presentation API](https://www.w3.org/TR/presentation-api/) outsourced selecting the target device to the user agent, so that the web app can achieve the use case without being exposed with platform specific details.
 
-In the Web NN case, we cannot use such selection mechanisms delegated to the user agent, because the API is used by frameworks, not by web pages.
+In the WebNN case, we cannot use such selection mechanisms delegated to the user agent, because the API is used by frameworks, not by web pages.
 
 As such, currently the handling of multiple NPUs (e.g. single model on multiple NPUs, or multiple models on multiple NPUs) is delegated to the implementations and underlying platforms.
 
 ### Hybrid execution scenarios using NPU, CPU and GPU
 
-Many platforms support various hybrid execution scenarios involving NPU, CPU, and GPU (e.g. NPU-CPU, NPU-GPU, NPU-CPU-GPU), but these are not explicitly exposed and controlled in Web NN. They are best selected and controlled by the implementations. However, we should distillate the main use cases behind hybrid execution and define a hinting/mapping mechanism, such as the power preference mentioned earlier.
+Many platforms support various hybrid execution scenarios involving NPU, CPU, and GPU (e.g. NPU-CPU, NPU-GPU, NPU-CPU-GPU), but these are not explicitly exposed and controlled in WebNN. They are best selected and controlled by the implementations. However, we should distillate the main use cases behind hybrid execution and define a hinting/mapping mechanism, such as the power preference mentioned earlier.
 
 As an example for handling hybrid execution as well as the underlying challenges, take a look at [OpenVINO device selection](https://blog.openvino.ai/blog-posts/automatic-device-selection-and-configuration).
 
