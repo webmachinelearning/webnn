@@ -70,12 +70,10 @@ Examples for user scenarios:
 context = await navigator.ml.createContext();
 
 // create a context that will likely map to NPU, or NPU+CPU
-context =
-  await navigator.ml.createContext({powerPreference: 'low-power'});
+context =  await navigator.ml.createContext({powerPreference: 'low-power'});
 
 // create a context that will likely map to GPU
-context =
-  await navigator.ml.createContext({powerPreference: 'high-performance'});
+context = await navigator.ml.createContext({powerPreference: 'high-performance'});
 
 // enumerate devices and limits (as allowed by policy/implementation)
 // and select one of them to create a context
@@ -83,7 +81,7 @@ const limitsMap = await navigator.ml.opSupportLimitsPerDevice();
 // analyze the map and select an op support limit set
 // ...
 const context = await navigator.ml.createContext({
-    limits: deviceLimitsMap['npu1']
+    limits: limitsMap['npu1']
 });
 
 // as an alternative, hint a preferred fallback order ["npu", "cpu"]
@@ -95,9 +93,7 @@ const context = await navigator.ml.createContext({ fallback: ['npu', 'cpu'] });
 
 ## Open questions
 
-- [WebGPU](https://gpuweb.github.io/gpuweb/) provides a way to select a GPU device, called [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter). Should we align the naming between GPU adapter and WebNN device?
-
-- Should we expose a similar adapter API for NPUs? Or could NPUs be represented as [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter) (basically a few text attributes)?
+- [WebGPU](https://gpuweb.github.io/gpuweb/) provides a way to select a GPU device via [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter). Should we expose a similar adapter API for NPUs?
 
 - How should we extend the context options?
 What exactly is best to pass as context options? Op support limits? Supported features, similar to [GPUSupportedFeatures](https://gpuweb.github.io/gpuweb/#gpusupportedfeatures)? Others?
@@ -153,8 +149,10 @@ Based on the discussion above, the best starting point would be a simple solutio
 - Remove [MLDeviceType](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) as explicit [context option](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions).
 - Update [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext) so that it becomes device agnostic, or _default_/_generic_ context. Allow supporting multiple devices with one context.
 - Add algorithmic steps or notes to implementations on how to map [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference) to devices.
+- Also, to align with [GPUPowerPreference](https://gpuweb.github.io/gpuweb/#enumdef-gpupowerpreference), we should remove the `"default"` [MLPowerPreference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), i.e. the lack of hints will result in creating a generic context.
 
 Also, the following topics could be discussed already now, but decided later:
-- Improve the device selection hints in [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) and define their implementation mappings. For instance, discuss whether should we also include a `"low-latency"` performance option. Also, discuss whether to rename `"default"` to `"auto"` (alluding to an underlying process, rather than a default setting).
+- Improve the device selection hints in [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) and define their implementation mappings. For instance, discuss whether should we also include a `"low-latency"` performance option.
+
 - Document the valid use cases for requesting a certain device type or combination of devices, and within what error conditions. Currently, after these changes there remains explicit support for GPU-only context when an [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext) is created from a [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice) in [createContext()](https://webmachinelearning.github.io/webnn/#api-ml-createcontext).
 - Discuss option #3 from [Considered alternatives](#considered-alternatives).
