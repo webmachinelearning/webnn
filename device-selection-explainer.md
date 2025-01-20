@@ -10,7 +10,7 @@ A context represents the global state of WebNN model graph execution, including 
 
 When creating a context, an application may want to provide hints to the implementation on what device(s) are preferred for execution.
 
-Implementations, browsers and underlying OS may want to control the allocation of compute devices for various use cases and system conditions.
+Implementations, browsers, and the underlying OS may want to control the allocation of compute devices for various use cases and system conditions.
 
 The question is in what use cases who and how much should control the execution context.
 
@@ -40,15 +40,15 @@ However, alternative policies for error handling and fallback scenarios remained
 Later the need for explicit device selection support was challenged in [[MLContextOptions.deviceType seems unnecessary outside of conformance testing #749]](https://github.com/webmachinelearning/webnn/issues/749), with the main arguments also summarized in a W3C TPAC group meeting [presentation](https://lists.w3.org/Archives/Public/www-archive/2024Sep/att-0006/MLDeviceType.pdf). The main points were the following:
 - The [device type](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) option is hard to standardize because of the heterogeneity of the compute units across various platforms, and even across their versions, for instance `"npu"` might not be a standalone option available, only a combined form of `"npu"` and `"cpu"`.
 - As for error management vs. fallback policies: fallback is preferable instead of failing, and implementations/the underlying platforms should determine the fallback type based on runtime information.
-- Implementation / browser / OS have better grasp of the system/compute/runtime/apps state then websites, therefore control should be relished to them. For instance, if rendering performance degrades, the implementation/underlying platform can possibly fix it the best way, not the web app.
+- Implementation / browser / OS have better grasp of the system/compute/runtime/apps state than websites, and therefore control should be relished to them. For instance, if rendering performance degrades, the implementation/underlying platform can possibly fix it the best way, not the web app.
 
 ## Key use cases and requirements
 
 Design decisions should take the following into account:
 
-1. Allow the underlying platform ultimately choose the compute device.
+1. Allow the underlying platform to ultimately choose the compute device.
 
-2. Allow scripts to express hints/options when creating contexts, such as preference for low power consumption, or high performance (throughput), low latency, stable sustained performance etc.
+2. Allow scripts to express hints/options when creating contexts, such as preference for low power consumption, or high performance (throughput), low latency, stable sustained performance, accuracy, etc.
 
 3. Allow an easy way to create a context with a GPU device, i.e. without specifying an explicit [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice).
 
