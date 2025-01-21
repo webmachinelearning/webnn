@@ -130,7 +130,7 @@ As such, currently the handling of multiple NPUs (e.g. single model on multiple 
 
 ### Hybrid execution scenarios using NPU, CPU and GPU
 
-Many platforms support various hybrid execution scenarios involving NPU, CPU, and GPU (e.g. NPU-CPU, NPU-GPU, NPU-CPU-GPU), but these are not explicitly exposed and controlled in WebNN. They are best selected and controlled by the implementations. However, we should distillate the main use cases behind hybrid execution and define a hinting/mapping mechanism, such as the power preference mentioned earlier.
+Many platforms support various hybrid execution scenarios involving NPU, CPU, and GPU (e.g. NPU-CPU, NPU-GPU, NPU-CPU-GPU), but these are not explicitly exposed and controlled in WebNN. They are best selected and controlled by the implementations. However, we should distill the main use cases behind hybrid execution and define a hinting/mapping mechanism, such as the power preference mentioned earlier.
 
 As an example for handling hybrid execution as well as the underlying challenges, take a look at [OpenVINO device selection](https://blog.openvino.ai/blog-posts/automatic-device-selection-and-configuration).
 
