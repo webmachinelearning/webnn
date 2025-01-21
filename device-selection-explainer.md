@@ -18,7 +18,7 @@ Currently this is captured by [context options](https://webmachinelearning.githu
 
 ## History
 
-Previous discussion covered the following main topics:MLContext
+Previous discussion covered the following main topics:
 - who controls the execution context: script vs. user agent (OS);
 - CPU vs GPU device selection, including handling multiple GPUs;
 - how to handle NPU devices, quantization/dequantization.
