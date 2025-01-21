@@ -159,7 +159,7 @@ Based on the discussion above, the best starting point would be a simple solutio
 - Also, to align with [GPUPowerPreference](https://gpuweb.github.io/gpuweb/#enumdef-gpupowerpreference), we should remove the `"default"` [MLPowerPreference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), i.e. the lack of hints will result in creating a generic context.
 
 Also, the following topics could be discussed already now, but decided later:
-- Improve the device selection hints in [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) and define their implementation mappings. For instance, discuss whether should we also include a `"low-latency"` performance option.
+- Improve the device selection hints in [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) and define their implementation mappings. For instance, discuss whether to also include a `"low-latency"` performance option.
 
 - Document the valid use cases for requesting a certain device type or combination of devices, and within what error conditions. Currently, after these changes there remains explicit support for GPU-only context when an [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext) is created from a [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice) in [createContext()](https://webmachinelearning.github.io/webnn/#api-ml-createcontext).
 - Discuss option #3 from [Considered alternatives](#considered-alternatives).
