@@ -1,5 +1,12 @@
 # Device Selection Explainer
 
+## Participate
+
+Feedback on this explainer is welcome via the issue tracker:
+
+- https://github.com/webmachinelearning/webnn/labels/device%20selection - existing discussions about device selection mechanisms
+- see also [all issues](https://github.com/webmachinelearning/webnn/issues) and feel free to open a new issue as appropriate
+
 ## Introduction
 
 This explainer summarizes the discussion and background on [WebNN device selection](https://webmachinelearning.github.io/webnn/#programming-model-device-selection).
