@@ -45,6 +45,7 @@ urlPrefix: https://tc39.es/ecma262/; spec: ECMA-262
         text: element type; url: table-the-typedarray-constructors
         text: view constructor; url: table-the-typedarray-constructors
         text: equally close values; url: sec-ecmascript-language-types-number-type
+        text: settled; for: Promise; url: sec-promise-objects
 </pre>
 
 <pre class="link-defaults">
@@ -831,6 +832,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
         1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
     1. Otherwise:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/default=]".
+        1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=].
         1. If |options|["{{MLContextOptions/deviceType}}"] [=map/exists=], then set |context|.{{MLContext/[[deviceType]]}} to |options|["{{MLContextOptions/deviceType}}"]. Otherwise, set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"cpu"}}.
         1. If |options|["{{MLContextOptions/powerPreference}}"] [=map/exists=], then set |context|.{{MLContext/[[powerPreference]]}} to |options|["{{MLContextOptions/powerPreference}}"]. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
     1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, |context|.{{MLContext/[[deviceType]]}} and |context|.{{MLContext/[[powerPreference]]}}, return failure.
@@ -871,9 +873,13 @@ The {{MLContext}} interface represents a global state of neural network compute 
 <script type=idl>
 typedef record<USVString, MLTensor> MLNamedTensors;
 
+dictionary MLContextLostInfo {
+  DOMString message;
+};
+
 [SecureContext, Exposed=(Window, DedicatedWorker)]
 interface MLContext {
-  undefined dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);  
+  undefined dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);
 
   Promise<MLTensor> createTensor(MLTensorDescriptor descriptor);
 
@@ -883,6 +889,10 @@ interface MLContext {
   undefined writeTensor(MLTensor tensor, AllowSharedBufferSource inputData);
 
   MLOpSupportLimits opSupportLimits();
+
+  undefined destroy();
+
+  readonly attribute Promise<MLContextLostInfo> lost;
 };
 </script>
 
@@ -898,6 +908,9 @@ interface MLContext {
     : <dfn>\[[powerPreference]]</dfn> of type {{MLPowerPreference}}.
     ::
         The {{MLContext}}'s {{MLPowerPreference}}.
+    : <dfn>\[[lost]]</dfn> of type {{Promise}}<{{MLContextLostInfo}}>.
+    ::
+        A {{Promise}} that is resolved when the {{MLContext}}'s underlying execution device is no longer available.
     : <dfn>\[[timeline]]</dfn>
     ::
         A timeline associated with the execution of operations on the compute units of the {{MLContext}}. These operations include inferencing on [=computational graphs=] and modifying the {{MLTensor/[[data]]}} of {{MLTensor}}s.
@@ -964,6 +977,8 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
   <summary>
     The <dfn method for=MLContext>dispatch(|graph|, |inputs|, |outputs|)</dfn> method steps are:
   </summary>
+    1. If |graph|.{{MLGraph/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
+    1. If |graph|.{{MLGraph/[[isDestroyed]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. Let |allTensors| be a [=/list=] of {{MLTensor}}s consisting of |inputs|'s [=map/values=] [=list/extended=] by |outputs|'s [=map/values=].
     1. If |allTensors| contains any duplicate [=list/items=], then [=exception/throw=] a {{TypeError}}.
     1. [=list/For each=] |tensor| of |allTensors|:
@@ -972,9 +987,10 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
     1. If [=validating tensors with descriptors=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. If [=validating tensors with descriptors=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
-        1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |inputs| and |outputs|.
+        1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
+            1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |inputs| and |outputs|.
 
-            Issue(778): Add a mechanism for reporting errors during graph execution.
+                Issue(778): Add a mechanism for reporting errors during graph execution.
 
     1. Return {{undefined}}.
 </details>
@@ -1050,12 +1066,15 @@ Creates an {{MLTensor}} associated with this {{MLContext}}.
     The <dfn method for=MLContext>createTensor(|descriptor|)</dfn> method steps are:
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
+    1. If [=this=] [=MLContext/is lost=], then return [=a new promise=] [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
     1. Let |tensor| be the result of [=creating an MLTensor=] given [=this=], and |descriptor|.
     1. Let |promise| be [=a new promise=].
     1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
-        1. Create |tensor|.{{MLTensor/[[data]]}} given |descriptor| and initialize all bytes to zeros.
-        1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
-        1. Otherwise, [=queue an ML task=] with |global| to [=resolve=] |promise| with |tensor|.
+        1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
+            1. Create |tensor|.{{MLTensor/[[data]]}} given |descriptor| and initialize all bytes to zeros.
+            1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+            1. Otherwise, [=queue an ML task=] with |global| to [=resolve=] |promise| with |tensor|.
+        1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Return |promise|.
 </details>
 
@@ -1076,20 +1095,22 @@ Reads back the {{MLTensor/[[data]]}} of an {{MLTensor}} from the {{MLContext}}.{
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. If |tensor|.{{MLGraph/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. Let |promise| be [=a new promise=].
-    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
-        1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
-        1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
-        1. Otherwise, [=queue an ML task=] with |global| to [=ArrayBuffer/create=] an {{ArrayBuffer}} |result| given |bytes| and |realm| and then [=resolve=] |promise| with |result|.
+    1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
+        1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
+            1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
+            1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+            1. Otherwise, [=queue an ML task=] with |global| to [=ArrayBuffer/create=] an {{ArrayBuffer}} |result| given |bytes| and |realm| and then [=resolve=] |promise| with |result|.
+        1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Return |promise|.
 </details>
 
 ### {{MLContext/readTensor(tensor, outputData)}}  ### {#api-mlcontext-readtensor-byob}
 
-Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back the {{MLTensor/[[data]]}} of an {{MLTensor}} into the provided buffer. 
+Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back the {{MLTensor/[[data]]}} of an {{MLTensor}} into the provided buffer.
 
 <div dfn-for="MLContext/readTensor(tensor, outputData)" dfn-type=argument>
     **Arguments:**
@@ -1104,21 +1125,23 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
     The <dfn method for=MLContext>readTensor(|tensor|, |outputData|)</dfn> method steps are:
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. If |tensor|.{{MLGraph/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |outputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. Let |promise| be [=a new promise=].
-    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
-        1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
-        1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
-        1. Otherwise, [=queue an ML task=] with |global| and the following steps:
-            1. If |outputData| is [=BufferSource/detached=], [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+    1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
+        1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
+            1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
+            1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+            1. Otherwise, [=queue an ML task=] with |global| to run these steps:
+                1. If |outputData| is [=BufferSource/detached=], [=reject=] |promise| with a {{TypeError}}, and abort these steps.
 
-                Note: [=Validating buffer with descriptor=] above will fail if |outputData| is detached, but it is possible that |outputData| could be detached between that step and this one.
+                    Note: [=Validating buffer with descriptor=] above will fail if |outputData| is detached, but it is possible that |outputData| could be detached between that step and this one.
 
-            1. [=ArrayBuffer/Write=] |bytes| to |outputData|.
-            1. [=Resolve=] |promise| with {{undefined}}.
+                1. [=ArrayBuffer/Write=] |bytes| to |outputData|.
+                1. [=Resolve=] |promise| with {{undefined}}.
+        1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Return |promise|.
 </details>
 
@@ -1138,16 +1161,17 @@ Writes data to the {{MLTensor/[[data]]}} of an {{MLTensor}} on the {{MLContext}}
   <summary>
     The <dfn method for=MLContext>writeTensor(|tensor|, |inputData|)</dfn> method steps are:
   </summary>
-    1. If |tensor|.{{MLGraph/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/writable}} is false, then [=exception/throw=] a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |inputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |inputData|.
     1. [=Assert=]: |bytes|'s [=byte sequence/length=] is equal to |tensor|.{{MLTensor/[[descriptor]]}}'s [=MLOperandDescriptor/byte length=].
-    1. Enqueue the following steps to |tensor|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
-        1. Copy |bytes| to |tensor|.{{MLTensor/[[data]]}}.
+    1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
+        1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
+            1. Copy |bytes| to |tensor|.{{MLTensor/[[data]]}}.
 
-            Issue(778): Add a mechanism for reporting errors while writing to a tensor.
+                Issue(778): Add a mechanism for reporting errors while writing to a tensor.
 
     1. Return {{undefined}}.
 </details>
@@ -1222,13 +1246,65 @@ dictionary MLSingleInputSupportLimits {
     :: {{MLSupportLimits}} for output operand.
 </dl>
 
+### {{MLContext/destroy()}}  ### {#api-mlcontext-destroy}
+
+The {{MLContext/destroy()}} method can be called to release all resources associated with the context. Any outstanding compute requests and {{MLTensor}} creation/read/write requests will fail.
+
+<details open algorithm>
+<summary>
+    The <dfn method for=MLContext>destroy()</dfn> method steps are:
+</summary>
+    1. If [=this=] [=MLContext/is lost=], then abort these steps.
+    1. Run the steps to [=MLContext/lose=] [=this=] with an [=/implementation-defined=] message.
+
+        Note: A message indicating that `destroy()` was called can help developers distinguish the cause of the context loss.
+</details>
+
+### Errors ### {#api-mlcontext-errors}
+
+When a user agent determines that an {{MLContext}} is no longer available to fulfill requests, it must run the [=context lost=] steps for it.
+
+<details open algorithm>
+<summary>
+The <dfn>context lost</dfn> steps for {{MLContext}} |context|, are:
+</summary>
+    1. Let |global| be |context|'s [=relevant global object=].
+    1. [=Queue an ML task=] with |global| to run these steps:
+        1. [=MLContext/Lose=] |context|, with an [=/implementation-defined=] message.
+</details>
+
+<details open algorithm>
+<summary>
+To <dfn for=MLContext>lose</dfn> {{MLContext}} |context| with {{DOMString}} |message|:
+</summary>
+    1. Let |info| be a new {{MLContextLostInfo}}.
+    1. Set |info|.{{MLContextLostInfo/message}} to |message|.
+    1. [=Resolve=] |context|.{{MLContext/[[lost]]}} with |info|.
+    1. For each {{MLGraph}} |graph| where |graph|.{{MLGraph/[[context]]}} equals [=this=]:
+        1. Run the {{MLGraph/destroy()}} method steps for |graph| with |graph| as [=this=].
+    1. For each {{MLTensor}} |tensor| where |tensor|.{{MLTensor/[[context]]}} equals [=this=]:
+        1. Run the {{MLTensor/destroy()}} method steps for |tensor| with |tensor| as [=this=].
+</details>
+
+<dl dfn-type=dict-member dfn-for=MLContextLostInfo>
+    : <dfn>message</dfn>
+    :: An [=implementation-defined=] message providing information about the error that occurred.
+</dl>
+
+<div algorithm>
+The <dfn attribute for=MLContext>lost</dfn> getter steps are to return [=this=]'s {{MLContext/[[lost]]}} {{Promise}}.
+</div>
+
+A {{MLContext}} <dfn for=MLContext lt="is lost|is not lost">is lost</dfn> if its {{MLContext/[[lost]]}} {{Promise}} is [=Promise/settled=].
 
 ## {{MLGraph}} interface ## {#api-mlgraph}
 The {{MLGraph}} interface represents a compiled computational graph. A compiled graph once constructed is immutable and cannot be subsequently changed.
 
 <script type=idl>
 [SecureContext, Exposed=(Window, DedicatedWorker)]
-interface MLGraph {};
+interface MLGraph {
+  undefined destroy();
+};
 </script>
 
 <div class=internal-slots>
@@ -1249,8 +1325,29 @@ interface MLGraph {};
     : <dfn>\[[implementation]]</dfn>
     ::
         The underlying implementation provided by the User Agent.
+
+    : <dfn>\[[isDestroyed]]</dfn> of type {{boolean}}
+    ::
+        Whether the {{MLGraph}}.{{MLGraph/destroy()}} method steps have been run. Once destroyed, the {{MLGraph}} can no longer be used.
   </dl>
 </div>
+
+### {{MLGraph/destroy()}}  ### {#api-mlgraph-destroy}
+
+The {{MLGraph/destroy()}} method can be called to release all resources associated with the graph.
+
+<details open algorithm>
+<summary>
+    The <dfn method for=MLGraph>destroy()</dfn> method steps are:
+</summary>
+    1. If [=this=].{{MLGraph/[[isDestroyed]]}} is true, then abort these steps.
+    1. Set [=this=].{{MLGraph/[[isDestroyed]]}} to true.
+    1. Queue a task on [=this=].{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}} to mark resources owned by this graph as freeable.
+
+</details>
+
+Note: Since no further workloads can be enqueued using this graph, implementations can free any additional resource allocations associated with this graph once all previously submitted workloads using it are complete.
+
 
 ## {{MLOperandDescriptor}} dictionary ## {#api-mloperanddescriptor}
 
@@ -1451,7 +1548,7 @@ dictionary MLTensorDescriptor : MLOperandDescriptor {
 
 ## {{MLTensor}} interface ## {#api-mltensor}
 
-The {{MLTensor}} interface represents a tensor which may be used as an input or output to an {{MLGraph}}. The memory backing an {{MLTensor}} should be allocated in an [=implementation-defined=] fashion according to the requirements of the {{MLContext}} and the {{MLTensorDescriptor}} used to create it. Operations involving the {{MLTensor/[[data]]}} of an {{MLTensor}} occur on the {{MLContext/[[timeline]]}} of its associated {{MLContext}}. 
+The {{MLTensor}} interface represents a tensor which may be used as an input or output to an {{MLGraph}}. The memory backing an {{MLTensor}} should be allocated in an [=implementation-defined=] fashion according to the requirements of the {{MLContext}} and the {{MLTensorDescriptor}} used to create it. Operations involving the {{MLTensor/[[data]]}} of an {{MLTensor}} occur on the {{MLContext/[[timeline]]}} of its associated {{MLContext}}.
 
 The [=implementation-defined=] requirements of how an {{MLTensor}} is allocated may include constraints such as that the memory is allocated with a particular byte alignment or in a particular memory pool.
 
@@ -1480,7 +1577,7 @@ interface MLTensor {
 
     : <dfn>\[[isDestroyed]]</dfn> of type {{boolean}}
     ::
-        Whether {{MLTensor}}.{{MLTensor/destroy()}} has been called. Once destroyed, the {{MLTensor}} can no longer be used.
+        Whether the {{MLTensor}}.{{MLTensor/destroy()}} steps have been run. Once destroyed, the {{MLTensor}} can no longer be used.
 
     : <dfn>\[[data]]</dfn> of an [=implementation-defined=] type
     ::
@@ -1578,6 +1675,11 @@ The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph buil
   </dl>
 </div>
 
+<div>
+An {{MLGraphBuilder}} <dfn for=MLGraphBuilder lt="can build|can not build">can build</dfn> if its {{MLGraphBuilder/[[hasBuilt]]}} is false and its {{MLGraphBuilder/[[context]]}} [=MLContext/is not lost=].
+</div>
+
+
 ### {{MLGraphBuilder}} constructor ### {#api-mlgraphbuilder-constructor}
 
 <div dfn-for="MLGraphBuilder/constructor(context)" dfn-type=argument>
@@ -1590,6 +1692,7 @@ The {{MLGraphBuilder}}.{{MLGraphBuilder/build()}} method compiles the graph buil
     The [=new=] <dfn constructor for=MLGraphBuilder lt="MLGraphBuilder(context)">MLGraphBuilder(|context|)</dfn> constructor steps are:
   </summary>
     1. If [=this=]'s [=relevant global object=]'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then [=exception/throw=] a "{{SecurityError}}" {{DOMException}}.
+    1. If |context| [=MLContext/is lost=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. Set [=this=].{{MLGraphBuilder/[[context]]}} to |context|.
     1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to false.
 </details>
@@ -1609,7 +1712,7 @@ Create a named {{MLOperand}} based on a descriptor, that can be used as an input
   <summary>
     The <dfn method for=MLGraphBuilder>input(|name|, |descriptor|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If |name| is empty, then [=exception/throw=] a {{TypeError}}.
     1. If any {{MLOperand}}s in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] have a {{MLOperand/[[name]]}} equal to |name|, then [=exception/throw=] a {{TypeError}}.
     1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -1641,7 +1744,7 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
   <summary>
     The <dfn method for=MLGraphBuilder>constant(|descriptor|, |buffer|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |buffer| and |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -1669,7 +1772,7 @@ Data truncation will occur when the specified value exceeds the range of the spe
   <summary>
     The <dfn method for=MLGraphBuilder>constant(|type|, |value|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. Set |value| to the result of [=casting=] |value| to |type|.
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |type| and « ».
     1. *Make graph connections:*
@@ -1691,7 +1794,7 @@ Build a composed graph up to a given output operand into a computational graph a
   <summary>
     The <dfn method for=MLGraphBuilder>build(|outputs|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then return [=a new promise=] [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then return [=a new promise=] [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
     1. If |outputs| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
     1. [=map/For each=] |name| → |operand| of |outputs|:
         1. If |name| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
@@ -1712,17 +1815,20 @@ Build a composed graph up to a given output operand into a computational graph a
     1. Let |realm| be [=this=]'s [=relevant realm=].
     1. Let |graph| be a new {{MLGraph}} with |realm|.
     1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
+    1. Set |graph|.{{MLGraph/[[isDestroyed]]}} to false.
     1. [=set/For each=] |operand| in |inputs|:
         1. Set |graph|.{{MLGraph/[[inputDescriptors]]}}[|operand|.{{MLOperand/[[name]]}}] to |operand|.{{MLOperand/[[descriptor]]}}.
     1. [=map/For each=] |name| → |operand| of |outputs|:
         1. Set |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] to |operand|.{{MLOperand/[[descriptor]]}}.
+    1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
     1. Let |promise| be [=a new promise=].
     1. Run the following steps [=in parallel=]:
-        1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
-            1. If the underlying platform does not support a requested feature, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
-        1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
-        1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
-    1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
+        1. Run these steps, but [=/abort when=] |graph|.{{MLGraph/[[context]]}} [=MLContext/is lost=]:
+            1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
+            1. If the previous step failed, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
+            1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
+            1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
+        1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Return |promise|.
 </details>
 
@@ -1804,7 +1910,7 @@ partial dictionary MLOpSupportLimits {
     To <dfn for="MLGraphBuilder" data-lt="argminmax-op">create argMin/argMax operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{unsigned long}} |axis|, and {{MLArgMinMaxOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "argMin", "argMax".
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/shape=][|axis|] is greater than |options|.{{MLArgMinMaxOptions/outputDataType}}'s maximum value, [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], « |axis| », and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
@@ -1963,7 +2069,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>batchNormalization(|input|, |mean|, |variance|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |mean|, |variance|, |options|.{{MLBatchNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLBatchNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/axis}} is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
@@ -2129,7 +2235,7 @@ NOTE: For example, casting -1 from {{MLOperandDataType/"int8"}} to {{MLOperandDa
   <summary>
     The <dfn method for=MLGraphBuilder>cast(|input|, |type|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "cast" operation, given |type| and |options|.
@@ -2204,7 +2310,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>clamp(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |minValue| be the |options|.{{MLClampOptions/minValue}} if given, or Infinity otherwise.
     1. Set |options|.{{MLClampOptions/minValue}} to the result of [=casting=] |minValue| to |input|'s [=MLOperand/dataType=].
@@ -2319,7 +2425,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>concat(|inputs|, |axis|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any [=list/item=] in |inputs| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |inputs| [=list/is empty=], then [=exception/throw=] a {{TypeError}}.
     1. Let |first| be |inputs|[0].
@@ -2521,7 +2627,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>conv2d(|input|, |filter|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConv2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-conv2d)), then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
@@ -2747,7 +2853,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>convTranspose2d(|input|, |filter|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |filter|, and |options|.{{MLConvTranspose2dOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
@@ -2909,7 +3015,7 @@ partial dictionary MLOpSupportLimits {
     To <dfn for="MLGraphBuilder" data-lt="element-wise-binary-op">create element-wise binary operation</dfn> given [=string=] |op|, {{MLOperand}} |a|, {{MLOperand}} |b|, and {{MLOperatorOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "add", "sub", "mul", "div", "max", "min", "pow".
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=].
@@ -3097,7 +3203,7 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     To <dfn for="MLGraphBuilder" data-lt="element-wise-logical-op">create element-wise logical operation</dfn> given [=string=] |op|, {{MLOperand}} |a|, an optional {{MLOperand}} |b|, and {{MLOperatorOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "equal", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "logicalNot".
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If |op| is "logicalNot":
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and |a| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
@@ -3283,7 +3389,7 @@ partial dictionary MLOpSupportLimits {
     To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create element-wise unary operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, optional [=/list=] |allowedDataTypes|, and |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "erf", "exp", "floor", "identity", "log", "neg", "reciprocal", "sin", "sqrt", "tan".
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -3454,7 +3560,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>elu(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-elu)), then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLEluOptions/alpha}} to the result of [=casting=] |options|.{{MLEluOptions/alpha}} to |input|'s [=MLOperand/dataType=].
@@ -3539,7 +3645,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>expand(|input|, |newShape|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=unidirectionally broadcasting=] |input|'s [=MLOperand/shape=] and |newShape|.
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
@@ -3643,7 +3749,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>gather(|input|, |indices|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |indices| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |indices|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gather)), then [=exception/throw=] a {{TypeError}}.
     1. Let |shapeInput| be |input|'s [=MLOperand/shape=] and |rankInput| be |shapeInput|'s [=MLOperand/rank=].
@@ -3787,7 +3893,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>gelu(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gelu)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -3930,7 +4036,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>gemm(|a|, |b|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |a| or |b| is not one of its [=/allowed data types=] (according to [this table](#constraints-gemm)), then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/rank=] of any of |a| or |b| is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
@@ -4163,7 +4269,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>gru(|input|, |weight|, |recurrentWeight|, |steps|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLGruOptions/bias}} (if it [=map/exists=]), |options|.{{MLGruOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLGruOptions/initialHiddenState}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |input|, |weight| or |recurrentWeight| is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/rank=] of any of |input|, |weight| or |recurrentWeight| is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
@@ -4457,7 +4563,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
      The <dfn method for=MLGraphBuilder>gruCell(|input|, |weight|, |recurrentWeight|, |hiddenState|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |options|.{{MLGruCellOptions/bias}} (if it [=map/exists=]), and |options|.{{MLGruCellOptions/recurrentBias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |input|, |weight|, |recurrentWeight|, or |hiddenState| is not one of its [=/allowed data types=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/rank=] of any of |input|, |weight|, |recurrentWeight| or |hiddenState| is not its [=/allowed ranks=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
@@ -4666,7 +4772,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>hardSigmoid(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-hardSigmoid)), then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLHardSigmoidOptions/alpha}} to the result of [=casting=] |options|.{{MLHardSigmoidOptions/alpha}} to |input|'s [=MLOperand/dataType=].
@@ -4751,7 +4857,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>hardSwish(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-hardSwish)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -4893,7 +4999,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>instanceNormalization(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLInstanceNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLInstanceNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-instanceNormalization)), then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
@@ -5034,7 +5140,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>layerNormalization(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLLayerNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLLayerNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-layerNormalization)), then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either equal to [=the range=] from 1 to |input|'s [=MLOperand/rank=], exclusive, if |input|'s [=MLOperand/rank=] is greater than 1, or an empty [=/list=] otherwise.
@@ -5159,7 +5265,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>leakyRelu(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-leakyRelu)), then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLLeakyReluOptions/alpha}} to the result of [=casting=] |options|.{{MLLeakyReluOptions/alpha}} to |input|'s [=MLOperand/dataType=].
@@ -5257,7 +5363,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>linear(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-linear)), then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLLinearOptions/alpha}} to the result of [=casting=] |options|.{{MLLinearOptions/alpha}} to |input|'s [=MLOperand/dataType=].
@@ -5483,7 +5589,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>lstm(|input|, |weight|, |recurrentWeight|, |steps|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |options|.{{MLLstmOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/recurrentBias}} (if it [=map/exists=]), |options|.{{MLLstmOptions/peepholeWeight}} (if it [=map/exists=]), |options|.{{MLLstmOptions/initialHiddenState}} (if it [=map/exists=]), and |options|.{{MLLstmOptions/initialCellState}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |numDirections| be 2 if |options|.{{MLLstmOptions/direction}} is {{MLRecurrentNetworkDirection/"both"}}, or 1 otherwise.
     1. If the [=MLOperand/dataType=] of any of |input|, |weight| or |recurrentWeight| is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
@@ -5838,7 +5944,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>lstmCell(|input|, |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |hiddenSize|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |weight|, |recurrentWeight|, |hiddenState|, |cellState|, |options|.{{MLLstmCellOptions/bias}} (if it [=map/exists=]), |options|.{{MLLstmCellOptions/recurrentBias}} (if it [=map/exists=]), and |options|.{{MLLstmCellOptions/peepholeWeight}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/rank=] of any of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
@@ -6096,7 +6202,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>matmul(|a|, |b|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |a| or |b| is not one of its [=/allowed data types=] (according to [this table](#constraints-matmul)), then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating matmul output sizes=] given |a| and |b|.
@@ -6203,7 +6309,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>pad(|input|, |beginningPadding|, |endingPadding|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is 0, then [=exception/throw=] a {{TypeError}}.
     1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
@@ -6439,7 +6545,7 @@ partial dictionary MLOpSupportLimits {
     To <dfn for="MLGraphBuilder" data-lt="pooling-op">create pooling operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{MLPool2dOptions}} |options|, and optional [=/list=] |allowedDataTypes|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "averagePool2d", "l2Pool2d", "maxPool2d".
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -6582,7 +6688,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>prelu(|input|, |slope|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |slope| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |input| or |slope| is not one of its [=/allowed data types=] (according to [this table](#constraints-prelu)), then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be to the result of [=bidirectionally broadcasting=] |slope|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=].
@@ -6756,7 +6862,7 @@ partial dictionary MLOpSupportLimits {
     To <dfn for="MLGraphBuilder">create reduction operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{MLReduceOptions}} |options|, and optional [=/list=] |allowedDataTypes|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "reduceL1", "reduceL2", "reduceLogSum", "reduceLogSumExp", "reduceMax", "reduceMean", "reduceMin", "reduceProduct", "reduceSum", "reduceSumSquare".
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], |options|.{{MLReduceOptions/axes}} (if it [=map/exists=]), and |options|.{{MLReduceOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
@@ -6923,7 +7029,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>relu(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-relu)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -7060,7 +7166,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>resample2d(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-resample2d)), then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
@@ -7132,7 +7238,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>reshape(|input|, |newShape|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be an empty array of {{unsigned long}}.
     1. If |newShape|'s [=list/size=] is 0, set |outputShape| to an empty [=/list=] for a scalar.
@@ -7203,7 +7309,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>sigmoid(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-sigmoid)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -7286,7 +7392,7 @@ partial  dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>slice(|input|, |starts|, |sizes|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If any of |sizes|'s [=list/items=] are 0, then [=exception/throw=] a {{TypeError}}.
     1. If |starts|'s [=list/size=] and |sizes|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
@@ -7362,7 +7468,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>softmax(|input|, |axis|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-softmax)), then [=exception/throw=] a {{TypeError}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
@@ -7450,7 +7556,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>softplus(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-softplus)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -7543,7 +7649,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>softsign(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-softsign)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -7634,7 +7740,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>split(|input|, |splits|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |axis| be |options|.{{MLSplitOptions/axis}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
@@ -7741,7 +7847,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>tanh(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-tanh)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -7837,7 +7943,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>transpose(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|'s [=MLOperand/shape=].
     1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
@@ -7920,7 +8026,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>triangular(|input|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not one of its [=/allowed ranks=] (according to [this table](#constraints-triangular)), then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -8082,7 +8188,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     The <dfn method for=MLGraphBuilder>where(|condition|, |trueValue|, |falseValue|, |options|)</dfn> method steps are:
   </summary>
-    1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |condition|, |trueValue|, and |falseValue| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |condition|, |trueValue|, or |falseValue| is not one of its [=/allowed data types=] (according to [this table](#constraints-where)), then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |trueValue|'s [=MLOperand/shape=] and |falseValue|'s [=MLOperand/shape=].
