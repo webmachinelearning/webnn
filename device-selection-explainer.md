@@ -136,7 +136,7 @@ As an example for handling hybrid execution as well as the underlying challenges
 
 ## Considered alternatives
 
-1. Keep the current [MLDeviceType](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) as a context option, but improve the device type names and specify an algorithm for a mapping these names to various real adaptors (with their given characteristics). However, this would be more limited than being able to specify device specific limits to context creation. (This is the current approach).
+1. Keep the current [MLDeviceType](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) as a context option, but improve the device type names and specify an algorithm for a mapping of these names to various real adapters (with their given characteristics). However, this would be more limited than being able to specify device specific limits to context creation. (This is the current approach).
 
 2. Remove [MLDeviceType](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype), but define a set of [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) that map well to GPU adapter/device selection and also to NPU device selection. (This is the proposed first approach.)
 
