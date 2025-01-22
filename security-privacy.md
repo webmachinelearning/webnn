@@ -26,7 +26,9 @@ No.
 
 > - 2.6 What information from the underlying platform, e.g. configuration data, is exposed by this specification to an origin?
 
-No information from the underlying platform is exposed directly. An execution time analysis may reveal indirectly the performance of the underlying platform's neural network hardware acceleration capabilities relative to another underlying platform.
+The [opSupportLimits()](https://www.w3.org/TR/webnn/#api-mlcontext-opsupportlimits) exposes op level feature support limits that are different across backends. The information exposed roughly correspond to the underlying operating system version so it shouldn't introduce more entropy. 
+
+Additionally an execution time analysis may reveal indirectly the performance of the underlying platform's neural network hardware acceleration capabilities relative to another underlying platform.
 
 > - 2.7 Does this specification allow an origin access to sensors on a user’s device
 
