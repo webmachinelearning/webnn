@@ -7,7 +7,7 @@
   <link href="https://www.w3.org/StyleSheets/TR/2021/W3C-ED" rel="stylesheet">
   <meta content="Bikeshed version c67c745b1, updated Fri Jan 17 14:27:28 2025 -0800" name="generator">
   <link href="https://www.w3.org/TR/webnn/" rel="canonical">
-  <meta content="293d07468cf4b126faec8a24c1b2beceb50d1ab3" name="revision">
+  <meta content="5f85e73d3f25be21ae69bc6efc7b49db673ad066" name="revision">
   <meta content="dark light" name="color-scheme">
   <link href="https://www.w3.org/StyleSheets/TR/2021/dark.css" media="(prefers-color-scheme: dark)" rel="stylesheet" type="text/css">
 <style>
@@ -1018,7 +1018,7 @@ var[data-var-color="6"] { --var-vg: #FFBCF2; }
   <div class="head">
    <p data-fill-with="logo"><a class="logo" href="https://www.w3.org/"> <img alt="W3C" height="48" src="https://www.w3.org/StyleSheets/TR/2021/logos/W3C" width="72"> </a> </p>
    <h1 class="p-name no-ref" id="title">Web Neural Network API</h1>
-   <p id="w3c-state"><a href="https://www.w3.org/standards/types/#ED">Editor’s Draft</a>, <time class="dt-updated" datetime="2025-01-22">22 January 2025</time></p>
+   <p id="w3c-state"><a href="https://www.w3.org/standards/types/#ED">Editor’s Draft</a>, <time class="dt-updated" datetime="2025-01-23">23 January 2025</time></p>
    <details open>
     <summary>More details about this document</summary>
     <div data-fill-with="spec-metadata">
@@ -5820,20 +5820,26 @@ When not specified, implementations must use a tensor filled with zero.</p>
   builder<c- p>,</c-> input<c- p>,</c-> weight<c- p>,</c-> recurrentWeight<c- p>,</c-> steps<c- p>,</c-> hiddenSize<c- p>,</c-> options<c- p>)</c-> <c- p>{</c->
   <c- a>const</c-> batchSize <c- o>=</c-> input<c- p>.</c->shape<c- p>[</c-><c- mf>1</c-><c- p>];</c->
   <c- a>const</c-> inputSize <c- o>=</c-> input<c- p>.</c->shape<c- p>[</c-><c- mf>2</c-><c- p>];</c->
-  <c- a>const</c-> numDirections <c- o>=</c-> <c- p>(</c->options<c- p>.</c->direction <c- o>==</c-> <c- t>'both'</c-> <c- o>?</c-> <c- mf>2</c-> <c- o>:</c-> <c- mf>1</c-><c- p>);</c->
+  <c- a>const</c-> direction <c- o>=</c-> options<c- p>.</c->direction <c- o>||</c-> <c- t>'forward'</c-><c- p>;</c->
+  <c- a>const</c-> numDirections <c- o>=</c-> <c- p>(</c->direction <c- o>==</c-> <c- t>'both'</c-> <c- o>?</c-> <c- mf>2</c-> <c- o>:</c-> <c- mf>1</c-><c- p>);</c->
   <c- a>let</c-> hiddenState <c- o>=</c-> options<c- p>.</c->initialHiddenState<c- p>;</c->
 
   <c- k>if</c-> <c- p>(</c-><c- o>!</c->hiddenState<c- p>)</c-> <c- p>{</c->
-    <c- a>const</c-> desc <c- o>=</c-> <c- p>{</c->dataType<c- o>:</c-> <c- t>'float32'</c-><c- p>,</c-> shape<c- o>:</c-> <c- p>[</c->numDirections<c- p>,</c-> <c- mf>1</c-><c- p>,</c-> hiddenSize<c- p>]};</c->
-    <c- a>const</c-> totalSize <c- o>=</c-> numDirections <c- o>*</c-> hiddenSize<c- p>;</c->
+    <c- a>const</c-> desc <c- o>=</c-> <c- p>{</c->
+      dataType<c- o>:</c-> <c- t>'float32'</c-><c- p>,</c->
+      shape<c- o>:</c-> <c- p>[</c->numDirections<c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]</c->
+    <c- p>};</c->
+    <c- a>const</c-> totalSize <c- o>=</c-> numDirections <c- o>*</c-> batchSize <c- o>*</c-> hiddenSize<c- p>;</c->
     hiddenState <c- o>=</c-> builder<c- p>.</c->constant<c- p>(</c->desc<c- p>,</c-> <c- ow>new</c-> Float32Array<c- p>(</c->totalSize<c- p>).</c->fill<c- p>(</c-><c- mf>0</c-><c- p>));</c->
   <c- p>}</c->
 
-  <c- a>let</c-> sequence <c- o>=</c-> <c- kc>null</c-><c- p>;</c->
   <c- a>let</c-> currentWeight <c- o>=</c-> <c- p>[];</c->
   <c- a>let</c-> currentRecurrentWeight <c- o>=</c-> <c- p>[];</c->
   <c- a>let</c-> currentBias <c- o>=</c-> <c- p>[];</c->
   <c- a>let</c-> currentRecurrentBias <c- o>=</c-> <c- p>[];</c->
+  <c- a>let</c-> forwardSequence <c- o>=</c-> <c- kc>null</c-><c- p>;</c->
+  <c- a>let</c-> backwardSequence <c- o>=</c-> <c- kc>null</c-><c- p>;</c->
+  <c- a>let</c-> outputHidden <c- o>=</c-> <c- kc>null</c-><c- p>;</c->
 
   <c- k>for</c-> <c- p>(</c-><c- a>let</c-> dir <c- o>=</c-> <c- mf>0</c-><c- p>;</c-> dir <c- o>&lt;</c-> numDirections<c- p>;</c-> <c- o>++</c->dir<c- p>)</c-> <c- p>{</c->
     currentWeight<c- p>.</c->push<c- p>(</c->squeeze<c- p>(</c->
@@ -5856,57 +5862,75 @@ When not specified, implementations must use a tensor filled with zero.</p>
           builder<c- p>.</c->slice<c- p>(</c->
             options<c- p>.</c->recurrentBias<c- p>,</c-> <c- p>[</c->dir<c- p>,</c-> <c- mf>0</c-><c- p>],</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> <c- mf>3</c-> <c- o>*</c-> hiddenSize<c- p>])))</c-> <c- o>:</c->
         <c- kc>null</c-><c- p>);</c->
-  <c- p>}</c->
+    <c- a>let</c-> currentHidden <c- o>=</c-> squeeze<c- p>(</c->
+      builder<c- p>,</c->
+      builder<c- p>.</c->slice<c- p>(</c->hiddenState<c- p>,</c-> <c- p>[</c->dir<c- p>,</c-> <c- mf>0</c-><c- p>,</c-> <c- mf>0</c-><c- p>],</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]));</c->
 
-  <c- k>for</c-> <c- p>(</c-><c- a>let</c-> step <c- o>=</c-> <c- mf>0</c-><c- p>;</c-> step <c- o>&lt;</c-> steps<c- p>;</c-> <c- o>++</c->step<c- p>)</c-> <c- p>{</c->
-    <c- a>let</c-> currentHidden <c- o>=</c-> <c- p>[];</c->
-    <c- a>let</c-> currentOutput <c- o>=</c-> <c- kc>null</c-><c- p>;</c->
-
-    <c- k>for</c-> <c- p>(</c-><c- a>let</c-> dir <c- o>=</c-> <c- mf>0</c-><c- p>;</c-> dir <c- o>&lt;</c-> numDirections<c- p>;</c-> <c- o>++</c->dir<c- p>)</c-> <c- p>{</c->
-      currentHidden<c- p>.</c->push<c- p>(</c->squeeze<c- p>(</c->
-        builder<c- p>,</c->
-        builder<c- p>.</c->slice<c- p>(</c->hiddenState<c- p>,</c-> <c- p>[</c->dir<c- p>,</c-> <c- mf>0</c-><c- p>,</c-> <c- mf>0</c-><c- p>],</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>])));</c->
-    <c- p>}</c->
-
-    <c- k>for</c-> <c- p>(</c-><c- a>let</c-> dir <c- o>=</c-> <c- mf>0</c-><c- p>;</c-> dir <c- o>&lt;</c-> numDirections<c- p>;</c-> <c- o>++</c->dir<c- p>)</c-> <c- p>{</c->
-      <c- a>let</c-> slice <c- o>=</c->
-        <c- p>(</c->dir <c- o>==</c-> <c- mf>1</c-> <c- o>||</c-> options<c- p>.</c->direction <c- o>==</c-> <c- t>'backward'</c-> <c- o>?</c-> steps <c- o>-</c-> step <c- o>-</c-> <c- mf>1</c-> <c- o>:</c-> step<c- p>);</c->
-      <c- a>let</c-> currentInput <c- o>=</c-> squeeze<c- p>(</c->
+    <c- k>for</c-> <c- p>(</c-><c- a>let</c-> step <c- o>=</c-> <c- mf>0</c-><c- p>;</c-> step <c- o>&lt;</c-> steps<c- p>;</c-> <c- o>++</c->step<c- p>)</c-> <c- p>{</c->
+      <c- a>const</c-> slice <c- o>=</c->
+        <c- p>(</c->dir <c- o>==</c-> <c- mf>1</c-> <c- o>||</c-> direction <c- o>==</c-> <c- t>'backward'</c-> <c- o>?</c-> steps <c- o>-</c-> step <c- o>-</c-> <c- mf>1</c-> <c- o>:</c-> step<c- p>);</c->
+      <c- a>const</c-> currentInput <c- o>=</c-> squeeze<c- p>(</c->
         builder<c- p>,</c->
         builder<c- p>.</c->slice<c- p>(</c->input<c- p>,</c-> <c- p>[</c->slice<c- p>,</c-> <c- mf>0</c-><c- p>,</c-> <c- mf>0</c-><c- p>],</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> batchSize<c- p>,</c-> inputSize<c- p>]));</c->
 
-      <c- a>let</c-> result <c- o>=</c-> builder<c- p>.</c->reshape<c- p>(</c->
-        builder<c- p>.</c->gruCell<c- p>(</c->
-          currentInput<c- p>,</c->
-          currentWeight<c- p>[</c->dir<c- p>],</c->
-          currentRecurrentWeight<c- p>[</c->dir<c- p>],</c->
-          currentHidden<c- p>[</c->dir<c- p>],</c->
-          hiddenSize<c- p>,</c->
-          <c- p>{</c->
-            bias<c- o>:</c-> currentBias<c- p>[</c->dir<c- p>],</c->
-            recurrentBias<c- o>:</c-> currentRecurrentBias<c- p>[</c->dir<c- p>],</c->
-            resetAfter<c- o>:</c-> options<c- p>.</c->resetAfter<c- p>,</c->
-            layout<c- o>:</c-> options<c- p>.</c->layout<c- p>,</c->
-            activations<c- o>:</c-> options<c- p>.</c->activations
-          <c- p>}),</c->
-        <c- p>[</c-><c- mf>1</c-><c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]);</c->
+      currentHidden <c- o>=</c-> builder<c- p>.</c->gruCell<c- p>(</c->
+        currentInput<c- p>,</c->
+        currentWeight<c- p>[</c->dir<c- p>],</c->
+        currentRecurrentWeight<c- p>[</c->dir<c- p>],</c->
+        currentHidden<c- p>,</c->
+        hiddenSize<c- p>,</c->
+        <c- p>{</c->
+          bias<c- o>:</c-> currentBias<c- p>[</c->dir<c- p>],</c->
+          recurrentBias<c- o>:</c-> currentRecurrentBias<c- p>[</c->dir<c- p>],</c->
+          resetAfter<c- o>:</c-> options<c- p>.</c->resetAfter<c- p>,</c->
+          layout<c- o>:</c-> options<c- p>.</c->layout<c- p>,</c->
+          activations<c- o>:</c-> options<c- p>.</c->activations
+        <c- p>});</c->
 
-      currentOutput <c- o>=</c->
-        <c- p>(</c->currentOutput <c- o>?</c-> builder<c- p>.</c->concat<c- p>([</c->currentOutput<c- p>,</c-> result<c- p>],</c-> <c- mf>0</c-><c- p>)</c-> <c- o>:</c-> result<c- p>);</c->
+      <c- k>if</c-> <c- p>(</c->options<c- p>.</c->returnSequence<c- p>)</c-> <c- p>{</c->
+        <c- c1>// Expand currentHidden of 2D([batchSize, hiddenSize])</c->
+        <c- c1>// to 4D([steps, numDirections, batchSize, hiddenSize])</c->
+        <c- a>const</c-> expandedHiddenAs4D <c- o>=</c->
+          builder<c- p>.</c->reshape<c- p>(</c->currentHidden<c- p>,</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> <c- mf>1</c-><c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]);</c->
+
+        <c- k>if</c-> <c- p>(</c->direction <c- o>==</c-> <c- t>'forward'</c-> <c- o>||</c-> <c- p>(</c->dir <c- o>==</c-> <c- mf>0</c-> <c- o>&amp;&amp;</c-> direction <c- o>==</c-> <c- t>'both'</c-><c- p>))</c-> <c- p>{</c->
+          forwardSequence <c- o>=</c-> forwardSequence <c- o>?</c->
+            builder<c- p>.</c->concat<c- p>([</c->forwardSequence<c- p>,</c-> expandedHiddenAs4D<c- p>],</c-> <c- mf>0</c-><c- p>)</c-> <c- o>:</c->
+            expandedHiddenAs4D<c- p>;</c->
+        <c- p>}</c-> <c- k>else</c-> <c- k>if</c-> <c- p>(</c->
+          direction <c- o>==</c-> <c- t>'backward'</c-> <c- o>||</c-> <c- p>(</c->dir <c- o>==</c-> <c- mf>1</c-> <c- o>&amp;&amp;</c-> direction <c- o>==</c-> <c- t>'both'</c-><c- p>))</c-> <c- p>{</c->
+          backwardSequence <c- o>=</c-> backwardSequence <c- o>?</c->
+            builder<c- p>.</c->concat<c- p>([</c->expandedHiddenAs4D<c- p>,</c-> backwardSequence<c- p>],</c-> <c- mf>0</c-><c- p>)</c-> <c- o>:</c->
+            expandedHiddenAs4D<c- p>;</c->
+        <c- p>}</c->
+      <c- p>}</c->
     <c- p>}</c->
 
-    hiddenState <c- o>=</c-> currentOutput<c- p>;</c->
-
-    <c- k>if</c-> <c- p>(</c->options<c- p>.</c->returnSequence<c- p>)</c-> <c- p>{</c->
-      currentOutput <c- o>=</c-> builder<c- p>.</c->reshape<c- p>(</c->
-        currentOutput<c- p>,</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> numDirections<c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]);</c->
-      sequence <c- o>=</c->
-        <c- p>(</c->sequence <c- o>?</c-> builder<c- p>.</c->concat<c- p>([</c->sequence<c- p>,</c-> currentOutput<c- p>],</c-> <c- mf>0</c-><c- p>)</c-> <c- o>:</c->
-                    currentOutput<c- p>);</c->
-    <c- p>}</c->
+    <c- c1>// Expand currentHidden of 2D([batchSize, hiddenSize])</c->
+    <c- c1>// to 3D([numDirections, batchSize, hiddenSize])</c->
+    <c- a>const</c-> expandedHiddenAs3D <c- o>=</c->
+      builder<c- p>.</c->reshape<c- p>(</c->currentHidden<c- p>,</c-> <c- p>[</c-><c- mf>1</c-><c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]);</c->
+    outputHidden <c- o>=</c-> outputHidden <c- o>?</c->
+      builder<c- p>.</c->concat<c- p>([</c->outputHidden<c- p>,</c-> expandedHiddenAs3D<c- p>],</c-> <c- mf>0</c-><c- p>)</c-> <c- o>:</c->
+      expandedHiddenAs3D<c- p>;</c->
   <c- p>}</c->
 
-  <c- k>return</c-> <c- p>(</c->sequence <c- o>?</c-> <c- p>[</c->hiddenState<c- p>,</c-> sequence<c- p>]</c-> <c- o>:</c-> <c- p>[</c->hiddenState<c- p>]);</c->
+  <c- k>if</c-> <c- p>(</c->options<c- p>.</c->returnSequence<c- p>)</c-> <c- p>{</c->
+    <c- a>let</c-> outputSequence <c- o>=</c-> <c- kc>null</c-><c- p>;</c->
+
+    <c- k>if</c-> <c- p>(</c->direction <c- o>==</c-> <c- t>'forward'</c-><c- p>)</c-> <c- p>{</c->
+      outputSequence <c- o>=</c-> forwardSequence<c- p>;</c->
+    <c- p>}</c-> <c- k>else</c-> <c- k>if</c-> <c- p>(</c->direction <c- o>==</c-> <c- t>'backward'</c-><c- p>)</c-> <c- p>{</c->
+      outputSequence <c- o>=</c-> backwardSequence<c- p>;</c->
+    <c- p>}</c-> <c- k>else</c-> <c- k>if</c-> <c- p>(</c->direction <c- o>==</c-> <c- t>'both'</c-><c- p>)</c-> <c- p>{</c->
+      <c- c1>// Concat along axis 1 (numDirections dimension)</c->
+      outputSequence <c- o>=</c-> builder<c- p>.</c->concat<c- p>([</c->forwardSequence<c- p>,</c-> backwardSequence<c- p>],</c-> <c- mf>1</c-><c- p>);</c->
+    <c- p>}</c->
+
+    <c- k>return</c-> <c- p>[</c->outputHidden<c- p>,</c-> outputSequence<c- p>];</c->
+  <c- p>}</c-> <c- k>else</c-> <c- p>{</c->
+    <c- k>return</c-> <c- p>[</c->outputHidden<c- p>];</c->
+  <c- p>}</c->
 <c- p>}</c->
 </pre>
     </details>
