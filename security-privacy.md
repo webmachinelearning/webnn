@@ -26,9 +26,9 @@ No.
 
 > - 2.6 What information from the underlying platform, e.g. configuration data, is exposed by this specification to an origin?
 
-The [opSupportLimits()](https://www.w3.org/TR/webnn/#api-mlcontext-opsupportlimits) exposes per-operator feature support limits that are different across backends. The information exposed roughly corresponds to the underlying operating system version, and so it shouldn't introduce more entropy.
+The [opSupportLimits()](https://www.w3.org/TR/webnn/#api-mlcontext-opsupportlimits) method intentionally exposes per-operator behavior that is expected to vary depending on the underlying platform, such as the supported data types or preferred data layout for each operator. The information exposed roughly corresponds to the underlying operating system and/or browser version, and so it shouldn't introduce additional entropy.
 
-Additionally an execution time analysis may reveal indirectly the performance of the underlying platform's neural network hardware acceleration capabilities relative to another underlying platform.
+Additionally, an analysis of execution time may indirectly reveal the performance of the underlying platform's neural network hardware acceleration capabilities relative to another underlying platform.
 
 > - 2.7 Does this specification allow an origin access to sensors on a user’s device
 
