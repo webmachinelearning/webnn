@@ -669,11 +669,11 @@ Unlike WebGPU, this API does not intrinsically support custom shader authoring; 
 
 The WebGPU API identifies <a href="https://gpuweb.github.io/gpuweb/#privacy-machine-artifacts">machine-specific artifacts</a> as a privacy consideration. Similarly, the WebNN API's compute unit scheduling may under certain circumstances introduce a fingerprint. However, similarly to WebGPU, such fingerprints are identical across most or all of the devices of each vendor, mitigating the concern. Furthermore, software implementations can be used to further eliminate such artifacts.
 
-The WebNN API defines two developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the most appropriate underlying execution device for the workload. An {{MLDeviceType}} normatively indicates the kind of device and is one of: {{MLDeviceType/"cpu"}}, {{MLDeviceType/"gpu"}}, {{MLDeviceType/"npu"}}. If this type cannot be satisfied, an "{{OperationError}}" {{DOMException}} is thrown, thus this type can in some cases add two bits of entropy to the fingerprint. An {{MLPowerPreference}} indicates preference as related to the power consumption and is considered a hint only and as such does not increase entropy of the fingerprint.
+The WebNN API defines developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the underlying execution device for the workload. An {{MLPowerPreference}} indicates preference as related to the desired low power consumption or high performance, is considered a hint only and as such does not increase entropy of the fingerprint.
 
 Issue(623): {{MLContextOptions}} is under active development, and the design is expected to change, informed by further implementation experience and new use cases from the wider web community.
 
-If a future version of this specification introduces support for a new {{MLDeviceType}} that can only support a subset of {{MLOperandDataType}}s, that could introduce a new fingerprint.
+If a future version of this specification introduces support for a new {{MLContextOptions}} member for supporting only a subset of {{MLOperandDataType}}s, that could introduce a new fingerprint.
 
 In general, implementers of this API are expected to apply <a href="https://gpuweb.github.io/gpuweb/#privacy-considerations">WebGPU Privacy Considerations</a> to their implementations where applicable.
 
@@ -729,7 +729,13 @@ An {{MLContext}} interface represents a global state of neural network execution
 
 In a situation when a GPU context executes a graph with a constant or an input in the system memory as an {{ArrayBufferView}}, the input content is automatically uploaded from the system memory to the GPU memory, and downloaded back to the system memory of an {{ArrayBufferView}} output buffer at the end of the graph execution. This data upload and download cycles will only occur whenever the execution device requires the data to be copied out of and back into the system memory, such as in the case of the GPU. It doesn't occur when the device is a CPU device. Additionally, the result of the graph execution is in a known layout format. While the execution may be optimized for a native memory access pattern in an intermediate result within the graph, the output of the last operation of the graph must convert the content back to a known layout format at the end of the graph in order to maintain the expected behavior from the caller's perspective.
 
-When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account the application's {{MLPowerPreference}} and {{MLDeviceType}} options.
+When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account these options, currently only the {{MLPowerPreference}} option.
+
+<div class="note">
+Depending on the underlying platform, the user agent <span class=allow-2119>may</span> select different combinations of CPU, NPU and GPU devices.
+</div>
+
+For a history and rationale of this design, please see the <a href="https://github.com/webmachinelearning/webnn/blob/master/device-selection-explainer.md">device selection explainer</a>.
 
 ## Task Source ## {#programming-model-task-source}
 
@@ -764,12 +770,6 @@ WorkerNavigator includes NavigatorML;
 
 ## {{ML}} interface ## {#api-ml}
 <script type=idl>
-enum MLDeviceType {
-  "cpu",
-  "gpu",
-  "npu"
-};
-
 enum MLPowerPreference {
   "default",
   "high-performance",
@@ -777,7 +777,6 @@ enum MLPowerPreference {
 };
 
 dictionary MLContextOptions {
-  MLDeviceType deviceType = "cpu";
   MLPowerPreference powerPreference = "default";
 };
 
@@ -791,16 +790,6 @@ interface ML {
 ### {{MLContextOptions}} ### {#api-mlcontextoptions}
 
 Issue(623): {{MLContextOptions}} is under active development, and the design is expected to change, informed by further implementation experience and new use cases from the wider web community. The Working Group is considering additional API controls to allow the definition of a fallback device, multiple devices in a preferred order, or an exclusion of a specific device. Other considerations under discussion include error handling, ultimate fallback, and quantized operators. Feedback is welcome on any of these design considerations from web developers, library authors, OS and hardware vendors, and other stakeholders via GitHub:
-
-The <dfn dfn-for=MLContextOptions dfn-type=dict-member>deviceType</dfn> option is an <dfn dfn-type=enum>MLDeviceType</dfn> and indicates the application's preference for the kind of device used for the context. It is one of the following:
-<dl dfn-for="MLDeviceType">
-<dt>"<dfn enum-value>cpu</dfn>"</dt>
-<dd>Provides the broadest compatibility and usability across all client devices with varying degrees of performance.</dd>
-<dt>"<dfn enum-value>gpu</dfn>"</dt>
-<dd>Provides the broadest range of achievable performance across graphics hardware platforms from consumer devices to professional workstations. The underlying platform implementation may fall back to other devices for certain operators and parts of the graph.</dd>
-<dt>"<dfn enum-value>npu</dfn>"</dt>
-<dd>Provides power efficiency for sustained workloads across hardware platforms with purpose-built accelerators. The underlying platform implementation may fall back to other devices for certain operators and parts of the graph.</dd>
-</dl>
 
 The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> option is an <dfn dfn-type=enum>MLPowerPreference</dfn> and indicates the application's preference as related to power consumption. It is one of the following:
 <dl dfn-for="MLPowerPreference">
@@ -828,16 +817,13 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
     1. Let |context| be a new {{MLContext}} in |realm|.
     1. If |options| is a {{GPUDevice}} object:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/webgpu=]".
-        1. Set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"gpu"}}.
         1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
     1. Otherwise:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/default=]".
         1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=] in |realm|.
-        1. If |options|["{{MLContextOptions/deviceType}}"] [=map/exists=], then set |context|.{{MLContext/[[deviceType]]}} to |options|["{{MLContextOptions/deviceType}}"].
-        1. Otherwise, set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"cpu"}}.
         1. If |options|["{{MLContextOptions/powerPreference}}"] [=map/exists=], then set |context|.{{MLContext/[[powerPreference]]}} to |options|["{{MLContextOptions/powerPreference}}"].
         1. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
-    1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, |context|.{{MLContext/[[deviceType]]}} and |context|.{{MLContext/[[powerPreference]]}}, return failure.
+    1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}} and |context|.{{MLContext/[[powerPreference]]}}, return failure.
     1. Return |context|.
 </details>
 
@@ -870,7 +856,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 </details>
 
 ## {{MLContext}} interface ## {#api-mlcontext}
-The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=], {{MLDeviceType}} and {{MLPowerPreference}}.
+The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=] and {{MLPowerPreference}}.
 
 <script type=idl>
 typedef record<USVString, MLTensor> MLNamedTensors;
@@ -904,9 +890,6 @@ interface MLContext {
     : <dfn>\[[contextType]]</dfn> of type [=context type=].
     ::
         The {{MLContext}}'s [=context type=].
-    : <dfn>\[[deviceType]]</dfn> of type {{MLDeviceType}}.
-    ::
-        The {{MLContext}}'s {{MLDeviceType}}.
     : <dfn>\[[powerPreference]]</dfn> of type {{MLPowerPreference}}.
     ::
         The {{MLContext}}'s {{MLPowerPreference}}.
@@ -928,10 +911,6 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
 <dt>"<dfn>webgpu</dfn>"</dt>
 <dd>Context created from WebGPU device.</dd>
 </dl>
-
-<div class="note">
-When the {{MLContext/[[contextType]]}} is set to [=context type/default=] with the {{MLContextOptions}}.{{MLContextOptions/deviceType}} set to {{MLDeviceType/"gpu"}}, the user agent is responsible for creating an internal GPU device that operates within the context and is capable of ML workload submission on behalf of the calling application.
-</div>
 
 <details open algorithm>
   <summary>
