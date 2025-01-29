@@ -341,6 +341,9 @@ for (const match of source.matchAll(/\|(\w+)\|\.{{(\w+)\/.*?}}/g)) {
   });
 }
 
+// TODO: Generate this from the IDL itself.
+const dictionaries = ['MLOperandDescriptor', 'MLContextLostInfo'];
+
 // Ensure JS objects are created with explicit realm
 for (const match of text.matchAll(/ a new promise\b(?! in realm)/g)) {
   error(`Promise creation must specify realm: ${format(match)}`);
@@ -348,7 +351,7 @@ for (const match of text.matchAll(/ a new promise\b(?! in realm)/g)) {
 for (const match of text.matchAll(/ be a new ([A-Z]\w+)\b(?! in realm)/g)) {
   const type = match[1];
   // Dictionaries are just maps, so they don't need a realm.
-  if (type === 'MLOperandDescriptor')
+  if (dictionaries.includes(type))
     continue;
   error(`Object creation must specify realm: ${format(match)}`);
 }
