@@ -825,14 +825,14 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 <summary>
     To <dfn>create a context</dfn> given [=realm=] |realm| and |options| (a {{GPUDevice}} or {{MLContextOptions}}), run these steps:
 </summary>
-    1. Let |context| be a new {{MLContext}} object with |realm|.
+    1. Let |context| be a new {{MLContext}} in |realm|.
     1. If |options| is a {{GPUDevice}} object:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/webgpu=]".
         1. Set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"gpu"}}.
         1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
     1. Otherwise:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/default=]".
-        1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=].
+        1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=] in |realm|.
         1. If |options|["{{MLContextOptions/deviceType}}"] [=map/exists=], then set |context|.{{MLContext/[[deviceType]]}} to |options|["{{MLContextOptions/deviceType}}"].
         1. Otherwise, set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"cpu"}}.
         1. If |options|["{{MLContextOptions/powerPreference}}"] [=map/exists=], then set |context|.{{MLContext/[[powerPreference]]}} to |options|["{{MLContextOptions/powerPreference}}"].
@@ -846,9 +846,9 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
     The <dfn method for=ML>createContext(|options|)</dfn> steps are:
 </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. Let |promise| be [=a new promise=].
+    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Run the following steps [=in parallel=].
         1. Let |context| be the result of [=creating a context=] given |realm| and |options|. If that returns failure, then [=queue an ML task=] with |global| to [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |context|.
@@ -860,9 +860,9 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
     The <dfn method for=ML>createContext(|gpuDevice|)</dfn> method steps are:
 </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. Let |promise| be [=a new promise=].
+    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Run the following steps [=in parallel=].
         1. Let |context| be the result of [=creating a context=] given |realm| and |gpuDevice|. If that returns failure, then [=queue an ML task=] with |global| to [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |context|.
@@ -1068,9 +1068,10 @@ Creates an {{MLTensor}} associated with this {{MLContext}}.
     The <dfn method for=MLContext>createTensor(|descriptor|)</dfn> method steps are:
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. If [=this=] [=MLContext/is lost=], then return [=a new promise=] [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If [=this=] [=MLContext/is lost=], then return [=a new promise=] in |realm| [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
     1. Let |tensor| be the result of [=creating an MLTensor=] given [=this=], and |descriptor|.
-    1. Let |promise| be [=a new promise=].
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Create |tensor|.{{MLTensor/[[data]]}} given |descriptor| and initialize all bytes to zeros.
@@ -1097,10 +1098,10 @@ Reads back the {{MLTensor/[[data]]}} of an {{MLTensor}} from the {{MLContext}}.{
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. Let |promise| be [=a new promise=].
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
@@ -1127,11 +1128,12 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
     The <dfn method for=MLContext>readTensor(|tensor|, |outputData|)</dfn> method steps are:
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If [=validating buffer with descriptor=] given |outputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. Let |promise| be [=a new promise=].
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If [=validating buffer with descriptor=] given |outputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
@@ -1498,7 +1500,8 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
   <summary>
     To <dfn>create an MLOperand</dfn> given {{MLGraphBuilder}} |builder| and {{MLOperandDescriptor}} |desc|, run the following steps:
   </summary>
-    1. Let |operand| be a new {{MLOperand}}.
+    1. Let |realm| be |builder|'s [=relevant realm=].
+    1. Let |operand| be a new {{MLOperand}} in |realm|.
     1. Set |operand|.{{MLOperand/[[builder]]}} to |builder|.
     1. Set |operand|.{{MLOperand/[[descriptor]]}} to |desc|.
     1. Return |operand|.
@@ -1508,8 +1511,10 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
   <summary>
     To <dfn>copy an MLOperand</dfn> given {{MLOperand}} |operand|, run the following steps:
   </summary>
-    1. Let |result| be a new {{MLOperand}}.
-    1. Set |result|.{{MLOperand/[[builder]]}} to |operand|.{{MLOperand/[[builder]]}}.
+    1. Let |builder| be |operand|.{{MLOperand/[[builder]]}}.
+    1. Let |realm| be |builder|'s [=relevant realm=].
+    1. Let |result| be a new {{MLOperand}} in |realm|.
+    1. Set |result|.{{MLOperand/[[builder]]}} to |builder|.
     1. Set |result|.{{MLOperand/[[descriptor]]}} to |operand|.{{MLOperand/[[descriptor]]}}.
     1. If |operand|.{{MLOperand/[[name]]}} [=map/exists=], then set |result|.{{MLOperand/[[name]]}} to |operand|.{{MLOperand/[[name]]}}.
     1. Return |result|.
@@ -1607,7 +1612,8 @@ An {{MLTensor}} is created by its associated {{MLContext}}.
   <summary>
     To <dfn>create an MLTensor</dfn> given {{MLContext}} |context| and {{MLTensorDescriptor}} |descriptor|, run the following steps:
   </summary>
-    1. Let |tensor| be a new {{MLTensor}}.
+    1. Let |realm| be |context|'s [=relevant realm=].
+    1. Let |tensor| be a new {{MLTensor}} in |realm|.
     1. Set |tensor|.{{MLTensor/[[context]]}} to |context|.
     1. Set |tensor|.{{MLTensor/[[descriptor]]}} to |descriptor|.
     1. Set |tensor|.{{MLTensor/[[isDestroyed]]}} to false.
@@ -1796,12 +1802,13 @@ Build a composed graph up to a given output operand into a computational graph a
   <summary>
     The <dfn method for=MLGraphBuilder>build(|outputs|)</dfn> method steps are:
   </summary>
-    1. If [=this=] [=MLGraphBuilder/can not build=], then return [=a new promise=] [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
-    1. If |outputs| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If [=this=] [=MLGraphBuilder/can not build=], then return [=a new promise=] in |realm| [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
+    1. If |outputs| is empty, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. [=map/For each=] |name| → |operand| of |outputs|:
-        1. If |name| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-        1. If [=MLGraphBuilder/validating operand=] given [=this=] and |operand| returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] or [=computational graph/constants=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+        1. If |name| is empty, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+        1. If [=MLGraphBuilder/validating operand=] given [=this=] and |operand| returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] or [=computational graph/constants=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. Let |operands| be a new empty [=/set=].
     1. Let |operators| be a new empty [=/set=].
     1. Let |inputs| be a new empty [=/set=].
@@ -1814,8 +1821,7 @@ Build a composed graph up to a given output operand into a computational graph a
         1. [=list/For each=] |input| of |operand|.{{MLOperand/[[operator]]}}'s [=operator/inputs=]:
             1. [=queue/Enqueue=] |input| to |queue|.
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. Let |graph| be a new {{MLGraph}} with |realm|.
+    1. Let |graph| be a new {{MLGraph}} in |realm|.
     1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
     1. Set |graph|.{{MLGraph/[[isDestroyed]]}} to false.
     1. [=set/For each=] |operand| in |inputs|:
@@ -1823,7 +1829,7 @@ Build a composed graph up to a given output operand into a computational graph a
     1. [=map/For each=] |name| → |operand| of |outputs|:
         1. Set |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] to |operand|.{{MLOperand/[[descriptor]]}}.
     1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
-    1. Let |promise| be [=a new promise=].
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Run the following steps [=in parallel=]:
         1. Run these steps, but [=/abort when=] |graph|.{{MLGraph/[[context]]}} [=MLContext/is lost=]:
             1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
