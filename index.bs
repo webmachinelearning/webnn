@@ -825,16 +825,18 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 <summary>
     To <dfn>create a context</dfn> given [=realm=] |realm| and |options| (a {{GPUDevice}} or {{MLContextOptions}}), run these steps:
 </summary>
-    1. Let |context| be a new {{MLContext}} object with |realm|.
+    1. Let |context| be a new {{MLContext}} in |realm|.
     1. If |options| is a {{GPUDevice}} object:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/webgpu=]".
         1. Set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"gpu"}}.
         1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
     1. Otherwise:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/default=]".
-        1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=].
-        1. If |options|["{{MLContextOptions/deviceType}}"] [=map/exists=], then set |context|.{{MLContext/[[deviceType]]}} to |options|["{{MLContextOptions/deviceType}}"]. Otherwise, set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"cpu"}}.
-        1. If |options|["{{MLContextOptions/powerPreference}}"] [=map/exists=], then set |context|.{{MLContext/[[powerPreference]]}} to |options|["{{MLContextOptions/powerPreference}}"]. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
+        1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=] in |realm|.
+        1. If |options|["{{MLContextOptions/deviceType}}"] [=map/exists=], then set |context|.{{MLContext/[[deviceType]]}} to |options|["{{MLContextOptions/deviceType}}"].
+        1. Otherwise, set |context|.{{MLContext/[[deviceType]]}} to {{MLDeviceType/"cpu"}}.
+        1. If |options|["{{MLContextOptions/powerPreference}}"] [=map/exists=], then set |context|.{{MLContext/[[powerPreference]]}} to |options|["{{MLContextOptions/powerPreference}}"].
+        1. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
     1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, |context|.{{MLContext/[[deviceType]]}} and |context|.{{MLContext/[[powerPreference]]}}, return failure.
     1. Return |context|.
 </details>
@@ -844,9 +846,9 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
     The <dfn method for=ML>createContext(|options|)</dfn> steps are:
 </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. Let |promise| be [=a new promise=].
+    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Run the following steps [=in parallel=].
         1. Let |context| be the result of [=creating a context=] given |realm| and |options|. If that returns failure, then [=queue an ML task=] with |global| to [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |context|.
@@ -858,9 +860,9 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
     The <dfn method for=ML>createContext(|gpuDevice|)</dfn> method steps are:
 </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. Let |promise| be [=a new promise=].
+    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Run the following steps [=in parallel=].
         1. Let |context| be the result of [=creating a context=] given |realm| and |gpuDevice|. If that returns failure, then [=queue an ML task=] with |global| to [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
         1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |context|.
@@ -1066,9 +1068,10 @@ Creates an {{MLTensor}} associated with this {{MLContext}}.
     The <dfn method for=MLContext>createTensor(|descriptor|)</dfn> method steps are:
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. If [=this=] [=MLContext/is lost=], then return [=a new promise=] [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If [=this=] [=MLContext/is lost=], then return [=a new promise=] in |realm| [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
     1. Let |tensor| be the result of [=creating an MLTensor=] given [=this=], and |descriptor|.
-    1. Let |promise| be [=a new promise=].
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Create |tensor|.{{MLTensor/[[data]]}} given |descriptor| and initialize all bytes to zeros.
@@ -1095,10 +1098,10 @@ Reads back the {{MLTensor/[[data]]}} of an {{MLTensor}} from the {{MLContext}}.{
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. Let |promise| be [=a new promise=].
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
@@ -1125,11 +1128,12 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
     The <dfn method for=MLContext>readTensor(|tensor|, |outputData|)</dfn> method steps are:
   </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. If [=validating buffer with descriptor=] given |outputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-    1. Let |promise| be [=a new promise=].
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If [=validating buffer with descriptor=] given |outputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
@@ -1496,7 +1500,8 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
   <summary>
     To <dfn>create an MLOperand</dfn> given {{MLGraphBuilder}} |builder| and {{MLOperandDescriptor}} |desc|, run the following steps:
   </summary>
-    1. Let |operand| be a new {{MLOperand}}.
+    1. Let |realm| be |builder|'s [=relevant realm=].
+    1. Let |operand| be a new {{MLOperand}} in |realm|.
     1. Set |operand|.{{MLOperand/[[builder]]}} to |builder|.
     1. Set |operand|.{{MLOperand/[[descriptor]]}} to |desc|.
     1. Return |operand|.
@@ -1506,8 +1511,10 @@ The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, inte
   <summary>
     To <dfn>copy an MLOperand</dfn> given {{MLOperand}} |operand|, run the following steps:
   </summary>
-    1. Let |result| be a new {{MLOperand}}.
-    1. Set |result|.{{MLOperand/[[builder]]}} to |operand|.{{MLOperand/[[builder]]}}.
+    1. Let |builder| be |operand|.{{MLOperand/[[builder]]}}.
+    1. Let |realm| be |builder|'s [=relevant realm=].
+    1. Let |result| be a new {{MLOperand}} in |realm|.
+    1. Set |result|.{{MLOperand/[[builder]]}} to |builder|.
     1. Set |result|.{{MLOperand/[[descriptor]]}} to |operand|.{{MLOperand/[[descriptor]]}}.
     1. If |operand|.{{MLOperand/[[name]]}} [=map/exists=], then set |result|.{{MLOperand/[[name]]}} to |operand|.{{MLOperand/[[name]]}}.
     1. Return |result|.
@@ -1605,7 +1612,8 @@ An {{MLTensor}} is created by its associated {{MLContext}}.
   <summary>
     To <dfn>create an MLTensor</dfn> given {{MLContext}} |context| and {{MLTensorDescriptor}} |descriptor|, run the following steps:
   </summary>
-    1. Let |tensor| be a new {{MLTensor}}.
+    1. Let |realm| be |context|'s [=relevant realm=].
+    1. Let |tensor| be a new {{MLTensor}} in |realm|.
     1. Set |tensor|.{{MLTensor/[[context]]}} to |context|.
     1. Set |tensor|.{{MLTensor/[[descriptor]]}} to |descriptor|.
     1. Set |tensor|.{{MLTensor/[[isDestroyed]]}} to false.
@@ -1794,12 +1802,13 @@ Build a composed graph up to a given output operand into a computational graph a
   <summary>
     The <dfn method for=MLGraphBuilder>build(|outputs|)</dfn> method steps are:
   </summary>
-    1. If [=this=] [=MLGraphBuilder/can not build=], then return [=a new promise=] [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
-    1. If |outputs| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If [=this=] [=MLGraphBuilder/can not build=], then return [=a new promise=] in |realm| [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
+    1. If |outputs| is empty, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. [=map/For each=] |name| → |operand| of |outputs|:
-        1. If |name| is empty, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-        1. If [=MLGraphBuilder/validating operand=] given [=this=] and |operand| returns false, then return [=a new promise=] [=rejected=] with a {{TypeError}}.
-        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] or [=computational graph/constants=], then return [=a new promise=] [=rejected=] with a {{TypeError}}.
+        1. If |name| is empty, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+        1. If [=MLGraphBuilder/validating operand=] given [=this=] and |operand| returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] or [=computational graph/constants=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. Let |operands| be a new empty [=/set=].
     1. Let |operators| be a new empty [=/set=].
     1. Let |inputs| be a new empty [=/set=].
@@ -1812,8 +1821,7 @@ Build a composed graph up to a given output operand into a computational graph a
         1. [=list/For each=] |input| of |operand|.{{MLOperand/[[operator]]}}'s [=operator/inputs=]:
             1. [=queue/Enqueue=] |input| to |queue|.
     1. Let |global| be [=this=]'s [=relevant global object=].
-    1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. Let |graph| be a new {{MLGraph}} with |realm|.
+    1. Let |graph| be a new {{MLGraph}} in |realm|.
     1. Set |graph|.{{MLGraph/[[context]]}} to [=this=].{{MLGraphBuilder/[[context]]}}.
     1. Set |graph|.{{MLGraph/[[isDestroyed]]}} to false.
     1. [=set/For each=] |operand| in |inputs|:
@@ -1821,7 +1829,7 @@ Build a composed graph up to a given output operand into a computational graph a
     1. [=map/For each=] |name| → |operand| of |outputs|:
         1. Set |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] to |operand|.{{MLOperand/[[descriptor]]}}.
     1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
-    1. Let |promise| be [=a new promise=].
+    1. Let |promise| be [=a new promise=] in |realm|.
     1. Run the following steps [=in parallel=]:
         1. Run these steps, but [=/abort when=] |graph|.{{MLGraph/[[context]]}} [=MLContext/is lost=]:
             1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
@@ -4887,20 +4895,26 @@ partial dictionary MLOpSupportLimits {
       builder, input, weight, recurrentWeight, steps, hiddenSize, options) {
       const batchSize = input.shape[1];
       const inputSize = input.shape[2];
-      const numDirections = (options.direction == 'both' ? 2 : 1);
+      const direction = options.direction || 'forward';
+      const numDirections = (direction == 'both' ? 2 : 1);
       let hiddenState = options.initialHiddenState;
 
       if (!hiddenState) {
-        const desc = {dataType: 'float32', shape: [numDirections, 1, hiddenSize]};
-        const totalSize = numDirections * hiddenSize;
+        const desc = {
+          dataType: 'float32',
+          shape: [numDirections, batchSize, hiddenSize]
+        };
+        const totalSize = numDirections * batchSize * hiddenSize;
         hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
       }
 
-      let sequence = null;
       let currentWeight = [];
       let currentRecurrentWeight = [];
       let currentBias = [];
       let currentRecurrentBias = [];
+      let forwardSequence = null;
+      let backwardSequence = null;
+      let outputHidden = null;
 
       for (let dir = 0; dir < numDirections; ++dir) {
         currentWeight.push(squeeze(
@@ -4923,57 +4937,75 @@ partial dictionary MLOpSupportLimits {
               builder.slice(
                 options.recurrentBias, [dir, 0], [1, 3 * hiddenSize]))) :
             null);
-      }
+        let currentHidden = squeeze(
+          builder,
+          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]));
 
-      for (let step = 0; step < steps; ++step) {
-        let currentHidden = [];
-        let currentOutput = null;
-
-        for (let dir = 0; dir < numDirections; ++dir) {
-          currentHidden.push(squeeze(
-            builder,
-            builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize])));
-        }
-
-        for (let dir = 0; dir < numDirections; ++dir) {
-          let slice =
-            (dir == 1 || options.direction == 'backward' ? steps - step - 1 : step);
-          let currentInput = squeeze(
+        for (let step = 0; step < steps; ++step) {
+          const slice =
+            (dir == 1 || direction == 'backward' ? steps - step - 1 : step);
+          const currentInput = squeeze(
             builder,
             builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]));
 
-          let result = builder.reshape(
-            builder.gruCell(
-              currentInput,
-              currentWeight[dir],
-              currentRecurrentWeight[dir],
-              currentHidden[dir],
-              hiddenSize,
-              {
-                bias: currentBias[dir],
-                recurrentBias: currentRecurrentBias[dir],
-                resetAfter: options.resetAfter,
-                layout: options.layout,
-                activations: options.activations
-              }),
-            [1, batchSize, hiddenSize]);
+          currentHidden = builder.gruCell(
+            currentInput,
+            currentWeight[dir],
+            currentRecurrentWeight[dir],
+            currentHidden,
+            hiddenSize,
+            {
+              bias: currentBias[dir],
+              recurrentBias: currentRecurrentBias[dir],
+              resetAfter: options.resetAfter,
+              layout: options.layout,
+              activations: options.activations
+            });
 
-          currentOutput =
-            (currentOutput ? builder.concat([currentOutput, result], 0) : result);
+          if (options.returnSequence) {
+            // Expand currentHidden of 2D([batchSize, hiddenSize])
+            // to 4D([steps, numDirections, batchSize, hiddenSize])
+            const expandedHiddenAs4D =
+              builder.reshape(currentHidden, [1, 1, batchSize, hiddenSize]);
+
+            if (direction == 'forward' || (dir == 0 && direction == 'both')) {
+              forwardSequence = forwardSequence ?
+                builder.concat([forwardSequence, expandedHiddenAs4D], 0) :
+                expandedHiddenAs4D;
+            } else if (
+              direction == 'backward' || (dir == 1 && direction == 'both')) {
+              backwardSequence = backwardSequence ?
+                builder.concat([expandedHiddenAs4D, backwardSequence], 0) :
+                expandedHiddenAs4D;
+            }
+          }
         }
 
-        hiddenState = currentOutput;
-
-        if (options.returnSequence) {
-          currentOutput = builder.reshape(
-            currentOutput, [1, numDirections, batchSize, hiddenSize]);
-          sequence =
-            (sequence ? builder.concat([sequence, currentOutput], 0) :
-                        currentOutput);
-        }
+        // Expand currentHidden of 2D([batchSize, hiddenSize])
+        // to 3D([numDirections, batchSize, hiddenSize])
+        const expandedHiddenAs3D =
+          builder.reshape(currentHidden, [1, batchSize, hiddenSize]);
+        outputHidden = outputHidden ?
+          builder.concat([outputHidden, expandedHiddenAs3D], 0) :
+          expandedHiddenAs3D;
       }
 
-      return (sequence ? [hiddenState, sequence] : [hiddenState]);
+      if (options.returnSequence) {
+        let outputSequence = null;
+
+        if (direction == 'forward') {
+          outputSequence = forwardSequence;
+        } else if (direction == 'backward') {
+          outputSequence = backwardSequence;
+        } else if (direction == 'both') {
+          // Concat along axis 1 (numDirections dimension)
+          outputSequence = builder.concat([forwardSequence, backwardSequence], 1);
+        }
+
+        return [outputHidden, outputSequence];
+      } else {
+        return [outputHidden];
+      }
     }
   </pre>
 </details>
@@ -6217,28 +6249,38 @@ partial dictionary MLOpSupportLimits {
       builder, input, weight, recurrentWeight, steps, hiddenSize, options) {
       const batchSize = input.shape[1];
       const inputSize = input.shape[2];
-      const numDirections = (options.direction == 'both' ? 2 : 1);
+      const direction = options.direction || 'forward';
+      const numDirections = (direction == 'both' ? 2 : 1);
       let hiddenState = options.initialHiddenState;
       let cellState = options.initialCellState;
 
       if (!hiddenState) {
-        const desc = {dataType: 'float32', shape: [numDirections, 1, hiddenSize]};
-        const totalSize = numDirections * hiddenSize;
+        const desc = {
+          dataType: 'float32',
+          shape: [numDirections, batchSize, hiddenSize]
+        };
+        const totalSize = numDirections * batchSize * hiddenSize;
         hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
       }
 
       if (!cellState) {
-        const desc = {dataType: 'float32', shape: [numDirections, 1, hiddenSize]};
-        const totalSize = numDirections * hiddenSize;
+        const desc = {
+          dataType: 'float32',
+          shape: [numDirections, batchSize, hiddenSize]
+        };
+        const totalSize = numDirections * batchSize * hiddenSize;
         cellState = builder.constant(desc, new Float32Array(totalSize).fill(0));
       }
 
-      let sequence = null;
       let currentWeight = [];
       let currentRecurrentWeight = [];
       let currentBias = [];
       let currentRecurrentBias = [];
       let currentPeepholeWeight = [];
+      let forwardSequence = null;
+      let backwardSequence = null;
+      let outputHidden = null;
+      let outputCell = null;
 
       for (let dir = 0; dir < numDirections; ++dir) {
         currentWeight.push(squeeze(
@@ -6268,36 +6310,27 @@ partial dictionary MLOpSupportLimits {
               builder.slice(
                 options.peepholeWeight, [dir, 0], [1, 3 * hiddenSize]))) :
             null);
-      }
 
-      for (let step = 0; step < steps; ++step) {
-        let currentHidden = [];
-        let currentCell = [];
-        let nextHidden = null;
-        let nextCell = null;
+        let currentHidden = squeeze(
+          builder,
+          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]));
+        let currentCell = squeeze(
+          builder,
+          builder.slice(cellState, [dir, 0, 0], [1, batchSize, hiddenSize]));
 
-        for (let dir = 0; dir < numDirections; ++dir) {
-          currentHidden.push(squeeze(
-            builder,
-            builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize])));
-          currentCell.push(squeeze(
-            builder,
-            builder.slice(cellState, [dir, 0, 0], [1, batchSize, hiddenSize])));
-        }
-
-        for (let dir = 0; dir < numDirections; ++dir) {
-          let slice =
-            (dir == 1 || options.direction == 'backward' ? steps - step - 1 : step);
-          let currentInput = squeeze(
+        for (let step = 0; step < steps; ++step) {
+          const slice =
+            (dir == 1 || direction == 'backward' ? steps - step - 1 : step);
+          const currentInput = squeeze(
             builder,
             builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]));
 
-          let results = builder.lstmCell(
+          [currentHidden, currentCell] = builder.lstmCell(
             currentInput,
             currentWeight[dir],
             currentRecurrentWeight[dir],
-            currentHidden[dir],
-            currentCell[dir],
+            currentHidden,
+            currentCell,
             hiddenSize,
             {
               bias: currentBias[dir],
@@ -6307,27 +6340,58 @@ partial dictionary MLOpSupportLimits {
               activations: options.activations
             });
 
-          let output = builder.reshape(results[0], [1, batchSize, hiddenSize]);
-          let cell = builder.reshape(results[1], [1, batchSize, hiddenSize]);
+          if (options.returnSequence) {
+            // Expand currentHidden of 2D([batchSize, hiddenSize])
+            // to 4D([steps, numDirections, batchSize, hiddenSize])
+            const expandedHiddenAs4D =
+              builder.reshape(currentHidden, [1, 1, batchSize, hiddenSize]);
 
-          nextHidden =
-            (nextHidden ? builder.concat([nextHidden, output], 0) : output);
-          nextCell = (nextCell ? builder.concat([nextCell, cell], 0) : cell);
+            if (direction == 'forward' || (dir == 0 && direction == 'both')) {
+              forwardSequence = forwardSequence ?
+                builder.concat([forwardSequence, expandedHiddenAs4D], 0) :
+                expandedHiddenAs4D;
+            } else if (
+              direction == 'backward' || (dir == 1 && direction == 'both')) {
+              backwardSequence = backwardSequence ?
+                builder.concat([expandedHiddenAs4D, backwardSequence], 0) :
+                expandedHiddenAs4D;
+            }
+          }
         }
 
-        hiddenState = nextHidden;
-        cellState = nextCell;
+        // Expand currentHidden of 2D([batchSize, hiddenSize])
+        // to 3D([numDirections, batchSize, hiddenSize])
+        const expandedHiddenAs3D =
+          builder.reshape(currentHidden, [1, batchSize, hiddenSize]);
+        outputHidden = outputHidden ?
+          builder.concat([outputHidden, expandedHiddenAs3D], 0) :
+          expandedHiddenAs3D;
 
-        if (options.returnSequence) {
-          nextHidden =
-            builder.reshape(nextHidden, [1, numDirections, batchSize, hiddenSize]);
-          sequence =
-            (sequence ? builder.concat([sequence, nextHidden], 0) : nextHidden);
-        }
+        // Expand currentCell of 2D([batchSize, hiddenSize])
+        // to 3D([numDirections, batchSize, hiddenSize])
+        const expandedCellAs3D =
+          builder.reshape(currentCell, [1, batchSize, hiddenSize]);
+        outputCell = outputCell ?
+          builder.concat([outputCell, expandedCellAs3D], 0) :
+          expandedCellAs3D;
       }
 
-      return (
-        sequence ? [hiddenState, cellState, sequence] : [hiddenState, cellState]);
+      if (options.returnSequence) {
+        let outputSequence = null;
+
+        if (direction == 'forward') {
+          outputSequence = forwardSequence;
+        } else if (direction == 'backward') {
+          outputSequence = backwardSequence;
+        } else if (direction == 'both') {
+          // Concat along axis 1 (numDirections dimension)
+          outputSequence = builder.concat([forwardSequence, backwardSequence], 1);
+        }
+
+        return [outputHidden, outputCell, outputSequence];
+      } else {
+        return [outputHidden, outputCell];
+      }
     }
   </pre>
 </details>
@@ -7106,8 +7170,8 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLPool2dOptions/windowDimensions}} [=map/exists=] and its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. Otherwise, set |options|.{{MLPool2dOptions/windowDimensions}} to the height and width dimensions of the shape of |input|.
+    1. If |options|.{{MLPool2dOptions/windowDimensions}} does not [=map/exist=], set |options|.{{MLPool2dOptions/windowDimensions}} to the height and width dimensions of the shape of |input|.
+    1. If |options|.{{MLPool2dOptions/windowDimensions}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} does not [=map/exist=], set |options|.{{MLPool2dOptions/padding}} to the [=/list=] « 0, 0, 0, 0 ».
     1. If |options|.{{MLPool2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLPool2dOptions/strides}} does not [=map/exist=], set |options|.{{MLPool2dOptions/strides}} to the [=/list=] « 1, 1 ».
