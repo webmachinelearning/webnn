@@ -176,6 +176,9 @@ for (const match of source.matchAll(/1\. Else/ig)) {
 for (const match of text.matchAll(/ not the same as /g)) {
   error(`Prefer "not equal to": ${format(match)}`);
 }
+for (const match of text.matchAll(/\bthe \S+ argument\b/g)) {
+  error(`Drop 'the' and 'argument': ${format(match)}`);
+}
 
 // Look for incorrect use of shape for an MLOperandDescriptor
 for (const match of source.matchAll(/(\|\w*desc\w*\|)'s \[=MLOperand\/shape=\]/ig)) {
@@ -249,6 +252,13 @@ for (const algorithm of root.querySelectorAll('.algorithm')) {
     }
   }
 }
+
+// Eschew vars outside of algorithms.
+const algorithmVars = new Set(root.querySelectorAll('.algorithm var'));
+for (const v of root.querySelectorAll('var').filter(v => !algorithmVars.has(v))) {
+  error(`Variable outside of algorithm: ${v.innerText}`);
+}
+
 
 // Prevent accidental normative references to other specs. This reports an error
 // if there is a normative reference to any spec *other* than these ones. This
