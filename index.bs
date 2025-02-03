@@ -2850,15 +2850,6 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    To <dfn for=MLGraphBuilder>calculate convtranspose2d output sizes</dfn> given unsigned integers |inputHeight|, |inputWidth|, |filterHeight| and |filterWidth|, [=/list=] of 4 unsigned integers |padding|, [=/list=] of 2 unsigned integers |strides|, [=/list=] of 2 unsigned integers |dilations|, and [=/list=] of 2 unsigned integers |outputPadding|, perform these steps. They return a [=/list=] of 2 numbers.
-  </summary>
-    1. Let |outputHeight| be the result of [=MLGraphBuilder/calculating convtranspose output size=] given |inputHeight|, |filterHeight|, |padding|[0], |padding|[1], |strides|[0], |dilations|[0], and |outputPadding|[0].
-    1. Let |outputWidth| be the result of [=MLGraphBuilder/calculating convtranspose output size=] given |inputWidth|, |filterWidth|, |padding|[2], |padding|[3], |strides|[1], |dilations|[1] and |outputPadding|[1].
-    1. Return « |outputHeight|, |outputWidth| ».
-</details>
-
-<details open algorithm>
-  <summary>
     The <dfn method for=MLGraphBuilder>convTranspose2d(|input|, |filter|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
@@ -2906,14 +2897,17 @@ partial dictionary MLOpSupportLimits {
         1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
             1. If its [=MLOperand/shape=] is not equal to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
-        1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=], let |outputSizes| be |options|.{{MLConvTranspose2dOptions/outputSizes}}.
-        1. Otherwise, let |outputSizes| be the result of [=MLGraphBuilder/calculating convtranspose2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConvTranspose2dOptions/padding}}, |options|.{{MLConvTranspose2dOptions/strides}}, |options|.{{MLConvTranspose2dOptions/dilations}}, and |options|.{{MLConvTranspose2dOptions/outputPadding}}.
+        1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=], then:
+            1. Let « |outputHeight|, |outputWidth| » be |options|.{{MLConvTranspose2dOptions/outputSizes}}.
+        1. Otherwise:
+            1. Let |outputHeight| be the result of [=MLGraphBuilder/calculating convtranspose output size=] given |inputHeight|, |filterHeight|, |padding|[0], |padding|[1], |strides|[0], |dilations|[0], and |outputPadding|[0].
+            1. Let |outputWidth| be the result of [=MLGraphBuilder/calculating convtranspose output size=] given |inputWidth|, |filterWidth|, |padding|[2], |padding|[3], |strides|[1], |dilations|[1] and |outputPadding|[1].
         1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
             <dl class=switch>
                 : {{MLInputOperandLayout/"nchw"}}
-                :: Let |outputShape| be « |batches|, |outputChannels|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ) ».
+                :: Let |outputShape| be « |batches|, |outputChannels|, floor( |outputHeight| ), floor( |outputWidth| ) ».
                 : {{MLInputOperandLayout/"nhwc"}}
-                :: Let |outputShape| be « |batches|, floor( |outputSizes|[0] ), floor( |outputSizes|[1] ), |outputChannels| ».
+                :: Let |outputShape| be « |batches|, floor( |outputHeight| ), floor( |outputWidth| ), |outputChannels| ».
             </dl>
         1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
@@ -6243,35 +6237,27 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    To <dfn dfn-for=MLGraphBuilder>calculate matmul output sizes</dfn>, given {{MLOperand}} |a| and {{MLOperand}} |b| run the following steps:
-  </summary>
-    1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
-    1. Let |rankA| be |a|'s [=MLOperand/rank=].
-    1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=].
-    1. Let |rankB| be |b|'s [=MLOperand/rank=].
-    1. If either |rankA| or |rankB| is less than 2, then [=exception/throw=] a {{TypeError}}.
-    1. Let |colsA| be |shapeA|[|rankA| - 1].
-    1. Let |rowsA| be |shapeA|[|rankA| - 2].
-    1. Let |colsB| be |shapeB|[|rankB| - 1].
-    1. Let |rowsB| be |shapeB|[|rankB| - 2].
-    1. If |colsA| is not equal to |rowsB|, then [=exception/throw=] a {{TypeError}}.
-    1. Let |batchShapeA| be a [=list/clone=] of |shapeA| with the spatial dimensions (last 2 items) [=list/removed=].
-    1. Let |batchShapeB| be a [=list/clone=] of |shapeB| with the spatial dimensions (last 2 items) [=list/removed=].
-    1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |batchShapeA| and |batchShapeB|. If that returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. [=list/Append=] « |rowsA|, |colsB| » to |outputShape|.
-    1. Return |outputShape|.
-</details>
-
-<details open algorithm>
-  <summary>
     The <dfn method for=MLGraphBuilder>matmul(|a|, |b|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |a| and |b| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |a| or |b| is not one of its [=/allowed data types=] (according to [this table](#constraints-matmul)), then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating matmul output sizes=] given |a| and |b|.
-        1. If that throws an error, re-[=exception/throw=] the error.
-    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and |outputShape|.
+    1. *Calculate the output shape:*
+        1. Let |shapeA| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
+        1. Let |rankA| be |a|'s [=MLOperand/rank=].
+        1. Let |shapeB| be a [=list/clone=] of |b|'s [=MLOperand/shape=].
+        1. Let |rankB| be |b|'s [=MLOperand/rank=].
+        1. If either |rankA| or |rankB| is less than 2, then [=exception/throw=] a {{TypeError}}.
+        1. Let |colsA| be |shapeA|[|rankA| - 1].
+        1. Let |rowsA| be |shapeA|[|rankA| - 2].
+        1. Let |colsB| be |shapeB|[|rankB| - 1].
+        1. Let |rowsB| be |shapeB|[|rankB| - 2].
+        1. If |colsA| is not equal to |rowsB|, then [=exception/throw=] a {{TypeError}}.
+        1. Let |batchShapeA| be a [=list/clone=] of |shapeA| with the spatial dimensions (last 2 items) [=list/removed=].
+        1. Let |batchShapeB| be a [=list/clone=] of |shapeB| with the spatial dimensions (last 2 items) [=list/removed=].
+        1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |batchShapeA| and |batchShapeB|. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+        1. [=list/Append=] « |rowsA|, |colsB| » to |outputShape|.
+        1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "matmul" operation, given |options|.
@@ -6360,17 +6346,6 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    To <dfn dfn-for=MLGraphBuilder>calculate padding output sizes</dfn>, given |input|, |beginningPadding| and |endingPadding|, run the following steps:
-  </summary>
-    1. Let |shape| be a copy of |input|'s [=MLOperand/shape=].
-    1. [=list/For each=] |index| in [=the range=] 0 to |shape|'s [=MLOperand/rank=], exclusive:
-        1. Add to |shape|[|index|] the value of |beginningPadding|[|index|].
-        1. Add to |shape|[|index|] the value of |endingPadding|[|index|].
-    1. Return |shape|.
-</details>
-
-<details open algorithm>
-  <summary>
     The <dfn method for=MLGraphBuilder>pad(|input|, |beginningPadding|, |endingPadding|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
@@ -6378,7 +6353,10 @@ partial dictionary MLOpSupportLimits {
     1. If |input|'s [=MLOperand/rank=] is 0, then [=exception/throw=] a {{TypeError}}.
     1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
-    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating padding output sizes=] given |input|, |beginningPadding| and |endingPadding|.
+    1. Let |outputShape| be a copy of |input|'s [=MLOperand/shape=].
+    1. [=list/For each=] |index| in [=the range=] 0 to |outputShape|'s [=MLOperand/rank=], exclusive:
+        1. Add to |outputShape|[|index|] the value of |beginningPadding|[|index|].
+        1. Add to |outputShape|[|index|] the value of |endingPadding|[|index|].
     1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLPadOptions/value}} to the result of [=casting=] |options|.{{MLPadOptions/value}} to |input|'s [=MLOperand/dataType=].
     1. Set |desc|.{{MLOperandDescriptor/shape}} to |outputShape|.
@@ -6571,41 +6549,6 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    To <dfn for=MLGraphBuilder>calculate pool2d output sizes</dfn> given {{MLInputOperandLayout}} |layout|, [=/list=] of 4 unsigned integers |inputShape|, {{MLRoundingType}} |roundingType|, [=/list=] of 2 unsigned integers |windowDimensions|, [=/list=] of 4 unsigned integers |padding|, [=/list=] of 2 unsigned integers |strides|, [=/list=] of 2 unsigned integers |dilations|, and optional [=/list=] of 2 unsigned integers |outputSizes|, perform these steps. They return a [=/list=] of 4 unsigned integers.
-  </summary>
-    1. Switch on |layout|:
-        <dl class=switch>
-            : {{MLInputOperandLayout/"nchw"}}
-            :: Let « |batches|, |channels|, |inputHeight|, |inputWidth| » be |inputShape|.
-            : {{MLInputOperandLayout/"nhwc"}}
-            :: Let « |batches|, |inputHeight|, |inputWidth|, |channels| » be |inputShape|.
-        </dl>
-    1. If |outputSizes| is given, then let « |outputHeight|, |outputWidth| » be |outputSizes|.
-    1. Otherwise:
-        1. Let |outputSizes| be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |windowDimensions|[0], |windowDimensions|[1], |padding|, |strides|, and |dilations|.
-        1. Let « |outputHeight|, |outputWidth| » be |outputSizes|.
-        1. Switch on |roundingType|:
-            <dl class=switch>
-                : {{MLRoundingType/"floor"}}
-                ::
-                    1. Set |outputWidth| to floor(|outputWidth|).
-                    1. Set |outputHeight| to floor(|outputHeight|).
-                : {{MLRoundingType/"ceil"}}
-                ::
-                    1. Set |outputWidth| to ceiling(|outputWidth|).
-                    1. Set |outputHeight| to ceiling(|outputHeight|).
-            </dl>
-    1. Switch on |layout|:
-        <dl class=switch>
-            : {{MLInputOperandLayout/"nchw"}}
-            :: Return « |batches|, |channels|, |outputHeight|, |outputWidth| ».
-            : {{MLInputOperandLayout/"nhwc"}}
-            :: Return « |batches|, |outputHeight|, |outputWidth|, |channels| ».
-        </dl>
-</details>
-
-<details open algorithm>
-  <summary>
     To <dfn for="MLGraphBuilder" data-lt="pooling-op">create pooling operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{MLPool2dOptions}} |options|, and optional [=/list=] |allowedDataTypes|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "averagePool2d", "l2Pool2d", "maxPool2d".
@@ -6613,7 +6556,14 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLPool2dOptions/windowDimensions}} does not [=map/exist=], set |options|.{{MLPool2dOptions/windowDimensions}} to the height and width dimensions of the shape of |input|.
+    1. Switch on |options|.{{MLPool2dOptions/layout}}:
+        <dl class=switch>
+            : {{MLInputOperandLayout/"nchw"}}
+            :: Let « |batches|, |channels|, |inputHeight|, |inputWidth| » be |input|'s [=MLOperand/shape=].
+            : {{MLInputOperandLayout/"nhwc"}}
+            :: Let « |batches|, |inputHeight|, |inputWidth|, |channels| » be |input|'s [=MLOperand/shape=].
+        </dl>
+    1. If |options|.{{MLPool2dOptions/windowDimensions}} does not [=map/exist=], set |options|.{{MLPool2dOptions/windowDimensions}} to « |inputHeight|, |inputWidth| ».
     1. If |options|.{{MLPool2dOptions/windowDimensions}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} does not [=map/exist=], set |options|.{{MLPool2dOptions/padding}} to the [=/list=] « 0, 0, 0, 0 ».
     1. If |options|.{{MLPool2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
@@ -6627,9 +6577,32 @@ partial dictionary MLOpSupportLimits {
     1. If |options|.{{MLPool2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
-    1. Let |outputShape| be the result of [=MLGraphBuilder/calculating pool2d output sizes=] given |options|.{{MLPool2dOptions/layout}}, |input|'s [=MLOperand/shape=], |options|.{{MLPool2dOptions/roundingType}}, |options|.{{MLPool2dOptions/windowDimensions}}, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, |options|.{{MLPool2dOptions/dilations}}, and |options|.{{MLPool2dOptions/outputSizes}} (if it [=map/exists=]).
-    1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-    1. Set |desc|.{{MLOperandDescriptor/shape}} to |outputShape|.
+    1. *Calculate the output shape:*
+        1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], then let « |outputHeight|, |outputWidth| » be |options|.{{MLPool2dOptions/outputSizes}}.
+        1. Otherwise:
+            1. Let « |windowHeight|, |windowWidth| » be |options|.{{MLPool2dOptions/windowDimensions}}.
+            1. Let |outputSizes| be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |windowHeight|, |windowWidth|, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, and |options|.{{MLPool2dOptions/dilations}}.
+            1. Let « |outputHeight|, |outputWidth| » be |outputSizes|.
+            1. Switch on |options|.{{MLPool2dOptions/roundingType}}:
+                <dl class=switch>
+                    : {{MLRoundingType/"floor"}}
+                    ::
+                        1. Set |outputWidth| to floor(|outputWidth|).
+                        1. Set |outputHeight| to floor(|outputHeight|).
+                    : {{MLRoundingType/"ceil"}}
+                    ::
+                        1. Set |outputWidth| to ceiling(|outputWidth|).
+                        1. Set |outputHeight| to ceiling(|outputHeight|).
+                </dl>
+        1. Switch on |options|.{{MLPool2dOptions/layout}}:
+            <dl class=switch>
+                : {{MLInputOperandLayout/"nchw"}}
+                :: Let |outputShape| be « |batches|, |channels|, |outputHeight|, |outputWidth| ».
+                : {{MLInputOperandLayout/"nhwc"}}
+                :: Let |outputShape| be « |batches|, |outputHeight|, |outputWidth|, |channels| ».
+            </dl>
+        1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
+        1. Set |desc|.{{MLOperandDescriptor/shape}} to |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the |op| operation, given |options|.
@@ -7202,40 +7175,26 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder">check resample options</dfn> given |options| and |input|, run the following steps:
-  </summary>
-    1. If |options|.{{MLResample2dOptions/scales}} does not [=map/exist=], set it to the [=/list=] « 1.0, 1.0 ».
-    1. Otherwise, if any of its values is not greater than 0, or if its [=list/size=] is not 2, return false.
-    1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], and if its size is not 2, or if any of its values is not greater than 0, return false.
-    1. If |options|.{{MLResample2dOptions/axes}} does not [=map/exists=], set it to the [=/list=] « 2, 3 ».
-    1. Otherwise, if |options|.{{MLResample2dOptions/axes}} contains duplicate values, or if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then return false.
-    1. Return true.
-</details>
-
-<details open algorithm>
-  <summary>
-    To <dfn for="MLGraphBuilder">calculate resample output sizes</dfn> given {{MLOperand}} |input| and {{MLResample2dOptions}} |options|, run the following steps:
-  </summary>
-    1. Let |inputDescriptor| be |input|.{{MLOperand/[[descriptor]]}}.
-    1. Let |outputShape| be a [=list/clone=] of |inputDescriptor|.{{MLOperandDescriptor/shape}}.
-    1. [=list/For each=] |index| in [=the range=] 0 to |options|.{{MLResample2dOptions/axes}}'s [=list/size=], exclusive:
-        1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then let |size| be |options|.{{MLResample2dOptions/sizes}}[|index|].
-        1. Otherwise, let |size| be floor(|input|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] * |options|.{{MLResample2dOptions/scales}}[|index|]).
-        1. If |size| is not a [=valid dimension=], then return failure.
-        1. Set |outputShape|[|options|.{{MLResample2dOptions/axes}}[|index|]] to |size|.
-    1. Return the result of [=creating an MLOperandDescriptor=] given |inputDescriptor|.{{MLOperandDescriptor/dataType}} and |outputShape|.
-</details>
-
-<details open algorithm>
-  <summary>
     The <dfn method for=MLGraphBuilder>resample2d(|input|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-resample2d)), then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
-    1. If [=MLGraphBuilder/checking resample options=] given |options| and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be the result of [=MLGraphBuilder/calculating resample output sizes=] given |input| and |options|. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLResample2dOptions/scales}} does not [=map/exist=], set it to the [=/list=] « 1.0, 1.0 ».
+    1. Otherwise, if any of its values is not greater than 0, or if its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], and if its size is not 2, or if any of its values is not greater than 0, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLResample2dOptions/axes}} does not [=map/exists=], set it to the [=/list=] « 2, 3 ».
+    1. Otherwise, if |options|.{{MLResample2dOptions/axes}} contains duplicate values, or if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
+    1. *Calculate the output shape:*
+        1. Let |inputDescriptor| be |input|.{{MLOperand/[[descriptor]]}}.
+        1. Let |outputShape| be a [=list/clone=] of |inputDescriptor|.{{MLOperandDescriptor/shape}}.
+        1. [=list/For each=] |index| in [=the range=] 0 to |options|.{{MLResample2dOptions/axes}}'s [=list/size=], exclusive:
+            1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], then let |size| be |options|.{{MLResample2dOptions/sizes}}[|index|].
+            1. Otherwise, let |size| be floor(|input|'s [=MLOperand/shape=][|options|.{{MLResample2dOptions/axes}}[|index|]] * |options|.{{MLResample2dOptions/scales}}[|index|]).
+            1. If |size| is not a [=valid dimension=], then return failure.
+            1. Set |outputShape|[|options|.{{MLResample2dOptions/axes}}[|index|]] to |size|.
+        1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |inputDescriptor|.{{MLOperandDescriptor/dataType}} and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "resample2d" operation, given |options|.
