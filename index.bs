@@ -7134,7 +7134,7 @@ partial dictionary MLOpSupportLimits {
     ::
         The interpolation algorithm used to fill the output tensor values.
 
-        Both algorithms start with these inputs, computed for each spatial axis:
+        Both algorithms start with these inputs, computed for each spatial axis (based on {{MLResample2dOptions/axes}}), where `inputSize` is given by the {{MLGraphBuilder/resample2d(input, options)/input}} tensor's [=MLTensor/shape=], `outputSize` is given by {{MLResample2dOptions/sizes}} or {{MLResample2dOptions/scales}}, and `outputCoordinate` identifies the element in the output tensor being computed.
         ```
         scale = outputSize / inputSize
         unclampedCoordinate = (outputCoordinate + 0.5) / scale - 0.5
@@ -7162,13 +7162,13 @@ partial dictionary MLOpSupportLimits {
             y1 = ceil(inputCoordinate.y)
             vx0y0 = input tensor value at (x0, y0)
             vx1y0 = input tensor value at (x1, y0)
-            v01 = input tensor value at (x0, y1)
+            vx0y1 = input tensor value at (x0, y1)
             vx1y1 = input tensor value at (x1, y1)
             tx = inputCoordinate.x - x0
             ty = inputCoordinate.y - y0
 
-            vy0 = vx0y0 * (1 - tx) + vx1y0 * tx;
-            vy1 = vx0y1 * (1 - tx) + vx1y1 * tx;
+            vy0 = vx0y0 * (1 - tx) + vx1y0 * tx
+            vy1 = vx0y1 * (1 - tx) + vx1y1 * tx
             output tensor value = vy0 * (1 - ty) + vy1 * ty
             ```
         </dl>
@@ -7287,7 +7287,7 @@ partial dictionary MLOpSupportLimits {
   [  12  12.25  12.75  13.25  13.75  14.25  14.75  15  ]
   ```
 
-  This has the convenient properties that the sampling is evenly distributed and the corner values are aligned when up-sampling.
+  This has the convenient properties that the sampling is evenly distributed, symmetric, robust to image mirroring, and the corner values are aligned (when up-sampling).
 </div>
 
 ### reshape ### {#api-mlgraphbuilder-reshape-method}
