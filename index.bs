@@ -2974,11 +2974,11 @@ partial dictionary MLOpSupportLimits {
 <dl dfn-type=dict-member dfn-for=MLCumulativeSumOptions>
     : <dfn>exclusive</dfn>
     ::
-        Whether to include or exclude the current value in the output, meaning inclusive presum addition (see https://en.wikipedia.org/wiki/Prefix_sum) or exclusive post-sum addition. Given input *[1,2,3,4]*, inclusive addition would yield an output of *[1,3,6,10]* whereas exclusive would yield *[0,1,3,6]*. The default is inclusive.
+        Whether to include or exclude the current value in the output, meaning inclusive prefix sum or exclusive prefix sum [[Prefix-sum]]. Given input *[1,2,3,4]*, inclusive addition would yield an output of *[1,3,6,10]* whereas exclusive would yield *[0,1,3,6]*. The default is inclusive.
 
     : <dfn>reversed</dfn>
     ::
-        Whether to reverse the summation direction along the active axis to instead start from the high coordinate to low coordinate. Given input *[1,2,3,4]*, inclusive forward addition would yield an output of *[1,3,6,10]* whereas backward summation would yield *[10,9,7,4]*. The default is exclusive.
+        Whether to reverse the summation direction along the active axis to instead start from the high coordinate to low coordinate. Given input *[1,2,3,4]*, inclusive forward addition would yield an output of *[1,3,6,10]* whereas backward summation would yield *[10,9,7,4]*. The default is forward.
 </dl>
 
 <div dfn-for="MLGraphBuilder/cumulativeSum(input, axis, options)" dfn-type=argument>
@@ -3236,7 +3236,7 @@ partial dictionary MLOpSupportLimits {
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options), MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor.
         - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor when specified.
@@ -3245,7 +3245,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of element-wise comparison of the two input tensors.
 </div>
 
-<table id=constraints-elementwise-logical class='data' link-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options)">
+<table id=constraints-elementwise-logical class='data' link-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options), MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options)">
   <caption>Constraints for element-wise logical options</caption>
   <thead>
     <tr>
@@ -3313,9 +3313,9 @@ partial dictionary MLOpSupportLimits {
         - *lesser*: Compare if the values of the first input tensor is lesser, element-wise.
         - *lesserOrEqual*: Compare if the values of the first input tensor is lesser or equal, element-wise.
         - *logicalNot*: Invert the values of the input tensor to values 0 or 1, element-wise. Specifically, when the input value is non-zero, invert it to 0. Conversely, for a zero input value, invert it to 1.
-        - *logicalAnd*: Compute the logical *and* operator, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
-        - *logicalOr*: Compute the logical *or* operator, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
-        - *logicalXor*: Compute the logical *xor* operator, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
+        - *logicalAnd*: Compute the logical *and* of the two input tensors, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
+        - *logicalOr*: Compute the logical *or* of the two input tensors, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
+        - *logicalXor*: Compute the logical *xor* of the two input tensors, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
 </div>
 
 <div class="note">
@@ -3328,7 +3328,7 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
   </summary>
     1. [=Assert=]: |op| is one of "equal", "notEqual", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "logicalNot", "logicalAnd", "logicalOr", "logicalXor".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. If |op| is "logicalNot":
+    1. If |op| is one of "logicalNot", "logicalAnd", "logicalOr", "logicalXor":
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and |a| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
         1. Let |outputShape| be a [=list/clone=] of |a|'s [=MLOperand/shape=].
@@ -3640,7 +3640,7 @@ partial dictionary MLOpSupportLimits {
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>sign(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "sign", |input|, signed types « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
+        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "sign", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -3685,7 +3685,7 @@ partial dictionary MLOpSupportLimits {
 
 
 ### dequantizeLinear ### {#api-mlgraphbuilder-dequantizelinear}
-Dequantizes an integer tensor to floating point space using the scale and zero-point bias, where `output = (input - zeroPoint) * scale`.
+Dequantizes an integer tensor to floating point tensor using the scale and zero-point bias, where `output = (input - zeroPoint) * scale`.
 
 TODO: Elaborate on blockwise broadcasting - The operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors, and each dimension must be blockwise compatible with the output (e.g. given an input shape *[12]*, scales of the following shapes are blockwise compatible {*[1]*, *[3]*, *[4]*, *[6]*, *[12]*} as they are all multiples of the input dimensions, but a shape of *[5]* would not be).
 
@@ -3712,8 +3712,8 @@ partial dictionary MLOpSupportLimits {
 <div dfn-for="MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
-        - <dfn>scale</dfn>: an {{MLOperand}}. The scale tensor to multiply each input value by after adjusting by the zero point.
-        - <dfn>zeroPoint</dfn>: an {{MLOperand}}. The zero point tensor to subtract from each input value.
+        - <dfn>scale</dfn>: an {{MLOperand}}. The scale tensor to multiply each input value by after adjusting by the zero point. It has the same [=MLOperand/rank=] as the input, and its [=MLOperand/shape=] must evenly divide into the input [=MLOperand/shape=].
+        - <dfn>zeroPoint</dfn>: an {{MLOperand}}. The zero point tensor to subtract from each input value. It has the same [=MLOperand/shape=] as the scale.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the dequantized values.
@@ -3730,18 +3730,18 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"uint4"}}, {{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
-    <td>N</td>
+    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>[=/any rank|N=]</td>
   </tr>
   <tr>
     <td>{{scale}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
-    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
   <tr>
     <td>{{zeroPoint}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
   <tr>
     <td>*output*</td>
@@ -3774,7 +3774,11 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |scale|, and |zeroPoint| returns false, then [=exception/throw=] a {{TypeError}}.
-    TODO: Add validation for scale and zero point shape.
+    1. If |scale|'s [=MLOperand/rank=] or |zeroPoint|'s [=MLOperand/rank=] mismatches |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
+    1. If |scale|'s [=MLOperand/shape=] mismatches |zeroPoint|'s [=MLOperand/shape=], then [=exception/throw=] a {{TypeError}}.
+    1. [=list/For each=] |axis| in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive:
+        1. If |scale|'s [=MLOperand/shape=][|axis|] is not exactly divisible into |input|'s [=MLOperand/shape=][|axis|], then [=exception/throw=] a {{TypeError}}.
+        1. If |zeroPoint|'s [=MLOperand/shape=][|axis|] is not exactly divisible into |input|'s [=MLOperand/shape=][|axis|], then [=exception/throw=] a {{TypeError}}.
 </details>
 
 <div class="note">
@@ -3790,7 +3794,7 @@ partial dictionary MLOpSupportLimits {
 
 
 ### quantizeLinear ### {#api-mlgraphbuilder-quantizelinear}
-Quantizes a floating point tensor to integer point space using the scale and zero-point bias, where `output = clamp(roundToNearestEvens(input / scale) + zeroPoint, 0, 255)`.
+Quantizes a floating point tensor to integer tensor using the scale and zero-point bias, where `output = clamp(roundToNearestEvens(input / scale) + zeroPoint, 0, 255)`.
 
 TODO: Elaborate on blockwise broadcasting - The operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors, and each dimension must be blockwise compatible with the output (e.g. given an input shape *[12]*, scales of the following shapes are blockwise compatible {*[1]*, *[3]*, *[4]*, *[6]*, *[12]*} as they are all multiples of the input dimensions, but a shape of *[5]* would not be).
 
@@ -3817,8 +3821,8 @@ partial dictionary MLOpSupportLimits {
 <div dfn-for="MLGraphBuilder/quantizeLinear(input, scale, zeroPoint, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The condition tensor.
-        - <dfn>scale</dfn>: an {{MLOperand}}. The scale tensor to multiply each input value by after adjusting by the zero point.
-        - <dfn>zeroPoint</dfn>: an {{MLOperand}}. The zero point tensor to subtract from each input value.
+        - <dfn>scale</dfn>: an {{MLOperand}}. The scale tensor to divide each input value by after adjusting by the zero point. It has the same [=MLOperand/rank=] as the input, and its [=MLOperand/shape=] must evenly divide into the input [=MLOperand/shape=].
+        - <dfn>zeroPoint</dfn>: an {{MLOperand}}. The zero point tensor to add to each rescaled input value. It has the same [=MLOperand/shape=] as the scale.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output tensor that contains the quantized values.
@@ -3836,17 +3840,17 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
-    <td>N</td>
+    <td>[=/any rank|N=]</td>
   </tr>
   <tr>
     <td>{{scale}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
   <tr>
     <td>{{zeroPoint}}</td>
-    <td>{{MLOperandDataType/"uint4"}}, {{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
-    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
   <tr>
     <td>*output*</td>
@@ -4284,7 +4288,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
-    <td>&gt; 1</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>{{indices}}</td>
@@ -4327,7 +4331,7 @@ partial dictionary MLOpSupportLimits {
 </div>
 
 ### gatherND ### {#api-mlgraphbuilder-gathernd}
-Gather values of the input tensor along an axis according to the indices.
+Gather slices of the input tensor according to the indices.
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -4362,12 +4366,12 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
-    <td>&gt; 1</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>{{indices}}</td>
     <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
-    <td>&gt; 1</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>*output*</td>
@@ -7944,6 +7948,8 @@ partial dictionary MLOpSupportLimits {
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-reverse)), then [=exception/throw=] a {{TypeError}}.
+    1. If |axes| is not given, let |axes| be [=the range=] 0 to |inputRank|, exclusive.
+    1. Otherwise, if |axes| contains duplicate values, or if any of its elements is not in [=the range=] 0 to |inputRank|, exclusive, then return failure.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "reverse" operation and |options|.
@@ -7954,7 +7960,7 @@ partial dictionary MLOpSupportLimits {
 </details>
 
 ### scatterElements ### {#api-mlgraphbuilder-scatterelements}
-Scatter values from the updates tensor along an axis according to the indices in place of the input tensor.
+Scatter values from the updates tensor atop the input tensor the along an axis according to the indices.
 
 <script type=idl>
 dictionary MLScatterOptions : MLOperatorOptions {
@@ -8009,7 +8015,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
-    <td>&gt; 1</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>{{indices}}</td>
@@ -8070,7 +8076,7 @@ partial dictionary MLOpSupportLimits {
 
 
 ### scatterND ### {#api-mlgraphbuilder-scatternd}
-Scatter values of the input tensor along an axis according to the indices.
+Scatter slices of values from the update tensor atop the input tensor according to the indices.
 
 <script type=idl>
 dictionary MLScatterOptions : MLOperatorOptions {
@@ -8123,12 +8129,12 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
-    <td>&gt; 1</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>{{indices}}</td>
     <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
-    <td>&gt; 1</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>{{updates}}</td>
@@ -8138,7 +8144,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>&gt; 1</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
 </table>
 
@@ -9542,8 +9548,6 @@ Operations present in other neural network inference APIs can often be emulated 
 
 <p class="note">{{Float16Array}} is at <a href="https://tc39.es/process-document/">ECMA Stage 3</a> signaling its design is finished. Implementers wanting to enable this type ahead native implementations can emulate the type by passing raw bits via {{Uint16Array}}. <a href="https://github.com/webmachinelearning/webnn/issues/373">[Issue webnn#373]</a></p>
 
-<p class="note">There is no Uint4Array/Int4Array class. Nybbles are stored in byte arrays of {{Uint8Array}} with the lower nybble in the lower bits, meaning tensor element 0 would be found in byte 0 bits 0-3, and tensor element 1 in byte 0 bits 4-7 (and so on, with tensor element 5 in byte 2 bits 4-7). Odd tensor element counts are rounded up to whole bytes, and last nybble is ignored, meaning a 5 element tensor uses 3 bytes.</a></p>
-
 <h2 id="acknowledgements">Acknowledgements</h2>
 
 This specification follows the concepts of the Android Neural Networks API C
@@ -10053,6 +10057,12 @@ Thanks to Feng Dai for his continuous contributions that keep web-platform-tests
       "Thomas Scialom"
     ],
     "date": "July 2023"
+  },
+  "Prefix-Sum": {
+    "href": "https://en.wikipedia.org/wiki/Prefix_sum",
+    "title": "Prefix Sum",
+    "authors": ["The Wikipedia community"],
+    "date": "January 2025"
   }
 }
 </pre>
