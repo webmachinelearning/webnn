@@ -7134,6 +7134,45 @@ partial dictionary MLOpSupportLimits {
     ::
         The interpolation algorithm used to fill the output tensor values.
 
+        Both algorithms start with these inputs, computed for each spatial axis (based on {{MLResample2dOptions/axes}}), where `inputSize` is given by the {{MLGraphBuilder/resample2d(input, options)/input}} tensor's [=MLTensor/shape=], `outputSize` is given by {{MLResample2dOptions/sizes}} or {{MLResample2dOptions/scales}}, and `outputCoordinate` identifies the element in the output tensor being computed.
+        ```
+        scale = outputSize / inputSize
+        unclampedCoordinate = (outputCoordinate + 0.5) / scale - 0.5
+        inputCoordinate = clamp(unclampedCoordinate, 0, inputSize - 1)
+        ```
+        For a given `outputCoordinate.x` and `outputCoordinate.y` location in the output tensor, the above equations give a rational `inputCoordinate.x` and `inputCoordinate.y`.
+
+        <dl dfn-type=enum-value dfn-for=MLInterpolationMode>
+        : <dfn>nearest-neighbor</dfn>
+        ::
+            The `inputCoordinate.x` and `inputCoordinate.y` computed above are used as inputs to a nearest-neighbor sampling algorithm to compute the output tensor value as follows:
+            ```
+            x = ceil(inputCoordinate.x - 0.5)
+            y = ceil(inputCoordinate.y - 0.5)
+            output tensor value = input tensor value at (x, y)
+            ```
+
+        : <dfn>linear</dfn>
+        ::
+            The `inputCoordinate.x` and `inputCoordinate.y` computed above are used as inputs to a bilinear sampling algorithm to compute the output tensor value as follows:
+            ```
+            x0 = floor(inputCoordinate.x)
+            x1 = ceil(inputCoordinate.x)
+            y0 = floor(inputCoordinate.y)
+            y1 = ceil(inputCoordinate.y)
+            vx0y0 = input tensor value at (x0, y0)
+            vx1y0 = input tensor value at (x1, y0)
+            vx0y1 = input tensor value at (x0, y1)
+            vx1y1 = input tensor value at (x1, y1)
+            tx = inputCoordinate.x - x0
+            ty = inputCoordinate.y - y0
+
+            vy0 = vx0y0 * (1 - tx) + vx1y0 * tx
+            vy1 = vx0y1 * (1 - tx) + vx1y1 * tx
+            output tensor value = vy0 * (1 - ty) + vy1 * ty
+            ```
+        </dl>
+
     : <dfn>scales</dfn>
     ::
         A list of length 2.
@@ -7223,6 +7262,33 @@ partial dictionary MLOpSupportLimits {
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
+
+
+<div class="note">
+  The specific sampling algorithms are based on those widely used in existing Machine Learning frameworks. For example, when performing {{MLInterpolationMode/linear}} resampling from the following *[4, 4]* input tensor (considering only spatial dimensions):
+
+  ```
+  [   0   1   2   3  ]
+  [   0   1   2   3  ]
+  [  12  13  14  15  ]
+  [  12  13  14  15  ]
+  ```
+
+  For an *[8, 8]* output tensor, the expected values are:
+
+  ```
+  [   0   0.25   0.75   1.25   1.75   2.25   2.75   3  ]
+  [   0   0.25   0.75   1.25   1.75   2.25   2.75   3  ]
+  [   0   0.25   0.75   1.25   1.75   2.25   2.75   3  ]
+  [   3   3.25   3.75   4.25   4.75   5.25   5.75   6  ]
+  [   9   9.25   9.75  10.25  10.75  11.25  11.75  12  ]
+  [  12  12.25  12.75  13.25  13.75  14.25  14.75  15  ]
+  [  12  12.25  12.75  13.25  13.75  14.25  14.75  15  ]
+  [  12  12.25  12.75  13.25  13.75  14.25  14.75  15  ]
+  ```
+
+  This has the convenient properties that the sampling is evenly distributed, symmetric, robust to image mirroring, and the corner values are aligned.
+</div>
 
 ### reshape ### {#api-mlgraphbuilder-reshape-method}
 Alter the shape of a tensor to a new shape. Reshape does not copy or change the content of the tensor. It just changes the tensor's logical shape for the subsequent operations.
