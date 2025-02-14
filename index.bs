@@ -2936,7 +2936,8 @@ dictionary MLCumulativeSumOptions : MLOperatorOptions
 {
     bool exclusive = false;
     bool reversed = false;
-}
+};
+
 partial interface MLGraphBuilder {
   MLOperand cumulativeSum(MLOperand input,
                           unsigned long axis,
@@ -2948,7 +2949,7 @@ partial dictionary MLOpSupportLimits {
 };
 </script>
 
-<table id=constraints-cumulativesum class='data' link-for="MLGraphBuilder/cumulativeSum(input, options)">
+<table id=constraints-cumulativesum class='data' link-for="MLGraphBuilder/cumulativeSum(input, axis, options)">
   <caption>Constraints for {{MLGraphBuilder/cumulativeSum()}}</caption>
   <thead>
     <tr>
@@ -3357,6 +3358,7 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
         1. Return |output|.
     </div>
 
+    <div algorithm>
     The <dfn method for=MLGraphBuilder>notEqual(|a|, |b|, |options|)</dfn> method steps are:
         1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "notEqual", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
@@ -3514,7 +3516,7 @@ partial dictionary MLOpSupportLimits {
     :: Support limits for operator {{MLGraphBuilder/reciprocal()}}.
     : <dfn>sin</dfn>
     :: Support limits for operator {{MLGraphBuilder/sin()}}.
-    : <dfn>sqrt</dfn>
+    : <dfn>sign</dfn>
     :: Support limits for operator {{MLGraphBuilder/sign()}}.
     : <dfn>sqrt</dfn>
     :: Support limits for operator {{MLGraphBuilder/sqrt()}}.
@@ -3803,7 +3805,7 @@ partial dictionary MLOpSupportLimits {
 
     function blockwiseBroadcast(builder, input, targetShape) {
       // This expands each axis by repeating the block the number of times per that axis, given the
-      // original input shape and target shape. However, backend implementations may have much more
+      // original input shape and target shape. However, backend implementations might have much more
       // efficient upsampling operators that can accept multiple dimensions to upsample all
       // dimensions at once by integer multiples (like tile) using nearest neighbor resampling:
       // output = resample(scale, {sizes: input.shape})
@@ -3909,21 +3911,9 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{zeroPoint}}</td>
-    <td>[=/same rank as|same as=] {{input}}</td></td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
-
-{{MLQuantizationSupportLimits}} has the following members:
-<dl dfn-type=dict-member dfn-for=MLQuantizationSupportLimits>
-    : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
-    : <dfn>scale</dfn>
-    :: {{MLSupportLimits}} for scale operand.
-    : <dfn>zeroPoint</dfn>
-    :: {{MLSupportLimits}} for zeroPoint operand.
-    : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
-</dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/quantizeLinear()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
@@ -8178,18 +8168,6 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input*'s [=MLOperand/rank=] + *indices*'s [=MLOperand/rank=] - *indices*'s [=MLOperand/shape=][-1] - 1.
 </div>
 
-{{MLScatterSupportLimits}} has the following members:
-<dl dfn-type=dict-member dfn-for=MLScatterSupportLimits>
-    : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
-    : <dfn>indices</dfn>
-    :: {{MLSupportLimits}} for indices operand.
-    : <dfn>updates</dfn>
-    :: {{MLSupportLimits}} for updates operand.
-    : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
-</dl>
-
 <table id=constraints-scatternd class='data' link-for="MLGraphBuilder/scatterND(input, indices, updates, options)">
   <caption>Constraints for {{MLGraphBuilder/scatterND()}}</caption>
   <thead>
@@ -8915,7 +8893,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The reversed N-D tensor.
 </div>
 
-<table id=constraints-transpose class='data' link-for="MLGraphBuilder/tile(input, options)">
+<table id=constraints-transpose class='data' link-for="MLGraphBuilder/tile(input, repetitions, options)">
   <caption>Constraints for {{MLGraphBuilder/tile()}}</caption>
   <thead>
     <tr>
