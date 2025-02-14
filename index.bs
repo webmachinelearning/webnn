@@ -3685,9 +3685,7 @@ partial dictionary MLOpSupportLimits {
 
 
 ### dequantizeLinear ### {#api-mlgraphbuilder-dequantizelinear}
-Dequantizes an integer tensor to floating point tensor using the scale and zero-point bias, where `output = (input - zeroPoint) * scale`.
-
-TODO: Elaborate on blockwise broadcasting - The operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors, and each dimension must be blockwise compatible with the output (e.g. given an input shape *[12]*, scales of the following shapes are blockwise compatible {*[1]*, *[3]*, *[4]*, *[6]*, *[12]*} as they are all multiples of the input dimensions, but a shape of *[5]* would not be).
+Dequantizes an integer tensor to floating point tensor using the scale and zero-point bias, where `output = (input - zeroPoint) * scale`. The *scale* and *zeroPoint* tensors can be smaller than the *input* tensor as they are [=blockwise broadcastable=].
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -3712,7 +3710,7 @@ partial dictionary MLOpSupportLimits {
 <div dfn-for="MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
-        - <dfn>scale</dfn>: an {{MLOperand}}. The scale tensor to multiply each input value by after adjusting by the zero point. It has the same [=MLOperand/rank=] as the input, and its [=MLOperand/shape=] must evenly divide into the input [=MLOperand/shape=].
+        - <dfn>scale</dfn>: an {{MLOperand}}. The scale tensor to multiply each input value by after adjusting by the zero point. It must be [=blockwise broadcastable=] with the input.
         - <dfn>zeroPoint</dfn>: an {{MLOperand}}. The zero point tensor to subtract from each input value. It has the same [=MLOperand/shape=] as the scale.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
@@ -3776,9 +3774,16 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |scale|, and |zeroPoint| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |scale|'s [=MLOperand/rank=] or |zeroPoint|'s [=MLOperand/rank=] mismatches |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |scale|'s [=MLOperand/shape=] mismatches |zeroPoint|'s [=MLOperand/shape=], then [=exception/throw=] a {{TypeError}}.
-    1. [=list/For each=] |axis| in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive:
-        1. If |scale|'s [=MLOperand/shape=][|axis|] is not exactly divisible into |input|'s [=MLOperand/shape=][|axis|], then [=exception/throw=] a {{TypeError}}.
-        1. If |zeroPoint|'s [=MLOperand/shape=][|axis|] is not exactly divisible into |input|'s [=MLOperand/shape=][|axis|], then [=exception/throw=] a {{TypeError}}.
+    1. If [=blockwise broadcasting=] |scale|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. If [=blockwise broadcasting=] |zeroPoints|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Let |outputDescriptor| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |input|'s [=MLOperand/shape=].
+    1. *Make graph connections:*
+        1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDescriptor|.
+        1. Let |operator| be an [=operator=] for the "dequantizeLinear" operation, given |input|, |scale|, |zeroPoint|, and |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
+    1. Return |output|.
 </details>
 
 <div class="note">
@@ -3787,16 +3792,65 @@ partial dictionary MLOpSupportLimits {
     The behavior of this operation can be [EMULATED]
     </summary>
     <pre highlight="js">
-    TODO:
+    function dequantizeLinear(builder, input, scale, zeroPoint, options) {
+      // output = (input - zeroPoint) * scale
+      const floatInput = builder.cast(input, scale.dataType);
+      const floatZeroPoint = builder.cast(zeroPoint, scale.dataType);
+      const upsampledScale = blockwiseBroadcast(builder, scale, input.shape);
+      const upsampledZeroPoint = blockwiseBroadcast(builder, floatZeroPoint, input.shape);
+      return builder.mul(builder.sub(floatInput, upsampledZeroPoint), upsampledScale);
+    }
+
+    function blockwiseBroadcast(builder, input, targetShape) {
+      // This expands each axis by repeating the block the number of times per that axis, given the
+      // original input shape and target shape. However, backend implementations may have much more
+      // efficient upsampling operators that can accept multiple dimensions to upsample all
+      // dimensions at once by integer multiples (like tile) using nearest neighbor resampling:
+      // output = resample(scale, {sizes: input.shape})
+
+      let expandedInput = input;
+
+      for (let axis = 0; axis < input.shape.length; ++axis) {
+        const inputShape = expandedInput.shape;
+        const oldDimensionLength = inputShape[axis];
+        const newDimensionLength = targetShape[axis];
+
+        if (newDimensionLength != oldDimensionLength) {
+          // Since tile/expand can only accept repetitions of entire dimension slices (not repeating
+          // individual elements along an axis), temporarily reshape the tensor to enable them to broadcast
+          // the elements up to the full block size, utilizing an inserted dimension of size 1.
+          const elementRepeatCount = newDimensionLength / oldDimensionLength;
+          const flattenedShape = getFlattenedShapeAroundAxis(inputShape, axis);
+          const unexpandedShape = [flattenedShape[0], flattenedShape[1], 1, flattenedShape[2]];
+          const expandedShape = [flattenedShape[0], flattenedShape[1], elementRepeatCount, flattenedShape[2]];
+          const reshapedInput = builder.reshape(expandedInput, unexpandedShape);
+          expandedInput = builder.expand(reshapedInput, expandedShape);
+        }
+
+        let newInputShape = [...inputShape];
+        newInputShape[axis] = newDimensionLength;
+        expandedInput = builder.reshape(expandedInput, newInputShape);
+      }
+
+      return expandedInput;
+    }
+
+    // Compute the flattened shape before and after the given axis, yielding a 3-element list.
+    // e.g. inputShape = [2,3,4,5,6] with axis = 2 yields shape [6,4,30].
+    // e.g. inputShape = [4] with axis = 0 yields shape [1,4,1].
+    function getFlattenedShapeAroundAxis(inputShape, axis) {
+      axis = Math.max(Math.min(axis, input.shape.length - 1), 0);
+      const countBefore = axis.slice(0, axis).reduce((a, b) => a * b);
+      const countAfter = axis.slice(axis + 1, input.shape.length).reduce((a, b) => a * b);
+      return [countBefore, inputShape[axis], countAfter];
+    }
     </pre>
   </details>
 </div>
 
 
 ### quantizeLinear ### {#api-mlgraphbuilder-quantizelinear}
-Quantizes a floating point tensor to integer tensor using the scale and zero-point bias, where `output = clamp(roundToNearestEvens(input / scale) + zeroPoint, 0, 255)`.
-
-TODO: Elaborate on blockwise broadcasting - The operation will be [=broadcast=] according to [[!numpy-broadcasting-rule]]. The input tensors must be [=bidirectionally broadcastable=]. The [=MLOperand/rank=] of the output tensor is the maximum [=MLOperand/rank=] of the input tensors. For each dimension of the output tensor, its size is the maximum size along that dimension of the input tensors, and each dimension must be blockwise compatible with the output (e.g. given an input shape *[12]*, scales of the following shapes are blockwise compatible {*[1]*, *[3]*, *[4]*, *[6]*, *[12]*} as they are all multiples of the input dimensions, but a shape of *[5]* would not be).
+Quantizes a floating point tensor to integer tensor using the scale and zero-point bias, where `output = clamp(roundToNearestEvens(input / scale) + zeroPoint, 0, 255)`.  The *scale* and *zeroPoint* tensors can be smaller than the *input* tensor as they are [=blockwise broadcast=].
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -3821,7 +3875,7 @@ partial dictionary MLOpSupportLimits {
 <div dfn-for="MLGraphBuilder/quantizeLinear(input, scale, zeroPoint, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The condition tensor.
-        - <dfn>scale</dfn>: an {{MLOperand}}. The scale tensor to divide each input value by after adjusting by the zero point. It has the same [=MLOperand/rank=] as the input, and its [=MLOperand/shape=] must evenly divide into the input [=MLOperand/shape=].
+        - <dfn>scale</dfn>: an {{MLOperand}}. The scale tensor to divide each input value by after adjusting by the zero point. It must be [=blockwise broadcastable=] with the input.
         - <dfn>zeroPoint</dfn>: an {{MLOperand}}. The zero point tensor to add to each rescaled input value. It has the same [=MLOperand/shape=] as the scale.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
@@ -3884,7 +3938,18 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=].{{MLGraphBuilder/[[hasBuilt]]}} is true, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |scale|, and |zeroPoint| returns false, then [=exception/throw=] a {{TypeError}}.
-    TODO: Add validation for scale and zero point shape.
+    1. If |scale|'s [=MLOperand/rank=] or |zeroPoint|'s [=MLOperand/rank=] mismatches |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
+    1. If |scale|'s [=MLOperand/shape=] mismatches |zeroPoint|'s [=MLOperand/shape=], then [=exception/throw=] a {{TypeError}}.
+    1. If [=blockwise broadcasting=] |scale|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. If [=blockwise broadcasting=] |zeroPoints|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. Let |outputDescriptor| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |input|'s [=MLOperand/shape=].
+    1. *Make graph connections:*
+        1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDescriptor|.
+        1. Let |operator| be an [=operator=] for the "quantizeLinear" operation, given |input|, |scale|, |zeroPoint|, and |options|.
+        1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
+        1. Set |operator|'s [=operator/input=] to |input|.
+        1. Set |operator|'s [=operator/output=] to |output|.
+    1. Return |output|.
 </details>
 
 <div class="note">
@@ -3892,8 +3957,18 @@ partial dictionary MLOpSupportLimits {
     <summary>
     The behavior of this operation can be [EMULATED]
     </summary>
+    This emulation relies on a pending `roundEven` operator in <a href="https://github.com/webmachinelearning/webnn/issues/817">[Issue webnn#817]</a>.
     <pre highlight="js">
-    TODO:
+    function dequantizeLinear(builder, input, scale, zeroPoint, options) {
+      // output = clamp(roundEven(input / scale) + zeroPoint, 0, 255)
+      const floatZeroPoint = builder.cast(zeroPoint, scale.dataType);
+      const upsampledScale = blockwiseBroadcast(builder, scale, input.shape);
+      const upsampledZeroPoint = blockwiseBroadcast(builder, floatZeroPoint, input.shape);
+      const quantizedInput = builder.roundEven(builder.div(input, upsampledScale);
+      const zeroPointAdjustedInput = builder.add(quantizedInput, upsampledZeroPoint);
+      const clampedInput = builder.clamp(zeroPointAdjustedInput, {'minValue': 0, 'maxValue': 255});
+      return builder.cast(clampedInput, zeroPoint.dataType);
+    }
     </pre>
   </details>
 </div>
@@ -9246,6 +9321,8 @@ The shapes of the input tensors must be compatible. A tensor is [=unidirectional
 
 Two tensors are [=bidirectionally broadcastable=] if they can be mutually "stretched" (repeated) across their various dimensions, starting from the last dimension. For example, a *[5,1]* tensor can be bidirectionally broadcast with a *[1,6]* tensor by repeating the first tensor 6 times in the last dimension and the second tensor 5 times in preceding dimension. The result of the operation will be a *[5,6]* tensor. Bidirectional broadcasting is convenient for element-wise operations.
 
+A tensor is [=blockwise broadcastable=] if the all dimensions can be upsampled by integer multiples to the target tensor's shape. For example, a *[4,5]* tensor can be blockwise broadcast up to a *[16,10]* tensor as it is an exact multiple (16 % 4 = 0, 10 % 5 = 0) by repeating every element 4 times in the first dimension and every element 2 times in the last dimension (e.g. values *[1,2,3,4,5]* in a single slice would be repeated to *[1,1,2,2,3,3,4,4,5,5]*). However, a *[4,5]* tensor would be incompatible with a *[9,3]* tensor since both dimensions have a nonzero remainder (9 % 4 = 1, 3 % 5 = 3). Blockwise broadcasting is useful for sharing common values in larger blocks to save memory. Both tensors are expected to have the same rank, and the output shape is simply the target tensor's shape which the smaller one is being upsampled to.
+
 Some operations allow broadcasting with special semantics. For example, {{MLGraphBuilder/matmul()}} treats the last two dimensions of the input tensors as the rows and columns of the matrices, and the number of columns in the first matrix must be equal to the number of rows in the second matrix. The matrix multiplication is bidirectionally broadcast across any additional dimensions, treating the input tensors as stacks of matrices to multiply.
 
 <details open algorithm>
@@ -9296,6 +9373,28 @@ To <dfn data-lt="bidirectionally broadcasting">bidirectionally broadcast the sha
 
 <p algorithm>
 |shapeA| is <dfn>bidirectionally broadcastable</dfn> to |shapeB| if [=bidirectionally broadcasting=] |shapeA| and |shapeB| does not result in failure.
+</p>
+
+<details open algorithm>
+<summary>
+To <dfn data-lt="blockwise broadcasting">blockwise broadcast the shapes</dfn> |shapeFrom| and |shapeTo|, perform the following steps. |shapeFrom| and |shapeTo| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+</summary>
+
+1. Let |sizeFrom| be |shapeFrom|'s [=list/size=].
+1. Let |sizeTo| be |shapeTo|'s [=list/size=].
+1. If |sizeFrom| != |sizeTo|, then return failure.
+1. Let |outputShape| be a new [=/list=].
+1. [=list/For each=] |index| in [=the range=] 0 to |sizeTo|, exclusive:
+    1. Let |dimFrom| be |shapeFrom|[|index|].
+    1. Let |dimTo| be |shapeTo|[|index|].
+    1. If |dimFrom| is not an exactly divisible into |dimTo|, then return failure.
+    1. [=list/Append=] |dimTo| to |outputShape|.
+1. Return |outputShape|.
+
+</details>
+
+<p algorithm>
+|shapeFrom| is <dfn>blockwise broadcastable</dfn> to |shapeTo| if [=blockwise broadcasting=] |shapeFrom| and |shapeTo| does not result in failure.
 </p>
 
 ## Casting ## {#algorithms-casting}
