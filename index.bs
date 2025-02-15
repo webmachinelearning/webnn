@@ -935,7 +935,7 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
     1. If |namedTensors|'s [=map/size=] is not equal to |namedDescriptors|'s [=map/size=], then return false.
     1. [=map/For each=] |name| → |tensor| of |namedTensors|:
         1. If |namedDescriptors|[|name|] does not [=map/exist=], then return false.
-        1. If |tensor|.{{MLTensor/[[descriptor]]}} is not equal to |namedDescriptors|[|name|], then return false.
+        1. If |tensor|.{{MLTensor/[[descriptor]]}} is not [=MLOperandDescriptor/equal=] to |namedDescriptors|[|name|], then return false.
     1. Return true.
 </details>
 
@@ -1367,6 +1367,10 @@ dictionary MLOperandDescriptor {
     :: The list of dimensions of the operand. It is empty for scalar operands.
 </dl>
 
+<div algorithm>
+An {{MLOperandDescriptor}} |A| is <dfn for=MLOperandDescriptor>equal</dfn> to an {{MLOperandDescriptor}} |B| if |A|.{{MLOperandDescriptor/dataType}} equals |B|.{{MLOperandDescriptor/dataType}} and |A|.{{MLOperandDescriptor/shape}} [=list/equals=] |B|.{{MLOperandDescriptor/shape}}.
+</div>
+
 <details open algorithm>
   <summary>
   To <dfn>create an {{MLOperandDescriptor}}</dfn> given {{MLOperandDataType}} |dataType| and [=/list=] |shape|, run the following steps:
@@ -1406,7 +1410,6 @@ Issue(391): Should 0-size dimensions be supported?
     1. If |descriptor|'s [=MLOperandDescriptor/byte length=] is not supported by the implementation, then return false.
     1. Return true.
 </details>
-
 
 ## {{MLOperand}} interface ## {#api-mloperand}
 
@@ -2061,16 +2064,16 @@ partial dictionary MLOpSupportLimits {
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/axis}} is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
     1. If |mean|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
-    1. If |mean|'s [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
+    1. If |mean|'s [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. If |variance|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
-    1. If |variance|'s [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
+    1. If |variance|'s [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLBatchNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLBatchNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
     1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "batchNormalization" operation, given |input|, |mean|, |variance| and |options|.
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |input|.{{MLOperand/[[descriptor]]}}.
@@ -2653,7 +2656,7 @@ partial dictionary MLOpSupportLimits {
         1. If |inputChannels| % |options|.{{MLConv2dOptions/groups}} is not 0, then [=exception/throw=] a {{TypeError}}.
         1. Otherwise, if |inputChannels| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
-            1. If its [=MLOperand/shape=] is not equal to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
+            1. If its [=MLOperand/shape=] is not [=list/equal=] to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-conv2d)), then [=exception/throw=] a {{TypeError}}.
         1. Let |outputSizes| be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConv2dOptions/padding}}, |options|.{{MLConv2dOptions/strides}}, and |options|.{{MLConv2dOptions/dilations}}.
         1. Switch on |options|.{{MLConv2dOptions/inputLayout}}:
@@ -2874,7 +2877,7 @@ partial dictionary MLOpSupportLimits {
         1. If |inputChannels| is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
         1. Let |outputChannels| be |filterOutputChannels| * |options|.{{MLConvTranspose2dOptions/groups}}.
         1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
-            1. If its [=MLOperand/shape=] is not equal to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
+            1. If its [=MLOperand/shape=] is not [=list/equal=] to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=], then:
             1. Let « |outputHeight|, |outputWidth| » be |options|.{{MLConvTranspose2dOptions/outputSizes}}.
@@ -4258,8 +4261,8 @@ partial dictionary MLOpSupportLimits {
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][1].
     1. Let |inputSize| be |input|'s [=MLOperand/shape=][2].
     1. Let |numDirections| be 2 if |options|.{{MLGruOptions/direction}} is {{MLRecurrentNetworkDirection/"both"}}, or 1 otherwise.
-    1. If |weight|'s [=MLOperand/shape=] is not equal to « |numDirections|, 3 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |recurrentWeight|'s [=MLOperand/shape=] is not equal to « |numDirections|, 3 * |hiddenSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+    1. If |weight|'s [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 3 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
+    1. If |recurrentWeight|'s [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 3 * |hiddenSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |hiddenSize| * 6 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         <details class=note>
           <summary>Why |hiddenSize| * 6 ?</summary>
@@ -4267,13 +4270,13 @@ partial dictionary MLOpSupportLimits {
         </details>
     1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLGruOptions/activations}}.
@@ -4574,9 +4577,9 @@ partial dictionary MLOpSupportLimits {
     1. If the [=MLOperand/rank=] of any of |input|, |weight|, |recurrentWeight| or |hiddenState| is not its [=/allowed ranks=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][0].
     1. Let |inputSize| be |input|'s [=MLOperand/shape=][1].
-    1. If |weight|'s [=MLOperand/shape=] is not equal to « 3 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |recurrentWeight|'s [=MLOperand/shape=] is not equal to « 3 * |hiddenSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |hiddenState|'s [=MLOperand/shape=] is not equal to « |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+    1. If |weight|'s [=MLOperand/shape=] is not [=list/equal=] to « 3 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
+    1. If |recurrentWeight|'s [=MLOperand/shape=] is not [=list/equal=] to « 3 * |hiddenSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+    1. If |hiddenState|'s [=MLOperand/shape=] is not [=list/equal=] to « |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |hiddenSize| * 6 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         <details class=note>
           <summary>Why |hiddenSize| * 6 ?</summary>
@@ -4584,10 +4587,10 @@ partial dictionary MLOpSupportLimits {
         </details>
     1. If |options|.{{MLGruCellOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruCellOptions/recurrentBias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLGruCellOptions/activations}}.
@@ -5012,10 +5015,10 @@ partial dictionary MLOpSupportLimits {
     1. Let |axis| be 1 if |options|.{{MLInstanceNormalizationOptions/layout}} is {{MLInputOperandLayout/"nchw"}}, and 3 otherwise.
     1. If |options|.{{MLInstanceNormalizationOptions/scale}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-instanceNormalization)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLInstanceNormalizationOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-instanceNormalization)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "instanceNormalization" operation, given |options|.
@@ -5148,7 +5151,7 @@ partial dictionary MLOpSupportLimits {
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |options|.{{MLLayerNormalizationOptions/scale}} (if it [=map/exists=]), and |options|.{{MLLayerNormalizationOptions/bias}} (if it [=map/exists=]) returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-layerNormalization)), then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either equal to [=the range=] from 1 to |input|'s [=MLOperand/rank=], exclusive, if |input|'s [=MLOperand/rank=] is greater than 1, or an empty [=/list=] otherwise.
+    1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either [=the range=] from 1 to |input|'s [=MLOperand/rank=], exclusive, if |input|'s [=MLOperand/rank=] is greater than 1, or an empty [=/list=] otherwise.
     1. Otherwise, if |options|.{{MLLayerNormalizationOptions/axes}} contains duplicate values, or if any of its elements is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then return failure.
     1. Set |options|.{{MLLayerNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLLayerNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
     1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=]:
@@ -5602,8 +5605,8 @@ partial dictionary MLOpSupportLimits {
     1. If |input|'s [=MLOperand/shape=][0] is not equal to |steps|, then [=exception/throw=] a {{TypeError}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][1].
     1. Let |inputSize| be |input|'s [=MLOperand/shape=][2].
-    1. If |weight|'s [=MLOperand/shape=] is not equal to « |numDirections|, 4 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |recurrentWeight|'s [=MLOperand/shape=] is not equal to « |numDirections|, 4 * |hiddenSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+    1. If |weight|'s [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 4 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
+    1. If |recurrentWeight|'s [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 4 * |hiddenSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |hiddenSize| * 8 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         <details class=note>
           <summary>Why |hiddenSize| * 8 ?</summary>
@@ -5611,19 +5614,19 @@ partial dictionary MLOpSupportLimits {
         </details>
     1. If |options|.{{MLLstmOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |numDirections|, 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |numDirections|, 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLLstmOptions/activations}}.
@@ -5987,10 +5990,10 @@ partial dictionary MLOpSupportLimits {
     1. If the [=MLOperand/rank=] of any of |input|, |weight|, |recurrentWeight|, |hiddenState| or |cellState| is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |batchSize| be |input|'s [=MLOperand/shape=][0].
     1. Let |inputSize| be |input|'s [=MLOperand/shape=][1].
-    1. If |weight|'s [=MLOperand/shape=] is not equal to « 4 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |recurrentWeight|'s [=MLOperand/shape=] is not equal to « 4 * |hiddenSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |hiddenState|'s [=MLOperand/shape=] is not equal to « |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |cellState|'s [=MLOperand/shape=] is not equal to « |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+    1. If |weight|'s [=MLOperand/shape=] is not [=list/equal=] to « 4 * |hiddenSize|, |inputSize| », then [=exception/throw=] a {{TypeError}}.
+    1. If |recurrentWeight|'s [=MLOperand/shape=] is not [=list/equal=] to « 4 * |hiddenSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+    1. If |hiddenState|'s [=MLOperand/shape=] is not [=list/equal=] to « |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+    1. If |cellState|'s [=MLOperand/shape=] is not [=list/equal=] to « |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |hiddenSize| * 8 is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         <details class=note>
           <summary>Why |hiddenSize| * 8 ?</summary>
@@ -5998,13 +6001,13 @@ partial dictionary MLOpSupportLimits {
         </details>
     1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=]:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
-        1. If its [=MLOperand/shape=] is not equal to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
+        1. If its [=MLOperand/shape=] is not [=list/equal=] to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=]:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLLstmCellOptions/activations}}.
@@ -8435,6 +8438,15 @@ NOTE: This is based on a definition in [[WEBIDL]] with these differences: 64-bit
 </div>
 
 </details>
+
+## Miscellaneous ## {#algorithms-miscellaneous}
+
+<div algorithm>
+A [=/list=] |A| is <dfn for=list>equal</dfn> to a [=/list=] |B| if |A|'s [=list/size=] equal's |B|'s [=list/size=] and each [=list/item=] in |A| is equal to the [=list/item=] at the same index in |B|.
+
+Issue(whatwg/infra#664): Remove this when a definition in [[INFRA]] is available.
+</div>
+
 
 Examples {#examples}
 =====================
