@@ -4524,19 +4524,20 @@ partial dictionary MLOpSupportLimits {
     // input of shape [2,2]:
     //   [[0, 1],
     //    [2, 3]]
-    // indices of shape [2,2]:
+    // indices of shape [3,2]:
     //   [[0, 0],
-    //    [1, 1]]
-    // output of shape [2]:
-    //   [0, 3]
+    //    [1, 1],
+    //    [1, 0]]
+    // output of shape [3]:
+    //   [0, 3, 2]
 
     const input1 = builder.constant(
       {shape: [2, 2]},
       new Float32Array([0, 1, 2, 3]));
 
     const indices1 = builder.constant(
-      {dataType: 'uint32', shape: [2, 2]},
-      new Uint32Array([0, 0, 1, 1]));
+      {dataType: 'uint32', shape: [3, 2]},
+      new Uint32Array([0, 0, 1, 1, 1, 0]));
 
     const output1 = builder.gatherNd(input1, indices1);
 
@@ -4547,8 +4548,8 @@ partial dictionary MLOpSupportLimits {
     //   [[1],
     //    [0]]
     // output of shape [2,2]:
-    //   [[2 ,3]
-    //    [0, 1]]
+    //   [[2, 3]    <= row [2, 3] from input coordinates [1, *]
+    //    [0, 1]]   <= row [0, 1] from input coordinates [0, *]
 
     const indices2 = builder.constant(
       {dataType: 'uint32', shape: [2, 1]},
@@ -4565,8 +4566,8 @@ partial dictionary MLOpSupportLimits {
     //   [[0, 1],
     //    [1, 0]]
     // output of shape [2,2]:
-    //   [[2, 3],
-    //    [4, 5]]
+    //   [[2, 3],   <= row [2, 3] from input coordinates [0, 1, *]
+    //    [4, 5]]   <= row [4, 5] from input coordinates [1, 0, *]
 
     const input2 = builder.constant(
       {shape: [2, 2, 2]},
@@ -4576,7 +4577,30 @@ partial dictionary MLOpSupportLimits {
       {dataType: 'uint32', shape: [2, 2]},
       new Uint32Array([0, 1, 1, 0]));
 
-    const output3 = builder.gatherNd(input1, indices1);
+    const output3 = builder.gatherNd(input2, indices3);
+
+    // input of shape [2,2,2]:
+    //   [[[0, 1],
+    //     [2, 3]],
+    //    [[4, 5],
+    //     [6, 7]]]
+    // indices of shape [3,1]:
+    //   [[1],
+    //    [0],
+    //    [1]]
+    // output of shape [3,2,2]:
+    //   [[[4, 5],   <= block [[4, 5], [6, 7]] from input coordinates [1, *, *]
+    //     [6, 7]],
+    //    [[0, 1],   <= block [[0, 1], [2, 3]] from input coordinates [0, *, *]
+    //     [2, 3]],
+    //    [[4, 5],   <= block [[4, 5], [6, 7]] from input coordinates [1, *, *]
+    //     [6, 7]]]
+
+    const indices4 = builder.constant(
+      {dataType: 'uint32', shape: [3, 1]},
+      new Uint32Array([1, 0, 1]));
+
+    const output3 = builder.gatherNd(input2, indices4);
   </pre>
 </details>
 </div>
@@ -8510,8 +8534,8 @@ partial dictionary MLOpSupportLimits {
     // updates of shape [2]:
     //   [-1, -2]
     // output of shape [2,2]:
-    //   [[-1,  1],   <= -1 written to element coordinate [0, 0]
-    //    [ 2, -2]]   <= -2 written to element coordinate [1, 1]
+    //   [[-1,  1],   <= -1 written to output coordinate [0, 0]
+    //    [ 2, -2]]   <= -2 written to output coordinate [1, 1]
 
     const input2 = builder.constant(
       {shape: [2, 2]},
@@ -8538,9 +8562,9 @@ partial dictionary MLOpSupportLimits {
     //   [[-1, -2],
     //    [-3, -4]]
     // output of shape [3,2]:
-    //   [[-3 ,-4],    <= [-3, -4] written to element coordinate [0, *]
+    //   [[-3 ,-4],    <= [-3, -4] written to output coordinates [0, *]
     //    [ 2,  3],
-    //    [-1, -2]]    <= [-1, -2] written to element coordinate [2, *]
+    //    [-1, -2]]    <= [-1, -2] written to output coordinates [2, *]
 
     const input3 = builder.constant(
       {shape: [3, 2]},
@@ -8569,8 +8593,8 @@ partial dictionary MLOpSupportLimits {
     //    [-3, -4]]
     // output of shape [2,2,2]:
     //   [[[ 0,  1],
-    //     [-1, -2]],   <= [-1, -2] written to element coordinate [0, 1, *]
-    //    [[-3, -4],    <= [-3, -4] written to element coordinate [1, 0, *]
+    //     [-1, -2]],   <= [-1, -2] written to output coordinates [0, 1, *]
+    //    [[-3, -4],    <= [-3, -4] written to output coordinates [1, 0, *]
     //     [ 6,  7]]]
 
     const input4 = builder.constant(
