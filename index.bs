@@ -2659,18 +2659,16 @@ partial dictionary MLOpSupportLimits {
             1. If its [=MLOperand/shape=] is not [=list/equal=] to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-conv2d)), then [=exception/throw=] a {{TypeError}}.
         1. Let « |outputHeight|, |outputWidth| » be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConv2dOptions/padding}}, |options|.{{MLConv2dOptions/strides}}, and |options|.{{MLConv2dOptions/dilations}}.
+        1. Set |outputHeight| to floor( |outputHeight| ).
+        1. Set |outputWidth| to floor( |outputWidth| ).
         1. If either |outputHeight| or |outputWidth| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         1. Switch on |options|.{{MLConv2dOptions/inputLayout}}:
             <dl class=switch>
                 : {{MLInputOperandLayout/"nchw"}}
-                :: Let |outputShape| be « |batches|, |outputChannels|, floor( |outputHeight| ), floor( |outputWidth| ) ».
+                :: Let |outputShape| be « |batches|, |outputChannels|, |outputHeight|, |outputWidth| ».
                 : {{MLInputOperandLayout/"nhwc"}}
-                :: Let |outputShape| be « |batches|, floor( |outputHeight| ), floor( |outputWidth| ), |outputChannels|  ».
+                :: Let |outputShape| be « |batches|, |outputHeight|, |outputWidth|, |outputChannels|  ».
             </dl>
-        1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-
-            Issue: The preceding step appears redundant with the validation of |outputHeight| and |outputWidth| above. Remove it?
-
         1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
@@ -2827,10 +2825,10 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    To <dfn for=MLGraphBuilder>calculate convtranspose output size</dfn> given unsigned integers |inputSize|, |filterSize|, |beginningPadding|, |endingPadding|, |stride|, |dilation|, and |outputPadding|, perform these steps. They return a number.
+    To <dfn for=MLGraphBuilder>calculate convtranspose output size</dfn> given unsigned integers |inputSize|, |filterSize|, |beginningPadding|, |endingPadding|, |stride|, and |dilation|, perform these steps. They return a number.
   </summary>
     1. Let |effectiveFilterSize| be ( |filterSize| - 1 ) * |dilation| + 1.
-    1. Let |outputSize| be ( |inputSize| - 1 ) * |stride| + |effectiveFilterSize| - |beginningPadding| - |endingPadding| + |outputPadding|.
+    1. Let |outputSize| be ( |inputSize| - 1 ) * |stride| + |effectiveFilterSize| - |beginningPadding| - |endingPadding|.
     1. Return |outputSize|.
 </details>
 
@@ -2856,10 +2854,6 @@ partial dictionary MLOpSupportLimits {
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/outputPadding}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-        1. If any of its [=list/items=] is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-
-            Issue: The preceding step appears redundant with the validation of |outputHeight| and |outputWidth| below. Remove it?
-
     1. Otherwise:
         1. If |options|.{{MLConvTranspose2dOptions/outputPadding}}[0] is greater than or equal to |options|.{{MLConvTranspose2dOptions/strides}}[0], or |options|.{{MLConvTranspose2dOptions/outputPadding}}[1] is greater than or equal to |options|.{{MLConvTranspose2dOptions/strides}}[1], then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConvTranspose2dOptions/groups}} is 0, then [=exception/throw=] a {{TypeError}}.
@@ -2884,14 +2878,19 @@ partial dictionary MLOpSupportLimits {
             </dl>
         1. If |inputChannels| is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
         1. Let |outputChannels| be |filterOutputChannels| * |options|.{{MLConvTranspose2dOptions/groups}}.
+        1. If |outputChannels| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
             1. If its [=MLOperand/shape=] is not [=list/equal=] to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
+        1. Let |calculatedOutputHeight| be the result of [=MLGraphBuilder/calculating convtranspose output size=] given |inputHeight|, |filterHeight|, |padding|[0], |padding|[1], |strides|[0] and |dilations|[0].
+        1. Let |calculatedOutputWidth| be the result of [=MLGraphBuilder/calculating convtranspose output size=] given |inputWidth|, |filterWidth|, |padding|[2], |padding|[3], |strides|[1] and |dilations|[1].
         1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=], then:
             1. Let « |outputHeight|, |outputWidth| » be |options|.{{MLConvTranspose2dOptions/outputSizes}}.
+            1. If |outputHeight| is less than |calculatedOutputHeight|, or |outputHeight| is greater than or equal to |calculatedOutputHeight| + |strides|[0], then [=exception/throw=] a {{TypeError}}.
+            1. If |outputWidth| is less than |calculatedOutputWidth|, or |outputWidth| is greater than or equal to |calculatedOutputWidth| + |strides|[1], then [=exception/throw=] a {{TypeError}}.
         1. Otherwise:
-            1. Let |outputHeight| be the result of [=MLGraphBuilder/calculating convtranspose output size=] given |inputHeight|, |filterHeight|, |padding|[0], |padding|[1], |strides|[0], |dilations|[0], and |outputPadding|[0].
-            1. Let |outputWidth| be the result of [=MLGraphBuilder/calculating convtranspose output size=] given |inputWidth|, |filterWidth|, |padding|[2], |padding|[3], |strides|[1], |dilations|[1] and |outputPadding|[1].
+            1. Let |outputHeight| be |calculatedOutputHeight| + |options|.{{MLConvTranspose2dOptions/outputPadding}}[0].
+            1. Let |outputWidth| be |calculatedOutputWidth| + |options|.{{MLConvTranspose2dOptions/outputPadding}}[1].
         1. If either |outputHeight| or |outputWidth| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         1. Switch on |options|.{{MLConvTranspose2dOptions/inputLayout}}:
             <dl class=switch>
@@ -2900,10 +2899,6 @@ partial dictionary MLOpSupportLimits {
                 : {{MLInputOperandLayout/"nhwc"}}
                 :: Let |outputShape| be « |batches|, floor( |outputHeight| ), floor( |outputWidth| ), |outputChannels| ».
             </dl>
-        1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-
-            Issue: The preceding step appears redundant with the validation of |outputHeight| and |outputWidth| above. Remove it?
-
         1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
@@ -6600,10 +6595,6 @@ partial dictionary MLOpSupportLimits {
                 : {{MLInputOperandLayout/"nhwc"}}
                 :: Let |outputShape| be « |batches|, |outputHeight|, |outputWidth|, |channels| ».
             </dl>
-        1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-
-            Issue: The preceding step appears redundant with the validation of |outputHeight| and |outputWidth| above. Remove it?
-
         1. Set |desc|.{{MLOperandDescriptor/shape}} to |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
