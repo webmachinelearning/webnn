@@ -4243,21 +4243,16 @@ partial dictionary MLOpSupportLimits {
       {shape: [4, 3]},
       new Float32Array([0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32]));
 
-    const indices1 =
-      builder.constant({dataType: 'uint32', shape: [2]}, new Uint32Array([3, 1]));
-
-    const indices2 = builder.constant(
-      {dataType: 'uint32', shape: [3]}, new Uint32Array([2, 1, 1]));
-
-    const indices3 = builder.constant(
-      {dataType: 'uint32', shape: [2, 2]}, new Uint32Array([0, 1, 1, 2]));
-
     // axis = 0 (default)
     // indices of shape [2]:
     //   [3,1]
     // output of shape [2,3]:
     //   [[30, 31, 32],
     //    [10, 11, 12]]
+
+    const indices1 =
+      builder.constant({dataType: 'uint32', shape: [2]}, new Uint32Array([3, 1]));
+
     const output1 = builder.gather(input, indices1);
 
     // axis = 1
@@ -4268,6 +4263,10 @@ partial dictionary MLOpSupportLimits {
     //    [12, 11, 11],
     //    [22, 21, 21],
     //    [32, 31, 31]]
+
+    const indices2 = builder.constant(
+      {dataType: 'uint32', shape: [3]}, new Uint32Array([2, 1, 1]));
+
     const output2 = builder.gather(input, indices2, {axis: 1});
 
     // axis = 1
@@ -4279,6 +4278,10 @@ partial dictionary MLOpSupportLimits {
     //    [[10, 11], [11, 12]],
     //    [[20, 21], [21, 22]],
     //    [[30, 31], [31, 32]]]
+
+    const indices3 = builder.constant(
+      {dataType: 'uint32', shape: [2, 2]}, new Uint32Array([0, 1, 1, 2]));
+
     const output3 = builder.gather(input, indices3, {axis: 1});
   </pre>
 </details>
@@ -4406,7 +4409,7 @@ partial dictionary MLOpSupportLimits {
     //    [0],
     //    [2]],
     // axis = 1
-    // output of shape [4,3]:
+    // output of shape [4,1]:
     //   [[ 2],
     //    [11],
     //    [20],
@@ -4430,7 +4433,7 @@ partial dictionary MLOpSupportLimits {
     // indices of shape [1,2,2]:
     //   [[[0, 2],
     //     [1, 3]]],
-    // axis = 2
+    // axis = 0
     // output of shape [1,2,2]:
     //   [[[  0, 201],
     //     [110, 311]]]
@@ -4600,7 +4603,27 @@ partial dictionary MLOpSupportLimits {
       {dataType: 'uint32', shape: [3, 1]},
       new Uint32Array([1, 0, 1]));
 
-    const output3 = builder.gatherNd(input2, indices4);
+    const output4 = builder.gatherNd(input2, indices4);
+
+    // input of shape [2,2,2]:
+    //   [[[0, 1],
+    //     [2, 3]],
+    //    [[4, 5],
+    //     [6, 7]]]
+    // indices of shape [5,3]:
+    //   [[0,0,1],
+    //    [0,1,0],
+    //    [1,0,0],
+    //    [1,1,0],
+    //    [1,1,1]]
+    // output of shape [5]:
+    //   [1,2,4,6,7]
+
+    const indices5 = builder.constant(
+      {dataType: 'uint32', shape: [5, 3]},
+      new Uint32Array([0,0,1, 0,1,0, 1,0,0, 1,1,0, 1,1,1]));
+
+    const output5 = builder.gatherNd(input2, indices5);
   </pre>
 </details>
 </div>
