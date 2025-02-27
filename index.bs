@@ -3902,8 +3902,8 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |scale|, and |zeroPoint| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |scale|'s [=MLOperand/rank=] or |zeroPoint|'s [=MLOperand/rank=] is not equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |scale|'s [=MLOperand/shape=] is not equal to |zeroPoint|'s [=MLOperand/shape=], then [=exception/throw=] a {{TypeError}}.
-    1. If [=blockwise broadcasting=] |scale|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. If [=blockwise broadcasting=] |zeroPoints|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. If [=blockwise broadcasting=] |scale|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=blockwise broadcasting=] |zeroPoints|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-quantizelinear)), then [=exception/throw=] a {{TypeError}}.
     1. If |scale|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-quantizelinear)), then [=exception/throw=] a {{TypeError}}.
     1. If |zeroPoints|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-quantizelinear)), then [=exception/throw=] a {{TypeError}}.
@@ -9764,7 +9764,7 @@ The shapes of the input tensors must be compatible. A tensor is [=unidirectional
 
 Two tensors are [=bidirectionally broadcastable=] if they can be mutually "stretched" (repeated) across their various dimensions, starting from the last dimension. For example, a *[5,1]* tensor can be bidirectionally broadcast with a *[1,6]* tensor by repeating the first tensor 6 times in the last dimension and the second tensor 5 times in preceding dimension. The result of the operation will be a *[5,6]* tensor. Bidirectional broadcasting is convenient for element-wise operations.
 
-A tensor is [=blockwise broadcastable=] if the all dimensions can be upsampled by integer multiples to the target tensor's shape. For example, a *[4,5]* tensor can be blockwise broadcast up to a *[16,10]* tensor as it is an exact multiple (16 % 4 = 0, 10 % 5 = 0) by repeating every element 4 times in the first dimension and every element 2 times in the last dimension (e.g. values *[1,2,3,4,5]* in a single slice would be repeated to *[1,1,2,2,3,3,4,4,5,5]*). However, a *[4,5]* tensor would be incompatible with a *[9,3]* tensor since both dimensions have a nonzero remainder (9 % 4 = 1, 3 % 5 = 3). Blockwise broadcasting is useful for sharing common values in larger blocks to save memory. Both tensors are expected to have the same rank, and the output shape is simply the target tensor's shape which the smaller one is being upsampled to.
+A tensor is [=blockwise broadcastable=] if the all dimensions can be upsampled by integer multiples to the target tensor's shape. For example, a *[4,5]* tensor can be blockwise broadcast up to a *[16,10]* tensor as it is an exact multiple (16 % 4 = 0, 10 % 5 = 0) by repeating every element 4 times in the first dimension and every element 2 times in the last dimension (e.g. values *[1,2,3,4,5]* in the last dimensions would be repeated to *[1,1,2,2,3,3,4,4,5,5]*). However, a *[4,5]* tensor would be incompatible with a *[9,3]* tensor since both dimensions have a nonzero remainder (9 % 4 = 1, 3 % 5 = 3). Blockwise broadcasting is useful for sharing common values in larger blocks to save memory. Both tensors are expected to have the same rank, and the output shape is simply the target tensor's shape which the smaller one is being upsampled to.
 
 Some operations allow broadcasting with special semantics. For example, {{MLGraphBuilder/matmul()}} treats the last two dimensions of the input tensors as the rows and columns of the matrices, and the number of columns in the first matrix must be equal to the number of rows in the second matrix. The matrix multiplication is bidirectionally broadcast across any additional dimensions, treating the input tensors as stacks of matrices to multiply.
 
@@ -9820,18 +9820,18 @@ To <dfn data-lt="bidirectionally broadcasting">bidirectionally broadcast the sha
 
 <details open algorithm>
 <summary>
-To <dfn data-lt="blockwise broadcasting">blockwise broadcast the shapes</dfn> |shapeFrom| and |shapeTo|, perform the following steps. |shapeFrom| and |shapeTo| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return a new [=/list=] of positive integers, or failure.
+To <dfn data-lt="blockwise broadcasting">blockwise broadcast the shapes</dfn> |shapeFrom| and |shapeTo|, perform the following steps. |shapeFrom| and |shapeTo| are [=/lists=] of positive integers, representing the dimensions of tensors, and the steps return true or false.
 </summary>
 
-1. If |shapeFrom|'s [=list/size=] is not equal to |shapeTo|'s [=list/size=], then return failure.
+1. If |shapeFrom|'s [=list/size=] is not equal to |shapeTo|'s [=list/size=], then return false.
 1. [=list/For each=] |index| in [=the range=] 0 to |shapeTo|'s [=list/size=], exclusive:
-    1. If |shapeFrom|[|index|] is not exactly divisible into |shapeTo|[|index|], then return failure.
-1. Return |shapeTo|.
+    1. If |shapeFrom|[|index|] is not exactly divisible into |shapeTo|[|index|], then return false.
+1. Return true.
 
 </details>
 
 <p algorithm>
-|shapeFrom| is <dfn>blockwise broadcastable</dfn> to |shapeTo| if [=blockwise broadcasting=] |shapeFrom| and |shapeTo| does not result in failure.
+|shapeFrom| is <dfn>blockwise broadcastable</dfn> to |shapeTo| if [=blockwise broadcasting=] |shapeFrom| and |shapeTo| returns true.
 </p>
 
 ## Casting ## {#algorithms-casting}
