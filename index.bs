@@ -8845,16 +8845,18 @@ partial dictionary MLOpSupportLimits {
     1. Let |inputShape| be |input|'s [=MLOperand/shape=] and |inputRank| be |input|'s [=MLOperand/rank=].
     1. Let |outputShape| be a new [=/list=].
     1. [=list/For each=] |index| in [=the range=] 0 to |inputRank|, exclusive:
-        1. If |sizes|[|index|] is 0, then [=exception/throw=] a {{TypeError}}.
+        1. Let |inputSize| be |inputShape|[|index|].
+        1. Let |inputSliceSize| be |sizes|[|index|].
+        1. Let |stride| be |strides|[|index|] if it is not empty, or 1 otherwise:
+        1. If |inputSliceSize| is 0, then [=exception/throw=] a {{TypeError}}.
 
             Issue(391): If 0-size dimensions are allowed, revise these steps.
 
-        1. If |starts|[|index|] is greater than |inputShape|[|index|], then [=exception/throw=] a {{TypeError}}.
-        1. If |starts|[|index|] + |sizes|[|index|] is greater than |inputShape|[|index|], then [=exception/throw=] a {{TypeError}}.
-        1. Let |stride| be |strides|[|index|] if it is not empty, or 1 otherwise:
         1. If |stride| is less than 1, then [=exception/throw=] a {{TypeError}}.
-        1. Let |outputSizeRoundingExcess| be 1 if |inputShape|[|index|] % |stride| != 0, or 0 otherwise.
-        1. Let |outputSize| be |inputShape|[|index|] / |stride| + |outputSizeRoundingExcess|
+        1. If |starts|[|index|] is greater than |inputSize|, then [=exception/throw=] a {{TypeError}}.
+        1. If |starts|[|index|] + |inputSliceSize| is greater than |inputSize|, then [=exception/throw=] a {{TypeError}}.
+        1. Let |outputSizeRoundingExcess| be 1 if |inputSliceSize| % |stride| != 0, or 0 otherwise.
+        1. Let |outputSize| be |inputSliceSize| / |stride| + |outputSizeRoundingExcess|
         1. [=list/Append=] |outputSize| to |outputShape|.
     1. Let |outputDesc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
