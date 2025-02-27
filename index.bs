@@ -4196,29 +4196,29 @@ partial dictionary MLOpSupportLimits {
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |indices| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |indices|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gather)), then [=exception/throw=] a {{TypeError}}.
-    1. Let |shapeInput| be |input|'s [=MLOperand/shape=] and |rankInput| be |input|'s [=MLOperand/rank=].
-    1. Let |shapeIndices| be |indices|'s [=MLOperand/shape=].
+    1. Let |inputShape| be |input|'s [=MLOperand/shape=] and |inputRank| be |input|'s [=MLOperand/rank=].
+    1. Let |indicesShape| be |indices|'s [=MLOperand/shape=].
     1. Let |axis| be |options|.{{MLGatherOptions/axis}}.
-    1. If |axis| is greater than or equal to |rankInput|, then [=exception/throw=] a {{TypeError}}.
+    1. If |axis| is greater than or equal to |inputRank|, then [=exception/throw=] a {{TypeError}}.
     1. Let |dimCount| be zero.
-    1. Let |rankOutput| be zero.
-    1. Let |shapeOutput| be an empty list.
-    1. [=list/For each=] |size| of |shapeInput|:
+    1. Let |outputRank| be zero.
+    1. Let |outputShape| be an empty list.
+    1. [=list/For each=] |size| of |inputShape|:
         1. If |dimCount| is equal to |axis| then [=iteration/break=].
-        1. Set |shapeOutput|[|dimCount|] to |size|.
+        1. Set |outputShape|[|dimCount|] to |size|.
         1. Increment |dimCount| by one.
-    1. Set |rankOutput| to |dimCount|.
+    1. Set |outputRank| to |dimCount|.
     1. Let |dimCount| be zero.
-    1. [=list/For each=] |size| of |shapeIndices|:
-        1. Set |shapeOutput|[|rankOutput| + |dimCount|] to |size|.
+    1. [=list/For each=] |size| of |indicesShape|:
+        1. Set |outputShape|[|outputRank| + |dimCount|] to |size|.
         1. Increment |dimCount| by one.
-    1. Set |rankOutput| to |rankOutput| + |dimCount|.
+    1. Set |outputRank| to |outputRank| + |dimCount|.
     1. Let |dimCount| be zero.
-    1. [=list/For each=] |size| of |shapeInput|:
+    1. [=list/For each=] |size| of |inputShape|:
         1. If |dimCount| is less than or equal to |axis| then [=iteration/continue=].
-        1. Set |shapeOutput|[|rankOutput| + |dimCount| - |axis| - 1] to |size|.
+        1. Set |outputShape|[|outputRank| + |dimCount| - |axis| - 1] to |size|.
         1. Increment |dimCount| by one.
-    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |shapeOutput|.
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given |desc|.
         1. Let |operator| be an [=operator=] for the "gather" operation, given |input|, |indices|, and |options|.
@@ -4356,9 +4356,9 @@ partial dictionary MLOpSupportLimits {
     1. If |indices|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gather)), then [=exception/throw=] a {{TypeError}}.
     1. Let |axis| be |options|.{{MLGatherOptions/axis}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |expectedShapeIndices| be a copy of |input|'s [=MLOperand/shape=].
-    1. Set |expectedShapeIndices|[|axis|] to 1.
-    1. If |indices|'s [=MLOperand/shape=] is not equal to |expectedShapeIndices| then [=exception/throw=] a {{TypeError}}.
+    1. Let |indicesShapeExpected| be a copy of |input|'s [=MLOperand/shape=].
+    1. Set |indicesShapeExpected|[|axis|] to 1.
+    1. If |indices|'s [=MLOperand/shape=] is not equal to |indicesShapeExpected| then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |input|'s [=MLOperand/dataType=].
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given |desc|.
@@ -4518,18 +4518,18 @@ partial dictionary MLOpSupportLimits {
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |indices| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s or |indices|'s [=MLOperand/dataType=]'s are not one of their [=/allowed data types=] (according to [this table](#constraints-gather)), then [=exception/throw=] a {{TypeError}}.
-    1. Let |shapeInput| be |input|'s [=MLOperand/shape=] and |rankInput| be |input|'s [=MLOperand/rank=].
-    1. Let |shapeIndices| be |indices|'s [=MLOperand/shape=] and |rankIndices| be |indices|'s [=MLOperand/rank=].
-    1. If |rankInput| or |rankIndices| is less than 1, then [=exception/throw=] a {{TypeError}}.
-    1. Let |indexableSize| be |rankIndices| - 1.
-    1. Let |coordinateSize| be |shapeIndices|[|indexableSize|].
+    1. Let |inputShape| be |input|'s [=MLOperand/shape=] and |inputRank| be |input|'s [=MLOperand/rank=].
+    1. Let |indicesShape| be |indices|'s [=MLOperand/shape=] and |indicesRank| be |indices|'s [=MLOperand/rank=].
+    1. If |inputRank| or |indicesRank| is less than 1, then [=exception/throw=] a {{TypeError}}.
+    1. Let |indexableSize| be |indicesRank| - 1.
+    1. Let |coordinateSize| be |indicesShape|[|indexableSize|].
     1. If |coordinateSize| is greater than |inputRank|, then [=exception/throw=] a {{TypeError}}.
-    1. Let |shapeOutput| be an empty list.
+    1. Let |outputShape| be an empty list.
     1. [=list/For each=] |index| in [=the range=] 0 to |indexableSize|, exclusive:
-        1. [=list/Append=] |shapeIndices|[|index|] to |shapeOutput|.
-    1. [=list/For each=] |index| in [=the range=] |coordinateSize| to |rankInput|, exclusive:
-        1. [=list/Append=] |shapeInput|[|index|] to |shapeOutput|.
-    1. Let |outputDesc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |shapeOutput|.
+        1. [=list/Append=] |indicesShape|[|index|] to |outputShape|.
+    1. [=list/For each=] |index| in [=the range=] |coordinateSize| to |inputRank|, exclusive:
+        1. [=list/Append=] |inputShape|[|index|] to |outputShape|.
+    1. Let |outputDesc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given |outputDesc|.
         1. Let |operator| be an [=operator=] for the "gatherND" operation, given |input|, |indices|, and |options|.
@@ -8337,9 +8337,9 @@ partial dictionary MLOpSupportLimits {
     1. If |updates|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |axis| be |options|.{{MLGatherOptions/axis}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |expectedShapeIndices| be a copy of |input|'s [=MLOperand/shape=].
-    1. Set |expectedShapeIndices|[|axis|] to 1.
-    1. If |indices|'s [=MLOperand/shape=] is not equal to |expectedShapeIndices|, then [=exception/throw=] a {{TypeError}}.
+    1. Let |indicesShapeExpected| be a copy of |input|'s [=MLOperand/shape=].
+    1. Set |indicesShapeExpected|[|axis|] to 1.
+    1. If |indices|'s [=MLOperand/shape=] is not equal to |indicesShapeExpected|, then [=exception/throw=] a {{TypeError}}.
     1. If |updates|'s [=MLOperand/shape=] is not equal to |indices|'s [=MLOperand/shape=], then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |input|'s [=MLOperand/dataType=].
     1. *Make graph connections:*
@@ -8538,20 +8538,20 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |indices|, and |updates| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s or |indices|'s [=MLOperand/dataType=]'s are not one of their [=/allowed data types=] (according to [this table](#constraints-gather)), then [=exception/throw=] a {{TypeError}}.
     1. If |udpates|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |shapeInput| be |input|'s [=MLOperand/shape=] and |rankInput| be |input|'s [=MLOperand/rank=].
-    1. Let |shapeIndices| be |indices|'s [=MLOperand/shape=] and |rankIndices| be |indices|'s [=MLOperand/rank=].
-    1. If |rankInput| or |rankIndices| is less than 1, then [=exception/throw=] a {{TypeError}}.
-    1. Let |indexableSize| be |rankIndices| - 1.
-    1. Let |coordinateSize| be |shapeIndices|[|indexableSize|].
+    1. Let |inputShape| be |input|'s [=MLOperand/shape=] and |inputRank| be |input|'s [=MLOperand/rank=].
+    1. Let |indicesShape| be |indices|'s [=MLOperand/shape=] and |indicesRank| be |indices|'s [=MLOperand/rank=].
+    1. If |inputRank| or |indicesRank| is less than 1, then [=exception/throw=] a {{TypeError}}.
+    1. Let |indexableSize| be |indicesRank| - 1.
+    1. Let |coordinateSize| be |indicesShape|[|indexableSize|].
     1. If |coordinateSize| is greater than |inputRank|, then [=exception/throw=] a {{TypeError}}.
     1. Let |shapeUpdates| be an empty list.
     1. [=list/For each=] |index| in [=the range=] 0 to |indexableSize|, exclusive:
-        1. [=list/Append=] |shapeIndices|[|index|] to |shapeUpdates|.
-    1. [=list/For each=] |index| in [=the range=] |coordinateSize| to |rankInput|, exclusive:
-        1. [=list/Append=] |shapeInput|[|index|] to |shapeUpdates|.
+        1. [=list/Append=] |indicesShape|[|index|] to |shapeUpdates|.
+    1. [=list/For each=] |index| in [=the range=] |coordinateSize| to |inputRank|, exclusive:
+        1. [=list/Append=] |inputShape|[|index|] to |shapeUpdates|.
     1. Let |updates|'s [=MLOperand/shape=] is not equal to |shapeUpdates|, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be a copy of |input|'s [=MLOperand/shape=].
-    1. Let |outputDesc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |shapeOutput|.
+    1. Let |outputDesc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given |outputDesc|.
         1. Let |operator| be an [=operator=] for the "scatterND" operation, given |input|, |indices|, |updates|, and |options|.
