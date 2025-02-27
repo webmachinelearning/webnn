@@ -4451,22 +4451,22 @@ partial dictionary MLOpSupportLimits {
 </details>
 </div>
 
-### gatherNd ### {#api-mlgraphbuilder-gathernd}
+### gatherND ### {#api-mlgraphbuilder-gathernd}
 Gather slices of the input tensor according to the indices.
 
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand gatherNd(MLOperand input,
+  MLOperand gatherND(MLOperand input,
                      MLOperand indices,
                      optional MLOperatorOptions options = {});
 };
 
 partial dictionary MLOpSupportLimits {
-  MLGatherSupportLimits gatherNd;
+  MLGatherSupportLimits gatherND;
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/gatherNd(input, indices, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/gatherND(input, indices, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor from which the values are gathered.
         - <dfn>indices</dfn>: an {{MLOperand}}. The indices array contains entire coordinates into the input tensor, with the rightmost dimension holding the number of dimensions per coordinate. So an indices tensor of shape [10,1] holds 10 single-axis indices, and a shape of [4,3] holds 4 indices of 3D coordinates. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, or {{MLOperandDataType/"int64"}}, and each must be in the range -N (inclusive) to N (exclusive) where N is the size of the corresponding input dimension, and a negative index means indexing from the end of the corresponding dimension.
@@ -4475,8 +4475,8 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the *input*'s [=MLOperand/rank=] + *indices*'s [=MLOperand/rank=] - *indices*'s [=MLOperand/shape=][-1] - 1.
 </div>
 
-<table id=constraints-gathernd class='data' link-for="MLGraphBuilder/gatherNd(input, indices, options)">
-  <caption>Constraints for {{MLGraphBuilder/gatherNd()}}</caption>
+<table id=constraints-gathernd class='data' link-for="MLGraphBuilder/gatherND(input, indices, options)">
+  <caption>Constraints for {{MLGraphBuilder/gatherND()}}</caption>
   <thead>
     <tr>
       <th>operand</th>
@@ -4501,19 +4501,19 @@ partial dictionary MLOpSupportLimits {
   </tr>
 </table>
 
-{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/gatherNd()}}:
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/gatherND()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
-    : <dfn>gatherNd</dfn>
-    :: Support limits for operator {{MLGraphBuilder/gatherNd()}}.
+    : <dfn>gatherND</dfn>
+    :: Support limits for operator {{MLGraphBuilder/gatherND()}}.
 </dl>
 
 <div class="note">
-  The {{MLGraphBuilder/gatherNd(input, indices, options)/indices}} parameter to {{MLGraphBuilder/gatherNd()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
+  The {{MLGraphBuilder/gatherND(input, indices, options)/indices}} parameter to {{MLGraphBuilder/gatherND()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>gatherNd(|input|, |indices|, |options|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>gatherND(|input|, |indices|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |indices| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -4532,7 +4532,7 @@ partial dictionary MLOpSupportLimits {
     1. Let |outputDesc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |shapeOutput|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given |outputDesc|.
-        1. Let |operator| be an [=operator=] for the "gatherNd" operation, given |input|, |indices|, and |options|.
+        1. Let |operator| be an [=operator=] for the "gatherND" operation, given |input|, |indices|, and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input| and |indices|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -4542,7 +4542,7 @@ partial dictionary MLOpSupportLimits {
 <div class="example">
 <details open>
   <summary>
-    Examples of how gatherNd works in different slicing schemes.
+    Examples of how gatherND works in different slicing schemes.
   </summary>
   <pre highlight="js">
     // input of shape [2,2]:
@@ -4563,7 +4563,7 @@ partial dictionary MLOpSupportLimits {
       {dataType: 'uint32', shape: [3, 2]},
       new Uint32Array([0, 0, 1, 1, 1, 0]));
 
-    const output1 = builder.gatherNd(input1, indices1);
+    const output1 = builder.gatherND(input1, indices1);
 
     // input of shape [2,2]:
     //   [[0, 1],
@@ -4579,7 +4579,7 @@ partial dictionary MLOpSupportLimits {
       {dataType: 'uint32', shape: [2, 1]},
       new Uint32Array([1, 0]));
 
-    const output2 = builder.gatherNd(input1, indices2);
+    const output2 = builder.gatherND(input1, indices2);
 
     // input of shape [2,2,2]:
     //   [[[0, 1],
@@ -4601,7 +4601,7 @@ partial dictionary MLOpSupportLimits {
       {dataType: 'uint32', shape: [2, 2]},
       new Uint32Array([0, 1, 1, 0]));
 
-    const output3 = builder.gatherNd(input2, indices3);
+    const output3 = builder.gatherND(input2, indices3);
 
     // input of shape [2,2,2]:
     //   [[[0, 1],
@@ -4624,7 +4624,7 @@ partial dictionary MLOpSupportLimits {
       {dataType: 'uint32', shape: [3, 1]},
       new Uint32Array([1, 0, 1]));
 
-    const output4 = builder.gatherNd(input2, indices4);
+    const output4 = builder.gatherND(input2, indices4);
 
     // input of shape [2,2,2]:
     //   [[[0, 1],
@@ -4644,7 +4644,7 @@ partial dictionary MLOpSupportLimits {
       {dataType: 'uint32', shape: [5, 3]},
       new Uint32Array([0,0,1, 0,1,0, 1,0,0, 1,1,0, 1,1,1]));
 
-    const output5 = builder.gatherNd(input2, indices5);
+    const output5 = builder.gatherND(input2, indices5);
   </pre>
 </details>
 </div>
@@ -8463,23 +8463,23 @@ partial dictionary MLOpSupportLimits {
 </details>
 </div>
 
-### scatterNd ### {#api-mlgraphbuilder-scatternd}
+### scatterND ### {#api-mlgraphbuilder-scatternd}
 Scatter slices of values from the update tensor atop a copy of the input tensor according to the indices.
 
 <script type=idl>
 partial interface MLGraphBuilder {
-  MLOperand scatterNd(MLOperand input,
+  MLOperand scatterND(MLOperand input,
                       MLOperand indices,
                       MLOperand updates,
                       optional MLOperatorOptions options = {});
 };
 
 partial dictionary MLOpSupportLimits {
-  MLScatterSupportLimits scatterNd;
+  MLScatterSupportLimits scatterND;
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/scatterNd(input, indices, updates, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/scatterND(input, indices, updates, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor from to initialize the output with.
         - <dfn>indices</dfn>: an {{MLOperand}}. The indices array contains entire coordinates into the output tensor, with the rightmost dimension holding the number of dimensions per coordinate. So an indices tensor of shape [10,1] holds 10 single-axis indices, and a shape of [4,3] holds 4 indices of 3D coordinates. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, or {{MLOperandDataType/"int64"}}, and each must be in the range -N (inclusive) to N (exclusive) where N is the size of the corresponding output dimension, and a negative index means indexing from the end of the corresponding dimension.
@@ -8489,8 +8489,8 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input*'s [=MLOperand/rank=] + *indices*'s [=MLOperand/rank=] - *indices*'s [=MLOperand/shape=][-1] - 1.
 </div>
 
-<table id=constraints-scatternd class='data' link-for="MLGraphBuilder/scatterNd(input, indices, updates, options)">
-  <caption>Constraints for {{MLGraphBuilder/scatterNd()}}</caption>
+<table id=constraints-scatternd class='data' link-for="MLGraphBuilder/scatterND(input, indices, updates, options)">
+  <caption>Constraints for {{MLGraphBuilder/scatterND()}}</caption>
   <thead>
     <tr>
       <th>operand</th>
@@ -8520,19 +8520,19 @@ partial dictionary MLOpSupportLimits {
   </tr>
 </table>
 
-{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/scatterNd()}}:
+{{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/scatterND()}}:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
-    : <dfn>scatterNd</dfn>
-    :: Support limits for operator {{MLGraphBuilder/scatterNd()}}.
+    : <dfn>scatterND</dfn>
+    :: Support limits for operator {{MLGraphBuilder/scatterND()}}.
 </dl>
 
 <div class="note">
-  The {{MLGraphBuilder/scatterNd(input, indices, updates, options)/indices}} parameter to {{MLGraphBuilder/scatterNd()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
+  The {{MLGraphBuilder/scatterND(input, indices, updates, options)/indices}} parameter to {{MLGraphBuilder/scatterND()}} can not be clamped to the allowed range when the graph is built because the inputs are not known until execution. Implementations can introduce {{MLGraphBuilder/clamp()}} in the compiled graph if the required clamping behavior is not provided by the underlying platform. Similarly, if the underlying platform does not support negative indices, the implementation can introduce operations in the compiled graph to transform a negative index from the end of the dimension into a positive index.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>scatterNd(|input|, |indices|, |updates|, |options|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>scatterND(|input|, |indices|, |updates|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |indices|, and |updates| returns false, then [=exception/throw=] a {{TypeError}}.
@@ -8554,7 +8554,7 @@ partial dictionary MLOpSupportLimits {
     1. Let |outputDesc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |shapeOutput|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given |outputDesc|.
-        1. Let |operator| be an [=operator=] for the "scatterNd" operation, given |input|, |indices|, |updates|, and |options|.
+        1. Let |operator| be an [=operator=] for the "scatterND" operation, given |input|, |indices|, |updates|, and |options|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input|, |indices|, and |updates|.
         1. Set |operator|'s [=operator/output=] to |output|.
@@ -8564,7 +8564,7 @@ partial dictionary MLOpSupportLimits {
 <div class="example">
 <details open>
   <summary>
-    Examples of how scatterNd works in different slicing schemes.
+    Examples of how scatterND works in different slicing schemes.
   </summary>
   <pre highlight="js">
     // input of shape [8]:
@@ -8591,7 +8591,7 @@ partial dictionary MLOpSupportLimits {
       {dataType: 'uint32', shape: [4]},
       new Uint32Array([-1, -2, -3, -4]));
 
-    const output1 = builder.scatterNd(input1, indices1, updates1);
+    const output1 = builder.scatterND(input1, indices1, updates1);
 
     // input of shape [2,2]:
     //   [[0, 1],
@@ -8617,7 +8617,7 @@ partial dictionary MLOpSupportLimits {
       {dataType: 'uint32', shape: [2]},
       new Uint32Array([-1, -2]));
 
-    const output2 = builder.scatterNd(input2, indices2, updates2);
+    const output2 = builder.scatterND(input2, indices2, updates2);
 
     // input of shape [3,2]:
     //   [[0, 1],
@@ -8646,7 +8646,7 @@ partial dictionary MLOpSupportLimits {
       {dataType: 'uint32', shape: [2, 2]},
       new Uint32Array([-1, -2, -3, 4]));
 
-    const output3 = builder.scatterNd(input3, indices3, updates3);
+    const output3 = builder.scatterND(input3, indices3, updates3);
 
     // input of shape [2,2,2]:
     //   [[[0, 1],
@@ -8677,7 +8677,7 @@ partial dictionary MLOpSupportLimits {
       {dataType: 'uint32', shape: [2, 2]},
       new Uint32Array([-1, -2, -3, 4]));
 
-    const output4 = builder.scatterNd(input4, indices4, updates4);
+    const output4 = builder.scatterND(input4, indices4, updates4);
   </pre>
 </details>
 </div>
