@@ -173,7 +173,7 @@ In [Remove MLDeviceType #809](https://github.com/webmachinelearning/webnn/pull/8
 > about the likely need for a caller to know whether a particular device is supported or not, because an app may want to (if say GPU is not supported) use a different more performant fallback than for WebNN to silently fall back to CPU. For example, if GPU was unavailable (even though you preferred high performance), then it might be faster to execute the model with WebGPU shaders than WebNN CPU, or it might be okay to use CPU, but the app could load a different model that's more CPU-friendly, if it knew that was the case.
 
 That sparked a discussion in [Query mechanism for supported devices #815
-](https://github.com/webmachinelearning/webnn/issues/815) about possible solutions, of which [this shape](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2657101952) gained the most support:
+](https://github.com/webmachinelearning/webnn/issues/815) about possible solutions, for instance [this shape](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2657101952) emerged as a possible starting point for further exploration, drafting a generic mechanism for capability introspection and examples of possible parameters and outcomes.
 
 ```js
 const support = await context.querySupport({
@@ -184,4 +184,10 @@ const support = await context.querySupport({
 console.log(support); // "optimized" or "fallback"
 ```
 
-The next phase in developing device selection is therefore to work out the details of this proposal.
+The next phase in developing device selection is therefore to explore this proposal and eventually others.
+
+Other use cases were raised as well, in this comment for realtime video processing:
+
+> 1. If the user selects to use functionality like background blur, we want to offer the best quality the device can offer. So the product has a small set of candidate models and technologies (WebNN, WebGPU, WASM) that it has to choose between. Accelerated technologies come with allowance for beefier models.
+
+> 2. The model/tech choser algorithm needs to be fast, and we need to avoid spending seconds or even hundreds of milliseconds to figure out if a given model should be able to run accelerated. So for example downloading the entirety (could be large things..), compiling & try-running a model seems infeasible.
