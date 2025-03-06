@@ -186,7 +186,7 @@ console.log(support); // "optimized" or "fallback"
 
 The next phase in developing device selection is therefore to explore this proposal and eventually others.
 
-Other use cases were raised as well, in this comment for realtime video processing:
+Other use cases were raised as well, in [this comment](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2658627753) for realtime video processing:
 
 > 1. If the user selects to use functionality like background blur, we want to offer the best quality the device can offer. So the product has a small set of candidate models and technologies (WebNN, WebGPU, WASM) that it has to choose between. Accelerated technologies come with allowance for beefier models.
 
