@@ -19,7 +19,7 @@ When creating a context, an application may want to provide hints to the impleme
 
 Implementations, browsers, and the underlying OS may want to control the allocation of compute devices for various use cases and system conditions.
 
-The question is in what use cases who and to what extent should control the execution context.
+The question is who should be able to, and to what extent, control the execution context state and capabilities.
 
 This has been captured by [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions), such as [device type](https://www.w3.org/TR/2025/CRD-webnn-20250131/#enumdef-mldevicetype) and [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference).
 
