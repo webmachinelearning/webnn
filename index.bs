@@ -2965,11 +2965,11 @@ partial dictionary MLOpSupportLimits {
 <div dfn-for="MLGraphBuilder/cumulativeSum(input, axis, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
-        - <dfn>axis</dfn>: an {{unsigned long}} scalar. The axis the summation will be performed on. Its value must be in the range [0, N-1] where N is *input*'s [=MLOperand/rank=].
+        - <dfn>axis</dfn>: an {{unsigned long}} scalar. The axis the summation will be performed on. Its value must be in the range [0, N-1] where N is {{MLGraphBuilder/cumulativeSum(input, axis, options)/input}}'s [=MLOperand/rank=].
         - <dfn>options</dfn>: an {{MLCumulativeSumOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *input*.
+        - an {{MLOperand}}. The output tensor of the same shape as {{MLGraphBuilder/cumulativeSum(input, axis, options)/input}}.
 </div>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/cumulativeSum()}}:
@@ -3668,7 +3668,7 @@ partial dictionary MLOpSupportLimits {
 
 
 ### dequantizeLinear ### {#api-mlgraphbuilder-dequantizelinear}
-Dequantizes an integer tensor to floating point tensor using the scale and zero-point bias, where `output = (input - zeroPoint) * scale`. The *scale* and *zeroPoint* tensors can be smaller than the *input* tensor as they are [=blockwise broadcastable=].
+Dequantizes an integer tensor to floating point tensor using the scale and zero-point bias, where `output = (input - zeroPoint) * scale`. The {{MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/scale}} and {MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/zeroPoint}} tensors can be smaller than the {MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/input}} tensor as they are [=blockwise broadcastable=].
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -4315,7 +4315,7 @@ partial dictionary MLOpSupportLimits {
         - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to gather. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
         - <dfn>options</dfn>: an optional {{MLGatherOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input*.
+    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to {{MLGraphBuilder/gatherElements(input, indices, options)/input}}'s [=MLOperand/rank=].
 </div>
 
 <table id=constraints-gatherelements class='data' link-for="MLGraphBuilder/gatherElements(input, indices, options)">
@@ -4479,7 +4479,7 @@ partial dictionary MLOpSupportLimits {
         - <dfn>indices</dfn>: an {{MLOperand}}. The indices array contains entire coordinates into the input tensor, with the rightmost dimension holding the number of dimensions per coordinate. So an indices tensor of shape [10,1] holds 10 single-axis indices, and a shape of [4,3] holds 4 indices of 3D coordinates. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, or {{MLOperandDataType/"int64"}}, and each must be in the range -N (inclusive) to N (exclusive) where N is the size of the corresponding input dimension, and a negative index means indexing from the end of the corresponding dimension.
         - <dfn>options</dfn>: an optional {{MLOperatorOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the *input*'s [=MLOperand/rank=] + *indices*'s [=MLOperand/rank=] - *indices*'s [=MLOperand/shape=][-1] - 1.
+    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the {{MLGraphBuilder/gatherND(input, indices, options)/input}}'s [=MLOperand/rank=] + {{MLGraphBuilder/gatherND(input, indices, options)/indices}}'s [=MLOperand/rank=] - {{MLGraphBuilder/gatherND(input, indices, options)/indices}}'s [=MLOperand/shape=][-1] - 1.
 </div>
 
 <table id=constraints-gathernd class='data' link-for="MLGraphBuilder/gatherND(input, indices, options)">
@@ -4504,7 +4504,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>*input*'s [=MLOperand/rank=] + *indices*'s [=MLOperand/rank=] - *indices*'s [=MLOperand/shape=][-1] - 1</td>
+    <td>{{input}}'s [=MLOperand/rank=] + {{indices}}'s [=MLOperand/rank=] - {{indices}}'s [=MLOperand/shape=][-1] - 1</td>
   </tr>
 </table>
 
@@ -4527,7 +4527,7 @@ partial dictionary MLOpSupportLimits {
     1. If |indices|'s [=MLOperand/dataType=]'s is not one of the [=/allowed data types=] (according to [this table](#constraints-gathernd)), then [=exception/throw=] a {{TypeError}}.
     1. Let |inputShape| be |input|'s [=MLOperand/shape=] and |inputRank| be |input|'s [=MLOperand/rank=].
     1. Let |indicesShape| be |indices|'s [=MLOperand/shape=] and |indicesRank| be |indices|'s [=MLOperand/rank=].
-    1. If |inputRank| or |indicesRank| is less than 1, then [=exception/throw=] a {{TypeError}}.
+    1. If the [=MLOperand/rank=] of any of |input| or |indices| is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |indexableSize| be |indicesRank| - 1.
     1. Let |coordinateSize| be |indicesShape|[|indexableSize|].
     1. If |coordinateSize| is greater than |inputRank|, then [=exception/throw=] a {{TypeError}}.
@@ -8193,7 +8193,7 @@ partial dictionary MLOpSupportLimits {
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
     **Returns:**
-        - an {{MLOperand}}. The output tensor of the same shape as *input*.
+        - an {{MLOperand}}. The output tensor of the same shape as {{MLGraphBuilder/reverse(input, options)/input}}.
 </div>
 
 <table id=constraints-reverse class='data' link-for="MLGraphBuilder/reverse(input, options)">
@@ -8283,7 +8283,7 @@ partial dictionary MLOpSupportLimits {
         - <dfn>updates</dfn>: an {{MLOperand}}. New values to replace atop the input, with the same shape as the indices.
         - <dfn>options</dfn>: an optional {{MLScatterOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to *input*'s [=MLOperand/rank=].
+    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to {{MLGraphBuilder/scatterElements(input, indices, updates, options)/input}}'s [=MLOperand/rank=].
 </div>
 
 <table id=constraints-scatterelements class='data' link-for="MLGraphBuilder/scatterElements(input, indices, updates, options)">
@@ -8499,7 +8499,7 @@ partial dictionary MLOpSupportLimits {
         - <dfn>updates</dfn>: an {{MLOperand}}. New values to replace atop the input.
         - <dfn>options</dfn>: an optional {{MLScatterOptions}}. The optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of *input*'s [=MLOperand/rank=] + *indices*'s [=MLOperand/rank=] - *indices*'s [=MLOperand/shape=][-1] - 1.
+    **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to the [=MLOperand/rank=] of {{MLGraphBuilder/scatterND(input, indices, updates, options)/input}}'s [=MLOperand/rank=] + {{MLGraphBuilder/scatterND(input, indices, updates, options)/indices}}'s [=MLOperand/rank=] - {{MLGraphBuilder/scatterND(input, indices, updates, options)/indices}}'s [=MLOperand/shape=][-1] - 1.
 </div>
 
 <table id=constraints-scatternd class='data' link-for="MLGraphBuilder/scatterND(input, indices, updates, options)">
@@ -8524,7 +8524,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{updates}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>*input*'s [=MLOperand/rank=] + *indices*'s [=MLOperand/rank=] - *indices*'s [=MLOperand/shape=][-1] - 1</td>
+    <td>{{input}}'s [=MLOperand/rank=] + {{indices}}'s [=MLOperand/rank=] - {{indices}}'s [=MLOperand/shape=][-1] - 1</td>
   </tr>
   <tr>
     <td>*output*</td>
