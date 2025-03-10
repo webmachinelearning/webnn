@@ -3211,9 +3211,9 @@ partial dictionary MLOpSupportLimits {
   MLBinarySupportLimits lesser;
   MLBinarySupportLimits lesserOrEqual;
   MLLogicalNotSupportLimits logicalNot;
-  MLLogicalNotSupportLimits logicalAnd;
-  MLLogicalNotSupportLimits logicalOr;
-  MLLogicalNotSupportLimits logicalXor;
+  MLBinarySupportLimits logicalAnd;
+  MLBinarySupportLimits logicalOr;
+  MLBinarySupportLimits logicalXor;
 };
 </script>
 
@@ -3711,7 +3711,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
   </tr>
   <tr>
@@ -3757,11 +3757,11 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |scale|, and |zeroPoint| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |scale|'s [=MLOperand/rank=] or |zeroPoint|'s [=MLOperand/rank=] is not equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |scale|'s [=MLOperand/shape=] is not [=list/equal=] to |zeroPoint|'s [=MLOperand/shape=], then [=exception/throw=] a {{TypeError}}.
-    1. If [=blockwise broadcasting=] |scale|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. If [=blockwise broadcasting=] |zeroPoint|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns failure, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-quantizelinear)), then [=exception/throw=] a {{TypeError}}.
-    1. If |scale|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-quantizelinear)), then [=exception/throw=] a {{TypeError}}.
-    1. If |zeroPoint|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-quantizelinear)), then [=exception/throw=] a {{TypeError}}.
+    1. If [=blockwise broadcasting=] |scale|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=blockwise broadcasting=] |zeroPoint|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=] returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-dequantizelinear)), then [=exception/throw=] a {{TypeError}}.
+    1. If |scale|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-dequantizelinear)), then [=exception/throw=] a {{TypeError}}.
+    1. If |zeroPoint|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-dequantizelinear)), then [=exception/throw=] a {{TypeError}}.
     1. Let |outputDescriptor| be the result of [=creating an MLOperandDescriptor=] given |scale|'s [=MLOperand/dataType=] and |input|'s [=MLOperand/shape=].
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDescriptor|.
@@ -3787,38 +3787,40 @@ partial dictionary MLOpSupportLimits {
       return builder.mul(builder.sub(floatInput, upsampledZeroPoint), upsampledScale);
     }
 
-    function blockwiseExpand(builder, input, targetShape) {
-      // This expands each axis by repeating the block the number of times per that axis, given the
-      // original input shape and target shape. However, backend implementations might have much more
-      // efficient upsampling operators that can accept multiple dimensions to upsample all
-      // dimensions at once by integer multiples (like tile) using nearest neighbor resampling:
+    function blockwiseExpand(builder, input, outputShape) {
+      // Given the original input and a desired output shape, this expands each axis
+      // by repeating the block the number of times per that axis. Though, backend
+      // implementations might have much more efficient upsampling operators that
+      // can accept multiple dimensions to upsample all dimensions at once by
+      // integer multiples (like tile) using nearest neighbor resampling:
       // output = resample(scale, {sizes: input.shape})
 
-      let expandedInput = input;
+      let output = input;
 
       for (let axis = 0; axis < input.shape.length; ++axis) {
-        const inputShape = expandedInput.shape;
-        const oldDimensionLength = inputShape[axis];
-        const newDimensionLength = targetShape[axis];
+        const oldShape = output.shape;
+        const oldDimensionLength = oldShape[axis];
+        const newDimensionLength = outputShape[axis];
 
         if (newDimensionLength != oldDimensionLength) {
-          // Since tile/expand can only accept repetitions of entire dimension slices (not repeating
-          // individual elements along an axis), temporarily reshape the tensor to enable them to broadcast
-          // the elements up to the full block size, utilizing an inserted dimension of size 1.
+          // Since tile/expand can only accept repetitions of entire dimension
+          // slices (not repeating individual elements along an axis), temporarily
+          // reshape the tensor to enable them to broadcast the elements up to the
+          // full block size, utilizing an inserted dimension of size 1.
           const elementRepeatCount = newDimensionLength / oldDimensionLength;
-          const flattenedShape = getFlattenedShapeAroundAxis(inputShape, axis);
+          const flattenedShape = getFlattenedShapeAroundAxis(oldShape, axis);
           const unexpandedShape = [flattenedShape[0], flattenedShape[1], 1, flattenedShape[2]];
           const expandedShape = [flattenedShape[0], flattenedShape[1], elementRepeatCount, flattenedShape[2]];
-          const reshapedInput = builder.reshape(expandedInput, unexpandedShape);
-          expandedInput = builder.expand(reshapedInput, expandedShape);
-        }
+          const reshapedInput = builder.reshape(output, unexpandedShape);
+          output = builder.expand(reshapedInput, expandedShape);
 
-        let newInputShape = [...inputShape];
-        newInputShape[axis] = newDimensionLength;
-        expandedInput = builder.reshape(expandedInput, newInputShape);
+          let newShape = [...oldShape];
+          newShape[axis] = newDimensionLength;
+          output = builder.reshape(output, newShape);
+        }
       }
 
-      return expandedInput;
+      return output;
     }
 
     // Compute the flattened shape before and after the given axis, yielding a 3-element list.
@@ -3882,7 +3884,7 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{zeroPoint}}</td>
-    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
   <tr>
@@ -4245,7 +4247,7 @@ partial dictionary MLOpSupportLimits {
     //    [20, 21, 22],
     //    [30, 31, 32]]
     const input = builder.constant(
-      {shape: [4, 3]},
+      {dataType: 'float32', shape: [4, 3]},
       new Float32Array([0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32]));
 
     // axis = 0 (default)
@@ -4333,12 +4335,12 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{indices}}</td>
     <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
-    <td>*input*'s [=MLOperand/rank=]</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>*input*'s [=MLOperand/rank=]</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -4358,7 +4360,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |indices| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |indices|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gather)), then [=exception/throw=] a {{TypeError}}.
+    1. If |indices|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gatherelements)), then [=exception/throw=] a {{TypeError}}.
     1. Let |axis| be |options|.{{MLGatherOptions/axis}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |indicesShapeExpected| be a copy of |input|'s [=MLOperand/shape=].
@@ -4394,12 +4396,12 @@ partial dictionary MLOpSupportLimits {
     //    [20,  1, 32]]
 
     const input1 = builder.constant(
-      {shape: [4, 3]},
+      {dataType: 'float32', shape: [4, 3]},
       new Float32Array([0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32]));
 
     const indices1 = builder.constant(
       {dataType: 'uint32', shape: [2, 3]},
-      new Uint32Array([3, 1, 2, 2, 0, 1]));
+      new Uint32Array([3, 1, 1, 2, 0, 3]));
 
     const output1 = builder.gatherElements(input1, indices1);
 
@@ -4443,15 +4445,15 @@ partial dictionary MLOpSupportLimits {
     //   [[[  0, 201],
     //     [110, 311]]]
 
-    const input2 = builder.constant(
-      {shape: [4, 2, 2]},
+    const input3 = builder.constant(
+      {dataType: 'float32', shape: [4, 2, 2]},
       new Float32Array([0, 1, 10, 11, 100, 101, 110, 111, 200, 201, 210, 211, 300, 301, 310, 311]));
 
     const indices3 = builder.constant(
       {dataType: 'uint32', shape: [1, 2, 2]},
-      new Uint32Array([0, 1, 1, 2]));
+      new Uint32Array([0, 2, 1, 3]));
 
-    const output3 = builder.gatherElements(input2, indices3, {axis: 2});
+    const output3 = builder.gatherElements(input3, indices3, {axis: 0});
   </pre>
 </details>
 </div>
@@ -4522,7 +4524,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |indices| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s or |indices|'s [=MLOperand/dataType=]'s are not one of their [=/allowed data types=] (according to [this table](#constraints-gather)), then [=exception/throw=] a {{TypeError}}.
+    1. If |indices|'s [=MLOperand/dataType=]'s is not one of the [=/allowed data types=] (according to [this table](#constraints-gathernd)), then [=exception/throw=] a {{TypeError}}.
     1. Let |inputShape| be |input|'s [=MLOperand/shape=] and |inputRank| be |input|'s [=MLOperand/rank=].
     1. Let |indicesShape| be |indices|'s [=MLOperand/shape=] and |indicesRank| be |indices|'s [=MLOperand/rank=].
     1. If |inputRank| or |indicesRank| is less than 1, then [=exception/throw=] a {{TypeError}}.
@@ -4561,7 +4563,7 @@ partial dictionary MLOpSupportLimits {
     //   [0, 3, 2]
 
     const input1 = builder.constant(
-      {shape: [2, 2]},
+      {dataType: 'float32', shape: [2, 2]},
       new Float32Array([0, 1, 2, 3]));
 
     const indices1 = builder.constant(
@@ -4599,7 +4601,7 @@ partial dictionary MLOpSupportLimits {
     //    [4, 5]]   <= row [4, 5] from input coordinates [1, 0, *]
 
     const input2 = builder.constant(
-      {shape: [2, 2, 2]},
+      {dataType: 'float32', shape: [2, 2, 2]},
       new Float32Array([0, 1, 2, 3, 4, 5, 6, 7]));
 
     const indices3 = builder.constant(
@@ -4647,7 +4649,7 @@ partial dictionary MLOpSupportLimits {
 
     const indices5 = builder.constant(
       {dataType: 'uint32', shape: [5, 3]},
-      new Uint32Array([0,0,1, 0,1,0, 1,0,0, 1,1,0, 1,1,1]));
+      new Uint32Array([0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1]));
 
     const output5 = builder.gatherND(input2, indices5);
   </pre>
@@ -8278,7 +8280,7 @@ partial dictionary MLOpSupportLimits {
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor from to initialize the output with.
         - <dfn>indices</dfn>: an {{MLOperand}}. The indices N-D tensor of the input values to scatter over. The values must be of type {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, or {{MLOperandDataType/"int64"}}, and must be in the range -N (inclusive) to N (exclusive) where N is the size of the input dimension indexed by *options.axis*, and a negative index means indexing from the end of the dimension.
-        - <dfn>updates</dfn>: an {{MLOperand}}. New values to replace atop the input.
+        - <dfn>updates</dfn>: an {{MLOperand}}. New values to replace atop the input, with the same shape as the indices.
         - <dfn>options</dfn>: an optional {{MLScatterOptions}}. The optional parameters of the operation.
 
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] equal to *input*'s [=MLOperand/rank=].
@@ -8301,17 +8303,17 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{indices}}</td>
     <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
-    <td>{{input}}'s [=MLOperand/rank=]</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
   <tr>
     <td>{{updates}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>{{input}}'s [=MLOperand/rank=] and {{indices}}'s [=MLOperand/shape=]</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>{{input}}'s [=MLOperand/rank=]</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
 
@@ -8343,7 +8345,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |indices| and |updates| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |indices|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gather)), then [=exception/throw=] a {{TypeError}}.
+    1. If |indices|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-scatterelements)), then [=exception/throw=] a {{TypeError}}.
     1. If |updates|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |axis| be |options|.{{MLGatherOptions/axis}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
@@ -8386,7 +8388,7 @@ partial dictionary MLOpSupportLimits {
     //    [-1, 31, -6]]
 
     const input1 = builder.constant(
-      {shape: [4, 3]},
+      {dataType: 'float32', shape: [4, 3]},
       new Float32Array([0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32]));
 
     const indices1 = builder.constant(
@@ -8446,7 +8448,7 @@ partial dictionary MLOpSupportLimits {
     // updates of shape [1,2,2]:
     //   [[[-1, -2],
     //     [-3, -4]]],
-    // axis = 2
+    // axis = 0
     // output of shape [4,2,2]:
     //   [[[ -1,   1],
     //     [ 10,  11]],
@@ -8456,8 +8458,9 @@ partial dictionary MLOpSupportLimits {
     //     [210, 211]],
     //    [[300, 301],
     //     [310,  -4]],]
-    const input2 = builder.constant(
-      {shape: [4, 2, 2]},
+
+    const input3 = builder.constant(
+      {dataType: 'float32', shape: [4, 2, 2]},
       new Float32Array([0, 1, 10, 11, 100, 101, 110, 111, 200, 201, 210, 211, 300, 301, 310, 311]));
 
     const indices3 = builder.constant(
@@ -8468,7 +8471,7 @@ partial dictionary MLOpSupportLimits {
       builder.constant({dataType: 'float32', shape: [1, 2, 2]},
       new Uint32Array([-1, -2, -3, -4]));
 
-    const output3 = builder.scatterElements(input2, indices3, updates3, {axis: 2});
+    const output3 = builder.scatterElements(input3, indices3, updates3, {axis: 0});
   </pre>
 </details>
 </div>
@@ -8546,7 +8549,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input|, |indices|, and |updates| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s or |indices|'s [=MLOperand/dataType=]'s are not one of their [=/allowed data types=] (according to [this table](#constraints-gather)), then [=exception/throw=] a {{TypeError}}.
+    1. If |indices|'s [=MLOperand/dataType=]'s is not one of the [=/allowed data types=] (according to [this table](#constraints-scatternd)), then [=exception/throw=] a {{TypeError}}.
     1. If |updates|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. Let |inputShape| be |input|'s [=MLOperand/shape=] and |inputRank| be |input|'s [=MLOperand/rank=].
     1. Let |indicesShape| be |indices|'s [=MLOperand/shape=] and |indicesRank| be |indices|'s [=MLOperand/rank=].
@@ -8554,12 +8557,12 @@ partial dictionary MLOpSupportLimits {
     1. Let |indexableSize| be |indicesRank| - 1.
     1. Let |coordinateSize| be |indicesShape|[|indexableSize|].
     1. If |coordinateSize| is greater than |inputRank|, then [=exception/throw=] a {{TypeError}}.
-    1. Let |updatesShape| be an empty list.
+    1. Let |expectedUpdatesShape| be an empty list.
     1. [=list/For each=] |index| in [=the range=] 0 to |indexableSize|, exclusive:
-        1. [=list/Append=] |indicesShape|[|index|] to |updatesShape|.
+        1. [=list/Append=] |indicesShape|[|index|] to |expectedUpdatesShape|.
     1. [=list/For each=] |index| in [=the range=] |coordinateSize| to |inputRank|, exclusive:
-        1. [=list/Append=] |inputShape|[|index|] to |updatesShape|.
-    1. Let |updates|'s [=MLOperand/shape=] is not [=list/equal=] to |updatesShape|, then [=exception/throw=] a {{TypeError}}.
+        1. [=list/Append=] |inputShape|[|index|] to |expectedUpdatesShape|.
+    1. If |updates|'s [=MLOperand/shape=] is not [=list/equal=] to |expectedUpdatesShape|, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be a copy of |input|'s [=MLOperand/shape=].
     1. Let |outputDesc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
@@ -8590,7 +8593,7 @@ partial dictionary MLOpSupportLimits {
     //   [0, -3, 2, -2, -1, 5, 6, -4]
 
     const input1 = builder.constant(
-      {shape: [8]},
+      {dataType: 'float32', shape: [8]},
       new Float32Array([0, 1, 2, 3, 4, 5, 6, 7]));
 
     const indices1 = builder.constant(
@@ -8616,7 +8619,7 @@ partial dictionary MLOpSupportLimits {
     //    [ 2, -2]]   <= -2 written to output coordinate [1, 1]
 
     const input2 = builder.constant(
-      {shape: [2, 2]},
+      {dataType: 'float32', shape: [2, 2]},
       new Float32Array([0, 1, 2, 3]));
 
     const indices2 = builder.constant(
@@ -8645,7 +8648,7 @@ partial dictionary MLOpSupportLimits {
     //    [-1, -2]]    <= [-1, -2] written to output coordinates [2, *]
 
     const input3 = builder.constant(
-      {shape: [3, 2]},
+      {dataType: 'float32', shape: [3, 2]},
       new Float32Array([0, 1, 2, 3, 4, 5]));
 
     const indices3 = builder.constant(
@@ -8676,7 +8679,7 @@ partial dictionary MLOpSupportLimits {
     //     [ 6,  7]]]
 
     const input4 = builder.constant(
-      {shape: [2, 2, 2]},
+      {dataType: 'float32', shape: [2, 2, 2]},
       new Float32Array([0, 1, 2, 3, 4, 5, 6, 7]));
 
     const indices4 = builder.constant(
@@ -8798,7 +8801,7 @@ partial dictionary MLOpSupportLimits {
     ::
         The stride to step over each input along each axis.
         The length of the strides array must equal the [=MLOperand/rank=] of the input tensor.
-        The the default is an array of length [=MLOperand/rank=] consisting of all 1's.
+        The default is an array of length [=MLOperand/rank=] consisting of all 1's.
         e.g. [1,1,1] for a 3-D tensor.
         Strides must be greater than zero.
 </dl>
@@ -9587,7 +9590,8 @@ partial dictionary MLOpSupportLimits {
     //    [9, 4, 8],
     //    [2, 6, 3]]
     const input = builder.constant(
-      {shape: [3, 3]}, new Float32Array([7, 1, 2, 9, 4, 8, 2, 6, 3]));
+      {dataType: 'float32', shape: [3, 3]},
+      new Float32Array([7, 1, 2, 9, 4, 8, 2, 6, 3]));
 
     // upper triangular matrix:
     //   [[7, 1, 2],
