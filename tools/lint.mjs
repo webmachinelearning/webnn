@@ -83,8 +83,9 @@ const root = parse(file, {
 });
 
 log('simplifying DOM...');
-// Remove script and style elements from consideration
-for (const element of root.querySelectorAll('script, style')) {
+// Remove script and style elements from consideration. Remove generated indexes
+// too, since they can lead to duplicate false-positive matches for lint rules.
+for (const element of root.querySelectorAll('script, style, .index')) {
   element.remove();
 }
 
@@ -175,6 +176,9 @@ for (const match of source.matchAll(/1\. Else/ig)) {
 for (const match of text.matchAll(/ not the same as /g)) {
   error(`Prefer "not equal to": ${format(match)}`);
 }
+for (const match of text.matchAll(/\bthe \S+ argument\b/g)) {
+  error(`Drop 'the' and 'argument': ${format(match)}`);
+}
 
 // Look for incorrect use of shape for an MLOperandDescriptor
 for (const match of source.matchAll(/(\|\w*desc\w*\|)'s \[=MLOperand\/shape=\]/ig)) {
@@ -186,13 +190,18 @@ for (const element of root.querySelectorAll('.idl dfn[data-dfn-type=dict-member]
   error(`Dictionary member missing dfn: ${element.innerText}`);
 }
 
-// Look for [] used in algorithm steps for anything but indexing, slots, and refs
+// Look for suspicious stuff in algorithm steps
 for (const element of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
+  // [] used for anything but indexing, slots, and refs
   // Exclude \w[ for indexing (e.g. shape[n])
   // Exclude [[ for inner slots (e.g. [[name]])
   // Exclude [A for references (e.g. [WEBIDL])
   for (const match of element.innerText.matchAll(/(?<!\w|\[|\]|«)\[(?!\[|[A-Z])/g)) {
     error(`Non-index use of [] in algorithm: ${format(match)}`);
+  }
+  // | is likely an unclosed variable
+  for (const match of element.innerText.matchAll(/\|/g)) {
+    error(`Unclosed variable in algorithm: ${format(match)}`);
   }
 }
 
@@ -225,8 +234,9 @@ for (const algorithm of root.querySelectorAll('.algorithm')) {
         'let «( .*,)? ' + name + '(, .*)? » be',
 
         // "For each var ..."
-        // "For each ...  → var ..."
-        'for each( \\w+ →)? ' + name,
+        // "For each type var ..."
+        // "For each key → var ..."
+        'for each( \\w+| \\w+ →)? ' + name,
       ];
       if (patterns.some(p => new RegExp('\\b' + p + '\\b', 'i').test(text))) {
         // Variable declaration/initialization
@@ -242,6 +252,13 @@ for (const algorithm of root.querySelectorAll('.algorithm')) {
     }
   }
 }
+
+// Eschew vars outside of algorithms.
+const algorithmVars = new Set(root.querySelectorAll('.algorithm var'));
+for (const v of root.querySelectorAll('var').filter(v => !algorithmVars.has(v))) {
+  error(`Variable outside of algorithm: ${v.innerText}`);
+}
+
 
 // Prevent accidental normative references to other specs. This reports an error
 // if there is a normative reference to any spec *other* than these ones. This
@@ -313,6 +330,40 @@ for (const dfn of root.querySelectorAll('dfn[data-dfn-type=argument]')) {
   if (!dfnFor.split(/\b/).includes(dfn.innerText)) {
     error(`Argument definition '${dfn.innerText}' doesn't appear in '${dfnFor}'`);
   }
+}
+
+// Try to catch type mismatches like |tensor|.{{MLGraph/...}}. Note that the
+// test is keyed on the variable name; variables listed here are not validated.
+for (const match of source.matchAll(/\|(\w+)\|\.{{(\w+)\/.*?}}/g)) {
+  const [_, v, i] = match;
+  [['MLTensor', ['tensor']],
+   ['MLGraph', ['graph']],
+   ['MLOperand', ['operand', 'input', 'output0', 'output1', 'output2']],
+   ['MLOperandDescriptor', ['descriptor', 'desc', 'inputDescriptor']],
+  ].forEach(pair => {
+    const [iname, vnames] = pair;
+    vnames.forEach(vname => {
+      if (v === vname && i !== iname) {
+        error(`Variable name '${v}' and type '${i}' do not match: ${
+          format(match)}`);
+      }
+    });
+  });
+}
+
+// TODO: Generate this from the IDL itself.
+const dictionaryTypes = ['MLOperandDescriptor', 'MLContextLostInfo'];
+
+// Ensure JS objects are created with explicit realm
+for (const match of text.matchAll(/ a new promise\b(?! in realm)/g)) {
+  error(`Promise creation must specify realm: ${format(match)}`);
+}
+for (const match of text.matchAll(/ be a new ([A-Z]\w+)\b(?! in realm)/g)) {
+  const type = match[1];
+  // Dictionaries are just maps, so they don't need a realm.
+  if (dictionaryTypes.includes(type))
+    continue;
+  error(`Object creation must specify realm: ${format(match)}`);
 }
 
 globalThis.process.exit(exitCode);
