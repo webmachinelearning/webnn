@@ -1169,15 +1169,18 @@ The {{MLOpSupportLimits}} has the following top level members, aside from these,
 <script type="idl">
 dictionary MLOpSupportLimits {
   MLInputOperandLayout preferredInputLayout;
-  MLSupportLimits input;
-  MLSupportLimits constant;
-  MLSupportLimits output;
+  [EnforceRange] unsigned long long maxTensorByteLength;
+  MLDataTypeLimits input;
+  MLDataTypeLimits constant;
+  MLDataTypeLimits output;
 };
 </script>
 
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>preferredInputLayout</dfn>
     :: Preferred input layout for layout dependent operators like {{MLGraphBuilder/conv2d()}}.
+    : <dfn>maxTensorByteLength</dfn>
+    :: The maximum supported length of tensors, in bytes.
     : <dfn>input</dfn>
     :: Support limits for input {{MLOperand}}s for an {{MLGraph}}.
     : <dfn>constant</dfn>
@@ -1185,48 +1188,73 @@ dictionary MLOpSupportLimits {
     : <dfn>output</dfn>
     :: Support limits for output {{MLOperand}}s for an {{MLGraph}}.
 </dl>
-#### {{MLSupportLimits}} dictionary #### {#api-mlcontext-supportlimits-dictionary}
+#### {{MLDataTypeLimits}} dictionary #### {#api-mlcontext-datatypelimits-dictionary}
 <script type="idl">
-dictionary MLSupportLimits {
+dictionary MLDataTypeLimits {
   sequence<MLOperandDataType> dataTypes;
 };
 </script>
-<dl dfn-type=dict-member dfn-for=MLSupportLimits>
+<dl dfn-type=dict-member dfn-for=MLDataTypeLimits>
     : <dfn>dataTypes</dfn>
     :: Supported data types.
+</dl>
+
+#### {{MLRankRange}} dictionary #### {#api-mlcontext-rankrange-dictionary}
+<script type="idl">
+dictionary MLRankRange {
+  unsigned long min;
+  unsigned long max;
+};
+</script>
+<dl dfn-type=dict-member dfn-for=MLRankRange>
+    : <dfn>min</dfn>
+    :: Minimum supported rank.
+    : <dfn>max</dfn>
+    :: Maximum supported rank.
+</dl>
+
+#### {{MLTensorLimits}} dictionary #### {#api-mlcontext-tensorlimits-dictionary}
+<script type="idl">
+dictionary MLTensorLimits : MLDataTypeLimits {
+  MLRankRange rankRange;
+};
+</script>
+<dl dfn-type=dict-member dfn-for=MLTensorLimits>
+    : <dfn>rankRange</dfn>
+    :: Minimum and maximum supported ranks.
 </dl>
 
 #### {{MLBinarySupportLimits}} dictionary #### {#api-mlcontext-binarysupportlimits-dictionary}
 <script type="idl">
 dictionary MLBinarySupportLimits {
-  MLSupportLimits a;
-  MLSupportLimits b;
-  MLSupportLimits output;
+  MLTensorLimits a;
+  MLTensorLimits b;
+  MLDataTypeLimits output;
 };
 </script>
 
 <dl dfn-type=dict-member dfn-for=MLBinarySupportLimits>
     : <dfn>a</dfn>
-    :: {{MLSupportLimits}} for a operand.
+    :: {{MLTensorLimits}} for a operand.
     : <dfn>b</dfn>
-    :: {{MLSupportLimits}} for b operand.
+    :: {{MLTensorLimits}} for b operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 #### {{MLSingleInputSupportLimits}} dictionary #### {#api-mlcontext-singleinputsupportlimits-dictionary}
 <script type="idl">
 dictionary MLSingleInputSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLDataTypeLimits output;
 };
 </script>
 
 <dl dfn-type=dict-member dfn-for=MLSingleInputSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 ### {{MLContext/destroy()}}  ### {#api-mlcontext-destroy}
@@ -1466,7 +1494,13 @@ Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/cons
 
 If an operation supports only a subset of {{MLOperandDataType}}s, the <dfn>allowed data types</dfn> for each of the operation's input operands, including both positional arguments and options, are given as either an explicit list of {{MLOperandDataType}}s, or a constraint that the operand's [=MLOperand/dataType=] must be the <dfn lt="same type as">same as</dfn> the [=MLOperand/dataType=] of another input operand, or <dfn lt="any data type">any</dfn> to allow any {{MLOperandDataType}}.
 
+Implementations may support additional data types for operands. This can be queried for each operation using the {{MLContext/opSupportLimits()}} method on {{MLContext}} and inspecting the {{MLDataTypeLimits/dataTypes}} value of the corresponding member for the operation.
+
+Issue: Can conforming implementations support *fewer* data types for an operation than what is listed for their [=allowed data types=]? In other words, is the list of allowed types only a recommendation?
+
 If an operation requires input operands with a particular [=MLOperand/rank=], the <dfn>allowed ranks</dfn> for each of the operation's input operands, including both positional arguments and options, are given as an explicit rank (e.g. 1), or <dfn lt="any rank">N</dfn> to allow any dimensionality, or the <dfn lt="same rank as">same as</dfn> another operand. More specific constraints are common, such as when an input operand's shape must be [=/unidirectionally broadcastable=] to or [=/bidirectionally broadcastable=] with another input operand; in these cases, the [=/allowed ranks=] are listed as a range, with specific validation given as steps in the operation.
+
+Implementations may (and usually do) impose an upper bound on the [=MLOperand/rank=] of operands. This can be queried for each operation using the {{MLContext/opSupportLimits()}} method on {{MLContext}} and inspecting the {{MLTensorLimits/rankRange}}.{{MLRankRange/max}} value of the corresponding member for the operation.
 
 {{MLOperatorOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLOperatorOptions>
@@ -1950,12 +1984,12 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLBatchNormalizationSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits mean;
-  MLSupportLimits variance;
-  MLSupportLimits scale;
-  MLSupportLimits bias;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits mean;
+  MLTensorLimits variance;
+  MLTensorLimits scale;
+  MLTensorLimits bias;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -2036,17 +2070,17 @@ partial dictionary MLOpSupportLimits {
 {{MLBatchNormalizationSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLBatchNormalizationSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>mean</dfn>
-    :: {{MLSupportLimits}} for mean operand.
+    :: {{MLTensorLimits}} for mean operand.
     : <dfn>variance</dfn>
-    :: {{MLSupportLimits}} for variance operand.
+    :: {{MLTensorLimits}} for variance operand.
     : <dfn>scale</dfn>
-    :: {{MLSupportLimits}} for scale operand.
+    :: {{MLTensorLimits}} for scale operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLTensorLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/batchNormalization()}}:
@@ -2355,8 +2389,8 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLConcatSupportLimits {
-  MLSupportLimits inputs;
-  MLSupportLimits output;
+  MLTensorLimits inputs;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -2400,9 +2434,9 @@ partial dictionary MLOpSupportLimits {
 {{MLConcatSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLConcatSupportLimits>
     : <dfn>inputs</dfn>
-    :: {{MLSupportLimits}} for all input operands.
+    :: {{MLTensorLimits}} for all input operands.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/concat()}}:
@@ -2471,10 +2505,10 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLConv2dSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits filter;
-  MLSupportLimits bias;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits filter;
+  MLTensorLimits bias;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -2575,13 +2609,13 @@ partial dictionary MLOpSupportLimits {
 {{MLConv2dSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLConv2dSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>filter</dfn>
-    :: {{MLSupportLimits}} for filter operand.
+    :: {{MLTensorLimits}} for filter operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/conv2d()}}:
@@ -3199,8 +3233,8 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLLogicalNotSupportLimits {
-  MLSupportLimits a;
-  MLSupportLimits output;
+  MLTensorLimits a;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -3256,9 +3290,9 @@ partial dictionary MLOpSupportLimits {
 {{MLLogicalNotSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLogicalNotSupportLimits>
     : <dfn>a</dfn>
-    :: {{MLSupportLimits}} for a operand.
+    :: {{MLTensorLimits}} for a operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following members for element-wise logical operations:
@@ -3678,15 +3712,15 @@ partial interface MLGraphBuilder {
                              optional MLOperatorOptions options = {});
 };
 
-dictionary MLQuantizationSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits scale;
-  MLSupportLimits zeroPoint;
-  MLSupportLimits output;
+dictionary MLQuantizeDequantizeLinearSupportLimits {
+  MLTensorLimits input;
+  MLTensorLimits scale;
+  MLTensorLimits zeroPoint;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
-  MLQuantizationSupportLimits dequantizeLinear;
+  MLQuantizeDequantizeLinearSupportLimits dequantizeLinear;
 };
 </script>
 
@@ -3731,16 +3765,16 @@ partial dictionary MLOpSupportLimits {
   </tr>
 </table>
 
-{{MLQuantizationSupportLimits}} has the following members:
-<dl dfn-type=dict-member dfn-for=MLQuantizationSupportLimits>
+{{MLQuantizeDequantizeLinearSupportLimits}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLQuantizeDequantizeLinearSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>scale</dfn>
-    :: {{MLSupportLimits}} for scale operand.
+    :: {{MLTensorLimits}} for scale operand.
     : <dfn>zeroPoint</dfn>
-    :: {{MLSupportLimits}} for zeroPoint operand.
+    :: {{MLTensorLimits}} for zeroPoint operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/dequantizeLinear()}}:
@@ -3849,7 +3883,7 @@ partial interface MLGraphBuilder {
 };
 
 partial dictionary MLOpSupportLimits {
-  MLQuantizationSupportLimits quantizeLinear;
+  MLQuantizeDequantizeLinearSupportLimits quantizeLinear;
 };
 </script>
 
@@ -4124,9 +4158,9 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLGatherSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits indices;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits indices;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -4183,11 +4217,11 @@ partial dictionary MLOpSupportLimits {
 {{MLGatherSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGatherSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>indices</dfn>
-    :: {{MLSupportLimits}} for indices operand.
+    :: {{MLTensorLimits}} for indices operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/gather()}}:
@@ -4757,10 +4791,10 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLGemmSupportLimits {
-  MLSupportLimits a;
-  MLSupportLimits b;
-  MLSupportLimits c;
-  MLSupportLimits output;
+  MLTensorLimits a;
+  MLTensorLimits b;
+  MLTensorLimits c;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -4834,13 +4868,13 @@ partial dictionary MLOpSupportLimits {
 {{MLGemmSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGemmSupportLimits>
     : <dfn>a</dfn>
-    :: {{MLSupportLimits}} for a operand.
+    :: {{MLTensorLimits}} for a operand.
     : <dfn>b</dfn>
-    :: {{MLSupportLimits}} for b operand.
+    :: {{MLTensorLimits}} for b operand.
     : <dfn>c</dfn>
-    :: {{MLSupportLimits}} for c operand.
+    :: {{MLTensorLimits}} for c operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gemm()}}:
@@ -4945,13 +4979,13 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLGruSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits weight;
-  MLSupportLimits recurrentWeight;
-  MLSupportLimits bias;
-  MLSupportLimits recurrentBias;
-  MLSupportLimits initialHiddenState;
-  MLSupportLimits outputs;
+  MLTensorLimits input;
+  MLTensorLimits weight;
+  MLTensorLimits recurrentWeight;
+  MLTensorLimits bias;
+  MLTensorLimits recurrentBias;
+  MLTensorLimits initialHiddenState;
+  MLDataTypeLimits outputs;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -5061,19 +5095,19 @@ partial dictionary MLOpSupportLimits {
 {{MLGruSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGruSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>weight</dfn>
-    :: {{MLSupportLimits}} for weight operand.
+    :: {{MLTensorLimits}} for weight operand.
     : <dfn>recurrentWeight</dfn>
-    :: {{MLSupportLimits}} for recurrentWeight operand.
+    :: {{MLTensorLimits}} for recurrentWeight operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>recurrentBias</dfn>
-    :: {{MLSupportLimits}} for recurrentBias operand.
+    :: {{MLTensorLimits}} for recurrentBias operand.
     : <dfn>initialHiddenState</dfn>
-    :: {{MLSupportLimits}} for initialHiddenState operand.
+    :: {{MLTensorLimits}} for initialHiddenState operand.
     : <dfn>outputs</dfn>
-    :: {{MLSupportLimits}} for all the output operands.
+    :: {{MLDataTypeLimits}} for all the output operands.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gru()}}:
@@ -5286,13 +5320,13 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLGruCellSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits weight;
-  MLSupportLimits recurrentWeight;
-  MLSupportLimits hiddenState;
-  MLSupportLimits bias;
-  MLSupportLimits recurrentBias;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits weight;
+  MLTensorLimits recurrentWeight;
+  MLTensorLimits hiddenState;
+  MLTensorLimits bias;
+  MLTensorLimits recurrentBias;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -5379,19 +5413,19 @@ partial dictionary MLOpSupportLimits {
 {{MLGruCellSupportLimits}} has the following members;
 <dl dfn-type=dict-member dfn-for=MLGruCellSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>weight</dfn>
-    :: {{MLSupportLimits}} for weight operand.
+    :: {{MLTensorLimits}} for weight operand.
     : <dfn>recurrentWeight</dfn>
-    :: {{MLSupportLimits}} for recurrentWeight operand.
+    :: {{MLTensorLimits}} for recurrentWeight operand.
     : <dfn>hiddenState</dfn>
-    :: {{MLSupportLimits}} for hiddenState operand.
+    :: {{MLTensorLimits}} for hiddenState operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>recurrentBias</dfn>
-    :: {{MLSupportLimits}} for recurrentBias operand.
+    :: {{MLTensorLimits}} for recurrentBias operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gruCell()}}:
@@ -5748,10 +5782,10 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLNormalizationSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits scale;
-  MLSupportLimits bias;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits scale;
+  MLTensorLimits bias;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -5821,13 +5855,13 @@ partial dictionary MLOpSupportLimits {
 {{MLNormalizationSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLNormalizationSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>scale</dfn>
-    :: {{MLSupportLimits}} for scale operand.
+    :: {{MLTensorLimits}} for scale operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/instanceNormalization()}}:
@@ -6264,15 +6298,15 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLLstmSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits weight;
-  MLSupportLimits recurrentWeight;
-  MLSupportLimits bias;
-  MLSupportLimits recurrentBias;
-  MLSupportLimits peepholeWeight;
-  MLSupportLimits initialHiddenState;
-  MLSupportLimits initialCellState;
-  MLSupportLimits outputs;
+  MLTensorLimits input;
+  MLTensorLimits weight;
+  MLTensorLimits recurrentWeight;
+  MLTensorLimits bias;
+  MLTensorLimits recurrentBias;
+  MLTensorLimits peepholeWeight;
+  MLTensorLimits initialHiddenState;
+  MLTensorLimits initialCellState;
+  MLDataTypeLimits outputs;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -6401,23 +6435,23 @@ partial dictionary MLOpSupportLimits {
 {{MLLstmSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLstmSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>weight</dfn>
-    :: {{MLSupportLimits}} for weight operand.
+    :: {{MLTensorLimits}} for weight operand.
     : <dfn>recurrentWeight</dfn>
-    :: {{MLSupportLimits}} for recurrentWeight operand.
+    :: {{MLTensorLimits}} for recurrentWeight operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>recurrentBias</dfn>
-    :: {{MLSupportLimits}} for recurrentBias operand.
+    :: {{MLTensorLimits}} for recurrentBias operand.
     : <dfn>peepholeWeight</dfn>
-    :: {{MLSupportLimits}} for peepholeWeight operand.
+    :: {{MLTensorLimits}} for peepholeWeight operand.
     : <dfn>initialHiddenState</dfn>
-    :: {{MLSupportLimits}} for initialHiddenState operand.
+    :: {{MLTensorLimits}} for initialHiddenState operand.
     : <dfn>initialCellState</dfn>
-    :: {{MLSupportLimits}} for initialCellState operand.
+    :: {{MLTensorLimits}} for initialCellState operand.
     : <dfn>outputs</dfn>
-    :: {{MLSupportLimits}} for all the output operands.
+    :: {{MLDataTypeLimits}} for all the output operands.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/lstm()}}:
@@ -6673,15 +6707,15 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLLstmCellSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits weight;
-  MLSupportLimits recurrentWeight;
-  MLSupportLimits hiddenState;
-  MLSupportLimits cellState;
-  MLSupportLimits bias;
-  MLSupportLimits recurrentBias;
-  MLSupportLimits peepholeWeight;
-  MLSupportLimits outputs;
+  MLTensorLimits input;
+  MLTensorLimits weight;
+  MLTensorLimits recurrentWeight;
+  MLTensorLimits hiddenState;
+  MLTensorLimits cellState;
+  MLTensorLimits bias;
+  MLTensorLimits recurrentBias;
+  MLTensorLimits peepholeWeight;
+  MLDataTypeLimits outputs;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -6789,23 +6823,23 @@ partial dictionary MLOpSupportLimits {
 {{MLLstmCellSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLstmCellSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>weight</dfn>
-    :: {{MLSupportLimits}} for weight operand.
+    :: {{MLTensorLimits}} for weight operand.
     : <dfn>recurrentWeight</dfn>
-    :: {{MLSupportLimits}} for recurrentWeight operand.
+    :: {{MLTensorLimits}} for recurrentWeight operand.
     : <dfn>hiddenState</dfn>
-    :: {{MLSupportLimits}} for hiddenState operand.
+    :: {{MLTensorLimits}} for hiddenState operand.
     : <dfn>cellState</dfn>
-    :: {{MLSupportLimits}} for cellState operand.
+    :: {{MLTensorLimits}} for cellState operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>recurrentBias</dfn>
-    :: {{MLSupportLimits}} for recurrentBias operand.
+    :: {{MLTensorLimits}} for recurrentBias operand.
     : <dfn>peepholeWeight</dfn>
-    :: {{MLSupportLimits}} for peepholeWeight operand.
+    :: {{MLTensorLimits}} for peepholeWeight operand.
     : <dfn>outputs</dfn>
-    :: {{MLSupportLimits}} for all the output operands.
+    :: {{MLDataTypeLimits}} for all the output operands.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/lstmCell()}}:
@@ -7479,9 +7513,9 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLPreluSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits slope;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits slope;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -7527,11 +7561,11 @@ partial dictionary MLOpSupportLimits {
 {{MLPreluSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLPreluSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>slope</dfn>
-    :: {{MLSupportLimits}} for slope operand.
+    :: {{MLTensorLimits}} for slope operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/prelu()}}:
@@ -8259,10 +8293,10 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLScatterSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits indices;
-  MLSupportLimits updates;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits indices;
+  MLTensorLimits updates;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -8321,13 +8355,13 @@ partial dictionary MLOpSupportLimits {
 {{MLScatterSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLScatterSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>indices</dfn>
-    :: {{MLSupportLimits}} for indices operand.
+    :: {{MLTensorLimits}} for indices operand.
     : <dfn>updates</dfn>
-    :: {{MLSupportLimits}} for updates operand.
+    :: {{MLTensorLimits}} for updates operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/scatterElements()}}:
@@ -9146,8 +9180,8 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLSplitSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits outputs;
+  MLTensorLimits input;
+  MLDataTypeLimits outputs;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -9195,9 +9229,9 @@ partial dictionary MLOpSupportLimits {
 {{MLSplitSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLSplitSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>outputs</dfn>
-    :: {{MLSupportLimits}} for all the output operands.
+    :: {{MLDataTypeLimits}} for all the output operands.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/split()}}:
@@ -9660,10 +9694,10 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLWhereSupportLimits {
-  MLSupportLimits condition;
-  MLSupportLimits trueValue;
-  MLSupportLimits falseValue;
-  MLSupportLimits output;
+  MLTensorLimits condition;
+  MLTensorLimits trueValue;
+  MLTensorLimits falseValue;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -9715,13 +9749,13 @@ partial dictionary MLOpSupportLimits {
 {{MLWhereSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLWhereSupportLimits>
     : <dfn>condition</dfn>
-    :: {{MLSupportLimits}} for condition operand.
+    :: {{MLTensorLimits}} for condition operand.
     : <dfn>trueValue</dfn>
-    :: {{MLSupportLimits}} for trueValue operand.
+    :: {{MLTensorLimits}} for trueValue operand.
     : <dfn>falseValue</dfn>
-    :: {{MLSupportLimits}} for falseValue operand.
+    :: {{MLTensorLimits}} for falseValue operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/where()}}:
