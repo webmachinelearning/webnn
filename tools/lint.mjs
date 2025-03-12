@@ -72,7 +72,7 @@ log('massaging HTML...');
   const re = new RegExp(
     '(<(' + tags.join('|') + ')\\b[^>]*>)' +
       '(.*?)' +
-      '(?=<(:?' + tags.join('|') + '|/(' + containers.join('|') + '))\\b)',
+      '(?=<(' + tags.join('|') + '|/(' + containers.join('|') + '))\\b)',
     'sg');
   file = file.replaceAll(
     re, (_, opener, tag, content) => `${opener}${content}</${tag}>`);
