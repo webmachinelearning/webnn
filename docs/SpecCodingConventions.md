@@ -95,6 +95,9 @@ Example:
 * When concisely defining a tensor's layout, use the syntax `*[ ... ]*` (e.g. _"nchw" means the input tensor has the layout *[batches, inputChannels, height, width]*_)
 * Format explanatory expressions using backticks, e.g. `` `max(0, x) + alpha * (exp(min(0, x)) - 1)` ``
 * In Web IDL `<pre class=idl>` blocks, wrap long lines to avoid horizontal scrollbars. 88 characters seems to be the magic number.
+* Avoid `<var>v</var>` or `|v|` outside of algorithms; Bikeshed interprets these as global variables which can mask errors. Just use `*v*`.
+    * Format each term separately; that is, `*splits*[*i*]` not `*splits[i]*`.
+* When referencing an argument in prose steps, link to it rather than just using formatted text e.g. `{{MLGraphBuilder/split(input, splits, options)/splits}}` rather than `*splits*`.
 
 
 ### Algorithms
@@ -129,6 +132,7 @@ Example:
     * There is an exception to this rule: Referring to WebIDL types is necessary when dealing with unions. In this case, refer to the full WebIDL type, e.g. _If splits is an `unsigned long` ... Otherwise, if splits is a `sequence<unsigned long>` ..._
 * Do not repeat detaults provided by the WebIDL declaration.
 * For types like lists that can't be defaulted in WebIDL, define the default when missing as an explicit step. Example: _If options.padding does not exist, set options.padding to « 0, 0, 0, 0 »._
+* When referring to arguments and options in prose, avoid the wordier `the *foo* argument` or `the *bar* value` forms; just use the name alone.
 
 
 ### Internal Algorithms
@@ -146,4 +150,5 @@ Example:
 
 * Dictionary members are referenced using dotted property syntax. e.g. _options.padding_
    * Note that this is contrary to Web IDL + Infra; formally, a JavaScript object has been mapped to a Web IDL [dictionary](https://webidl.spec.whatwg.org/#idl-dictionaries) and then processed into an Infra [map](ordered) by the time a spec is using it. So formally the syntax _options["padding"]_ should be used.
+* Dictionary members should be linked to, both in algorithms and in other text. e.g. `|options|.{{MLOptionsDict/member}}` (in the steps for an algorithm) or `{{MLOptionsDict/member}}` (outside an algorithm).
 * Dictionary members should be given definitions somewhere in the text. This is usually done with a `<dl dfn-type=dict-member dfn-for=...>` for the dictionary as a whole, containing a `<dfn>` for each member.
