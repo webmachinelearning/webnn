@@ -42,7 +42,6 @@ Text Macro: EMULATED generically emulated from the usage of other operations as 
 urlPrefix: https://tc39.es/ecma262/; spec: ECMA-262
     type: dfn
         text: element size; url: table-the-typedarray-constructors
-        text: element type; url: table-the-typedarray-constructors
         text: view constructor; url: table-the-typedarray-constructors
         text: equally close values; url: sec-ecmascript-language-types-number-type
         text: settled; for: Promise; url: sec-promise-objects
@@ -924,8 +923,14 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
             : {{SharedArrayBuffer}}
             :: Return true.
             : {{ArrayBufferView}}
-            :: If |bufferSource|'s [=element type=] matches |descriptor|'s {{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility) return true, otherwise return false.
+            ::
+                1. If |bufferSource| is a {{Uint8Array}} object, then return true.
+                1. If |bufferSource| matches |descriptor|'s {{MLOperandDescriptor/dataType}} according to [this table](#appendices-mloperanddatatype-arraybufferview-compatibility), then return true.
+                1. Return false.
         </dl>
+
+    Note: Using {{Uint8Array}} regardless of the |descriptor|'s {{MLOperandDescriptor/dataType}} is supported as a generic way of representing a slice of an {{ArrayBuffer}}, for example part of a {{WebAssembly}}.{{Memory}} instance. Developers are encouraged to use more specific view types when authoring WebNN code for readability and maintainability.
+
 </details>
 
 <details open algorithm>
