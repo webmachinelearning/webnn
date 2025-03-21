@@ -21,6 +21,7 @@
 'use strict';
 import fs from 'node:fs/promises';
 import {parse} from 'node-html-parser';
+import * as idl from 'webidl2';
 
 // --------------------------------------------------
 // Process options
@@ -102,6 +103,19 @@ for (const element of root.querySelectorAll('script, style, .index')) {
 const html = root.innerHTML;
 const text = root.innerText;
 
+// node-html-parser leaves some entities in innerText; use this to translate
+// where it matters, e.g. IDL fragments.
+function innerText(element) {
+  return element.innerText.replaceAll(/&amp;/g, '&')
+    .replaceAll(/&lt;/g, '<')
+    .replaceAll(/&gt;/g, '>');
+}
+
+// Parse the WebIDL Index. This will throw if errors are found, but Bikeshed
+// should fail to build the spec if the WebIDL is invalid.
+const idl_text = innerText(root.querySelector('#idl-index + pre'));
+const idl_ast = idl.parse(idl_text);
+
 let exitCode = 0;
 function error(message) {
   console.error(message);
@@ -148,10 +162,16 @@ const ALGORITHM_STEP_SELECTOR = '.algorithm li > p:not(.issue)';
 // * `html` - HTML source, with style/script removed
 // * `text` - rendered text content
 // * `root.querySelectorAll()` - operate on DOM-like nodes
+// * `idl_ast` - WebIDL AST (see https://github.com/w3c/webidl2.js)
 
 // Checks are marked with one of these tags:
 // * [Generic] - could apply to any spec
 // * [WebNN] - very specific to the WebNN spec
+
+// [Generic] Report warnings found when parsing the WebIDL.
+for (const err of idl.validate(idl_ast)) {
+  error(`WebIDL: ${err.message}`);
+}
 
 // [Generic] Look for merge markers
 for (const match of source.matchAll(/<{7}|>{7}|^={7}$/mg)) {
@@ -171,8 +191,7 @@ for (const match of html.matchAll(/(?:^|\s)(\w+) \1(?:$|\s)/ig)) {
 // [Generic] Verify IDL lines wrap to avoid horizontal scrollbars
 const MAX_IDL_WIDTH = 88;
 for (const idl of root.querySelectorAll('pre.idl')) {
-  idl.innerText.split(/\n/).forEach(line => {
-    line = line.replace(/&lt;/g, '<'); // parser's notion of "innerText" is weird
+  innerText(idl).split(/\n/).forEach(line => {
     if (line.length > MAX_IDL_WIDTH) {
       error(`Overlong IDL: ${line}`);
     }
@@ -309,9 +328,7 @@ for (const term of root.querySelectorAll('#normative + dl > dt')) {
 
 // [Generic] Detect syntax errors in JS.
 for (const pre of root.querySelectorAll('pre.highlight:not(.idl)')) {
-  const script = pre.innerText.replaceAll(/&amp;/g, '&')
-                     .replaceAll(/&lt;/g, '<')
-                     .replaceAll(/&gt;/g, '>');
+  const script = innerText(pre);
   try {
     const f = AsyncFunction([], '"use strict";' + script);
   } catch (ex) {
@@ -405,8 +422,8 @@ for (const table of root.querySelectorAll('table.data').filter(e => e.id.startsW
   }
 }
 
-// TODO: Generate this from the IDL itself.
-const dictionaryTypes = ['MLOperandDescriptor', 'MLContextLostInfo'];
+const dictionaryTypes =
+  idl_ast.filter(o => o.type === 'dictionary').map(o => o.name);
 
 // [Generic] Ensure JS objects are created with explicit realm
 for (const match of text.matchAll(/ a new promise\b(?! in realm)/g)) {
