@@ -1086,11 +1086,17 @@ Reads back the {{MLTensor/[[data]]}} of an {{MLTensor}} from the {{MLContext}}.{
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. Let |promise| be [=a new promise=] in |realm|.
+    1. [=set/Append=] |promise| to |tensor|.{{MLTensor/[[pendingPromises]]}}.
     1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
-            1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
-            1. Otherwise, [=queue an ML task=] with |global| to [=ArrayBuffer/create=] an {{ArrayBuffer}} |result| given |bytes| and |realm| and then [=resolve=] |promise| with |result|.
+            1. If that fails, then [=queue an ML task=] with |global| and the following steps:
+                1. [=set/Remove=] |promise| from |tensor|.{{MLTensor/[[pendingPromises]]}}.
+                1. [=Reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+            1. Otherwise, [=queue an ML task=] with |global| and the following steps:
+                1. [=set/Remove=] |promise| from |tensor|.{{MLTensor/[[pendingPromises]]}}.
+                1. Let |buffer| be the result of [=ArrayBuffer/creating=] an {{ArrayBuffer}} from |bytes| in |realm|.
+                1. [=Resolve=] |promise| with |buffer|.
         1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Return |promise|.
 </details>
@@ -1118,11 +1124,15 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |outputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. Let |promise| be [=a new promise=] in |realm|.
+    1. [=set/Append=] |promise| to |tensor|.{{MLTensor/[[pendingPromises]]}}.
     1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Let |bytes| be a [=/byte sequence=] containing a copy of |tensor|.{{MLTensor/[[data]]}}.
-            1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+            1. If that fails, then [=queue an ML task=] with |global| to run these steps:
+                1. [=set/Remove=] |promise| from |tensor|.{{MLTensor/[[pendingPromises]]}}.
+                1. [=Reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
             1. Otherwise, [=queue an ML task=] with |global| to run these steps:
+                1. [=set/Remove=] |promise| from |tensor|.{{MLTensor/[[pendingPromises]]}}.
                 1. If |outputData| is [=BufferSource/detached=], [=reject=] |promise| with a {{TypeError}}, and abort these steps.
 
                     Note: [=Validating buffer with descriptor=] above will fail if |outputData| is detached, but it is possible that |outputData| could be detached between that step and this one.
@@ -1603,6 +1613,10 @@ interface MLTensor {
     ::
         The {{MLTensor}}'s descriptor.
 
+    : <dfn>\[[pendingPromises]]</dfn> of type [=/set=] of {{Promise}}s
+    ::
+        Promises corresponding to {{MLContext}}.{{MLContext/readTensor(tensor)}} method calls which are in-progress and have yet to resolve. All pending promises will be rejected when the {{MLTensor}} is destroyed.
+
     : <dfn>\[[isDestroyed]]</dfn> of type {{boolean}}
     ::
         Whether the {{MLTensor}}.{{MLTensor/destroy()}} steps have been run. Once destroyed, the {{MLTensor}} can no longer be used.
@@ -1654,6 +1668,9 @@ Releases the resources associated with the {{MLTensor}}. This method is idempote
     The <dfn method for=MLTensor>destroy()</dfn> method steps are:
   </summary>
     1. Set [=this=].{{MLTensor/[[isDestroyed]]}} to true.
+    1. [=set/For each=] |promise| in [=this=].{{MLTensor/[[pendingPromises]]}}:
+        1. [=set/Remove=] |promise| from [=this=].{{MLTensor/[[pendingPromises]]}}.
+        1. [=Reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Enqueue the following steps to [=this=].{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Release [=this=].{{MLTensor/[[data]]}}.
     1. Return {{undefined}}.
