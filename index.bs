@@ -1493,6 +1493,10 @@ typedef (bigint or unrestricted double) MLNumber;
     : <dfn>\[[operator]]</dfn> of type [=operator=]
     ::
         Reference to {{MLOperand}}'s corresponding [=operator=].
+  
+    : <dfn>\[[constantTensor]]</dfn> of type {{MLConstantTensor}}
+    ::
+        The {{MLOperand}}'s tensor (only for constant operands).
   </dl>
 </div>
 
@@ -1842,6 +1846,7 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |tensor|.{{MLTensor/[[descriptor]]}}.
+        1. Set |operand|.{{MLOperand/[[constantTensor]]}} to |tensor|.
         1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |tensor| as value.
     1. Return |operand|.
 </details>
@@ -1893,6 +1898,7 @@ Build a composed graph up to a given output operand into a computational graph a
         1. If |name| is empty, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
         1. If [=MLGraphBuilder/validating operand=] given [=this=] and |operand| returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
         1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] or [=computational graph/constants=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+        1. If |operand|.{{MLOperand/[[constantTensor]]}} exists and |operand|.{{MLOperand/[[constantTensor]]}}.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}. 
     1. Let |operands| be a new empty [=/set=].
     1. Let |operators| be a new empty [=/set=].
     1. Let |inputs| be a new empty [=/set=].
