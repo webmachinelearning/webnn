@@ -869,6 +869,8 @@ interface MLContext {
   undefined dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);
 
   Promise<MLTensor> createTensor(MLTensorDescriptor descriptor);
+  Promise<MLConstantTensor> createConstantTensor(
+    MLOperandDescriptor descriptor, AllowSharedBufferSource inputData);
 
   Promise<ArrayBuffer> readTensor(MLTensor tensor);
   Promise<undefined> readTensor(MLTensor tensor, AllowSharedBufferSource outputData);
@@ -939,6 +941,7 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
   </summary>
     1. If |namedTensors|'s [=map/size=] is not equal to |namedDescriptors|'s [=map/size=], then return false.
     1. [=map/For each=] |name| → |tensor| of |namedTensors|:
+        1. If |tensor| is a {{MLConstantTensor}} then return false.
         1. If |namedDescriptors|[|name|] does not [=map/exist=], then return false.
         1. If |tensor|.{{MLTensor/[[descriptor]]}} is not [=MLOperandDescriptor/equal=] to |namedDescriptors|[|name|], then return false.
     1. Return true.
@@ -1059,6 +1062,42 @@ Creates an {{MLTensor}} associated with this {{MLContext}}.
     1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Create |tensor|.{{MLTensor/[[data]]}} given |descriptor| and initialize all bytes to zeros.
+            1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+            1. Otherwise, [=queue an ML task=] with |global| to [=resolve=] |promise| with |tensor|.
+        1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
+    1. Return |promise|.
+</details>
+
+### {{MLContext/createConstantTensor()}}  ### {#api-mlcontext-createconstanttensor}
+
+Creates an {{MLConstantTensor}} associated with this {{MLContext}}.
+
+<div dfn-for="MLContext/createConstantTensor(descriptor, inputData)" dfn-type=argument>
+    **Arguments:**
+      - <dfn>descriptor</dfn>: an {{MLOperandDescriptor}}.
+      - <dfn>inputData</dfn>: an {{AllowSharedBufferSource}}. The buffer whose bytes will be written into the tensor.
+
+    **Returns:** {{Promise}}<{{MLConstantTensor}}>.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLContext>createConstantTensor(|descriptor|, |inputData|)</dfn> method steps are:
+  </summary>
+    1. Let |global| be [=this=]'s [=relevant global object=].
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If [=this=] [=MLContext/is lost=], then return [=a new promise=] in |realm| [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If [=validating buffer with descriptor=] given |inputData| and |descriptor| returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |inputData|.
+    1. [=Assert=]: |bytes|'s [=byte sequence/length=] is equal to |descriptor|'s [=MLOperandDescriptor/byte length=].
+    1. Let |tensor| be the result of [=creating an MLConstantTensor=] given [=this=], and |descriptor|.
+    1. Let |promise| be [=a new promise=] in |realm|.
+    1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
+        1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
+            1. Create |tensor|.{{MLTensor/[[data]]}} given |descriptor|.
+            1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+            1. Copy |bytes| to |tensor|.{{MLTensor/[[data]]}}.
             1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
             1. Otherwise, [=queue an ML task=] with |global| to [=resolve=] |promise| with |tensor|.
         1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
@@ -1627,6 +1666,39 @@ Releases the resources associated with the {{MLTensor}}. This method is idempote
 
 Note: Since no further operations can be enqueued using this tensor, implementations can free any additional resource allocations associated with this tensor once all previously submitted operations using it are complete.
 
+## {{MLConstantTensor}} interface ## {#api-mlconstanttensor}
+
+The {{MLConstantTensor}} interface represents a tensor which may be used as a constant to an {{MLGraph}}. The memory backing an {{MLConstantTensor}} should be allocated in an [=implementation-defined=] fashion according to the requirements of the {{MLContext}} and the {{MLOperandDescriptor}} used to create it. Operations involving the {{MLTensor/[[data]]}} of an {{MLConstantTensor}} occur on the {{MLContext/[[timeline]]}} of its associated {{MLContext}}.
+
+The [=implementation-defined=] requirements of how an {{MLConstantTensor}} is allocated may include constraints such as that the memory is allocated with a particular byte alignment or in a particular memory pool.
+
+<script type=idl>
+[SecureContext, Exposed=(Window, Worker)]
+interface MLConstantTensor : MLTensor {
+};
+</script>
+
+### Creating an {{MLConstantTensor}} ### {#api-mlconstanttensor-create}
+
+An {{MLConstantTensor}} is created by its associated {{MLContext}}.
+
+<details open algorithm>
+  <summary>
+    To <dfn>create an MLConstantTensor</dfn> given {{MLContext}} |context|, {{MLOperandDescriptor}} |inputDescriptor|, run the following steps:
+  </summary>
+    1. Let |realm| be |context|'s [=relevant realm=].
+    1. Let |tensor| be a new {{MLConstantTensor}} in |realm|.
+    1. Set |tensor|.{{MLTensor/[[context]]}} to |context|.
+    1. Let |tensorDescriptor| be a new {{MLTensorDescriptor}}.
+    1. Set |tensorDescriptor|.{{MLTensorDescriptor/readable}} to true.
+    1. Set |tensorDescriptor|.{{MLTensorDescriptor/writable}} to false.
+    1. Set |tensorDescriptor|.{{MLOperandDescriptor/dataType}} to |inputDescriptor|.{{MLOperandDescriptor/dataType}}.
+    1. Set |tensorDescriptor|.{{MLOperandDescriptor/shape}} to |inputDescriptor|.{{MLOperandDescriptor/shape}}.
+    1. Set |tensor|.{{MLTensor/[[descriptor]]}} to |tensorDescriptor|.
+    1. Set |tensor|.{{MLTensor/[[isDestroyed]]}} to false.
+    1. Return |tensor|.
+</details>
+
 ## {{MLGraphBuilder}} interface ## {#api-mlgraphbuilder}
 
 The {{MLGraphBuilder}} interface defines a set of operations as identified by the [[#usecases]] that can be composed into a computational graph. It also represents the intermediate state of a graph building session.
@@ -1648,6 +1720,9 @@ interface MLGraphBuilder {
 
   // Create a scalar operand from the specified number of the specified type.
   MLOperand constant(MLOperandDataType type, MLNumber value);
+
+  // Create an operand from a specified tensor.
+  MLOperand constant(MLConstantTensor tensor);
 
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
@@ -1749,6 +1824,28 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     1. Return |operand|.
 </details>
 
+#### {{MLGraphBuilder/constant(tensor)}} #### {#api-mlgraphbuilder-constant-tensor}
+Create a constant {{MLOperand}} of the specified data type and shape that contains the initialized data.
+
+<div dfn-for="MLGraphBuilder/constant(tensor)" dfn-type=argument>
+    **Arguments:**
+        - <dfn>tensor</dfn>: an {{MLConstantTensor}}. The tensor containing the initialized data.
+    **Returns:** an {{MLOperand}}. The constant output tensor.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>constant(|tensor|)</dfn> method steps are:
+  </summary>
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. *Make graph connections:*
+        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |tensor|.{{MLTensor/[[descriptor]]}}.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |tensor| as value.
+    1. Return |operand|.
+</details>
+
 #### {{MLGraphBuilder/constant(type, value)}} #### {#api-mlgraphbuilder-constant-type-value}
 Create a scalar constant {{MLOperand}} of the specified value and data type.
 
@@ -1817,7 +1914,7 @@ Build a composed graph up to a given output operand into a computational graph a
         1. Set |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] to |operand|.{{MLOperand/[[descriptor]]}}.
     1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
     1. Let |promise| be [=a new promise=] in |realm|.
-    1. Run the following steps [=in parallel=]:
+    1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] |graph|.{{MLGraph/[[context]]}} [=MLContext/is lost=]:
             1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
             1. If the previous step failed, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
