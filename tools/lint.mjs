@@ -223,6 +223,9 @@ for (const match of text.matchAll(/ not the same as /g)) {
 for (const match of text.matchAll(/\bthe \S+ argument\b/g)) {
   error(`Drop 'the' and 'argument': ${format(match)}`);
 }
+for (const match of text.matchAll(/\bnot greater\b/g)) {
+  error(`Prefer "less or equal" to "not greater" (etc):  ${format(match)}`);
+}
 
 // [WebNN] Look for incorrect use of shape for an MLOperandDescriptor
 for (const match of source.matchAll(/(\|\w*desc\w*\|)'s \[=MLOperand\/shape=\]/ig)) {
@@ -303,6 +306,33 @@ for (const v of root.querySelectorAll('var').filter(v => !algorithmVars.has(v)))
   error(`Variable outside of algorithm: ${v.innerText}`);
 }
 
+// [Generic] Algorithms should either throw or reject, never both.
+for (const algorithm of root.querySelectorAll('.algorithm')) {
+  const name = algorithm.getAttribute('data-algorithm');
+  const terms = {
+    throw: 'exception',
+    resolve: 'promise',
+    resolved: 'promise',
+    reject: 'promise',
+    rejected: 'promise',
+  };
+  const other = {
+    exception: 'promise',
+    promise: 'exception',
+  };
+  const re = RegExp('\\b(' + Object.keys(terms).join('|') + ')\\b', 'g');
+  const seen = new Set();
+
+  for (const match of algorithm.innerText.matchAll(re)) {
+    const type = terms[match[1]];
+    if (seen.has(other[type])) {
+      error(`Algorithm "${name}" mixes throwing with promises: ${format(match)}`);
+      break;
+    }
+    seen.add(type);
+  }
+}
+
 // [WebNN] Prevent accidental normative references to other specs. This reports
 // an error if there is a normative reference to any spec *other* than these
 // ones. This helps avoid an autolink like [=object=] adding an unexpected
@@ -341,6 +371,34 @@ for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   const match = p.innerText.match(/[^.:]$/);
   if (match) {
     error(`Algorithm steps should end with '.' or ':': ${format(match)}`);
+  }
+}
+
+// [WebNN] Don't return undefined from methods - it is implied. Conditionally
+// returning undefined may make sense in some algorithms, so this is considered
+// a WebNN-specific rule.
+for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
+  if (p.innerText === 'Return undefined.') {
+    error(`Unnecessary algorithm step: ${p.innerText}`);
+  }
+}
+
+// [Generic] Ensure algorithm steps with "If" have a "then".
+for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
+  const text = p.innerText;
+  const match = text.match(/\bIf\b/);
+  const match2 = text.match(/, then\b/);
+  if (match && !match2) {
+    error(`Algorithm steps with 'If' should have ', then': ${format(match)}`);
+  }
+}
+
+// [Generic] Ensure "Otherwise" is followed by expected punctuation.
+for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
+  const text = p.innerText;
+  const match = text.match(/^Otherwise[^,:]/);
+  if (match) {
+    error(`In algorithm steps 'Otherwise' should be followed by ':' or ',': ${format(match)}`);
   }
 }
 

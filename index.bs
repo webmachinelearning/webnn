@@ -814,7 +814,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
     To <dfn>create a context</dfn> given [=realm=] |realm| and |options| (a {{GPUDevice}} or {{MLContextOptions}}), run these steps:
 </summary>
     1. Let |context| be a new {{MLContext}} in |realm|.
-    1. If |options| is a {{GPUDevice}} object:
+    1. If |options| is a {{GPUDevice}} object, then:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/webgpu=]".
         1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
     1. Otherwise:
@@ -822,7 +822,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
         1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=] in |realm|.
         1. If |options|["{{MLContextOptions/powerPreference}}"] [=map/exists=], then set |context|.{{MLContext/[[powerPreference]]}} to |options|["{{MLContextOptions/powerPreference}}"].
         1. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
-    1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, return failure.
+    1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, then return failure.
     1. Return |context|.
 </details>
 
@@ -832,7 +832,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |promise| be [=a new promise=] in |realm|.
     1. Run the following steps [=in parallel=].
         1. Let |context| be the result of [=creating a context=] given |realm| and |options|. If that returns failure, then [=queue an ML task=] with |global| to [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
@@ -846,7 +846,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |promise| be [=a new promise=] in |realm|.
     1. Run the following steps [=in parallel=].
         1. Let |context| be the result of [=creating a context=] given |realm| and |gpuDevice|. If that returns failure, then [=queue an ML task=] with |global| to [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
@@ -915,7 +915,7 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
   <summary>
     To <dfn>validate buffer with descriptor</dfn> given {{AllowSharedBufferSource}} |bufferSource| and {{MLOperandDescriptor}} |descriptor|, run the following steps:
   </summary>
-    1. If |bufferSource|'s [=BufferSource/byte length=] is not equal to |descriptor|'s [=MLOperandDescriptor/byte length=] return false.
+    1. If |bufferSource|'s [=BufferSource/byte length=] is not equal to |descriptor|'s [=MLOperandDescriptor/byte length=], then return false.
     1. Switch on the type of |bufferSource|:
         <dl class=switch>
             : {{ArrayBuffer}}
@@ -978,7 +978,6 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
 
                 Issue(778): Add a mechanism for reporting errors during graph execution.
 
-    1. Return {{undefined}}.
 </details>
 
 #### Examples #### {#api-mlcontext-dispatch-examples}
@@ -1133,7 +1132,7 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
                 1. [=Reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
             1. Otherwise, [=queue an ML task=] with |global| to run these steps:
                 1. [=set/Remove=] |promise| from |tensor|.{{MLTensor/[[pendingPromises]]}}.
-                1. If |outputData| is [=BufferSource/detached=], [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+                1. If |outputData| is [=BufferSource/detached=], then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
 
                     Note: [=Validating buffer with descriptor=] above will fail if |outputData| is detached, but it is possible that |outputData| could be detached between that step and this one.
 
@@ -1171,7 +1170,6 @@ Writes data to the {{MLTensor/[[data]]}} of an {{MLTensor}} on the {{MLContext}}
 
                 Issue(778): Add a mechanism for reporting errors while writing to a tensor.
 
-    1. Return {{undefined}}.
 </details>
 
 Note: Similar to `dispatch()`, `writeTensor()` itself provides no signal that the write has completed. To inspect the contents of a tensor, callers can `await` the results of reading back the tensor.
@@ -1417,8 +1415,8 @@ Issue(391): Should 0-size dimensions be supported?
   <summary>
     To <dfn for="MLOperandDescriptor">check dimensions</dfn> given {{MLOperandDescriptor}} |descriptor|, run the following steps:
   </summary>
-    1. If any [=list/item=] of |descriptor|.{{MLOperandDescriptor/shape}} is not a [=valid dimension=], return false.
-    1. If |descriptor|.{{MLOperandDescriptor/shape}}'s [=list/size=] is too large to be supported by the implementation, return false.
+    1. If any [=list/item=] of |descriptor|.{{MLOperandDescriptor/shape}} is not a [=valid dimension=], then return false.
+    1. If |descriptor|.{{MLOperandDescriptor/shape}}'s [=list/size=] is too large to be supported by the implementation, then return false.
 
         Issue(456): The maximum number of operand dimensions is not defined, but native ML APIs usually have a maximum supported size.
 
@@ -1639,7 +1637,6 @@ Releases the resources associated with the {{MLTensor}}. This method is idempote
         1. [=Reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Enqueue the following steps to [=this=].{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Release [=this=].{{MLTensor/[[data]]}}.
-    1. Return {{undefined}}.
 </details>
 
 Note: Since no further operations can be enqueued using this tensor, implementations can free any additional resource allocations associated with this tensor once all previously submitted operations using it are complete.
@@ -1821,7 +1818,7 @@ Build a composed graph up to a given output operand into a computational graph a
         1. [=queue/Dequeue=] |operand| from |queue|.
         1. [=set/Append=] |operand| to |operands|.
         1. [=set/Append=] |operand|.{{MLOperand/[[operator]]}} to |operators|.
-        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=], [=set/append=] |operand| to |inputs|.
+        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=], then [=set/append=] |operand| to |inputs|.
         1. [=list/For each=] |input| of |operand|.{{MLOperand/[[operator]]}}'s [=operator/inputs=]:
             1. [=queue/Enqueue=] |input| to |queue|.
     1. Let |global| be [=this=]'s [=relevant global object=].
@@ -1924,7 +1921,7 @@ partial dictionary MLOpSupportLimits {
     1. [=Assert=]: |op| is one of "argMin", "argMax".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/shape=][|axis|] is greater than |options|.{{MLArgMinMaxOptions/outputDataType}}'s maximum value, [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/shape=][|axis|] is greater than |options|.{{MLArgMinMaxOptions/outputDataType}}'s maximum value, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], « |axis| », and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |options|.{{MLArgMinMaxOptions/outputDataType}} and |outputShape|.
     1. *Make graph connections:*
@@ -2090,10 +2087,10 @@ partial dictionary MLOpSupportLimits {
     1. If |variance|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
     1. If |variance|'s [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLBatchNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLBatchNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
-    1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=]:
+    1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -2453,7 +2450,7 @@ partial dictionary MLOpSupportLimits {
                 If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
             </div>
             1. If |dim| is not equal to |axis| and if |input|'s [=MLOperand/shape=][|dim|] is not equal to |first|'s [=MLOperand/shape=][|dim|], then [=exception/throw=] a {{TypeError}}.
-            1. If |dim| is equal to |axis|:
+            1. If |dim| is equal to |axis|, then:
                 1. Let |size| be the sum of |desc|.{{MLOperandDescriptor/shape}}[|axis|] and |input|'s [=MLOperand/shape=][|dim|].
                 1. If |size| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
                 1. Set |desc|.{{MLOperandDescriptor/shape}}[|axis|] to |size|.
@@ -2645,12 +2642,12 @@ partial dictionary MLOpSupportLimits {
     1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-conv2d)), then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
+    1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], then set it to the [=/list=] « 0, 0, 0, 0 ».
     1. Otherwise, if |options|.{{MLConv2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
+    1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], then set it to the [=/list=] « 1, 1 ».
     1. Otherwise, if |options|.{{MLConv2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any [=list/item=] in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConv2dOptions/dilations}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
+    1. If |options|.{{MLConv2dOptions/dilations}} does not [=map/exist=], then set it to the [=/list=] « 1, 1 ».
     1. Otherwise, if |options|.{{MLConv2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any [=list/item=] in |options|.{{MLConv2dOptions/dilations}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/groups}} is 0, then [=exception/throw=] a {{TypeError}}.
@@ -2677,7 +2674,7 @@ partial dictionary MLOpSupportLimits {
             </dl>
         1. If |inputChannels| % |options|.{{MLConv2dOptions/groups}} is not 0, then [=exception/throw=] a {{TypeError}}.
         1. Otherwise, if |inputChannels| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
-        1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
+        1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=], then:
             1. If its [=MLOperand/shape=] is not [=list/equal=] to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-conv2d)), then [=exception/throw=] a {{TypeError}}.
         1. Let « |outputHeight|, |outputWidth| » be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConv2dOptions/padding}}, |options|.{{MLConv2dOptions/strides}}, and |options|.{{MLConv2dOptions/dilations}}.
@@ -2864,17 +2861,17 @@ partial dictionary MLOpSupportLimits {
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
+    1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], then set it to the [=/list=] « 0, 0, 0, 0 ».
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/strides}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
+    1. If |options|.{{MLConvTranspose2dOptions/strides}} does not [=map/exist=], then set it to the [=/list=] « 1, 1 ».
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any [=list/item=] in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/dilations}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
+    1. If |options|.{{MLConvTranspose2dOptions/dilations}} does not [=map/exist=], then set it to the [=/list=] « 1, 1 ».
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any [=list/item=] in |options|.{{MLConvTranspose2dOptions/dilations}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} does not [=map/exist=], set it to the [=/list=] « 0, 0 ».
+    1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} does not [=map/exist=], then set it to the [=/list=] « 0, 0 ».
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/outputPadding}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
+    1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=], then:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. Otherwise:
         1. If |options|.{{MLConvTranspose2dOptions/outputPadding}}[0] is greater than or equal to |options|.{{MLConvTranspose2dOptions/strides}}[0], or |options|.{{MLConvTranspose2dOptions/outputPadding}}[1] is greater than or equal to |options|.{{MLConvTranspose2dOptions/strides}}[1], then [=exception/throw=] a {{TypeError}}.
@@ -2901,7 +2898,7 @@ partial dictionary MLOpSupportLimits {
         1. If |inputChannels| is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
         1. Let |outputChannels| be |filterOutputChannels| * |options|.{{MLConvTranspose2dOptions/groups}}.
         1. If |outputChannels| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-        1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
+        1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=], then:
             1. If its [=MLOperand/shape=] is not [=list/equal=] to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
         1. Let |calculatedOutputHeight| be the result of [=MLGraphBuilder/calculating convtranspose output size=] given |inputHeight|, |filterHeight|, |padding|[0], |padding|[1], |strides|[0] and |dilations|[0].
@@ -3332,9 +3329,9 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     1. [=Assert=]: |op| is one of "equal", "notEqual", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "logicalNot", "logicalAnd", "logicalOr", "logicalXor".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |a| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |op| is one of "logicalNot", "logicalAnd", "logicalOr", "logicalXor":
+    1. If |op| is one of "logicalNot", "logicalAnd", "logicalOr", "logicalXor", then:
         1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |b| is passed:
+    1. If |b| is passed, then:
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and |b| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
         1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
@@ -4233,7 +4230,7 @@ partial dictionary MLOpSupportLimits {
     1. Let |outputRank| be zero.
     1. Let |outputShape| be an empty list.
     1. [=list/For each=] |size| of |inputShape|:
-        1. If |dimCount| is equal to |axis| then [=iteration/break=].
+        1. If |dimCount| is equal to |axis|, then [=iteration/break=].
         1. Set |outputShape|[|dimCount|] to |size|.
         1. Increment |dimCount| by one.
     1. Set |outputRank| to |dimCount|.
@@ -4244,7 +4241,7 @@ partial dictionary MLOpSupportLimits {
     1. Set |outputRank| to |outputRank| + |dimCount|.
     1. Let |dimCount| be zero.
     1. [=list/For each=] |size| of |inputShape|:
-        1. If |dimCount| is less than or equal to |axis| then [=iteration/continue=].
+        1. If |dimCount| is less than or equal to |axis|, then [=iteration/continue=].
         1. Set |outputShape|[|outputRank| + |dimCount| - |axis| - 1] to |size|.
         1. Increment |dimCount| by one.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
@@ -4388,7 +4385,7 @@ partial dictionary MLOpSupportLimits {
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |indicesShapeExpected| be a copy of |input|'s [=MLOperand/shape=].
     1. Set |indicesShapeExpected|[|axis|] to |indices|'s [=MLOperand/shape=][|axis|].
-    1. If |indices|'s [=MLOperand/shape=] is not equal to |indicesShapeExpected| then [=exception/throw=] a {{TypeError}}.
+    1. If |indices|'s [=MLOperand/shape=] is not equal to |indicesShapeExpected|, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "gatherElements" operation, given |input|, |indices|, and |options|.
@@ -4886,7 +4883,7 @@ partial dictionary MLOpSupportLimits {
     1. If |options|.{{MLGemmOptions/aTranspose}} is true, then reverse the order of the items in |shapeA|.
     1. If |options|.{{MLGemmOptions/bTranspose}} is true, then reverse the order of the items in |shapeB|.
     1. If |shapeA|[1] is not equal to |shapeB|[0], then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGemmOptions/c}} [=map/exists=]:
+    1. If |options|.{{MLGemmOptions/c}} [=map/exists=], then:
         1. If it is not [=unidirectionally broadcastable=] to the shape « |shapeA|[0], |shapeB|[1] », then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gemm)), then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and « |shapeA|[0], |shapeB|[1] ».
@@ -5123,28 +5120,28 @@ partial dictionary MLOpSupportLimits {
           <summary>Why |hiddenSize| * 6 ?</summary>
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruOptions/bias}} and {{MLGruOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
-    1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLGruOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=]:
+    1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=]:
+    1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruOptions/activations}} [=map/exists=]:
+    1. If |options|.{{MLGruOptions/activations}} [=map/exists=], then:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLGruOptions/activations}}.
     1. Otherwise:
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
         1. Let |desc0| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |numDirections|, |batchSize|, |hiddenSize| ».
-        1. If |options|.{{MLGruOptions/returnSequence}} is true:
+        1. If |options|.{{MLGruOptions/returnSequence}} is true, then:
             1. Let |desc1| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "gru" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc0|.
-        1. If |options|.{{MLGruOptions/returnSequence}} is true:
+        1. If |options|.{{MLGruOptions/returnSequence}} is true, then:
             1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc1|.
             1. Let |output| be the [=/list=] « |output0|, |output1| ».
             1. Set |output0|.{{MLOperand/[[operator]]}} and |output1|.{{MLOperand/[[operator]]}} to |operator|.
@@ -5440,13 +5437,13 @@ partial dictionary MLOpSupportLimits {
           <summary>Why |hiddenSize| * 6 ?</summary>
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruCellOptions/bias}} and {{MLGruCellOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
-    1. If |options|.{{MLGruCellOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLGruCellOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruCellOptions/recurrentBias}} [=map/exists=]:
+    1. If |options|.{{MLGruCellOptions/recurrentBias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=]:
+    1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=], then:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLGruCellOptions/activations}}.
     1. Otherwise:
@@ -5868,10 +5865,10 @@ partial dictionary MLOpSupportLimits {
     1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLInstanceNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLInstanceNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
     1. Let |axis| be 1 if |options|.{{MLInstanceNormalizationOptions/layout}} is {{MLInputOperandLayout/"nchw"}}, and 3 otherwise.
-    1. If |options|.{{MLInstanceNormalizationOptions/scale}} [=map/exists=]:
+    1. If |options|.{{MLInstanceNormalizationOptions/scale}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-instanceNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLInstanceNormalizationOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLInstanceNormalizationOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-instanceNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -6009,19 +6006,19 @@ partial dictionary MLOpSupportLimits {
     1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either [=the range=] from 1 to |input|'s [=MLOperand/rank=], exclusive, if |input|'s [=MLOperand/rank=] is greater than 1, or an empty [=/list=] otherwise.
     1. Otherwise, if |options|.{{MLLayerNormalizationOptions/axes}} contains duplicate values, or if any of its [=list/items=] is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLLayerNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLLayerNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
-    1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=]:
+    1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-layerNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLayerNormalizationOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLLayerNormalizationOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-layerNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a {{TypeError}}.
     1. [=list/For each=] |index| in [=the range=] 0 to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], exclusive:
         1. Let |axis| be |options|.{{MLLayerNormalizationOptions/axes}}[|index|].
         1. If |axis| is greater or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
         1. Let |size| be |input|'s [=MLOperand/shape=][|axis|].
-        1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=]:
+        1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=], then:
             1. If its [=MLOperand/shape=][|index|] is not equal to |size|, then [=exception/throw=] a {{TypeError}}.
-        1. If |options|.{{MLLayerNormalizationOptions/bias}} [=map/exists=]:
+        1. If |options|.{{MLLayerNormalizationOptions/bias}} [=map/exists=], then:
             1. If its [=MLOperand/shape=][|index|] is not equal to |size|, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -6468,35 +6465,35 @@ partial dictionary MLOpSupportLimits {
           <summary>Why |hiddenSize| * 8 ?</summary>
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmOptions/bias}} and {{MLLstmOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
-    1. If |options|.{{MLLstmOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/activations}} [=map/exists=], then:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLLstmOptions/activations}}.
     1. Otherwise:
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
         1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |numDirections|, |batchSize|, |hiddenSize| ».
-        1. If |options|.{{MLLstmOptions/returnSequence}} is true:
+        1. If |options|.{{MLLstmOptions/returnSequence}} is true, then:
             1. Let |desc2| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "lstm" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. If |options|.{{MLLstmOptions/returnSequence}} is true:
+        1. If |options|.{{MLLstmOptions/returnSequence}} is true, then:
             1. Let |output2| be the result of [=creating an MLOperand=] given [=this=] and |desc2|.
             1. Let |output| be the [=/list=] « |output0|, |output1|, |output2| ».
             1. Set |output0|.{{MLOperand/[[operator]]}}, |output1|.{{MLOperand/[[operator]]}} and |output2|.{{MLOperand/[[operator]]}} to |operator|.
@@ -6855,16 +6852,16 @@ partial dictionary MLOpSupportLimits {
           <summary>Why |hiddenSize| * 8 ?</summary>
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmCellOptions/bias}} and {{MLLstmCellOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
-    1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=]:
+    1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=]:
+    1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=]:
+    1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=], then:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLLstmCellOptions/activations}}.
     1. Otherwise:
@@ -7401,20 +7398,20 @@ partial dictionary MLOpSupportLimits {
             : {{MLInputOperandLayout/"nhwc"}}
             :: Let « |batches|, |inputHeight|, |inputWidth|, |channels| » be |input|'s [=MLOperand/shape=].
         </dl>
-    1. If |options|.{{MLPool2dOptions/windowDimensions}} does not [=map/exist=], set |options|.{{MLPool2dOptions/windowDimensions}} to « |inputHeight|, |inputWidth| ».
+    1. If |options|.{{MLPool2dOptions/windowDimensions}} does not [=map/exist=], then set |options|.{{MLPool2dOptions/windowDimensions}} to « |inputHeight|, |inputWidth| ».
     1. If |options|.{{MLPool2dOptions/windowDimensions}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any [=list/item=] in |options|.{{MLPool2dOptions/windowDimensions}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} does not [=map/exist=], set |options|.{{MLPool2dOptions/padding}} to the [=/list=] « 0, 0, 0, 0 ».
+    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} does not [=map/exist=], then set |options|.{{MLPool2dOptions/padding}} to the [=/list=] « 0, 0, 0, 0 ».
     1. If |options|.{{MLPool2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLPool2dOptions/strides}} does not [=map/exist=], set |options|.{{MLPool2dOptions/strides}} to the [=/list=] « 1, 1 ».
+    1. If |options|.{{MLPool2dOptions/strides}} does not [=map/exist=], then set |options|.{{MLPool2dOptions/strides}} to the [=/list=] « 1, 1 ».
     1. If |options|.{{MLPool2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If any value in |options|.{{MLPool2dOptions/strides}} is not greater than 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=]:
+    1. If any [=list/item=] in |options|.{{MLPool2dOptions/strides}} is 0, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], then:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. If its [=list/items=] are not smaller than the [=list/items=] at the same dimension (index) for |options|.{{MLPool2dOptions/strides}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLPool2dOptions/dilations}} does not [=map/exist=], set |options|.{{MLPool2dOptions/dilations}} to the [=/list=] « 1, 1 ».
+    1. If |options|.{{MLPool2dOptions/dilations}} does not [=map/exist=], then set |options|.{{MLPool2dOptions/dilations}} to the [=/list=] « 1, 1 ».
     1. If |options|.{{MLPool2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then [=exception/throw=] a {{TypeError}}.
+    1. If any [=list/item=] in |options|.{{MLPool2dOptions/dilations}} is 0, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. *Calculate the output shape:*
         1. Let « |windowHeight|, |windowWidth| » be |options|.{{MLPool2dOptions/windowDimensions}}.
@@ -7722,7 +7719,7 @@ partial dictionary MLOpSupportLimits {
     To <dfn for="MLGraphBuilder">calculate reduction output sizes</dfn>, given a [=/list=] of unsigned integers |inputShape|, a optional [=/list=] of unsigned integers |axes|, and [=/boolean=] |keepDimensions|, perform the following steps. They return a new [=/list=] of unsigned integers, or failure.
   </summary>
     1. Let |inputRank| be |inputShape|'s [=list/size=].
-    1. If |axes| is not given, let |axes| be [=the range=] 0 to |inputRank|, exclusive.
+    1. If |axes| is not given, then let |axes| be [=the range=] 0 to |inputRank|, exclusive.
     1. Otherwise, if |axes| contains duplicate values, or if any of its [=list/items=] is not in [=the range=] 0 to |inputRank|, exclusive, then return failure.
     1. If |keepDimensions| is true, then:
         1. Let |outputShape| be a [=list/clone=] of |inputShape|.
@@ -8061,10 +8058,10 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-resample2d)), then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLResample2dOptions/scales}} does not [=map/exist=], set it to the [=/list=] « 1.0, 1.0 ».
-    1. Otherwise, if any of its values is not greater than 0, or if its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], and if its size is not 2, or if any of its values is not greater than 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLResample2dOptions/axes}} does not [=map/exists=], set it to the [=/list=] « 2, 3 ».
+    1. If |options|.{{MLResample2dOptions/scales}} does not [=map/exist=], then set it to the [=/list=] « 1.0, 1.0 ».
+    1. Otherwise, if any of its [=list/items=] is less than or equal to 0, or if its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], and if its [=list/size=] is not 2, or if any of its [=list/items=] is 0, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLResample2dOptions/axes}} does not [=map/exists=], then set it to the [=/list=] « 2, 3 ».
     1. Otherwise, if |options|.{{MLResample2dOptions/axes}} contains duplicate values, or if any of its [=list/items=] is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
     1. *Calculate the output shape:*
         1. Let |inputDescriptor| be |input|.{{MLOperand/[[descriptor]]}}.
@@ -8171,7 +8168,7 @@ partial dictionary MLOpSupportLimits {
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be an empty array of {{unsigned long}}.
-    1. If |newShape|'s [=list/size=] is 0, set |outputShape| to an empty [=/list=] for a scalar.
+    1. If |newShape|'s [=list/size=] is 0, then set |outputShape| to an empty [=/list=] for a scalar.
     1. If any [=list/item=] in |newShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
     1. Let |inputElementCount| be the product of all [=list/items=] in |input|'s [=MLOperand/shape=]. Empty dimensions yield an |inputElementCount| of 1.
     1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a {{TypeError}}.
@@ -8254,7 +8251,7 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-reverse)), then [=exception/throw=] a {{TypeError}}.
     1. Let |inputRank| be |input|'s [=MLOperand/rank=].
-    1. If |axes| is not given, let |axes| be [=the range=] 0 to |inputRank|, exclusive.
+    1. If |axes| is not given, then let |axes| be [=the range=] 0 to |inputRank|, exclusive.
     1. Otherwise, if |axes| contains duplicate values, or if any of its elements is not in [=the range=] 0 to |inputRank|, exclusive, then return failure.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -8875,7 +8872,7 @@ partial dictionary MLOpSupportLimits {
     1. If any of |sizes|'s [=list/items=] are 0, then [=exception/throw=] a {{TypeError}}.
     1. If |starts|'s [=list/size=] and |sizes|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |strides| be a new [=/list=].
-    1. If |options|.{{MLSliceOptions/strides}} [=map/exists=]:
+    1. If |options|.{{MLSliceOptions/strides}} [=map/exists=], then:
         1. Set |strides| to |options|.{{MLSliceOptions/strides}}.
         1. If |strides|'s [=list/size=] is not equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |inputShape| be |input|'s [=MLOperand/shape=] and |inputRank| be |input|'s [=MLOperand/rank=].
@@ -9236,11 +9233,11 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |axis| be |options|.{{MLSplitOptions/axis}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
-    1. If |splits| is an {{unsigned long}}:
+    1. If |splits| is an {{unsigned long}}, then:
         1. If |splits| is 0, then [=exception/throw=] a {{TypeError}}.
         1. If |input|'s [=MLOperand/shape=][|axis|] % |splits| is not 0, then [=exception/throw=] a {{TypeError}}.
         1. Otherwise, let |splitCount| be |splits|.
-    1. If |splits| is a [=sequence=]<{{unsigned long}}>:
+    1. If |splits| is a [=sequence=]<{{unsigned long}}>, then:
         1. If any of its [=list/items=] is equal to 0, then [=exception/throw=] a {{TypeError}}.
 
             Issue(391): If 0-size dimensions are allowed, revise the above step.
@@ -9513,10 +9510,10 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|'s [=MLOperand/shape=].
-    1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
+    1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], then let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|'s [=MLOperand/shape=].
+    1. Otherwise, if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
         1. If its [=list/size=] is not equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
-        1. If its values are not in [=the range=] 0 to |input|'s [=MLOperand/rank=] exclusive, then [=exception/throw=] a {{TypeError}}.
+        1. If its [=list/items=] are not in [=the range=] 0 to |input|'s [=MLOperand/rank=] exclusive, then [=exception/throw=] a {{TypeError}}.
         1. If it contains duplicate values, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -9927,7 +9924,7 @@ The <dfn>ConvertToFloat</dfn>(|x|, |bitLength|) steps are:
 1. Let |y| be the number in |S| that is closest to |x|, selecting the number with an even significand if there are two [=equally close values=]. The two special values |lowerBound| and |upperBound| are considered to have even significands for this purpose.
 1. If |y| is |upperBound|, then return +Infinity.
 1. If |y| is |lowerBound|, then return -Infinity.
-1. If |y| is +0 and |x| is negative, return -0.
+1. If |y| is +0 and |x| is negative, then return -0.
 1. Return |y|.
 
 NOTE: This is based on a definition in [[WEBIDL]], but extended to cover 16-bit floating point values.

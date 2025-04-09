@@ -119,6 +119,8 @@ Example:
 * When referring to abstract properties, use the short possessive form `|object|'s [=property=]`. Avoid the wordier `the [=property=] of |object|` form.
 * Use "rank" when describing the number of dimensions of a tensor (e.g. in variable names) rather than the ambiguous "size".
 * Only use single capital letters as variable names when referring to tensors; i.e. prefer `|shapeA|` to `|A|`, but tensor `|T|` is okay.
+* Don't "Return undefined." at the end of an algorithm unless it is conditional.
+* Follow an "If" with ", then".
 
 
 ### Method Definitions
