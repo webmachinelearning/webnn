@@ -224,7 +224,7 @@ for (const match of text.matchAll(/\bthe \S+ argument\b/g)) {
   error(`Drop 'the' and 'argument': ${format(match)}`);
 }
 for (const match of text.matchAll(/\bnot greater\b/g)) {
-  error(`Prefer "less" to "not greater" (etc):  ${format(match)}`);
+  error(`Prefer "less or equal" to "not greater" (etc):  ${format(match)}`);
 }
 
 // [WebNN] Look for incorrect use of shape for an MLOperandDescriptor
