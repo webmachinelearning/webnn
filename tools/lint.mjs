@@ -21,6 +21,7 @@
 'use strict';
 import fs from 'node:fs/promises';
 import {parse} from 'node-html-parser';
+import * as idl from 'webidl2';
 
 // --------------------------------------------------
 // Process options
@@ -63,11 +64,20 @@ log(`loading generated HTML "${options.html}"...`);
 let file = await fs.readFile(options.html, 'utf8');
 
 log('massaging HTML...');
-// node-html-parser doesn't understand that DT and DD are mutually self-closing;
+// node-html-parser doesn't understand that some elements are mutually self-closing;
 // tweak the source using regex magic.
-file = file.replaceAll(
-    /(<(dt|dd)\b[^>]*>)(.*?)(?=<(:?dt|dd|\/dl)\b)/sg,
-    (_, opener, tag, content) => `${opener}${content}</${tag}>`);
+[{tags: ['dt', 'dd'], containers: ['dl']},
+ {tags: ['thead', 'tbody', 'tfoot'], containers: ['table']},
+ {tags: ['tr'], containers: ['thead', 'tbody', 'tfoot', 'table']},
+].forEach(({tags, containers}) => {
+  const re = new RegExp(
+    '(<(' + tags.join('|') + ')\\b[^>]*>)' +
+      '(.*?)' +
+      '(?=<(' + tags.join('|') + '|/(' + containers.join('|') + '))\\b)',
+    'sg');
+  file = file.replaceAll(
+    re, (_, opener, tag, content) => `${opener}${content}</${tag}>`);
+});
 
 log('parsing HTML...');
 const root = parse(file, {
@@ -93,6 +103,19 @@ for (const element of root.querySelectorAll('script, style, .index')) {
 const html = root.innerHTML;
 const text = root.innerText;
 
+// node-html-parser leaves some entities in innerText; use this to translate
+// where it matters, e.g. IDL fragments.
+function innerText(element) {
+  return element.innerText.replaceAll(/&amp;/g, '&')
+    .replaceAll(/&lt;/g, '<')
+    .replaceAll(/&gt;/g, '>');
+}
+
+// Parse the WebIDL Index. This will throw if errors are found, but Bikeshed
+// should fail to build the spec if the WebIDL is invalid.
+const idl_text = innerText(root.querySelector('#idl-index + pre'));
+const idl_ast = idl.parse(idl_text);
+
 let exitCode = 0;
 function error(message) {
   console.error(message);
@@ -102,13 +125,25 @@ function error(message) {
 
 function format(match) {
   const CONTEXT = 20;
-  const prefix = match.input.substring(match.index - CONTEXT, match.index)
+
+  let prefix = match.input.substring(match.index - CONTEXT, match.index)
                      .split(/\n/)
                      .pop();
-  const suffix = match.input.substr(match.index + match[0].length, CONTEXT)
+  let suffix = match.input.substr(match.index + match[0].length, CONTEXT)
                      .split(/\n/)
                      .shift();
-  return (prefix.length === CONTEXT ? '...' : '') + prefix + match[0] + suffix +
+  let infix = match[0];
+
+  if (infix.startsWith('\n')) {
+    prefix = '';
+    infix = infix.slice(1);
+  }
+  if (infix.endsWith('\n')) {
+    suffix = '';
+    infix = infix.slice(0, -1);
+  }
+
+  return (prefix.length === CONTEXT ? '...' : '') + prefix + infix + suffix +
       (suffix.length === CONTEXT ? '...' : '');
 }
 
@@ -127,46 +162,55 @@ const ALGORITHM_STEP_SELECTOR = '.algorithm li > p:not(.issue)';
 // * `html` - HTML source, with style/script removed
 // * `text` - rendered text content
 // * `root.querySelectorAll()` - operate on DOM-like nodes
+// * `idl_ast` - WebIDL AST (see https://github.com/w3c/webidl2.js)
 
-// Look for merge markers
+// Checks are marked with one of these tags:
+// * [Generic] - could apply to any spec
+// * [WebNN] - very specific to the WebNN spec
+
+// [Generic] Report warnings found when parsing the WebIDL.
+for (const err of idl.validate(idl_ast)) {
+  error(`WebIDL: ${err.message}`);
+}
+
+// [Generic] Look for merge markers
 for (const match of source.matchAll(/<{7}|>{7}|^={7}$/mg)) {
   error(`Merge conflict marker: ${format(match)}`);
 }
 
-// Look for residue of unterminated auto-links in rendered text
+// [Generic] Look for residue of unterminated auto-links in rendered text
 for (const match of text.matchAll(/({{|}}|\[=|=\])/g)) {
   error(`Unterminated autolink: ${format(match)}`);
 }
 
-// Look for duplicate words (in source, since [=realm=] |realm| is okay)
-for (const match of html.matchAll(/ (\w+) \1 /g)) {
+// [Generic] Look for duplicate words (in source, since [=realm=] |realm| is okay)
+for (const match of html.matchAll(/(?:^|\s)(\w+) \1(?:$|\s)/ig)) {
   error(`Duplicate word: ${format(match)}`);
 }
 
-// Verify IDL lines wrap to avoid horizontal scrollbars
+// [Generic] Verify IDL lines wrap to avoid horizontal scrollbars
 const MAX_IDL_WIDTH = 88;
 for (const idl of root.querySelectorAll('pre.idl')) {
-  idl.innerText.split(/\n/).forEach(line => {
-    line = line.replace(/&lt;/g, '<'); // parser's notion of "innerText" is weird
+  innerText(idl).split(/\n/).forEach(line => {
     if (line.length > MAX_IDL_WIDTH) {
       error(`Overlong IDL: ${line}`);
     }
   });
 }
 
-// Look for undesired punctuation
+// [WebNN] Look for undesired punctuation
 for (const match of text.matchAll(/(::|×|÷|∗|−)/g)) {
   error(`Bad punctuation: ${format(match)}`);
 }
 
-// Look for undesired entity usage
+// [WebNN] Look for undesired entity usage
 for (const match of source.matchAll(/&(\w+);/g)) {
   if (!['amp', 'lt', 'gt', 'quot'].includes(match[1])) {
     error(`Avoid entities: ${format(match)}`);
   }
 }
 
-// Look for undesired phrasing
+// [WebNN] Look for undesired phrasing
 for (const match of source.matchAll(/the (\[=.*?=\]) of (\|.*?\|)[^,]/g)) {
   error(`Prefer "x's y" to "y of x": ${format(match)}`);
 }
@@ -180,17 +224,17 @@ for (const match of text.matchAll(/\bthe \S+ argument\b/g)) {
   error(`Drop 'the' and 'argument': ${format(match)}`);
 }
 
-// Look for incorrect use of shape for an MLOperandDescriptor
+// [WebNN] Look for incorrect use of shape for an MLOperandDescriptor
 for (const match of source.matchAll(/(\|\w*desc\w*\|)'s \[=MLOperand\/shape=\]/ig)) {
   error(`Use ${match[1]}.{{MLOperandDescriptor/dimensions}} not shape: ${format(match)}`);
 }
 
-// Look for missing dict-member dfns
+// [Generic] Look for missing dict-member dfns
 for (const element of root.querySelectorAll('.idl dfn[data-dfn-type=dict-member]')) {
   error(`Dictionary member missing dfn: ${element.innerText}`);
 }
 
-// Look for suspicious stuff in algorithm steps
+// [WebNN] Look for suspicious stuff in algorithm steps
 for (const element of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   // [] used for anything but indexing, slots, and refs
   // Exclude \w[ for indexing (e.g. shape[n])
@@ -205,7 +249,7 @@ for (const element of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   }
 }
 
-// Ensure vars are method/algorithm arguments, or initialized correctly
+// [Generic] Ensure vars are method/algorithm arguments, or initialized correctly
 for (const algorithm of root.querySelectorAll('.algorithm')) {
   const vars = algorithm.querySelectorAll('var');
   const seen = new Set();
@@ -253,17 +297,17 @@ for (const algorithm of root.querySelectorAll('.algorithm')) {
   }
 }
 
-// Eschew vars outside of algorithms.
+// [Generic] Eschew vars outside of algorithms.
 const algorithmVars = new Set(root.querySelectorAll('.algorithm var'));
 for (const v of root.querySelectorAll('var').filter(v => !algorithmVars.has(v))) {
   error(`Variable outside of algorithm: ${v.innerText}`);
 }
 
-
-// Prevent accidental normative references to other specs. This reports an error
-// if there is a normative reference to any spec *other* than these ones. This
-// helps avoid an autolink like [=object=] adding an unexpected reference to
-// [FILEAPI]. Add to this list if a new normative reference is intended.
+// [WebNN] Prevent accidental normative references to other specs. This reports
+// an error if there is a normative reference to any spec *other* than these
+// ones. This helps avoid an autolink like [=object=] adding an unexpected
+// reference to [FILEAPI]. Add to this list if a new normative reference is
+// intended.
 const NORMATIVE_REFERENCES = new Set([
   '[ECMASCRIPT]',
   '[HTML]',
@@ -282,11 +326,9 @@ for (const term of root.querySelectorAll('#normative + dl > dt')) {
   }
 }
 
-// Detect syntax errors in JS.
+// [Generic] Detect syntax errors in JS.
 for (const pre of root.querySelectorAll('pre.highlight:not(.idl)')) {
-  const script = pre.innerText.replaceAll(/&amp;/g, '&')
-                     .replaceAll(/&lt;/g, '<')
-                     .replaceAll(/&gt;/g, '>');
+  const script = innerText(pre);
   try {
     const f = AsyncFunction([], '"use strict";' + script);
   } catch (ex) {
@@ -294,7 +336,7 @@ for (const pre of root.querySelectorAll('pre.highlight:not(.idl)')) {
   }
 }
 
-// Ensure algorithm steps end in '.' or ':'.
+// [Generic] Ensure algorithm steps end in '.' or ':'.
 for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   const match = p.innerText.match(/[^.:]$/);
   if (match) {
@@ -302,12 +344,12 @@ for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   }
 }
 
-// Avoid incorrect links to list/empty.
+// [Generic] Avoid incorrect links to list/empty.
 for (const match of source.matchAll(/is( not)? \[=(list\/|stack\/|queue\/|)empty=\]/g)) {
   error(`Link to 'is empty' (adjective) not 'empty' (verb): ${format(match)}`);
 }
 
-// Ensure every method dfn is correctly associated with an interface.
+// [Generic] Ensure every method dfn is correctly associated with an interface.
 const interfaces = new Set(
   root.querySelectorAll('dfn[data-dfn-type=interface]').map(e => e.innerText));
 for (const dfn of root.querySelectorAll('dfn[data-dfn-type=method]')) {
@@ -317,13 +359,13 @@ for (const dfn of root.querySelectorAll('dfn[data-dfn-type=method]')) {
   }
 }
 
-// Ensure every IDL argument is linked to a definition.
+// [Generic] Ensure every IDL argument is linked to a definition.
 for (const dfn of root.querySelectorAll('pre.idl dfn[data-dfn-type=argument]')) {
   const dfnFor = dfn.getAttribute('data-dfn-for');
   error(`Missing <dfn argument for="${dfnFor}">${dfn.innerText}</dfn> (or equivalent)`);
 }
 
-// Ensure every argument dfn is correctly associated with a method.
+// [Generic] Ensure every argument dfn is correctly associated with a method.
 // This tries to catch extraneous definitions, e.g. after an arg is removed.
 for (const dfn of root.querySelectorAll('dfn[data-dfn-type=argument]')) {
   const dfnFor = dfn.getAttribute('data-dfn-for');
@@ -332,8 +374,9 @@ for (const dfn of root.querySelectorAll('dfn[data-dfn-type=argument]')) {
   }
 }
 
-// Try to catch type mismatches like |tensor|.{{MLGraph/...}}. Note that the
-// test is keyed on the variable name; variables listed here are not validated.
+// [WebNN] Try to catch type mismatches like |tensor|.{{MLGraph/...}}. Note that
+// the test is keyed on the variable name; variables listed here are not
+// validated.
 for (const match of source.matchAll(/\|(\w+)\|\.{{(\w+)\/.*?}}/g)) {
   const [_, v, i] = match;
   [['MLTensor', ['tensor']],
@@ -351,13 +394,42 @@ for (const match of source.matchAll(/\|(\w+)\|\.{{(\w+)\/.*?}}/g)) {
   });
 }
 
-// TODO: Generate this from the IDL itself.
-const dictionaryTypes = ['MLOperandDescriptor', 'MLContextLostInfo'];
+// [WebNN] Verify that linked constraints table IDs are reasonable. Bikeshed
+// will flag any broken links; this just tries to ensure that links within the
+// algorithm go to that algorithm's associated table.
+for (const algorithm of root.querySelectorAll(
+       '.algorithm[data-algorithm-for=MLGraphBuilder]')) {
+  const name = algorithm.getAttribute('data-algorithm');
+  if (name.match(/^(\w+)\(/)) {
+    const method = RegExp.$1;
+    for (const href of algorithm.querySelectorAll('a')
+           .map(a => a.getAttribute('href'))
+               .filter(href => href.match(/#constraints-/))) {
+      // Allow either exact case or lowercase match for table ID.
+      if (
+        href !== '#constraints-' + method &&
+        href !== '#constraints-' + method.toLowerCase()) {
+        error(`Steps for ${method}() link to ${href}`);
+      }
+    }
+  }
+}
 
-// Ensure JS objects are created with explicit realm
+// [WebNN] Ensure constraints tables use linking not styling
+for (const table of root.querySelectorAll('table.data').filter(e => e.id.startsWith('constraints-'))) {
+  for (const match of table.innerHTML.matchAll(/<em>(?!output)(\w+)<\/em>/ig)) {
+    error(`Constraints table should link not style args: ${format(match)}`);
+  }
+}
+
+const dictionaryTypes =
+  idl_ast.filter(o => o.type === 'dictionary').map(o => o.name);
+
+// [Generic] Ensure JS objects are created with explicit realm
 for (const match of text.matchAll(/ a new promise\b(?! in realm)/g)) {
   error(`Promise creation must specify realm: ${format(match)}`);
 }
+// [Generic] Ensure JS objects are created with explicit realm
 for (const match of text.matchAll(/ be a new ([A-Z]\w+)\b(?! in realm)/g)) {
   const type = match[1];
   // Dictionaries are just maps, so they don't need a realm.
