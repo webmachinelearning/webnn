@@ -869,7 +869,7 @@ interface MLContext {
   undefined dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);
 
   Promise<MLTensor> createTensor(MLTensorDescriptor descriptor);
-  Promise<MLConstantTensor> createConstantTensor(
+  Promise<MLTensor> createConstantTensor(
     MLOperandDescriptor descriptor, AllowSharedBufferSource inputData);
 
   Promise<ArrayBuffer> readTensor(MLTensor tensor);
@@ -941,7 +941,7 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
   </summary>
     1. If |namedTensors|'s [=map/size=] is not equal to |namedDescriptors|'s [=map/size=], then return false.
     1. [=map/For each=] |name| → |tensor| of |namedTensors|:
-        1. If |tensor| is a {{MLConstantTensor}} then return false.
+        1. If |tensor|.{{MLTensor/[[isConstant]]}} is true then return false.
         1. If |namedDescriptors|[|name|] does not [=map/exist=], then return false.
         1. If |tensor|.{{MLTensor/[[descriptor]]}} is not [=MLOperandDescriptor/equal=] to |namedDescriptors|[|name|], then return false.
     1. Return true.
@@ -1070,14 +1070,14 @@ Creates an {{MLTensor}} associated with this {{MLContext}}.
 
 ### {{MLContext/createConstantTensor()}}  ### {#api-mlcontext-createconstanttensor}
 
-Creates an {{MLConstantTensor}} associated with this {{MLContext}}.
+Creates a constant {{MLTensor}} associated with this {{MLContext}}.
 
 <div dfn-for="MLContext/createConstantTensor(descriptor, inputData)" dfn-type=argument>
     **Arguments:**
       - <dfn>descriptor</dfn>: an {{MLOperandDescriptor}}.
       - <dfn>inputData</dfn>: an {{AllowSharedBufferSource}}. The buffer whose bytes will be written into the tensor.
 
-    **Returns:** {{Promise}}<{{MLConstantTensor}}>.
+    **Returns:** {{Promise}}<{{MLTensor}}>.
 </div>
 
 <details open algorithm>
@@ -1091,7 +1091,7 @@ Creates an {{MLConstantTensor}} associated with this {{MLContext}}.
     1. If [=validating buffer with descriptor=] given |inputData| and |descriptor| returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |inputData|.
     1. [=Assert=]: |bytes|'s [=byte sequence/length=] is equal to |descriptor|'s [=MLOperandDescriptor/byte length=].
-    1. Let |tensor| be the result of [=creating an MLConstantTensor=] given [=this=], and |descriptor|.
+    1. Let |tensor| be the result of [=creating a constant MLTensor=] given [=this=], and |descriptor|.
     1. Let |promise| be [=a new promise=] in |realm|.
     1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
@@ -1494,7 +1494,7 @@ typedef (bigint or unrestricted double) MLNumber;
     ::
         Reference to {{MLOperand}}'s corresponding [=operator=].
   
-    : <dfn>\[[constantTensor]]</dfn> of type {{MLConstantTensor}}
+    : <dfn>\[[constantTensor]]</dfn> of type {{MLTensor}}
     ::
         The {{MLOperand}}'s tensor (only for constant operands).
   </dl>
@@ -1596,6 +1596,7 @@ interface MLTensor {
   readonly attribute FrozenArray<unsigned long> shape;
   readonly attribute boolean readable;
   readonly attribute boolean writable;
+  readonly attribute boolean constant;
 
   undefined destroy();
 };
@@ -1619,6 +1620,9 @@ interface MLTensor {
     : <dfn>\[[data]]</dfn> of an [=implementation-defined=] type
     ::
         The bytes backing the {{MLTensor}}. This data may only be accessed or modified from the {{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}.
+    : <dfn>\[[isConstant]]</dfn> of type {{boolean}}
+    ::
+        Whether the {{MLTensor}} was created by [=create a constant MLTensor=].
   </dl>
 </div>
 
@@ -1634,6 +1638,8 @@ The <dfn attribute for=MLTensor>readable</dfn> [=getter steps=] are to return [=
 
 The <dfn attribute for=MLTensor>writable</dfn> [=getter steps=] are to return [=this=].{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/writable}}.
 
+The <dfn attribute for=MLTensor>constant</dfn> [=getter steps=] are to return [=this=]'s {{MLTensor/[[isConstant]]}}.
+
 ### Creating an {{MLTensor}} ### {#api-mltensor-create}
 
 An {{MLTensor}} is created by its associated {{MLContext}}.
@@ -1647,6 +1653,7 @@ An {{MLTensor}} is created by its associated {{MLContext}}.
     1. Set |tensor|.{{MLTensor/[[context]]}} to |context|.
     1. Set |tensor|.{{MLTensor/[[descriptor]]}} to |descriptor|.
     1. Set |tensor|.{{MLTensor/[[isDestroyed]]}} to false.
+    1. Set |tensor|.{{MLTensor/[[isConstant]]}} to false.
     1. Return |tensor|.
 </details>
 
@@ -1670,36 +1677,25 @@ Releases the resources associated with the {{MLTensor}}. This method is idempote
 
 Note: Since no further operations can be enqueued using this tensor, implementations can free any additional resource allocations associated with this tensor once all previously submitted operations using it are complete.
 
-## {{MLConstantTensor}} interface ## {#api-mlconstanttensor}
+### Creating a constant {{MLTensor}} ### {#api-mlconstanttensor-create}
 
-The {{MLConstantTensor}} interface represents a tensor which may be used as a constant to an {{MLGraph}}. The memory backing an {{MLConstantTensor}} should be allocated in an [=implementation-defined=] fashion according to the requirements of the {{MLContext}} and the {{MLOperandDescriptor}} used to create it. Operations involving the {{MLTensor/[[data]]}} of an {{MLConstantTensor}} occur on the {{MLContext/[[timeline]]}} of its associated {{MLContext}}.
-
-The [=implementation-defined=] requirements of how an {{MLConstantTensor}} is allocated may include constraints such as that the memory is allocated with a particular byte alignment or in a particular memory pool.
-
-<script type=idl>
-[SecureContext, Exposed=(Window, Worker)]
-interface MLConstantTensor : MLTensor {
-};
-</script>
-
-### Creating an {{MLConstantTensor}} ### {#api-mlconstanttensor-create}
-
-An {{MLConstantTensor}} is created by its associated {{MLContext}}.
+A constant {{MLTensor}} is created by its associated {{MLContext}}.
 
 <details open algorithm>
   <summary>
-    To <dfn>create an MLConstantTensor</dfn> given {{MLContext}} |context|, {{MLOperandDescriptor}} |inputDescriptor|, run the following steps:
+    To <dfn>create a constant MLTensor</dfn> given {{MLContext}} |context|, {{MLOperandDescriptor}} |inputDescriptor|, run the following steps:
   </summary>
     1. Let |realm| be |context|'s [=relevant realm=].
-    1. Let |tensor| be a new {{MLConstantTensor}} in |realm|.
+    1. Let |tensor| be a new {{MLTensor}} in |realm|.
     1. Set |tensor|.{{MLTensor/[[context]]}} to |context|.
     1. Let |tensorDescriptor| be a new {{MLTensorDescriptor}}.
-    1. Set |tensorDescriptor|.{{MLTensorDescriptor/readable}} to true.
+    1. Set |tensorDescriptor|.{{MLTensorDescriptor/readable}} to false.
     1. Set |tensorDescriptor|.{{MLTensorDescriptor/writable}} to false.
     1. Set |tensorDescriptor|.{{MLOperandDescriptor/dataType}} to |inputDescriptor|.{{MLOperandDescriptor/dataType}}.
     1. Set |tensorDescriptor|.{{MLOperandDescriptor/shape}} to |inputDescriptor|.{{MLOperandDescriptor/shape}}.
     1. Set |tensor|.{{MLTensor/[[descriptor]]}} to |tensorDescriptor|.
     1. Set |tensor|.{{MLTensor/[[isDestroyed]]}} to false.
+    1. Set |tensor|.{{MLTensor/[[isConstant]]}} to true.
     1. Return |tensor|.
 </details>
 
@@ -1725,8 +1721,8 @@ interface MLGraphBuilder {
   // Create a scalar operand from the specified number of the specified type.
   MLOperand constant(MLOperandDataType type, MLNumber value);
 
-  // Create an operand from a specified tensor.
-  MLOperand constant(MLConstantTensor tensor);
+  // Create an operand from a specified constant tensor.
+  MLOperand constant(MLTensor tensor);
 
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
@@ -1833,7 +1829,7 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
 
 <div dfn-for="MLGraphBuilder/constant(tensor)" dfn-type=argument>
     **Arguments:**
-        - <dfn>tensor</dfn>: an {{MLConstantTensor}}. The tensor containing the initialized data.
+        - <dfn>tensor</dfn>: an {{MLTensor}}. The constant tensor containing the initialized data.
     **Returns:** an {{MLOperand}}. The constant output tensor.
 </div>
 
@@ -1843,6 +1839,7 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
   </summary>
     1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isConstant]]}} is false, then [=exception/throw=] a {{TypeError}}.
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |tensor|.{{MLTensor/[[descriptor]]}}.
