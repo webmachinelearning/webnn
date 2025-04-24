@@ -18,13 +18,38 @@
 //   --bikeshed PATH_TO_BS_FILE   Bikeshed source path. (default: "index.bs")
 //   --html PATH_TO_HTML_FILE     Generated HTML path. (default: "index.html")
 
+// --------------------------------------------------
+// About this file
+// --------------------------------------------------
+
+// This tool slurps in the source and built files, and then runs various
+// tests to catch errors and enforce the coding conventions documented at
+// ../docs/SpecCodingConventions.md
+
+// The individual tests are stand-alone and generally have these forms:
+// * Run regular expressions over source text.
+// * Run a CSS selector over the spec to return a list of matching elements,
+//   then run regular expressions over the element text.
+// * Run a CSS selector over the spec to return a list of matching elements,
+//   then run bespoke checks on the elements using DOM APIs.
+//
+// Therefore, a good working knowledge of regular expressions, CSS selectors,
+// and the DOM API is needed. Additionally, many of the checks are
+// WebNN-specific - these are called out. Note that this tool also makes
+// many assumptions about the HTML Bikeshed generates, so it will need to
+// be updated if Bikeshed makes significant changes.
+
+// --------------------------------------------------
+// Dependencies
+// --------------------------------------------------
+
 'use strict';
 import fs from 'node:fs/promises';
 import {parse} from 'node-html-parser';
 import * as idl from 'webidl2';
 
 // --------------------------------------------------
-// Process options
+// Process command line options
 // --------------------------------------------------
 
 const options = {
@@ -33,8 +58,8 @@ const options = {
   html: 'index.html',
 };
 
-// First two args are interpreter and script
-globalThis.process.argv.slice(2).forEach((arg, index, array) => {
+const [interpreter, script, ...args] = globalThis.process.argv;
+args.forEach((arg, index, array) => {
   if (arg === '--verbose' || arg === '-v') {
     options.verbose = true;
   } else if (arg === '--bikeshed' && array.length > index + 1) {
@@ -57,6 +82,13 @@ function log(string) {
 // Load and parse file
 // --------------------------------------------------
 
+// Steps are:
+// * Slurp in the Bikeshed source
+// * Slurp in the generated HTML
+// * Massage the HTML to work around node-html-parser issues
+// * Parse the HTML into a DOM using node-html-parser
+// * Parse the spec's WebIDL using webidl2
+
 log(`loading Bikeshed source "${options.bikeshed}"...`);
 const source = await fs.readFile(options.bikeshed, 'utf8');
 
@@ -66,16 +98,36 @@ let file = await fs.readFile(options.html, 'utf8');
 log('massaging HTML...');
 // node-html-parser doesn't understand that some elements are mutually self-closing;
 // tweak the source using regex magic.
+// It is perfectly valid in HTML to write `<table><tr><td>...<td>...</table>` to
+// produce a table with two cells, since a `TD` can't contain another `TD`
+// directly so the second one implicitly closes the first. Bikeshed emits HTML
+// like this frequently for several constructs. Since the parse we're stuck with
+// here gets confused by this, we massage the HTML to detect these cases and
+// insert explicit close tags.
 [{tags: ['dt', 'dd'], containers: ['dl']},
  {tags: ['thead', 'tbody', 'tfoot'], containers: ['table']},
  {tags: ['tr'], containers: ['thead', 'tbody', 'tfoot', 'table']},
 ].forEach(({tags, containers}) => {
+  // The regex magic here does the following transformations:
+  // Description Lists:
+  //  before: `<dl><dt>...<dd>...</dl>`
+  //  after:  `<dl><dt>...</dt><dd>...</dd></dl>`
+  // Table Sections:
+  //  before: `<table><thead>...<tbody>...</table>`
+  //  after:  `<table><thead>...</thead><tbody>...</tbody></table>`
+  // Table Rows:
+  //  before: `<table><tr>...<tr>...</table>`
+  //  after:  `<table><tr>...</tr><tr>...</tr></table>`
   const re = new RegExp(
+    // For all of the affected open tags (`opener`):
     '(<(' + tags.join('|') + ')\\b[^>]*>)' +
+      // Which can contain anything (`content`):
       '(.*?)' +
+      // If followed by a similar open tag, or the container close tag:
       '(?=<(' + tags.join('|') + '|/(' + containers.join('|') + '))\\b)',
     'sg');
   file = file.replaceAll(
+    // Then insert the explicit close tag right after the contents.
     re, (_, opener, tag, content) => `${opener}${content}</${tag}>`);
 });
 
@@ -85,7 +137,7 @@ const root = parse(file, {
     // Explicitly don't list <pre> to force children to be parsed.
     // See https://github.com/taoqf/node-html-parser/issues/78
 
-    // Explicitly list <script> and <style> otherwise remove() leaves
+    // Explicitly list <script> and <style> otherwise `remove()` leaves
     // text content.
     script: true,
     style: true,
@@ -99,41 +151,45 @@ for (const element of root.querySelectorAll('script, style, .index')) {
   element.remove();
 }
 
-
 const html = root.innerHTML;
 const text = root.innerText;
-
-// node-html-parser leaves some entities in innerText; use this to translate
-// where it matters, e.g. IDL fragments.
-function innerText(element) {
-  return element.innerText.replaceAll(/&amp;/g, '&')
-    .replaceAll(/&lt;/g, '<')
-    .replaceAll(/&gt;/g, '>');
-}
 
 // Parse the WebIDL Index. This will throw if errors are found, but Bikeshed
 // should fail to build the spec if the WebIDL is invalid.
 const idl_text = innerText(root.querySelector('#idl-index + pre'));
 const idl_ast = idl.parse(idl_text);
 
-let exitCode = 0;
-function error(message) {
-  console.error(message);
-  exitCode = 1;
+// --------------------------------------------------
+// Helpers
+// --------------------------------------------------
+
+// node-html-parser leaves some entities in innerText; use this helper function
+// to translate where it matters, e.g. IDL fragments.
+function innerText(element) {
+  return element.innerText.replaceAll(/&amp;/g, '&')
+    .replaceAll(/&lt;/g, '<')
+    .replaceAll(/&gt;/g, '>');
 }
 
-
+// Helper function to format the result of a RegExp match for use in error
+// messages. The matched text is presented with a small amount of
+// leading/trailing context from the same line.
+// e.g. `format(text.match(/÷/))` --> "... numerator ÷ denominator ..."
 function format(match) {
   const CONTEXT = 20;
 
+  // Characters in the source string on the same line, before the matched text.
   let prefix = match.input.substring(match.index - CONTEXT, match.index)
                      .split(/\n/)
                      .pop();
+  // Characters in the source string on the same line, after the matched text.
   let suffix = match.input.substr(match.index + match[0].length, CONTEXT)
                      .split(/\n/)
                      .shift();
   let infix = match[0];
 
+  // Ignore the prefix/suffix if the matched text starts/ends with a newline,
+  // since it could be completely unrelated.
   if (infix.startsWith('\n')) {
     prefix = '';
     infix = infix.slice(1);
@@ -147,15 +203,55 @@ function format(match) {
       (suffix.length === CONTEXT ? '...' : '');
 }
 
+// Used later in the script for dynamic script creation. JavaScript has the
+// named `Function()` which can be used like `eval()`, but doesn't name the
+// async equivalent so we need this one weird trick.
 const AsyncFunction = async function() {}.constructor;
+
+// CSS selectors for use with `querySelectorAll()`. These can be combined using
+// the usual combinators, e.g. ' ' is the descendant combinator, '>' is the
+// child combinator, etc.
+
+// Matches all algorithms in document. Note that this includes algorithms for
+// methods and abstract operations, and algorithms may have steps or be compact
+// single-line statements.
+const ALGORITHM_SELECTOR = '.algorithm';
+
+// Matches all individual algorithm steps in the document. Bikeshed generates LI
+// containing OL for sub-steps, and LI containing P for actual steps. Issues
+// within steps are ignored.
+const ALGORITHM_STEP_SELECTOR = ALGORITHM_SELECTOR + ' li > p:not(.issue)';
+
+// Matches IDL blocks.
+const IDL_BLOCK_SELECTOR = 'pre.idl';
+
+// Matches variables.
+const VAR_SELECTOR = 'var';
+
+// Matches various definition types.
+const ARGUMENT_DFN_SELECTOR = 'dfn[data-dfn-type=argument]';
+const DICTMEMBER_DFN_SELECTOR = 'dfn[data-dfn-type=dict-member]';
+const INTERFACE_DFN_SELECTOR = 'dfn[data-dfn-type=interface]';
+const METHOD_DFN_SELECTOR = 'dfn[data-dfn-type=method]';
+
+// Defined here to make it more obvious why two selectors are being joined by a
+// space, for maintainers who don't eat CSS for breakfast.
+const DESCENDANT_COMBINATOR = ' ';
 
 // --------------------------------------------------
 // Checks
 // --------------------------------------------------
 
-log('running checks...');
+let exitCode = 0;
 
-const ALGORITHM_STEP_SELECTOR = '.algorithm li > p:not(.issue)';
+// Failing checks must call `error()` which will log the error message and set
+// the process exit code to signal failure.
+function error(message) {
+  console.error(message);
+  exitCode = 1;
+}
+
+log('running checks...');
 
 // Checks can operate on:
 // * `source` - raw Bikeshed markdown source
@@ -168,7 +264,8 @@ const ALGORITHM_STEP_SELECTOR = '.algorithm li > p:not(.issue)';
 // * [Generic] - could apply to any spec
 // * [WebNN] - very specific to the WebNN spec
 
-// [Generic] Report warnings found when parsing the WebIDL.
+// [Generic] Report warnings found when parsing the WebIDL. Bikeshed should
+// fail generation on IDL errors, but some warnings may slip through.
 for (const err of idl.validate(idl_ast)) {
   error(`WebIDL: ${err.message}`);
 }
@@ -184,13 +281,19 @@ for (const match of text.matchAll(/({{|}}|\[=|=\])/g)) {
 }
 
 // [Generic] Look for duplicate words (in source, since [=realm=] |realm| is okay)
+// Note that spaces (or start/end of string) are used as delimiters for the
+// regex because there are a lot of potential false positives, including:
+// * <a class="p-org org">
+// * <code>unsigned long long</code>
+// Although this does allow for false negatives. e.g. <p>The the</p>
+// TODO: Consider iterating over all text nodes and searching those instead.
 for (const match of html.matchAll(/(?:^|\s)(\w+) \1(?:$|\s)/ig)) {
   error(`Duplicate word: ${format(match)}`);
 }
 
-// [Generic] Verify IDL lines wrap to avoid horizontal scrollbars
+// [Generic] Verify IDL lines wrap, to avoid horizontal scrollbars
 const MAX_IDL_WIDTH = 88;
-for (const idl of root.querySelectorAll('pre.idl')) {
+for (const idl of root.querySelectorAll(IDL_BLOCK_SELECTOR)) {
   innerText(idl).split(/\n/).forEach(line => {
     if (line.length > MAX_IDL_WIDTH) {
       error(`Overlong IDL: ${line}`);
@@ -203,7 +306,9 @@ for (const match of text.matchAll(/(::|×|÷|∗|−)/g)) {
   error(`Bad punctuation: ${format(match)}`);
 }
 
-// [WebNN] Look for undesired entity usage
+// [WebNN] Look for undesired entity usage (e.g. &laquo;, &rarr;, etc)
+// Although harder to type, we prefer using «, →, etc. directly since it makes
+// the source more readable.
 for (const match of source.matchAll(/&(\w+);/g)) {
   if (!['amp', 'lt', 'gt', 'quot'].includes(match[1])) {
     error(`Avoid entities: ${format(match)}`);
@@ -211,6 +316,7 @@ for (const match of source.matchAll(/&(\w+);/g)) {
 }
 
 // [WebNN] Look for undesired phrasing
+// e.g. "the [=rank=] of |tensor|" (unless it's the start of a list)
 for (const match of source.matchAll(/the (\[=.*?=\]) of (\|.*?\|)[^,]/g)) {
   error(`Prefer "x's y" to "y of x": ${format(match)}`);
 }
@@ -227,13 +333,19 @@ for (const match of text.matchAll(/\bnot greater\b/g)) {
   error(`Prefer "less or equal" to "not greater" (etc):  ${format(match)}`);
 }
 
-// [WebNN] Look for incorrect use of shape for an MLOperandDescriptor
+// [WebNN] Ensure MLOperandDescriptor's shape is linked, not MLOperand's.
+// This looks for variables containing 'desc' (descriptor, desc2, etc).
+// FUTURE: Implement a "type checker" for specs.
 for (const match of source.matchAll(/(\|\w*desc\w*\|)'s \[=MLOperand\/shape=\]/ig)) {
-  error(`Use ${match[1]}.{{MLOperandDescriptor/dimensions}} not shape: ${format(match)}`);
+  error(`Use ${match[1]}.{{MLOperandDescriptor/shape}} not MLOperand's shape: ${format(match)}`);
 }
 
 // [Generic] Look for missing dict-member dfns
-for (const element of root.querySelectorAll('.idl dfn[data-dfn-type=dict-member]')) {
+// If there is a definition for a dictionary member, Bikeshed automagically
+// links the IDL to that definition. Otherwise, it makes the IDL the definition
+// itself - which we consider an error.
+for (const element of root.querySelectorAll(
+       IDL_BLOCK_SELECTOR + DESCENDANT_COMBINATOR + DICTMEMBER_DFN_SELECTOR)) {
   error(`Dictionary member missing dfn: ${element.innerText}`);
 }
 
@@ -246,15 +358,18 @@ for (const element of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   for (const match of element.innerText.matchAll(/(?<!\w|\[|\]|«)\[(?!\[|[A-Z])/g)) {
     error(`Non-index use of [] in algorithm: ${format(match)}`);
   }
-  // | is likely an unclosed variable
+  // | in the DOM is likely an unclosed variable, since we don't use symbols for
+  // absolute (|n|) , logical or (a || b) or bitwise or (a | b).
   for (const match of element.innerText.matchAll(/\|/g)) {
     error(`Unclosed variable in algorithm: ${format(match)}`);
   }
 }
 
 // [Generic] Ensure vars are method/algorithm arguments, or initialized correctly
-for (const algorithm of root.querySelectorAll('.algorithm')) {
-  const vars = algorithm.querySelectorAll('var');
+// Every variable should be a method argument, an argument to an abstract method,
+// or initialized with "Let".
+for (const algorithm of root.querySelectorAll(ALGORITHM_SELECTOR)) {
+  const vars = algorithm.querySelectorAll(VAR_SELECTOR);
   const seen = new Set();
   for (const v of vars) {
     const name = v.innerText.trim().replaceAll(/\s+/g, ' ');
@@ -301,13 +416,18 @@ for (const algorithm of root.querySelectorAll('.algorithm')) {
 }
 
 // [Generic] Eschew vars outside of algorithms.
-const algorithmVars = new Set(root.querySelectorAll('.algorithm var'));
-for (const v of root.querySelectorAll('var').filter(v => !algorithmVars.has(v))) {
+// This is important as Bikeshed has some smarts around variable usage, e.g.
+// flagging a variable only referenced once within an algorithm. "Global"
+// variables confuse this.
+const algorithmVars = new Set(root.querySelectorAll(
+  ALGORITHM_SELECTOR + DESCENDANT_COMBINATOR + VAR_SELECTOR));
+for (const v of root.querySelectorAll(VAR_SELECTOR)
+       .filter(v => !algorithmVars.has(v))) {
   error(`Variable outside of algorithm: ${v.innerText}`);
 }
 
 // [Generic] Algorithms should either throw or reject, never both.
-for (const algorithm of root.querySelectorAll('.algorithm')) {
+for (const algorithm of root.querySelectorAll(ALGORITHM_SELECTOR)) {
   const name = algorithm.getAttribute('data-algorithm');
   const terms = {
     throw: 'exception',
@@ -320,11 +440,15 @@ for (const algorithm of root.querySelectorAll('.algorithm')) {
     exception: 'promise',
     promise: 'exception',
   };
+  // Look for any of the terms above as stand-alone words within step text.
   const re = RegExp('\\b(' + Object.keys(terms).join('|') + ')\\b', 'g');
   const seen = new Set();
 
   for (const match of algorithm.innerText.matchAll(re)) {
+    // Map the term to the type ('exception' or 'promise').
     const type = terms[match[1]];
+
+    // If we saw the other type in use in this algorithm, that's an error.
     if (seen.has(other[type])) {
       error(`Algorithm "${name}" mixes throwing with promises: ${format(match)}`);
       break;
@@ -357,6 +481,10 @@ for (const term of root.querySelectorAll('#normative + dl > dt')) {
 }
 
 // [Generic] Detect syntax errors in JS.
+// This works by grabbing JS examples and parsing them (like `eval()`). Note
+// that since examples usually lack full context (e.g. device creation), and the
+// Node.js environment doesn't support WebNN anyway, this does not execute the
+// JS, so only syntax errors are found.
 for (const pre of root.querySelectorAll('pre.highlight:not(.idl)')) {
   const script = innerText(pre);
   try {
@@ -402,15 +530,18 @@ for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   }
 }
 
-// [Generic] Avoid incorrect links to list/empty.
+// [Generic] Avoid links to [=list/empty=] when [=list/is empty=] is intended.
 for (const match of source.matchAll(/is( not)? \[=(list\/|stack\/|queue\/|)empty=\]/g)) {
   error(`Link to 'is empty' (adjective) not 'empty' (verb): ${format(match)}`);
 }
 
-// [Generic] Ensure every method dfn is correctly associated with an interface.
+// [Generic] Ensure every method <dfn> is correctly associated with an
+// interface. Bikeshed will let you define a method for an interface that isn't
+// itself defined, so this helps catch places where an interface is renamed but
+// not all references have been updated.
 const interfaces = new Set(
-  root.querySelectorAll('dfn[data-dfn-type=interface]').map(e => e.innerText));
-for (const dfn of root.querySelectorAll('dfn[data-dfn-type=method]')) {
+  root.querySelectorAll(INTERFACE_DFN_SELECTOR).map(e => e.innerText));
+for (const dfn of root.querySelectorAll(METHOD_DFN_SELECTOR)) {
   const dfnFor = dfn.getAttribute('data-dfn-for');
   if (!dfnFor || !interfaces.has(dfnFor)) {
     error(`Method definition '${dfn.innerText}' for undefined '${dfnFor}'`);
@@ -418,14 +549,15 @@ for (const dfn of root.querySelectorAll('dfn[data-dfn-type=method]')) {
 }
 
 // [Generic] Ensure every IDL argument is linked to a definition.
-for (const dfn of root.querySelectorAll('pre.idl dfn[data-dfn-type=argument]')) {
+for (const dfn of root.querySelectorAll(
+       IDL_BLOCK_SELECTOR + DESCENDANT_COMBINATOR + ARGUMENT_DFN_SELECTOR)) {
   const dfnFor = dfn.getAttribute('data-dfn-for');
   error(`Missing <dfn argument for="${dfnFor}">${dfn.innerText}</dfn> (or equivalent)`);
 }
 
-// [Generic] Ensure every argument dfn is correctly associated with a method.
+// [Generic] Ensure every argument <dfn> is correctly associated with a method.
 // This tries to catch extraneous definitions, e.g. after an arg is removed.
-for (const dfn of root.querySelectorAll('dfn[data-dfn-type=argument]')) {
+for (const dfn of root.querySelectorAll(ARGUMENT_DFN_SELECTOR)) {
   const dfnFor = dfn.getAttribute('data-dfn-for');
   if (!dfnFor.split(/\b/).includes(dfn.innerText)) {
     error(`Argument definition '${dfn.innerText}' doesn't appear in '${dfnFor}'`);
@@ -435,6 +567,7 @@ for (const dfn of root.querySelectorAll('dfn[data-dfn-type=argument]')) {
 // [WebNN] Try to catch type mismatches like |tensor|.{{MLGraph/...}}. Note that
 // the test is keyed on the variable name; variables listed here are not
 // validated.
+// FUTURE: Implement a "type checker" for specs.
 for (const match of source.matchAll(/\|(\w+)\|\.{{(\w+)\/.*?}}/g)) {
   const [_, v, i] = match;
   [['MLTensor', ['tensor']],
@@ -458,11 +591,13 @@ for (const match of source.matchAll(/\|(\w+)\|\.{{(\w+)\/.*?}}/g)) {
 for (const algorithm of root.querySelectorAll(
        '.algorithm[data-algorithm-for=MLGraphBuilder]')) {
   const name = algorithm.getAttribute('data-algorithm');
+  // Restrict to methods, e.g. "foo(", and capture its name (in `RegExp.$1`)
   if (name.match(/^(\w+)\(/)) {
     const method = RegExp.$1;
+    // Look for links to "#constraints-..."
     for (const href of algorithm.querySelectorAll('a')
            .map(a => a.getAttribute('href'))
-               .filter(href => href.match(/#constraints-/))) {
+           .filter(href => href.match(/#constraints-/))) {
       // Allow either exact case or lowercase match for table ID.
       if (
         href !== '#constraints-' + method &&
@@ -475,6 +610,7 @@ for (const algorithm of root.querySelectorAll(
 
 // [WebNN] Ensure constraints tables use linking not styling
 for (const table of root.querySelectorAll('table.data').filter(e => e.id.startsWith('constraints-'))) {
+  // Look for `<em>identifier</em>` which is wrong, except for `output`.
   for (const match of table.innerHTML.matchAll(/<em>(?!output)(\w+)<\/em>/ig)) {
     error(`Constraints table should link not style args: ${format(match)}`);
   }
@@ -484,10 +620,12 @@ const dictionaryTypes =
   idl_ast.filter(o => o.type === 'dictionary').map(o => o.name);
 
 // [Generic] Ensure JS objects are created with explicit realm
+// Looks for " a new promise" not followed by " in realm".
 for (const match of text.matchAll(/ a new promise\b(?! in realm)/g)) {
   error(`Promise creation must specify realm: ${format(match)}`);
 }
 // [Generic] Ensure JS objects are created with explicit realm
+// Looks for " be a new XYZ" not followed by "in realm".
 for (const match of text.matchAll(/ be a new ([A-Z]\w+)\b(?! in realm)/g)) {
   const type = match[1];
   // Dictionaries are just maps, so they don't need a realm.
