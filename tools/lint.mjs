@@ -337,7 +337,7 @@ for (const match of text.matchAll(/\bnot greater\b/g)) {
 // This looks for variables containing 'desc' (descriptor, desc2, etc).
 // FUTURE: Implement a "type checker" for specs.
 for (const match of source.matchAll(/(\|\w*desc\w*\|)'s \[=MLOperand\/shape=\]/ig)) {
-  error(`Use ${match[1]}.{{MLOperandDescriptor/dimensions}} not shape: ${format(match)}`);
+  error(`Use ${match[1]}.{{MLOperandDescriptor/shape}} not shape: ${format(match)}`);
 }
 
 // [Generic] Look for missing dict-member dfns
