@@ -333,11 +333,11 @@ for (const match of text.matchAll(/\bnot greater\b/g)) {
   error(`Prefer "less or equal" to "not greater" (etc):  ${format(match)}`);
 }
 
-// [WebNN] Look for incorrect use of shape for an MLOperandDescriptor
+// [WebNN] Ensure MLOperandDescriptor's shape is linked, not MLOperand's.
 // This looks for variables containing 'desc' (descriptor, desc2, etc).
 // FUTURE: Implement a "type checker" for specs.
 for (const match of source.matchAll(/(\|\w*desc\w*\|)'s \[=MLOperand\/shape=\]/ig)) {
-  error(`Use ${match[1]}.{{MLOperandDescriptor/shape}} not shape: ${format(match)}`);
+  error(`Use ${match[1]}.{{MLOperandDescriptor/shape}} not MLOperand's shape: ${format(match)}`);
 }
 
 // [Generic] Look for missing dict-member dfns
