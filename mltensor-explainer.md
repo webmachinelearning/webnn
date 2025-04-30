@@ -207,14 +207,14 @@ An `MLTensor` may be exported into WebGPU, minimizing the number of buffer copie
 
 ```js
 // Create a couple MLTensors to be shared with WebGPU.
-const mlTensor1 = await mlContext.createTensor({..., exportableToWebGPU: true});
-const mlTensor2 = await mlContext.createTensor({..., exportableToWebGPU: true});
+const mlTensor1 = await mlContext.createTensor({..., exportableToGPU: true});
+const mlTensor2 = await mlContext.createTensor({..., exportableToGPU: true});
 
 const applyEffectToFrame = async () => {
   const gpuVideoTexture = gpuDevice.importExternalTexture({source: video});
 
   // Wait for all ML work involving `mlTensor1` to complete, then rent it out to WebGPU.
-  const tensorizedGpuBuffer = await mlContext.exportToWebGPU(mlTensor1);
+  const tensorizedGpuBuffer = await mlContext.exportToGPU(mlTensor1);
 
   // Create a bind group for `gpuVideoTexture`, create a command encoder, etc.
   // to "tensorize" `gpuVideoTexture` and store the result in `tensorizedGpuBuffer`
@@ -234,7 +234,7 @@ const applyEffectToFrame = async () => {
   );
 
   // Wait for all ML work involving `mlTensor2` to complete, then rent it out to WebGPU.
-  const tensorizedGpuBufferAfterInference = await mlContext.exportToWebGPU(mlTensor2);
+  const tensorizedGpuBufferAfterInference = await mlContext.exportToGPU(mlTensor2);
 
   // Create a bind group for `tensorizedGpuBufferAfterInference`,
   // create a command encoder, etc to feed `tensorizedGpuBufferAfterInference`
@@ -264,13 +264,13 @@ Specifying WebNN timelines is tracked in [#529](https://github.com/webmachinelea
 
 The WebNN API requires the developer to declare how an `MLTensor` will be used (via `MLTensorDescriptor`), which the user agent may use as a hint in deciding where to allocate the memory backing an `MLTensor`. Where the memory is ultimately allocated is up to the user agent.
 
-For example [an `MLContext` may be created with a `GPUDevice`](https://www.w3.org/TR/webnn/#dom-ml-createcontext-gpudevice), and creating an `MLTensor` from this context with the `MLTensorDescriptor.exportableToWebGPU` flag expresses a clear intention to share the tensor with the given `GPUDevice`. However, there is no guarantee that sharing this tensor with WebGPU will be zero-copy.
+For example [an `MLContext` may be created with a `GPUDevice`](https://www.w3.org/TR/webnn/#dom-ml-createcontext-gpudevice), and creating an `MLTensor` from this context with the `MLTensorDescriptor.exportableToGPU` flag expresses a clear intention to share the tensor with the given `GPUDevice`. However, there is no guarantee that sharing this tensor with WebGPU will be zero-copy.
 
 The `MLTensorDescriptor.readable` and `MLTensorDescriptor.writable` flags likewise are hints to the user agent indicating that the underlying data will be read and written to, respectively, by script.
 
 ### Exporting an `MLTensor` to WebGPU
 
-An `MLTensor` created with the `MLTensorDescriptor.exportableToWebGPU` flag may be export as a `GPUBuffer` to a `GPUDevice`. In the best case, this requires no data copies. If the underlying buffer backing the `MLTensor` is not accessible to the `GPUDevice`, this will require copying the contents of the `MLTensor` to a new buffer, then copying the contents of this buffer back to the `MLTensor` once WebGPU releases its handle to the buffer.
+An `MLTensor` created with the `MLTensorDescriptor.exportableToGPU` flag may be export as a `GPUBuffer` to a `GPUDevice`. In the best case, this requires no data copies. If the underlying buffer backing the `MLTensor` is not accessible to the `GPUDevice`, this will require copying the contents of the `MLTensor` to a new buffer, then copying the contents of this buffer back to the `MLTensor` once WebGPU releases its handle to the buffer.
 
 While an `MLTensor` is rented to a `GPUDevice`, the `GPUDevice` has exclusive, read/write access to the exported tensor, which is created as a `GPUBuffer` with `GPUBufferUsageFlags.STORAGE`, `GPUBufferUsageFlags.COPY_SRC`, and `GPUBufferUsageFlags.COPY_DST`. All WebNN work depending - directly or indirectly - on the exported `MLTensor` is blocked until the `GPUDevice` returns the tensor.
 
@@ -282,7 +282,7 @@ The `GPUBuffer` can be accessed as an `array<T>` in WGSL - a 1D packed array of 
 @group(0) @binding(0) var<storage, read_write> tensor: array<f32>;
 ```
 
-Exporting and returning the `MLTensor` are each points of synchronization between the respective WebNN and WebGPU [timelines](https://www.w3.org/TR/webgpu/#programming-model-timelines). The `exportToWebGPU()` method is asynchronous to allow the user agent to await completion of WebNN operations before posting WebGPU commands with the exported tensor. This is to avoid making WebGPU workloads - which may involve compositing - explicitly dependent on WebNN operations, which may be inefficient (e.g. if ML compute is not expressed in terms of GPU commands) or impossible (e.g. [some platforms don't support enqueuing GPU work that waits on a fence to be later signaled by the CPU](https://github.com/webmachinelearning/webnn/pull/754#discussion_r1740841364)) on some platforms.
+Exporting and returning the `MLTensor` are each points of synchronization between the respective WebNN and WebGPU [timelines](https://www.w3.org/TR/webgpu/#programming-model-timelines). The `exportToGPU()` method is asynchronous to allow the user agent to await completion of WebNN operations before posting WebGPU commands with the exported tensor. This is to avoid making WebGPU workloads - which may involve compositing - explicitly dependent on WebNN operations, which may be inefficient (e.g. if ML compute is not expressed in terms of GPU commands) or impossible (e.g. [some platforms don't support enqueuing GPU work that waits on a fence to be later signaled by the CPU](https://github.com/webmachinelearning/webnn/pull/754#discussion_r1740841364)) on some platforms.
 
 ### `compute()` vs. `dispatch()`
 
@@ -296,7 +296,7 @@ It's possible `compute()` may have a performance advantage on some platforms for
   - *Update: [#778](https://github.com/webmachinelearning/webnn/issues/778) is a proposal for reporting non-fatal errors from the WebNN timeline*
 - Does the user agent have enough information to appropriately allocate an `MLTensor` if an `MLDeviceType` or `GPUDevice` is not used to create an `MLContext`? See [#350](https://github.com/webmachinelearning/webnn/issues/350) and [#749](https://github.com/webmachinelearning/webnn/issues/749)
 - Should the `dispatch()` method be a part of the `MLGraph` interface rather than `MLContext`? Should `readTensor()` and `writeTensor()` exist on an `MLTensor`? See [#697](https://github.com/webmachinelearning/webnn/issues/697).
-- Is a sync variant of the `exportToWebGPU()` method feasible (1) on platforms where completion of ML compute can be signaled on a GPU timeline, or (2) when blocking WebGPU workloads which do not themselves block compositing.
+- Is a sync variant of the `exportToGPU()` method feasible (1) on platforms where completion of ML compute can be signaled on a GPU timeline, or (2) when blocking WebGPU workloads which do not themselves block compositing.
 - The requirement that an exported `GPUBuffer` may be represented as an `array<T>` in WGSL is very restrictive. Could we instead create a `GPUExportedTensor` type which abstracts away the layout of the underlying tensor?
 
 ## Considered Alternatives
@@ -382,7 +382,7 @@ Many thanks for valuable feedback and advice from:
 dictionary MLTensorDescriptor : MLOperandDescriptor {
   boolean readable = false;
   boolean writable = false;
-  boolean exportableToWebGPU = false;
+  boolean exportableToGPU = false;
 };
 
 typedef record<DOMString, MLTensor> MLNamedTensors;
@@ -392,7 +392,7 @@ interface MLTensor {
   readonly attribute FrozenArray<unsigned long> shape;
   readonly attribute boolean readable;
   readonly attribute boolean writable;
-  readonly attribute boolean exportableToWebGPU;
+  readonly attribute boolean exportableToGPU;
 
   void destroy();
 };
@@ -413,7 +413,7 @@ partial interface MLContext {
 // For WebGPU Interop
 
 partial interface MLContext {
-  Promise<GPUBuffer> exportToWebGPU(MLTensor source);
+  Promise<GPUBuffer> exportToGPU(MLTensor source);
 }
 
 partial interface ML {
