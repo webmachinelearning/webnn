@@ -2,7 +2,7 @@
 
 ## Authors
 
-- [Austin Sullivan](asully@chromium.org) (Google)
+- [Austin Sullivan](mailto:asully@chromium.org) (Google)
 
 ## Participate
 

@@ -151,6 +151,6 @@ Example:
 ### Dictionary Members
 
 * Dictionary members are referenced using dotted property syntax. e.g. _options.padding_
-   * Note that this is contrary to Web IDL + Infra; formally, a JavaScript object has been mapped to a Web IDL [dictionary](https://webidl.spec.whatwg.org/#idl-dictionaries) and then processed into an Infra [map](ordered) by the time a spec is using it. So formally the syntax _options["padding"]_ should be used.
+   * Note that this is contrary to Web IDL + Infra; formally, a JavaScript object has been mapped to a Web IDL [dictionary](https://webidl.spec.whatwg.org/#idl-dictionaries) and then processed into an Infra [map](https://infra.spec.whatwg.org/#ordered-map) by the time a spec is using it. So formally the syntax _options["padding"]_ should be used.
 * Dictionary members should be linked to, both in algorithms and in other text. e.g. `|options|.{{MLOptionsDict/member}}` (in the steps for an algorithm) or `{{MLOptionsDict/member}}` (outside an algorithm).
 * Dictionary members should be given definitions somewhere in the text. This is usually done with a `<dl dfn-type=dict-member dfn-for=...>` for the dictionary as a whole, containing a `<dfn>` for each member.
