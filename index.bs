@@ -7253,8 +7253,7 @@ Inflate the tensor with constant or mirrored values on the edges.
 enum MLPaddingMode {
   "constant",
   "edge",
-  "reflection",
-  "symmetric"
+  "reflection"
 };
 
 dictionary MLPadOptions : MLOperatorOptions {
@@ -7334,7 +7333,20 @@ partial dictionary MLOpSupportLimits {
     1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Let |outputShape| be a copy of |input|'s [=MLOperand/shape=].
-    1. [=list/For each=] |index| in [=the range=] 0 to |outputShape|'s [=MLOperand/rank=], exclusive:
+    1. [=list/For each=] |index| in [=the exclusive range|the range=] 0 to |outputShape|'s [=MLOperand/rank=], exclusive:
+        1. Switch on |options|.{{MLPadOptions/mode}}:
+            <dl class=switch>
+                : {{MLPaddingMode/"constant"}}
+                :: Do nothing.
+
+                : {{MLPaddingMode/"edge"}}
+                :: Do nothing.
+
+                : {{MLPaddingMode/"reflection"}}
+                ::
+                    1. If |beginningPadding|[|index|] is greater than or equal to |outputShape|[|index|], then [=exception/throw=] a {{TypeError}}.
+                    1. If |endingPadding|[|index|] is greater than or equal to |outputShape|[|index|], then [=exception/throw=] a {{TypeError}}.
+            </dl>
         1. Add to |outputShape|[|index|] the value of |beginningPadding|[|index|].
         1. Add to |outputShape|[|index|] the value of |endingPadding|[|index|].
     1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
@@ -7352,7 +7364,7 @@ partial dictionary MLOpSupportLimits {
 <div class="example">
 <details open>
   <summary>
-    Examples for constant, edge, reflection and symmetric padding:
+    Examples for constant, edge, and reflection padding:
   </summary>
   <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
@@ -7382,13 +7394,6 @@ partial dictionary MLOpSupportLimits {
     //     [6,5,4,5,6,5,4],
     //     [3,2,1,2,3,2,1]]
     builder.pad(input, beginningPadding, endingPadding, {mode: 'reflection'});
-
-    // "symmetric" padded:
-    //    [[2,1,1,2,3,3,2],
-    //     [2,1,1,2,3,3,2],
-    //     [5,4,4,5,6,6,5],
-    //     [5,4,4,5,6,6,5]]
-    builder.pad(input, beginningPadding, endingPadding, {mode: 'symmetric'});
   </pre>
 </details>
 </div>
