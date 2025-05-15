@@ -23,12 +23,8 @@ The design process of the [Web Neural Network API](https://www.w3.org/TR/webnn/)
 With emerging ML innovations in both software and hardware ecosystem, one of the main challenges for the web is to bridge this software and hardware development and bring together a solution that scales across hardware platforms and works with any framework for web-based machine learning experiences. We propose the WebNN API as an abstraction for neural networks in the web browsers.
 
 ```mermaid
-%%{ init : { "theme" : "neutral" }}%%
+%%{ init : { "look" : "handDrawn", "theme" : "neo-dark" }}%%
 flowchart TD
-
-  style Models stroke-width:0, fill:#fff
-  style Frameworks stroke-width:0, fill:#fff
-  style Native_ML_APIs stroke-width:0, fill:#fff
 
   subgraph Models
     Model[ONNX, TensorFlow, PyTorch]
