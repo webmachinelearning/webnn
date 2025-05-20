@@ -53,7 +53,7 @@ flowchart TD
   Model --> Framework
 
   Framework --> Wasm
-  Framework --> WebNN
+  Framework ==> WebNN
   Framework --> WebGPU
 
   Wasm --> CPU
