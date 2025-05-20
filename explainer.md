@@ -22,7 +22,48 @@ The design process of the [Web Neural Network API](https://www.w3.org/TR/webnn/)
 
 With emerging ML innovations in both software and hardware ecosystem, one of the main challenges for the web is to bridge this software and hardware development and bring together a solution that scales across hardware platforms and works with any framework for web-based machine learning experiences. We propose the WebNN API as an abstraction for neural networks in the web browsers.
 
-![WebNN architecture](content/webnn_arch.png)
+```mermaid
+%%{ init : { "look" : "handDrawn", "theme" : "neo-dark" }}%%
+flowchart TD
+
+  subgraph Models
+    Model[ONNX, TensorFlow, PyTorch]
+  end
+
+  subgraph Frameworks
+    Framework(ONNX Runtime Web, LiteRT)
+  end
+
+  subgraph Browser_APIs[Browser APIs]
+    Wasm
+    WebNN
+    WebGPU
+  end
+
+  subgraph Native_ML_APIs[Native ML APIs]
+    MLAPI[DirectML / LiteRT / Core&nbsp;ML]
+  end
+
+  subgraph Hardware
+    CPU
+    NPU
+    GPU
+  end
+
+  Model --> Framework
+
+  Framework --> Wasm
+  Framework ==> WebNN
+  Framework --> WebGPU
+
+  Wasm --> CPU
+  WebNN ==> MLAPI
+  WebGPU --> GPU
+
+  MLAPI ==> CPU
+  MLAPI ==> NPU
+  MLAPI ==> GPU
+```
 
 As illustrated in the architecture diagram of the figure above, web browsers may implement the WebNN API using native machine learning API available in the operating system. This architecture allows JavaScript frameworks to tap into cutting-edge machine learning innovations in the operating system and the hardware platform underneath it without being tied to platform-specific capabilities, bridging the gap between software and hardware through a hardware-agnostic abstraction layer.
 
