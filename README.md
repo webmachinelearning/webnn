@@ -17,7 +17,7 @@ This section describes the process for building this specification on your local
 The first step is to clone the repo:
 
 ```
-prompt> gh repo clone webmachinelearning/webnn
+prompt> git clone https://github.com/webmachinelearning/webnn
 ```
 
 Next, install the makefile dependencies:
