@@ -60,7 +60,7 @@ A WebNN application may have specific device preferences for model execution. Th
     *   *Description*: The application developer hints that the model should ideally run on the device component primarily responsible for general computation, typically "where JS and Wasm execute". This could be due to the model's characteristics (e.g., heavy control flow, operations best suited for CPU) or to reserve other accelerators for different tasks.
 *   **Prefer execution on a Neural Processing Unit (NPU)**:
     *   *Preference*: `"prefer NPU"`
-    *   *Description*: The application developer hints that the model is well-suited for an NPU (a specialized accelerator, referred to as "other" in a future-proof context, distinct from CPU and GPU). This is often the case for models optimized for low power and sustained performance.
+    *   *Description*: The application developer hints that the model is well-suited for an NPU. NPUs are specialized hardware accelerators, distinct from CPUs (typically "where JS and Wasm execute") and GPUs (typically "where WebGL and WebGPU programs execute"). In a future-proof context, NPUs fall under the category of "other" compute devices, encompassing various current and future specialized ML accelerators. This preference is often chosen for models optimized for low power and sustained performance.
 *   **Prefer execution on a Graphics Processing Unit (GPU)**:
     *   *Preference*: `"prefer GPU"`
     *   *Description*: The application developer hints that the model should run on the GPU (the device "where WebGL and WebGPU programs execute"). This is common for models with highly parallelizable operations.
