@@ -51,6 +51,29 @@ Later the need for explicit device selection support was challenged in [[MLConte
 
 ## Key use cases and requirements
 
+### Device Preference Use Cases
+
+A WebNN application may have specific device preferences for model execution. These preferences can be mapped to the following use cases:
+
+*   **Prefer execution on the main CPU**:
+    *   *Preference*: `"prefer CPU"`
+    *   *Description*: The application developer hints that the model should ideally run on the device component primarily responsible for general computation, typically "where JS and Wasm execute". This could be due to the model's characteristics (e.g., heavy control flow, operations best suited for CPU) or to reserve other accelerators for different tasks.
+*   **Prefer execution on a Neural Processing Unit (NPU)**:
+    *   *Preference*: `"prefer NPU"`
+    *   *Description*: The application developer hints that the model is well-suited for an NPU (a specialized accelerator, referred to as "other" in a future-proof context, distinct from CPU and GPU). This is often the case for models optimized for low power and sustained performance.
+*   **Prefer execution on a Graphics Processing Unit (GPU)**:
+    *   *Preference*: `"prefer GPU"`
+    *   *Description*: The application developer hints that the model should run on the GPU (the device "where WebGL and WebGPU programs execute"). This is common for models with highly parallelizable operations.
+*   **Maximize Performance**:
+    *   *Preference*: `"maximum performance"`
+    *   *Description*: The application developer desires the highest possible throughput or lowest latency for the model execution, regardless of power consumption. The underlying system will choose the device or combination of devices (e.g., "where WebGL and WebGPU programs execute", or "other" specialized hardware) that can achieve this.
+*   **Maximize Power Efficiency**:
+    *   *Preference*: `"maximum efficiency"`
+    *   *Description*: The application developer prioritizes executing the model in the most power-efficient manner, which might involve using an NPU ("other") or a low-power mode of the CPU ("where JS and Wasm execute"). This is crucial for battery-constrained devices or long-running tasks.
+*   **Minimize Overall System Power**:
+    *   *Preference*: `"minimum overall power"`
+    *   *Description*: The application developer hints that the model execution should contribute as little as possible to the overall system power draw. This is a broader consideration than just the model's own efficiency, potentially influencing scheduling and resource allocation across the system. The implementation may choose any device ("where JS and Wasm execute", "where WebGL and WebGPU programs execute", or "other") that best achieves this goal.
+
 Design decisions may take the following into account:
 
 1. Allow the underlying platform to ultimately choose the compute device.
