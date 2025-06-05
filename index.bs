@@ -3583,6 +3583,7 @@ partial interface MLGraphBuilder {
   MLOperand log(MLOperand input, optional MLOperatorOptions options = {});
   MLOperand neg(MLOperand input, optional MLOperatorOptions options = {});
   MLOperand reciprocal(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand roundEven(MLOperand input, optional MLOperatorOptions options = {});
   MLOperand sin(MLOperand input, optional MLOperatorOptions options = {});
   MLOperand sign(MLOperand input, optional MLOperatorOptions options = {});
   MLOperand sqrt(MLOperand input, optional MLOperatorOptions options = {});
@@ -3600,6 +3601,7 @@ partial dictionary MLOpSupportLimits {
   MLSingleInputSupportLimits log;
   MLSingleInputSupportLimits neg;
   MLSingleInputSupportLimits reciprocal;
+  MLSingleInputSupportLimits roundEven;
   MLSingleInputSupportLimits sin;
   MLSingleInputSupportLimits sign;
   MLSingleInputSupportLimits sqrt;
@@ -3661,6 +3663,8 @@ partial dictionary MLOpSupportLimits {
     :: Support limits for operator {{MLGraphBuilder/neg()}}.
     : <dfn>reciprocal</dfn>
     :: Support limits for operator {{MLGraphBuilder/reciprocal()}}.
+    : <dfn>roundEven</dfn>
+    :: Support limits for operator {{MLGraphBuilder/roundEven()}}.
     : <dfn>sin</dfn>
     :: Support limits for operator {{MLGraphBuilder/sin()}}.
     : <dfn>sign</dfn>
@@ -3683,6 +3687,7 @@ partial dictionary MLOpSupportLimits {
         - *log*: Compute the natural logarithm of the input tensor, element-wise.
         - *neg*: Compute the numerical negative value of the input tensor, element-wise.
         - *reciprocal*: Compute the reciprocal of the input tensor, element-wise.
+        - *roundEven*: Round the input tensor with halves to the nearest even value, element-wise (e.g. [0.1, 0.9, 1.1, 1.9, -3.5, -2.5, -1.5, 1.5, 2.5, 3.5] yields [0.0, 1.0, 1.0, 2.0, -4.0, -2.0, -2.0, 2.0, 2.0, 4.0]).
         - *sin*: Compute the sine of the input tensor, element-wise.
         - *sign*: Compute the sign (-1, 0, 1) of the input tensor, element-wise, returning 1 if > 0, -1 if < 0, and 0 otherwise.
         - *sqrt*: Compute the square root of the input tensor, element-wise.
@@ -3693,7 +3698,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create an element-wise unary operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, optional [=/list=] |allowedDataTypes|, and |options|, run the following steps:
   </summary>
-    1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "erf", "exp", "floor", "identity", "log", "neg", "reciprocal", "sin", "sign", "sqrt", "tan".
+    1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "erf", "exp", "floor", "identity", "log", "neg", "reciprocal", "roundEven", "sin", "sign", "sqrt", "tan".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -3776,6 +3781,13 @@ partial dictionary MLOpSupportLimits {
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reciprocal(|input|, |options|)</dfn> method steps are:
         1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "reciprocal", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
+        1. Return |output|.
+    </div>
+
+    <div algorithm>
+    The <dfn method for=MLGraphBuilder>roundEven(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "roundEven", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -4103,7 +4115,6 @@ partial dictionary MLOpSupportLimits {
     <summary>
     The behavior of this operation can be [EMULATED]
     </summary>
-    This emulation relies on a pending `roundEven` operator in <#817>.
     <pre highlight="js">
     function quantizeLinear(builder, input, scale, zeroPoint, options) {
       // output = clamp(roundEven(input / scale) + zeroPoint, 0, 255)
