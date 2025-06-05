@@ -22,7 +22,48 @@ The design process of the [Web Neural Network API](https://www.w3.org/TR/webnn/)
 
 With emerging ML innovations in both software and hardware ecosystem, one of the main challenges for the web is to bridge this software and hardware development and bring together a solution that scales across hardware platforms and works with any framework for web-based machine learning experiences. We propose the WebNN API as an abstraction for neural networks in the web browsers.
 
-![WebNN architecture](content/webnn_arch.png)
+```mermaid
+%%{ init : { "look" : "handDrawn", "theme" : "neo-dark" }}%%
+flowchart TD
+
+  subgraph Models
+    Model[ONNX, TensorFlow, PyTorch]
+  end
+
+  subgraph Frameworks
+    Framework(ONNX Runtime Web, LiteRT)
+  end
+
+  subgraph Browser_APIs[Browser APIs]
+    Wasm
+    WebNN
+    WebGPU
+  end
+
+  subgraph Native_ML_APIs[Native ML APIs]
+    MLAPI[DirectML / LiteRT / Core&nbsp;ML]
+  end
+
+  subgraph Hardware
+    CPU
+    NPU
+    GPU
+  end
+
+  Model --> Framework
+
+  Framework --> Wasm
+  Framework ==> WebNN
+  Framework --> WebGPU
+
+  Wasm --> CPU
+  WebNN ==> MLAPI
+  WebGPU --> GPU
+
+  MLAPI ==> CPU
+  MLAPI ==> NPU
+  MLAPI ==> GPU
+```
 
 As illustrated in the architecture diagram of the figure above, web browsers may implement the WebNN API using native machine learning API available in the operating system. This architecture allows JavaScript frameworks to tap into cutting-edge machine learning innovations in the operating system and the hardware platform underneath it without being tied to platform-specific capabilities, bridging the gap between software and hardware through a hardware-agnostic abstraction layer.
 
@@ -88,7 +129,7 @@ Depending on the underlying hardware capabilities, these platform APIs may make 
 
 A core abstraction behind popular neural networks is a computational graph, a directed graph with its nodes corresponding to operations (ops) and input variables. One node's output value is the input to another node. The WebNN API brings this abstraction to the web.
 
-In the WebNN API, the [`MLOperand`](https://www.w3.org/TR/webnn/#api-mloperand) objects represent input, output, and constant multi-dimensional arrays known as [tensors](https://mathworld.wolfram.com/Tensor.html). The [`MLContext`](https://www.w3.org/TR/webnn/#api-mlcontext) defines a set of operations that facilitate the construction and execution of this computational graph. Such operations may be accelerated with dedicated hardware such as the GPUs, CPUs with extensions for deep learning, or dedicated ML accelerators. These operations defined by the WebNN API are required by [models](https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md) that address key application use cases. Additionally, the WebNN API provides affordances to build a computational graph, compile the graph, execute the graph, and integrate the graph with other Web APIs that provide input data to the graph e.g. media APIs for image or video frames and sensor APIs for sensory data. Please see the [programming model overview](https://www.w3.org/TR/webnn/#programming-model-overview) for details.
+In the WebNN API, [`MLOperand`](https://www.w3.org/TR/webnn/#api-mloperand) objects represent input, output, and constant multi-dimensional arrays known as [tensors](https://mathworld.wolfram.com/Tensor.html). The [`MLContext`](https://www.w3.org/TR/webnn/#api-mlcontext) defines a set of operations that facilitate the construction and execution of this computational graph. Such operations may be accelerated with dedicated hardware such as the GPUs, CPUs with extensions for deep learning, or dedicated ML accelerators (aka NPUs/TPUs). These operations defined by the WebNN API are required by well-known [CNN and RNN](https://github.com/webmachinelearning/webnn/blob/master/op_compatibility/first_wave_models.md), [transformer](https://github.com/webmachinelearning/webnn/issues/375) and generative models that address key application use cases. Additionally, the WebNN API provides affordances to build a computational graph, compile the graph, execute the graph, and integrate the graph with other Web APIs that provide input data to the graph e.g. media APIs for image or video frames and sensor APIs for sensory data. Please see the [programming model overview](https://www.w3.org/TR/webnn/#programming-model-overview) for details.
 
 The specification includes an [example](https://www.w3.org/TR/webnn/#examples) that builds, compiles, and executes a graph comprised of three ops, takes four inputs and returns one output.
 
@@ -203,9 +244,9 @@ To balance the needs of providing for future extensibility while ensuring maximu
 
 ### Stay the course and build machine learning solutions on WebGL/WebGPU
 
-WebGL and WebGPU are Web API abstraction to the underlying graphics API, which could be used to implement neural network operations that run on the GPU. Popular JavaScript machine learning frameworks such as TensorFlow.js already uses WebGL and are working on a WebGPU backend. An alternative to the WebNN proposal is to continue with this architecture and rely on JavaScript frameworks implemented with these graphics abstraction to address the current and future needs of ML scenarios on the web.
+WebGL and WebGPU are Web API abstraction to the underlying graphics API, which could be used to implement neural network operations that run on the GPU. Popular JavaScript machine learning frameworks such as TensorFlow.js and ONNX Runtime Web already use WebGL and/or WebGPU backends. An alternative to the WebNN API is to continue with this architecture and rely on JavaScript frameworks implemented with these graphics abstraction to address the current and future needs of ML scenarios on the web.
 
-We believe this alternative is insufficient for two reasons. First, although graphics abstraction layers provide the flexibility of general programmability of the GPU graphics pipelines, they are unable to tap into hardware-specific optimizations and special instructions that are available to the operating system internals. The hardware ecosystem has been investing significantly in innovating in the ML space, and much of that is about improving the performance of intensive compute workloads in machine learning scenarios. Some key technologies that are important to model performance may not be uniformly accessible to applications through generic graphics pipeline states.
+We believe this alternative is insufficient for two reasons. First, although graphics abstraction layers provide the flexibility of general programmability of the GPU graphics pipelines, they are unable to tap into hardware-specific optimizations and special instructions that are available to the operating system internals. The hardware ecosystem has been investing significantly in innovating in the ML space, and much of that is about improving the performance of intensive compute workloads in machine learning scenarios. Some key technologies that are important to model performance may not be uniformly accessible to applications through generic graphics pipeline states. While WebGPU shaders can be optimized for a specific model, the WebNN API operator set is optimized for the latest hardware generation and well-known models. The [tensor interface](mltensor-explainer.md) enables best-effort buffer-sharing between the WebGPU and WebNN APIs to allow implementations optimize performance when the two APIs are used together.
 
 Secondly, the hardware diversity with numerous driver generations make conformance testing of neural network operations at the framework level more challenging. Conformance testing, compatibility, and quality assurance of hardware results have been the traditional areas of strength of the operating systems, something that should be leveraged by frameworks and applications alike. Since neural network models could be used in mission-critical scenarios such as in healthcare or industry processes, the trustworthiness of the results produced by the frameworks are of utmost importance to the users.
 

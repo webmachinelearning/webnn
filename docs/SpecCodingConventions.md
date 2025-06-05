@@ -119,6 +119,8 @@ Example:
 * When referring to abstract properties, use the short possessive form `|object|'s [=property=]`. Avoid the wordier `the [=property=] of |object|` form.
 * Use "rank" when describing the number of dimensions of a tensor (e.g. in variable names) rather than the ambiguous "size".
 * Only use single capital letters as variable names when referring to tensors; i.e. prefer `|shapeA|` to `|A|`, but tensor `|T|` is okay.
+* Don't "Return undefined." at the end of an algorithm unless it is conditional.
+* Follow an "If" with ", then".
 
 
 ### Method Definitions
@@ -149,6 +151,6 @@ Example:
 ### Dictionary Members
 
 * Dictionary members are referenced using dotted property syntax. e.g. _options.padding_
-   * Note that this is contrary to Web IDL + Infra; formally, a JavaScript object has been mapped to a Web IDL [dictionary](https://webidl.spec.whatwg.org/#idl-dictionaries) and then processed into an Infra [map](ordered) by the time a spec is using it. So formally the syntax _options["padding"]_ should be used.
+   * Note that this is contrary to Web IDL + Infra; formally, a JavaScript object has been mapped to a Web IDL [dictionary](https://webidl.spec.whatwg.org/#idl-dictionaries) and then processed into an Infra [map](https://infra.spec.whatwg.org/#ordered-map) by the time a spec is using it. So formally the syntax _options["padding"]_ should be used.
 * Dictionary members should be linked to, both in algorithms and in other text. e.g. `|options|.{{MLOptionsDict/member}}` (in the steps for an algorithm) or `{{MLOptionsDict/member}}` (outside an algorithm).
 * Dictionary members should be given definitions somewhere in the text. This is usually done with a `<dl dfn-type=dict-member dfn-for=...>` for the dictionary as a whole, containing a `<dfn>` for each member.

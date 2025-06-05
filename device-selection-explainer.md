@@ -51,6 +51,29 @@ Later the need for explicit device selection support was challenged in [[MLConte
 
 ## Key use cases and requirements
 
+### Device Preference Use Cases
+
+A WebNN application may have specific device preferences for model execution. The following use cases map to such preferences, informed by existing APIs such as ONNX Runtime's `OrtExecutionProviderDevicePolicy` [1](https://onnxruntime.ai/docs/api/c/group___global.html#gaf26ca954c79d297a31a66187dd1b4e24):
+
+*   **Prefer execution on the main CPU**:
+    *   *Preference*: `"prefer CPU"`
+    *   *Description*: The application developer hints that the model should ideally run on the device component primarily responsible for general computation, typically "where JS and Wasm execute". This could be due to the model's characteristics (e.g., heavy control flow, operations best suited for CPU) or to reserve other accelerators for different tasks.
+*   **Prefer execution on a Neural Processing Unit (NPU)**:
+    *   *Preference*: `"prefer NPU"`
+    *   *Description*: The application developer hints that the model is well-suited for an NPU. NPUs are specialized hardware accelerators, distinct from CPUs (typically "where JS and Wasm execute") and GPUs (typically "where WebGL and WebGPU programs execute"). In a future-proof context, NPUs fall under the category of "other" compute devices, encompassing various current and future specialized ML accelerators. This preference is often chosen for models optimized for low power and sustained performance.
+*   **Prefer execution on a Graphics Processing Unit (GPU)**:
+    *   *Preference*: `"prefer GPU"`
+    *   *Description*: The application developer hints that the model should run on the GPU (the device "where WebGL and WebGPU programs execute"). This is common for models with highly parallelizable operations.
+*   **Maximize Performance**:
+    *   *Preference*: `"maximum performance"`
+    *   *Description*: The application developer desires the highest possible throughput or lowest latency for the model execution, regardless of power consumption. The underlying system will choose the device or combination of devices (e.g., "where WebGL and WebGPU programs execute", or other specialized hardware) that can achieve this.
+*   **Maximize Power Efficiency**:
+    *   *Preference*: `"maximum efficiency"`
+    *   *Description*: The application developer prioritizes executing the model in the most power-efficient manner, which might involve using an NPU or a low-power mode of the CPU ("where JS and Wasm execute"). This is crucial for battery-constrained devices or long-running tasks.
+*   **Minimize Overall System Power**:
+    *   *Preference*: `"minimum overall power"`
+    *   *Description*: The application developer hints that the model execution should contribute as little as possible to the overall system power draw. This is a broader consideration than just the model's own efficiency, potentially influencing scheduling and resource allocation across the system. The implementation may choose any device ("where JS and Wasm execute", "where WebGL and WebGPU programs execute", or "other") that best achieves this goal.
+
 Design decisions may take the following into account:
 
 1. Allow the underlying platform to ultimately choose the compute device.
@@ -191,3 +214,6 @@ Other use cases were raised as well, in [this comment](https://github.com/webmac
 > 1. If the user selects to use functionality like background blur, we want to offer the best quality the device can offer. So the product has a small set of candidate models and technologies (WebNN, WebGPU, WASM) that it has to choose between. Accelerated technologies come with allowance for beefier models.
 
 > 2. The model/tech choser algorithm needs to be fast, and we need to avoid spending seconds or even hundreds of milliseconds to figure out if a given model should be able to run accelerated. So for example downloading the entirety (could be large things..), compiling & try-running a model seems infeasible.
+
+## References
+[1] ONNX Runtime - OrtExecutionProviderDevicePolicy. (https://onnxruntime.ai/docs/api/c/group___global.html#gaf26ca954c79d297a31a66187dd1b4e24)

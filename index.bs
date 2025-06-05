@@ -629,6 +629,8 @@ The API design minimizes the attack surface for the compiled computational graph
 
 Purpose-built Web APIs for measuring high-resolution time mitigate against timing attacks using techniques such as resolution reduction, adding jitter, detection of abuse and API call throttling [[hr-time-3]]. The practical deployment of WebNN implementations are likely to bring enough jitter to make timing attacks impractical (e.g. because they would use IPC) but implementers are advised to consider and test their implementations against timing attacks.
 
+Note: Security risks related to Unicode sequences are discussed in context of the {{MLOperatorOptions/label}} {{USVString}} definition.
+
 ## Guidelines for new operations ## {#security-new-ops}
 
 *This section is non-normative.*
@@ -700,8 +702,6 @@ In WebNN, a [=computational graph=] is composed of <dfn>operators</dfn> which ac
 A key part of the {{MLGraphBuilder}} interface are methods such as {{MLGraphBuilder/gemm()}} and {{MLGraphBuilder/relu()}} which create an [=operator=] which represents the actual operation to perform on the input data when the computation is run, and return a new {{MLOperand}} holding the operator. Methods that create an {{MLOperand}} connect any [=operator/inputs=] and [=operator/activations=] to the operator. Each method invocation returns a distinct new value, without changing the value of any other {{MLOperand}}.
 
 An [=operator=] has a <dfn for=operator>label</dfn>, a string which may be included in diagnostics such as [=exception=] messages. When an [=operator=] is created its [=operator/label=] is initialized in an [=implementation-defined=] manner and may include the passed {{MLOperatorOptions/label}}.
-
-Note: Implementations are encouraged to use the {{MLOperatorOptions/label}} provided by developers to enhance error messages and improve debuggability, including both synchronous errors during graph construction and for errors that occur during the asynchronous {{MLGraphBuilder/build()}} method.
 
 ISSUE(778): Consider adding a mechanism for reporting errors during {{MLContext/dispatch()}}.
 
@@ -814,7 +814,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
     To <dfn>create a context</dfn> given [=realm=] |realm| and |options| (a {{GPUDevice}} or {{MLContextOptions}}), run these steps:
 </summary>
     1. Let |context| be a new {{MLContext}} in |realm|.
-    1. If |options| is a {{GPUDevice}} object:
+    1. If |options| is a {{GPUDevice}} object, then:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/webgpu=]".
         1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
     1. Otherwise:
@@ -822,7 +822,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
         1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=] in |realm|.
         1. If |options|["{{MLContextOptions/powerPreference}}"] [=map/exists=], then set |context|.{{MLContext/[[powerPreference]]}} to |options|["{{MLContextOptions/powerPreference}}"].
         1. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
-    1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, return failure.
+    1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, then return failure.
     1. Return |context|.
 </details>
 
@@ -832,7 +832,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |promise| be [=a new promise=] in |realm|.
     1. Run the following steps [=in parallel=].
         1. Let |context| be the result of [=creating a context=] given |realm| and |options|. If that returns failure, then [=queue an ML task=] with |global| to [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
@@ -846,7 +846,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 </summary>
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
-    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
+    1. If |global|'s [=associated Document=] is not [=allowed to use=] the [=webnn-feature|webnn=] feature, then return [=a new promise=] in |realm| [=rejected=] with a "{{SecurityError}}" {{DOMException}}.
     1. Let |promise| be [=a new promise=] in |realm|.
     1. Run the following steps [=in parallel=].
         1. Let |context| be the result of [=creating a context=] given |realm| and |gpuDevice|. If that returns failure, then [=queue an ML task=] with |global| to [=reject=] |promise| with a "{{NotSupportedError}}" {{DOMException}} and abort these steps.
@@ -869,6 +869,8 @@ interface MLContext {
   undefined dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);
 
   Promise<MLTensor> createTensor(MLTensorDescriptor descriptor);
+  Promise<MLTensor> createConstantTensor(
+    MLOperandDescriptor descriptor, AllowSharedBufferSource inputData);
 
   Promise<ArrayBuffer> readTensor(MLTensor tensor);
   Promise<undefined> readTensor(MLTensor tensor, AllowSharedBufferSource outputData);
@@ -915,7 +917,7 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
   <summary>
     To <dfn>validate buffer with descriptor</dfn> given {{AllowSharedBufferSource}} |bufferSource| and {{MLOperandDescriptor}} |descriptor|, run the following steps:
   </summary>
-    1. If |bufferSource|'s [=BufferSource/byte length=] is not equal to |descriptor|'s [=MLOperandDescriptor/byte length=] return false.
+    1. If |bufferSource|'s [=BufferSource/byte length=] is not equal to |descriptor|'s [=MLOperandDescriptor/byte length=], then return false.
     1. Switch on the type of |bufferSource|:
         <dl class=switch>
             : {{ArrayBuffer}}
@@ -939,6 +941,7 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
   </summary>
     1. If |namedTensors|'s [=map/size=] is not equal to |namedDescriptors|'s [=map/size=], then return false.
     1. [=map/For each=] |name| → |tensor| of |namedTensors|:
+        1. If |tensor|.{{MLTensor/[[isConstant]]}} is true, then return false.
         1. If |namedDescriptors|[|name|] does not [=map/exist=], then return false.
         1. If |tensor|.{{MLTensor/[[descriptor]]}} is not [=MLOperandDescriptor/equal=] to |namedDescriptors|[|name|], then return false.
     1. Return true.
@@ -978,8 +981,12 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
 
                 Issue(778): Add a mechanism for reporting errors during graph execution.
 
-    1. Return {{undefined}}.
 </details>
+
+<p class="note">
+  When a constant operand is created using a tensor, it is legal for that tensor to be destroyed after build completes.
+  Implementations are expected to ensure that the compiled graph remains valid and unaffected by such destruction.
+</p>
 
 #### Examples #### {#api-mlcontext-dispatch-examples}
 <div class="example">
@@ -988,7 +995,10 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
     The following code showcases executing an {{MLGraph}} using {{MLTensor}}s.
   </summary>
   <pre highlight="js">
-    const descriptor = {dataType: 'float32', shape: [2, 2]};
+    const descriptor = {
+      dataType: 'float32',
+      shape: [2, 2]
+    };
     const context = await navigator.ml.createContext();
     const builder = new MLGraphBuilder(context);
 
@@ -1002,18 +1012,11 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
     const graph = await builder.build({'C': C});
 
     // 3. Create reusable input and output tensors.
-    const [inputTensorA, inputTensorB, outputTensorC] =
-        await Promise.all([
-          context.createTensor({
-            dataType: A.dataType, shape: A.shape, writable: true
-          }),
-          context.createTensor({
-            dataType: B.dataType, shape: B.shape, writable: true
-          }),
-          context.createTensor({
-            dataType: C.dataType, shape: C.shape, readable: true
-          })
-        ]);
+    const [inputTensorA, inputTensorB, outputTensorC] = await Promise.all([
+      context.createTensor({dataType: A.dataType, shape: A.shape, writable: true}),
+      context.createTensor({dataType: B.dataType, shape: B.shape, writable: true}),
+      context.createTensor({dataType: C.dataType, shape: C.shape, readable: true})
+    ]);
 
     // 4. Initialize the inputs.
     context.writeTensor(inputTensorA, new Float32Array(4).fill(1.0));
@@ -1059,6 +1062,42 @@ Creates an {{MLTensor}} associated with this {{MLContext}}.
     1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Create |tensor|.{{MLTensor/[[data]]}} given |descriptor| and initialize all bytes to zeros.
+            1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+            1. Otherwise, [=queue an ML task=] with |global| to [=resolve=] |promise| with |tensor|.
+        1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
+    1. Return |promise|.
+</details>
+
+### {{MLContext/createConstantTensor()}}  ### {#api-mlcontext-createconstanttensor}
+
+Creates a constant {{MLTensor}} associated with this {{MLContext}}.
+
+<div dfn-for="MLContext/createConstantTensor(descriptor, inputData)" dfn-type=argument>
+    **Arguments:**
+      - <dfn>descriptor</dfn>: an {{MLOperandDescriptor}}.
+      - <dfn>inputData</dfn>: an {{AllowSharedBufferSource}}. The buffer whose bytes will be written into the tensor.
+
+    **Returns:** {{Promise}}<{{MLTensor}}>.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLContext>createConstantTensor(|descriptor|, |inputData|)</dfn> method steps are:
+  </summary>
+    1. Let |global| be [=this=]'s [=relevant global object=].
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If [=this=] [=MLContext/is lost=], then return [=a new promise=] in |realm| [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If [=validating buffer with descriptor=] given |inputData| and |descriptor| returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |inputData|.
+    1. [=Assert=]: |bytes|'s [=byte sequence/length=] is equal to |descriptor|'s [=MLOperandDescriptor/byte length=].
+    1. Let |tensor| be the result of [=creating a constant MLTensor=] given [=this=], and |descriptor|.
+    1. Let |promise| be [=a new promise=] in |realm|.
+    1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
+        1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
+            1. Create |tensor|.{{MLTensor/[[data]]}} given |descriptor|.
+            1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+            1. Copy |bytes| to |tensor|.{{MLTensor/[[data]]}}.
             1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
             1. Otherwise, [=queue an ML task=] with |global| to [=resolve=] |promise| with |tensor|.
         1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
@@ -1133,7 +1172,7 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
                 1. [=Reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
             1. Otherwise, [=queue an ML task=] with |global| to run these steps:
                 1. [=set/Remove=] |promise| from |tensor|.{{MLTensor/[[pendingPromises]]}}.
-                1. If |outputData| is [=BufferSource/detached=], [=reject=] |promise| with a {{TypeError}}, and abort these steps.
+                1. If |outputData| is [=BufferSource/detached=], then [=reject=] |promise| with a {{TypeError}}, and abort these steps.
 
                     Note: [=Validating buffer with descriptor=] above will fail if |outputData| is detached, but it is possible that |outputData| could be detached between that step and this one.
 
@@ -1171,7 +1210,6 @@ Writes data to the {{MLTensor/[[data]]}} of an {{MLTensor}} on the {{MLContext}}
 
                 Issue(778): Add a mechanism for reporting errors while writing to a tensor.
 
-    1. Return {{undefined}}.
 </details>
 
 Note: Similar to `dispatch()`, `writeTensor()` itself provides no signal that the write has completed. To inspect the contents of a tensor, callers can `await` the results of reading back the tensor.
@@ -1184,15 +1222,18 @@ The {{MLOpSupportLimits}} has the following top level members, aside from these,
 <script type="idl">
 dictionary MLOpSupportLimits {
   MLInputOperandLayout preferredInputLayout;
-  MLSupportLimits input;
-  MLSupportLimits constant;
-  MLSupportLimits output;
+  [EnforceRange] unsigned long long maxTensorByteLength;
+  MLDataTypeLimits input;
+  MLDataTypeLimits constant;
+  MLDataTypeLimits output;
 };
 </script>
 
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
     : <dfn>preferredInputLayout</dfn>
     :: Preferred input layout for layout dependent operators like {{MLGraphBuilder/conv2d()}}.
+    : <dfn>maxTensorByteLength</dfn>
+    :: The maximum supported length of tensors, in bytes.
     : <dfn>input</dfn>
     :: Support limits for input {{MLOperand}}s for an {{MLGraph}}.
     : <dfn>constant</dfn>
@@ -1200,48 +1241,78 @@ dictionary MLOpSupportLimits {
     : <dfn>output</dfn>
     :: Support limits for output {{MLOperand}}s for an {{MLGraph}}.
 </dl>
-#### {{MLSupportLimits}} dictionary #### {#api-mlcontext-supportlimits-dictionary}
+#### {{MLDataTypeLimits}} dictionary #### {#api-mlcontext-datatypelimits-dictionary}
 <script type="idl">
-dictionary MLSupportLimits {
-  sequence<MLOperandDataType> dataTypes;
+typedef sequence<MLOperandDataType> MLDataTypeList;
+
+dictionary MLDataTypeLimits {
+  MLDataTypeList dataTypes;
 };
 </script>
-<dl dfn-type=dict-member dfn-for=MLSupportLimits>
+<dl dfn-type=dict-member dfn-for=MLDataTypeLimits>
     : <dfn>dataTypes</dfn>
     :: Supported data types.
+</dl>
+
+#### {{MLRankRange}} dictionary #### {#api-mlcontext-rankrange-dictionary}
+<script type="idl">
+dictionary MLRankRange {
+  unsigned long min;
+  unsigned long max;
+};
+</script>
+<dl dfn-type=dict-member dfn-for=MLRankRange>
+    : <dfn>min</dfn>
+    :: Minimum supported rank.
+    : <dfn>max</dfn>
+    :: Maximum supported rank.
+</dl>
+
+#### {{MLTensorLimits}} dictionary #### {#api-mlcontext-tensorlimits-dictionary}
+<script type="idl">
+dictionary MLTensorLimits {
+  MLDataTypeList dataTypes;
+  MLRankRange rankRange;
+};
+</script>
+<dl dfn-type=dict-member dfn-for=MLTensorLimits>
+    : <dfn>dataTypes</dfn>
+    :: Supported data types.
+    : <dfn>rankRange</dfn>
+    :: Minimum and maximum supported ranks.
 </dl>
 
 #### {{MLBinarySupportLimits}} dictionary #### {#api-mlcontext-binarysupportlimits-dictionary}
 <script type="idl">
 dictionary MLBinarySupportLimits {
-  MLSupportLimits a;
-  MLSupportLimits b;
-  MLSupportLimits output;
+  MLTensorLimits a;
+  MLTensorLimits b;
+  MLDataTypeLimits output;
 };
 </script>
 
 <dl dfn-type=dict-member dfn-for=MLBinarySupportLimits>
     : <dfn>a</dfn>
-    :: {{MLSupportLimits}} for a operand.
+    :: {{MLTensorLimits}} for a operand.
     : <dfn>b</dfn>
-    :: {{MLSupportLimits}} for b operand.
+    :: {{MLTensorLimits}} for b operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 #### {{MLSingleInputSupportLimits}} dictionary #### {#api-mlcontext-singleinputsupportlimits-dictionary}
 <script type="idl">
 dictionary MLSingleInputSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLDataTypeLimits output;
 };
 </script>
 
 <dl dfn-type=dict-member dfn-for=MLSingleInputSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 ### {{MLContext/destroy()}}  ### {#api-mlcontext-destroy}
@@ -1417,8 +1488,8 @@ Issue(391): Should 0-size dimensions be supported?
   <summary>
     To <dfn for="MLOperandDescriptor">check dimensions</dfn> given {{MLOperandDescriptor}} |descriptor|, run the following steps:
   </summary>
-    1. If any [=list/item=] of |descriptor|.{{MLOperandDescriptor/shape}} is not a [=valid dimension=], return false.
-    1. If |descriptor|.{{MLOperandDescriptor/shape}}'s [=list/size=] is too large to be supported by the implementation, return false.
+    1. If any [=list/item=] of |descriptor|.{{MLOperandDescriptor/shape}} is not a [=valid dimension=], then return false.
+    1. If |descriptor|.{{MLOperandDescriptor/shape}}'s [=list/size=] is too large to be supported by the implementation, then return false.
 
         Issue(456): The maximum number of operand dimensions is not defined, but native ML APIs usually have a maximum supported size.
 
@@ -1464,6 +1535,10 @@ typedef (bigint or unrestricted double) MLNumber;
     : <dfn>\[[operator]]</dfn> of type [=operator=]
     ::
         Reference to {{MLOperand}}'s corresponding [=operator=].
+  
+    : <dfn>\[[constantTensor]]</dfn> of type {{MLTensor}}
+    ::
+        The {{MLOperand}}'s tensor (only for constant operands).
   </dl>
 </div>
 
@@ -1481,7 +1556,13 @@ Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/cons
 
 If an operation supports only a subset of {{MLOperandDataType}}s, the <dfn>allowed data types</dfn> for each of the operation's input operands, including both positional arguments and options, are given as either an explicit list of {{MLOperandDataType}}s, or a constraint that the operand's [=MLOperand/dataType=] must be the <dfn lt="same type as">same as</dfn> the [=MLOperand/dataType=] of another input operand, or <dfn lt="any data type">any</dfn> to allow any {{MLOperandDataType}}.
 
+Implementations may support fewer data types for operands than specified. This can be queried for each operation using the {{MLContext/opSupportLimits()}} method on {{MLContext}} and inspecting the {{MLDataTypeLimits/dataTypes}} value of the corresponding member for the operation.
+
+Issue: Should we specify the subset of data types that must be supported for each operator?
+
 If an operation requires input operands with a particular [=MLOperand/rank=], the <dfn>allowed ranks</dfn> for each of the operation's input operands, including both positional arguments and options, are given as an explicit rank (e.g. 1), or <dfn lt="any rank">N</dfn> to allow any dimensionality, or the <dfn lt="same rank as">same as</dfn> another operand. More specific constraints are common, such as when an input operand's shape must be [=/unidirectionally broadcastable=] to or [=/bidirectionally broadcastable=] with another input operand; in these cases, the [=/allowed ranks=] are listed as a range, with specific validation given as steps in the operation.
+
+Implementations may impose a more restricted lower bound and/or upper bound on the [=MLOperand/rank=] of operands than specified. This can be queried for each operation using the {{MLContext/opSupportLimits()}} method on {{MLContext}} and inspecting the {{MLTensorLimits/rankRange}}.{{MLRankRange/min}} and {{MLTensorLimits/rankRange}}.{{MLRankRange/max}} values of the corresponding member for the operation.
 
 {{MLOperatorOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLOperatorOptions>
@@ -1489,6 +1570,12 @@ If an operation requires input operands with a particular [=MLOperand/rank=], th
     ::
         Optionally provided when an [=operator=] is created using {{MLGraphBuilder}} methods that create {{MLOperand}}s. The implementation may use this value to initialize the [=operator=]'s [=operator/label=].
 </dl>
+
+Note: The label is not intended to be a natural language string. It is a language-independent identifier, analogous to a variable name or error code, like `"mul#1234"`.
+
+Note: Implementations are encouraged to use the {{MLOperatorOptions/label}} provided by developers to enhance error messages and improve debuggability, including both synchronous errors during graph construction and for errors that occur during the asynchronous {{MLGraphBuilder/build()}} method.
+
+Advisement: When displaying labels provided by developers via {{MLOperatorOptions/label}} in debugging tools, logs, or error messages, implementations should sanitize the output to prevent security risks, such as injection of malicious Unicode sequences (e.g. <a href="https://www.unicode.org/reports/tr36/#Bidirectional_Text_Spoofing">Bidirectional Text Spoofing</a> [[UTR36]], <a href="https://www.unicode.org/reports/tr55/tr55-5.html#Spoofing">Source Code Spoofing</a> [[UTS55]] and other concerns). For example, implementations should escape or filter control characters (e.g., U+202A to U+202E, U+2066 to U+2069) or use a safe rendering mechanism to neutralize potential spoofing.
 
 ### Creating an {{MLOperand}} ### {#api-mloperand-create}
 The {{MLOperand}} objects are created by the methods of {{MLGraphBuilder}}, internally using the following algorithms.
@@ -1563,6 +1650,7 @@ interface MLTensor {
   readonly attribute FrozenArray<unsigned long> shape;
   readonly attribute boolean readable;
   readonly attribute boolean writable;
+  readonly attribute boolean constant;
 
   undefined destroy();
 };
@@ -1590,6 +1678,10 @@ interface MLTensor {
     : <dfn>\[[data]]</dfn> of an [=implementation-defined=] type
     ::
         The bytes backing the {{MLTensor}}. This data may only be accessed or modified from the {{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}.
+
+    : <dfn>\[[isConstant]]</dfn> of type {{boolean}}
+    ::
+        Whether the {{MLTensor}} was created by [=create a constant MLTensor=].
   </dl>
 </div>
 
@@ -1605,6 +1697,8 @@ The <dfn attribute for=MLTensor>readable</dfn> [=getter steps=] are to return [=
 
 The <dfn attribute for=MLTensor>writable</dfn> [=getter steps=] are to return [=this=].{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/writable}}.
 
+The <dfn attribute for=MLTensor>constant</dfn> [=getter steps=] are to return [=this=]'s {{MLTensor/[[isConstant]]}}.
+
 ### Creating an {{MLTensor}} ### {#api-mltensor-create}
 
 An {{MLTensor}} is created by its associated {{MLContext}}.
@@ -1618,6 +1712,7 @@ An {{MLTensor}} is created by its associated {{MLContext}}.
     1. Set |tensor|.{{MLTensor/[[context]]}} to |context|.
     1. Set |tensor|.{{MLTensor/[[descriptor]]}} to |descriptor|.
     1. Set |tensor|.{{MLTensor/[[isDestroyed]]}} to false.
+    1. Set |tensor|.{{MLTensor/[[isConstant]]}} to false.
     1. Return |tensor|.
 </details>
 
@@ -1639,10 +1734,31 @@ Releases the resources associated with the {{MLTensor}}. This method is idempote
         1. [=Reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
     1. Enqueue the following steps to [=this=].{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Release [=this=].{{MLTensor/[[data]]}}.
-    1. Return {{undefined}}.
 </details>
 
 Note: Since no further operations can be enqueued using this tensor, implementations can free any additional resource allocations associated with this tensor once all previously submitted operations using it are complete.
+
+### Creating a constant {{MLTensor}} ### {#api-mlconstant-tensor-create}
+
+A constant {{MLTensor}} is created by its associated {{MLContext}}.
+
+<details open algorithm>
+  <summary>
+    To <dfn>create a constant MLTensor</dfn> given {{MLContext}} |context|, {{MLOperandDescriptor}} |inputDescriptor|, run the following steps:
+  </summary>
+    1. Let |realm| be |context|'s [=relevant realm=].
+    1. Let |tensor| be a new {{MLTensor}} in |realm|.
+    1. Set |tensor|.{{MLTensor/[[context]]}} to |context|.
+    1. Let |tensorDescriptor| be a new {{MLTensorDescriptor}}.
+    1. Set |tensorDescriptor|.{{MLTensorDescriptor/readable}} to false.
+    1. Set |tensorDescriptor|.{{MLTensorDescriptor/writable}} to false.
+    1. Set |tensorDescriptor|.{{MLOperandDescriptor/dataType}} to |inputDescriptor|.{{MLOperandDescriptor/dataType}}.
+    1. Set |tensorDescriptor|.{{MLOperandDescriptor/shape}} to |inputDescriptor|.{{MLOperandDescriptor/shape}}.
+    1. Set |tensor|.{{MLTensor/[[descriptor]]}} to |tensorDescriptor|.
+    1. Set |tensor|.{{MLTensor/[[isDestroyed]]}} to false.
+    1. Set |tensor|.{{MLTensor/[[isConstant]]}} to true.
+    1. Return |tensor|.
+</details>
 
 ## {{MLGraphBuilder}} interface ## {#api-mlgraphbuilder}
 
@@ -1665,6 +1781,9 @@ interface MLGraphBuilder {
 
   // Create a scalar operand from the specified number of the specified type.
   MLOperand constant(MLOperandDataType type, MLNumber value);
+
+  // Create an operand from a specified constant tensor.
+  MLOperand constant(MLTensor tensor);
 
   // Compile the graph up to the specified output operands asynchronously.
   Promise<MLGraph> build(MLNamedOperands outputs);
@@ -1766,6 +1885,30 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     1. Return |operand|.
 </details>
 
+#### {{MLGraphBuilder/constant(tensor)}} #### {#api-mlgraphbuilder-constant-tensor}
+Create a constant {{MLOperand}} of the specified data type and shape that contains the initialized data.
+
+<div dfn-for="MLGraphBuilder/constant(tensor)" dfn-type=argument>
+    **Arguments:**
+        - <dfn>tensor</dfn>: an {{MLTensor}}. The constant tensor containing the initialized data.
+    **Returns:** an {{MLOperand}}. The constant output tensor.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLGraphBuilder>constant(|tensor|)</dfn> method steps are:
+  </summary>
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=].{{MLGraphBuilder/[[context]]}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isConstant]]}} is false, then [=exception/throw=] a {{TypeError}}.
+    1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. *Make graph connections:*
+        1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |tensor|.{{MLTensor/[[descriptor]]}}.
+        1. Set |operand|.{{MLOperand/[[constantTensor]]}} to |tensor|.
+        1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |tensor| as value.
+    1. Return |operand|.
+</details>
+
 #### {{MLGraphBuilder/constant(type, value)}} #### {#api-mlgraphbuilder-constant-type-value}
 Create a scalar constant {{MLOperand}} of the specified value and data type.
 
@@ -1813,6 +1956,7 @@ Build a composed graph up to a given output operand into a computational graph a
         1. If |name| is empty, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
         1. If [=MLGraphBuilder/validating operand=] given [=this=] and |operand| returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
         1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] or [=computational graph/constants=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+        1. If |operand|.{{MLOperand/[[constantTensor]]}} exists and |operand|.{{MLOperand/[[constantTensor]]}}.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}. 
     1. Let |operands| be a new empty [=/set=].
     1. Let |operators| be a new empty [=/set=].
     1. Let |inputs| be a new empty [=/set=].
@@ -1821,7 +1965,7 @@ Build a composed graph up to a given output operand into a computational graph a
         1. [=queue/Dequeue=] |operand| from |queue|.
         1. [=set/Append=] |operand| to |operands|.
         1. [=set/Append=] |operand|.{{MLOperand/[[operator]]}} to |operators|.
-        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=], [=set/append=] |operand| to |inputs|.
+        1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=], then [=set/append=] |operand| to |inputs|.
         1. [=list/For each=] |input| of |operand|.{{MLOperand/[[operator]]}}'s [=operator/inputs=]:
             1. [=queue/Enqueue=] |input| to |queue|.
     1. Let |global| be [=this=]'s [=relevant global object=].
@@ -1834,7 +1978,7 @@ Build a composed graph up to a given output operand into a computational graph a
         1. Set |graph|.{{MLGraph/[[outputDescriptors]]}}[|name|] to |operand|.{{MLOperand/[[descriptor]]}}.
     1. Set [=this=].{{MLGraphBuilder/[[hasBuilt]]}} to true.
     1. Let |promise| be [=a new promise=] in |realm|.
-    1. Run the following steps [=in parallel=]:
+    1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] |graph|.{{MLGraph/[[context]]}} [=MLContext/is lost=]:
             1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
             1. If the previous step failed, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
@@ -1919,12 +2063,12 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder" data-lt="argminmax-op">create argMin/argMax operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{unsigned long}} |axis|, and {{MLArgMinMaxOptions}} |options|, run the following steps:
+    To <dfn for="MLGraphBuilder" data-lt="argminmax-op">create an argMin/argMax operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{unsigned long}} |axis|, and {{MLArgMinMaxOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "argMin", "argMax".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |input|'s [=MLOperand/shape=][|axis|] is greater than |options|.{{MLArgMinMaxOptions/outputDataType}}'s maximum value, [=exception/throw=] a {{TypeError}}.
+    1. If |input|'s [=MLOperand/shape=][|axis|] is greater than |options|.{{MLArgMinMaxOptions/outputDataType}}'s maximum value, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], « |axis| », and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |options|.{{MLArgMinMaxOptions/outputDataType}} and |outputShape|.
     1. *Make graph connections:*
@@ -1942,14 +2086,14 @@ partial dictionary MLOpSupportLimits {
   </summary>
     <div algorithm>
     The <dfn method for=MLGraphBuilder>argMin(|input|, |axis|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMin", |input|, |axis| and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/argminmax-op|creating an argMin/argMax operation=] given "argMin", |input|, |axis| and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>argMax(|input|, |axis|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/argminmax-op | create argMin/argMax operation=] given "argMax", |input|, |axis| and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/argminmax-op|creating an argMin/argMax operation=] given "argMax", |input|, |axis| and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -1972,12 +2116,12 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLBatchNormalizationSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits mean;
-  MLSupportLimits variance;
-  MLSupportLimits scale;
-  MLSupportLimits bias;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits mean;
+  MLTensorLimits variance;
+  MLTensorLimits scale;
+  MLTensorLimits bias;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -2058,17 +2202,17 @@ partial dictionary MLOpSupportLimits {
 {{MLBatchNormalizationSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLBatchNormalizationSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>mean</dfn>
-    :: {{MLSupportLimits}} for mean operand.
+    :: {{MLTensorLimits}} for mean operand.
     : <dfn>variance</dfn>
-    :: {{MLSupportLimits}} for variance operand.
+    :: {{MLTensorLimits}} for variance operand.
     : <dfn>scale</dfn>
-    :: {{MLSupportLimits}} for scale operand.
+    :: {{MLTensorLimits}} for scale operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLTensorLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/batchNormalization()}}:
@@ -2090,10 +2234,10 @@ partial dictionary MLOpSupportLimits {
     1. If |variance|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
     1. If |variance|'s [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLBatchNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLBatchNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
-    1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=]:
+    1. If |options|.{{MLBatchNormalizationOptions/scale}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLBatchNormalizationOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-batchNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|options|.{{MLBatchNormalizationOptions/axis}}] », then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -2377,8 +2521,8 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLConcatSupportLimits {
-  MLSupportLimits inputs;
-  MLSupportLimits output;
+  MLTensorLimits inputs;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -2422,9 +2566,9 @@ partial dictionary MLOpSupportLimits {
 {{MLConcatSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLConcatSupportLimits>
     : <dfn>inputs</dfn>
-    :: {{MLSupportLimits}} for all input operands.
+    :: {{MLTensorLimits}} for all input operands.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/concat()}}:
@@ -2453,7 +2597,7 @@ partial dictionary MLOpSupportLimits {
                 If the shape of each corresponding dimension and type of the operands, except for those of the dimension given by |axis|, is not the same, fail.
             </div>
             1. If |dim| is not equal to |axis| and if |input|'s [=MLOperand/shape=][|dim|] is not equal to |first|'s [=MLOperand/shape=][|dim|], then [=exception/throw=] a {{TypeError}}.
-            1. If |dim| is equal to |axis|:
+            1. If |dim| is equal to |axis|, then:
                 1. Let |size| be the sum of |desc|.{{MLOperandDescriptor/shape}}[|axis|] and |input|'s [=MLOperand/shape=][|dim|].
                 1. If |size| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
                 1. Set |desc|.{{MLOperandDescriptor/shape}}[|axis|] to |size|.
@@ -2493,10 +2637,10 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLConv2dSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits filter;
-  MLSupportLimits bias;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits filter;
+  MLTensorLimits bias;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -2597,13 +2741,13 @@ partial dictionary MLOpSupportLimits {
 {{MLConv2dSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLConv2dSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>filter</dfn>
-    :: {{MLSupportLimits}} for filter operand.
+    :: {{MLTensorLimits}} for filter operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/conv2d()}}:
@@ -2645,12 +2789,12 @@ partial dictionary MLOpSupportLimits {
     1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-conv2d)), then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
+    1. If |options|.{{MLConv2dOptions/padding}} does not [=map/exist=], then set it to the [=/list=] « 0, 0, 0, 0 ».
     1. Otherwise, if |options|.{{MLConv2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
+    1. If |options|.{{MLConv2dOptions/strides}} does not [=map/exist=], then set it to the [=/list=] « 1, 1 ».
     1. Otherwise, if |options|.{{MLConv2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any [=list/item=] in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConv2dOptions/dilations}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
+    1. If |options|.{{MLConv2dOptions/dilations}} does not [=map/exist=], then set it to the [=/list=] « 1, 1 ».
     1. Otherwise, if |options|.{{MLConv2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any [=list/item=] in |options|.{{MLConv2dOptions/dilations}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
     1. If |options|.{{MLConv2dOptions/groups}} is 0, then [=exception/throw=] a {{TypeError}}.
@@ -2677,7 +2821,7 @@ partial dictionary MLOpSupportLimits {
             </dl>
         1. If |inputChannels| % |options|.{{MLConv2dOptions/groups}} is not 0, then [=exception/throw=] a {{TypeError}}.
         1. Otherwise, if |inputChannels| / |options|.{{MLConv2dOptions/groups}} is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
-        1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=]:
+        1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=], then:
             1. If its [=MLOperand/shape=] is not [=list/equal=] to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-conv2d)), then [=exception/throw=] a {{TypeError}}.
         1. Let « |outputHeight|, |outputWidth| » be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |filterHeight|, |filterWidth|, |options|.{{MLConv2dOptions/padding}}, |options|.{{MLConv2dOptions/strides}}, and |options|.{{MLConv2dOptions/dilations}}.
@@ -2864,17 +3008,17 @@ partial dictionary MLOpSupportLimits {
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |filter|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], set it to the [=/list=] « 0, 0, 0, 0 ».
+    1. If |options|.{{MLConvTranspose2dOptions/padding}} does not [=map/exist=], then set it to the [=/list=] « 0, 0, 0, 0 ».
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/strides}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
+    1. If |options|.{{MLConvTranspose2dOptions/strides}} does not [=map/exist=], then set it to the [=/list=] « 1, 1 ».
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If any [=list/item=] in |options|.{{MLConv2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/dilations}} does not [=map/exist=], set it to the [=/list=] « 1, 1 ».
+    1. If any [=list/item=] in |options|.{{MLConvTranspose2dOptions/strides}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLConvTranspose2dOptions/dilations}} does not [=map/exist=], then set it to the [=/list=] « 1, 1 ».
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any [=list/item=] in |options|.{{MLConvTranspose2dOptions/dilations}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} does not [=map/exist=], set it to the [=/list=] « 0, 0 ».
+    1. If |options|.{{MLConvTranspose2dOptions/outputPadding}} does not [=map/exist=], then set it to the [=/list=] « 0, 0 ».
     1. Otherwise, if |options|.{{MLConvTranspose2dOptions/outputPadding}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=]:
+    1. If |options|.{{MLConvTranspose2dOptions/outputSizes}} [=map/exists=], then:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. Otherwise:
         1. If |options|.{{MLConvTranspose2dOptions/outputPadding}}[0] is greater than or equal to |options|.{{MLConvTranspose2dOptions/strides}}[0], or |options|.{{MLConvTranspose2dOptions/outputPadding}}[1] is greater than or equal to |options|.{{MLConvTranspose2dOptions/strides}}[1], then [=exception/throw=] a {{TypeError}}.
@@ -2901,7 +3045,7 @@ partial dictionary MLOpSupportLimits {
         1. If |inputChannels| is not equal to |filterInputChannels|, then [=exception/throw=] a {{TypeError}}.
         1. Let |outputChannels| be |filterOutputChannels| * |options|.{{MLConvTranspose2dOptions/groups}}.
         1. If |outputChannels| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-        1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=]:
+        1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=], then:
             1. If its [=MLOperand/shape=] is not [=list/equal=] to « |outputChannels| », then [=exception/throw=] a {{TypeError}}.
             1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-convTranspose2d)), then [=exception/throw=] a {{TypeError}}.
         1. Let |calculatedOutputHeight| be the result of [=MLGraphBuilder/calculating convtranspose output size=] given |inputHeight|, |filterHeight|, |padding|[0], |padding|[1], |strides|[0] and |dilations|[0].
@@ -2927,7 +3071,7 @@ partial dictionary MLOpSupportLimits {
         1. Let |operator| be an [=operator=] for the "convTranspose2d" operation, given |options| and |filter|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/inputs=] to |input| and |filter|.
-        1. If |options|.{{MLConv2dOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
+        1. If |options|.{{MLConvTranspose2dOptions/bias}} [=map/exists=], then add it to |operator|'s [=operator/inputs=].
         1. Set |operator|'s [=operator/output=] to |output|.
     1. Return |output|.
 </details>
@@ -3111,7 +3255,7 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder" data-lt="element-wise-binary-op">create element-wise binary operation</dfn> given [=string=] |op|, {{MLOperand}} |a|, {{MLOperand}} |b|, and {{MLOperatorOptions}} |options|, run the following steps:
+    To <dfn for="MLGraphBuilder" data-lt="element-wise-binary-op">create an element-wise binary operation</dfn> given [=string=] |op|, {{MLOperand}} |a|, {{MLOperand}} |b|, and {{MLOperatorOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "add", "sub", "mul", "div", "max", "min", "pow".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
@@ -3131,53 +3275,53 @@ partial dictionary MLOpSupportLimits {
 
 <details open>
   <summary>
-    The element-wise binary operation algorithms invoke the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] steps as follows.
+    The element-wise binary operation algorithms invoke the [=MLGraphBuilder/element-wise-binary-op|creating an element-wise binary operation=] steps as follows.
   </summary>
     <div algorithm>
     The <dfn method for=MLGraphBuilder>add(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "add", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-binary-op|creating an element-wise binary operation=] given "add", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>sub(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "sub", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-binary-op|creating an element-wise binary operation=] given "sub", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>mul(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "mul", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-binary-op|creating an element-wise binary operation=] given "mul", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>div(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "div", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-binary-op|creating an element-wise binary operation=] given "div", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>max(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "max", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-binary-op|creating an element-wise binary operation=] given "max", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>min(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "min", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-binary-op|creating an element-wise binary operation=] given "min", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>pow(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-binary-op | create element-wise binary operation=] given "pow", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-binary-op|creating an element-wise binary operation=] given "pow", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -3221,8 +3365,8 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLLogicalNotSupportLimits {
-  MLSupportLimits a;
-  MLSupportLimits output;
+  MLTensorLimits a;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -3278,9 +3422,9 @@ partial dictionary MLOpSupportLimits {
 {{MLLogicalNotSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLogicalNotSupportLimits>
     : <dfn>a</dfn>
-    :: {{MLSupportLimits}} for a operand.
+    :: {{MLTensorLimits}} for a operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following members for element-wise logical operations:
@@ -3327,14 +3471,14 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder" data-lt="element-wise-logical-op">create element-wise logical operation</dfn> given [=string=] |op|, {{MLOperand}} |a|, an optional {{MLOperand}} |b|, and {{MLOperatorOptions}} |options|, run the following steps:
+    To <dfn for="MLGraphBuilder" data-lt="element-wise-logical-op">create an element-wise logical operation</dfn> given [=string=] |op|, {{MLOperand}} |a|, an optional {{MLOperand}} |b|, and {{MLOperatorOptions}} |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "equal", "notEqual", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "logicalNot", "logicalAnd", "logicalOr", "logicalXor".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |a| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |op| is one of "logicalNot", "logicalAnd", "logicalOr", "logicalXor":
+    1. If |op| is one of "logicalNot", "logicalAnd", "logicalOr", "logicalXor", then:
         1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |b| is passed:
+    1. If |b| is passed, then:
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and |b| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
         1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |a|'s [=MLOperand/shape=] and |b|'s [=MLOperand/shape=]. If that returns failure, then [=exception/throw=] a {{TypeError}}.
@@ -3352,74 +3496,74 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
 
 <details open>
   <summary>
-    The element-wise logical operation algorithms invoke the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] steps as follows.
+    The element-wise logical operation algorithms invoke the [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] steps as follows.
   </summary>
     <div algorithm>
     The <dfn method for=MLGraphBuilder>equal(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "equal", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "equal", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>notEqual(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "notEqual", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "notEqual", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>greater(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "greater", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "greater", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>greaterOrEqual(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "greaterOrEqual", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "greaterOrEqual", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>lesser(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "lesser", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "lesser", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>lesserOrEqual(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "lesserOrEqual", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "lesserOrEqual", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>logicalNot(|a|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalNot", |a|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "logicalNot", |a|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>logicalAnd(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalAnd", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "logicalAnd", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>logicalOr(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalOr", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "logicalOr", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>logicalXor(|a|, |b|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-logical-op | create element-wise logical operation=] given "logicalXor", |a|, |b|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "logicalXor", |a|, |b|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -3547,7 +3691,7 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create element-wise unary operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, optional [=/list=] |allowedDataTypes|, and |options|, run the following steps:
+    To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create an element-wise unary operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, optional [=/list=] |allowedDataTypes|, and |options|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "erf", "exp", "floor", "identity", "log", "neg", "reciprocal", "sin", "sign", "sqrt", "tan".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
@@ -3564,102 +3708,102 @@ partial dictionary MLOpSupportLimits {
 
 <details open>
   <summary>
-    The element-wise unary operation algorithms invoke the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] steps as follows.
+    The element-wise unary operation algorithms invoke the [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] steps as follows.
   </summary>
     <div algorithm>
     The <dfn method for=MLGraphBuilder>abs(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "abs", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "abs", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>ceil(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "ceil", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "ceil", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>cos(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "cos", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "cos", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>erf(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "erf", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "erf", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>exp(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "exp", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "exp", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>floor(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "floor", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "floor", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>identity(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "identity" |input|, and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "identity" |input|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>log(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "log", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "log", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>neg(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "neg", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "neg", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reciprocal(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "reciprocal", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "reciprocal", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>sin(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "sin", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "sin", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>sign(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "sign", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "sign", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>sqrt(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "sqrt", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "sqrt", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>tan(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/element-wise-unary-op | create element-wise unary operation=] given "tan", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "tan", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -3679,10 +3823,7 @@ partial dictionary MLOpSupportLimits {
       return builder.where(
         builder.greater(input, zero),
         positiveOne,
-        builder.where(
-          builder.lesser(input, zero),
-          negativeOne,
-          zero));
+        builder.where(builder.lesser(input, zero), negativeOne, zero));
     }
     </pre>
   </details>
@@ -3700,15 +3841,15 @@ partial interface MLGraphBuilder {
                              optional MLOperatorOptions options = {});
 };
 
-dictionary MLQuantizationSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits scale;
-  MLSupportLimits zeroPoint;
-  MLSupportLimits output;
+dictionary MLQuantizeDequantizeLinearSupportLimits {
+  MLTensorLimits input;
+  MLTensorLimits scale;
+  MLTensorLimits zeroPoint;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
-  MLQuantizationSupportLimits dequantizeLinear;
+  MLQuantizeDequantizeLinearSupportLimits dequantizeLinear;
 };
 </script>
 
@@ -3753,16 +3894,16 @@ partial dictionary MLOpSupportLimits {
   </tr>
 </table>
 
-{{MLQuantizationSupportLimits}} has the following members:
-<dl dfn-type=dict-member dfn-for=MLQuantizationSupportLimits>
+{{MLQuantizeDequantizeLinearSupportLimits}} has the following members:
+<dl dfn-type=dict-member dfn-for=MLQuantizeDequantizeLinearSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>scale</dfn>
-    :: {{MLSupportLimits}} for scale operand.
+    :: {{MLTensorLimits}} for scale operand.
     : <dfn>zeroPoint</dfn>
-    :: {{MLSupportLimits}} for zeroPoint operand.
+    :: {{MLTensorLimits}} for zeroPoint operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/dequantizeLinear()}}:
@@ -3805,8 +3946,10 @@ partial dictionary MLOpSupportLimits {
       const floatInput = builder.cast(input, scale.dataType);
       const floatZeroPoint = builder.cast(zeroPoint, scale.dataType);
       const upsampledScale = blockwiseExpand(builder, scale, input.shape);
-      const upsampledZeroPoint = blockwiseExpand(builder, floatZeroPoint, input.shape);
-      return builder.mul(builder.sub(floatInput, upsampledZeroPoint), upsampledScale);
+      const upsampledZeroPoint =
+        blockwiseExpand(builder, floatZeroPoint, input.shape);
+      return builder.mul(
+        builder.sub(floatInput, upsampledZeroPoint), upsampledScale);
     }
 
     function blockwiseExpand(builder, input, outputShape) {
@@ -3831,8 +3974,14 @@ partial dictionary MLOpSupportLimits {
           // full block size, utilizing an inserted dimension of size 1.
           const elementRepeatCount = newDimensionLength / oldDimensionLength;
           const flattenedShape = getFlattenedShapeAroundAxis(oldShape, axis);
-          const unexpandedShape = [flattenedShape[0], flattenedShape[1], 1, flattenedShape[2]];
-          const expandedShape = [flattenedShape[0], flattenedShape[1], elementRepeatCount, flattenedShape[2]];
+          const unexpandedShape =
+            [flattenedShape[0], flattenedShape[1], 1, flattenedShape[2]];
+          const expandedShape = [
+            flattenedShape[0],
+            flattenedShape[1],
+            elementRepeatCount,
+            flattenedShape[2]
+          ];
           const reshapedInput = builder.reshape(output, unexpandedShape);
           output = builder.expand(reshapedInput, expandedShape);
 
@@ -3845,13 +3994,16 @@ partial dictionary MLOpSupportLimits {
       return output;
     }
 
-    // Compute the flattened shape before and after the given axis, yielding a 3-element list.
-    // e.g. inputShape = [2,3,4,5,6] with axis = 2 yields shape [6,4,30].
-    // e.g. inputShape = [4] with axis = 0 yields shape [1,4,1].
+    // Compute the flattened shape before and after the given axis, yielding a
+    // 3-element list: e.g.
+    // - inputShape = [2,3,4,5,6] with axis = 2 yields shape [6,4,30].
+    // - inputShape = [4] with axis = 0 yields shape [1,4,1].
     function getFlattenedShapeAroundAxis(inputShape, axis) {
       axis = Math.max(Math.min(axis, input.shape.length - 1), 0);
-      const countBefore = axis.slice(0, axis).reduce((a, b) => a * b, 1);
-      const countAfter = axis.slice(axis + 1, input.shape.length).reduce((a, b) => a * b, 1);
+      const shapeBefore = inputShape.slice(0, axis);
+      const shapeAfter = inputShape.slice(axis + 1, input.shape.length);
+      const countBefore = shapeBefore.reduce((a, b) => a * b, 1);
+      const countAfter = shapeAfter.reduce((a, b) => a * b, 1);
       return [countBefore, inputShape[axis], countAfter];
     }
     </pre>
@@ -3871,7 +4023,7 @@ partial interface MLGraphBuilder {
 };
 
 partial dictionary MLOpSupportLimits {
-  MLQuantizationSupportLimits quantizeLinear;
+  MLQuantizeDequantizeLinearSupportLimits quantizeLinear;
 };
 </script>
 
@@ -3959,10 +4111,13 @@ partial dictionary MLOpSupportLimits {
 
       const floatZeroPoint = builder.cast(zeroPoint, scale.dataType);
       const upsampledScale = blockwiseExpand(builder, scale, input.shape);
-      const upsampledZeroPoint = blockwiseExpand(builder, floatZeroPoint, input.shape);
+      const upsampledZeroPoint =
+        blockwiseExpand(builder, floatZeroPoint, input.shape);
       const quantizedInput = builder.roundEven(builder.div(input, upsampledScale));
-      const zeroPointAdjustedInput = builder.add(quantizedInput, upsampledZeroPoint);
-      const clampedInput = builder.clamp(zeroPointAdjustedInput, {'minValue': 0, 'maxValue': 255});
+      const zeroPointAdjustedInput =
+        builder.add(quantizedInput, upsampledZeroPoint);
+      const clampedInput =
+        builder.clamp(zeroPointAdjustedInput, {'minValue': 0, 'maxValue': 255});
       return builder.cast(clampedInput, zeroPoint.dataType);
     }
     </pre>
@@ -4146,9 +4301,9 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLGatherSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits indices;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits indices;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -4205,11 +4360,11 @@ partial dictionary MLOpSupportLimits {
 {{MLGatherSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGatherSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>indices</dfn>
-    :: {{MLSupportLimits}} for indices operand.
+    :: {{MLTensorLimits}} for indices operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/gather()}}:
@@ -4233,7 +4388,7 @@ partial dictionary MLOpSupportLimits {
     1. Let |outputRank| be zero.
     1. Let |outputShape| be an empty list.
     1. [=list/For each=] |size| of |inputShape|:
-        1. If |dimCount| is equal to |axis| then [=iteration/break=].
+        1. If |dimCount| is equal to |axis|, then [=iteration/break=].
         1. Set |outputShape|[|dimCount|] to |size|.
         1. Increment |dimCount| by one.
     1. Set |outputRank| to |dimCount|.
@@ -4244,7 +4399,7 @@ partial dictionary MLOpSupportLimits {
     1. Set |outputRank| to |outputRank| + |dimCount|.
     1. Let |dimCount| be zero.
     1. [=list/For each=] |size| of |inputShape|:
-        1. If |dimCount| is less than or equal to |axis| then [=iteration/continue=].
+        1. If |dimCount| is less than or equal to |axis|, then [=iteration/continue=].
         1. Set |outputShape|[|outputRank| + |dimCount| - |axis| - 1] to |size|.
         1. Increment |dimCount| by one.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
@@ -4388,7 +4543,7 @@ partial dictionary MLOpSupportLimits {
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |indicesShapeExpected| be a copy of |input|'s [=MLOperand/shape=].
     1. Set |indicesShapeExpected|[|axis|] to |indices|'s [=MLOperand/shape=][|axis|].
-    1. If |indices|'s [=MLOperand/shape=] is not equal to |indicesShapeExpected| then [=exception/throw=] a {{TypeError}}.
+    1. If |indices|'s [=MLOperand/shape=] is not equal to |indicesShapeExpected|, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Let |operator| be an [=operator=] for the "gatherElements" operation, given |input|, |indices|, and |options|.
@@ -4422,8 +4577,7 @@ partial dictionary MLOpSupportLimits {
       new Float32Array([0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32]));
 
     const indices1 = builder.constant(
-      {dataType: 'uint32', shape: [2, 3]},
-      new Uint32Array([3, 1, 1, 2, 0, 3]));
+      {dataType: 'uint32', shape: [2, 3]}, new Uint32Array([3, 1, 1, 2, 0, 3]));
 
     const output1 = builder.gatherElements(input1, indices1);
 
@@ -4445,8 +4599,7 @@ partial dictionary MLOpSupportLimits {
     //    [32]]
 
     const indices2 = builder.constant(
-      {dataType: 'uint32', shape: [4, 1]},
-      new Uint32Array([2, 1, 0, 2]));
+      {dataType: 'uint32', shape: [4, 1]}, new Uint32Array([2, 1, 0, 2]));
 
     const output2 = builder.gatherElements(input1, indices2, {axis: 1});
 
@@ -4467,13 +4620,14 @@ partial dictionary MLOpSupportLimits {
     //   [[[  0, 201],
     //     [110, 311]]]
 
-    const input3 = builder.constant(
-      {dataType: 'float32', shape: [4, 2, 2]},
-      new Float32Array([0, 1, 10, 11, 100, 101, 110, 111, 200, 201, 210, 211, 300, 301, 310, 311]));
+    const inputData3 = new Float32Array(
+      [0, 1, 10, 11, 100, 101, 110, 111, 200, 201, 210, 211, 300, 301, 310, 311]);
+
+    const input3 =
+      builder.constant({dataType: 'float32', shape: [4, 2, 2]}, inputData3);
 
     const indices3 = builder.constant(
-      {dataType: 'uint32', shape: [1, 2, 2]},
-      new Uint32Array([0, 2, 1, 3]));
+      {dataType: 'uint32', shape: [1, 2, 2]}, new Uint32Array([0, 2, 1, 3]));
 
     const output3 = builder.gatherElements(input3, indices3, {axis: 0});
   </pre>
@@ -4586,12 +4740,10 @@ partial dictionary MLOpSupportLimits {
     //   [0, 3, 2]
 
     const input1 = builder.constant(
-      {dataType: 'float32', shape: [2, 2]},
-      new Float32Array([0, 1, 2, 3]));
+      {dataType: 'float32', shape: [2, 2]}, new Float32Array([0, 1, 2, 3]));
 
     const indices1 = builder.constant(
-      {dataType: 'uint32', shape: [3, 2]},
-      new Uint32Array([0, 0, 1, 1, 1, 0]));
+      {dataType: 'uint32', shape: [3, 2]}, new Uint32Array([0, 0, 1, 1, 1, 0]));
 
     const output1 = builder.gatherND(input1, indices1);
 
@@ -4606,8 +4758,7 @@ partial dictionary MLOpSupportLimits {
     //    [0, 1]]   <= row [0, 1] from input coordinates [0, *]
 
     const indices2 = builder.constant(
-      {dataType: 'uint32', shape: [2, 1]},
-      new Uint32Array([1, 0]));
+      {dataType: 'uint32', shape: [2, 1]}, new Uint32Array([1, 0]));
 
     const output2 = builder.gatherND(input1, indices2);
 
@@ -4628,8 +4779,7 @@ partial dictionary MLOpSupportLimits {
       new Float32Array([0, 1, 2, 3, 4, 5, 6, 7]));
 
     const indices3 = builder.constant(
-      {dataType: 'uint32', shape: [2, 2]},
-      new Uint32Array([0, 1, 1, 0]));
+      {dataType: 'uint32', shape: [2, 2]}, new Uint32Array([0, 1, 1, 0]));
 
     const output3 = builder.gatherND(input2, indices3);
 
@@ -4651,8 +4801,7 @@ partial dictionary MLOpSupportLimits {
     //     [6, 7]]]
 
     const indices4 = builder.constant(
-      {dataType: 'uint32', shape: [3, 1]},
-      new Uint32Array([1, 0, 1]));
+      {dataType: 'uint32', shape: [3, 1]}, new Uint32Array([1, 0, 1]));
 
     const output4 = builder.gatherND(input2, indices4);
 
@@ -4779,10 +4928,10 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLGemmSupportLimits {
-  MLSupportLimits a;
-  MLSupportLimits b;
-  MLSupportLimits c;
-  MLSupportLimits output;
+  MLTensorLimits a;
+  MLTensorLimits b;
+  MLTensorLimits c;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -4856,13 +5005,13 @@ partial dictionary MLOpSupportLimits {
 {{MLGemmSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGemmSupportLimits>
     : <dfn>a</dfn>
-    :: {{MLSupportLimits}} for a operand.
+    :: {{MLTensorLimits}} for a operand.
     : <dfn>b</dfn>
-    :: {{MLSupportLimits}} for b operand.
+    :: {{MLTensorLimits}} for b operand.
     : <dfn>c</dfn>
-    :: {{MLSupportLimits}} for c operand.
+    :: {{MLTensorLimits}} for c operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gemm()}}:
@@ -4886,7 +5035,7 @@ partial dictionary MLOpSupportLimits {
     1. If |options|.{{MLGemmOptions/aTranspose}} is true, then reverse the order of the items in |shapeA|.
     1. If |options|.{{MLGemmOptions/bTranspose}} is true, then reverse the order of the items in |shapeB|.
     1. If |shapeA|[1] is not equal to |shapeB|[0], then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGemmOptions/c}} [=map/exists=]:
+    1. If |options|.{{MLGemmOptions/c}} [=map/exists=], then:
         1. If it is not [=unidirectionally broadcastable=] to the shape « |shapeA|[0], |shapeB|[1] », then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gemm)), then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |a|'s [=MLOperand/dataType=] and « |shapeA|[0], |shapeB|[1] ».
@@ -4967,13 +5116,13 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLGruSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits weight;
-  MLSupportLimits recurrentWeight;
-  MLSupportLimits bias;
-  MLSupportLimits recurrentBias;
-  MLSupportLimits initialHiddenState;
-  MLSupportLimits outputs;
+  MLTensorLimits input;
+  MLTensorLimits weight;
+  MLTensorLimits recurrentWeight;
+  MLTensorLimits bias;
+  MLTensorLimits recurrentBias;
+  MLTensorLimits initialHiddenState;
+  MLDataTypeLimits outputs;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -5083,19 +5232,19 @@ partial dictionary MLOpSupportLimits {
 {{MLGruSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLGruSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>weight</dfn>
-    :: {{MLSupportLimits}} for weight operand.
+    :: {{MLTensorLimits}} for weight operand.
     : <dfn>recurrentWeight</dfn>
-    :: {{MLSupportLimits}} for recurrentWeight operand.
+    :: {{MLTensorLimits}} for recurrentWeight operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>recurrentBias</dfn>
-    :: {{MLSupportLimits}} for recurrentBias operand.
+    :: {{MLTensorLimits}} for recurrentBias operand.
     : <dfn>initialHiddenState</dfn>
-    :: {{MLSupportLimits}} for initialHiddenState operand.
+    :: {{MLTensorLimits}} for initialHiddenState operand.
     : <dfn>outputs</dfn>
-    :: {{MLSupportLimits}} for all the output operands.
+    :: {{MLDataTypeLimits}} for all the output operands.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gru()}}:
@@ -5123,28 +5272,28 @@ partial dictionary MLOpSupportLimits {
           <summary>Why |hiddenSize| * 6 ?</summary>
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruOptions/bias}} and {{MLGruOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
-    1. If |options|.{{MLGruOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLGruOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=]:
+    1. If |options|.{{MLGruOptions/recurrentBias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=]:
+    1. If |options|.{{MLGruOptions/initialHiddenState}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gru)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruOptions/activations}} [=map/exists=]:
+    1. If |options|.{{MLGruOptions/activations}} [=map/exists=], then:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLGruOptions/activations}}.
     1. Otherwise:
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
         1. Let |desc0| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |numDirections|, |batchSize|, |hiddenSize| ».
-        1. If |options|.{{MLGruOptions/returnSequence}} is true:
+        1. If |options|.{{MLGruOptions/returnSequence}} is true, then:
             1. Let |desc1| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "gru" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc0|.
-        1. If |options|.{{MLGruOptions/returnSequence}} is true:
+        1. If |options|.{{MLGruOptions/returnSequence}} is true, then:
             1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc1|.
             1. Let |output| be the [=/list=] « |output0|, |output1| ».
             1. Set |output0|.{{MLOperand/[[operator]]}} and |output1|.{{MLOperand/[[operator]]}} to |operator|.
@@ -5308,13 +5457,13 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLGruCellSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits weight;
-  MLSupportLimits recurrentWeight;
-  MLSupportLimits hiddenState;
-  MLSupportLimits bias;
-  MLSupportLimits recurrentBias;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits weight;
+  MLTensorLimits recurrentWeight;
+  MLTensorLimits hiddenState;
+  MLTensorLimits bias;
+  MLTensorLimits recurrentBias;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -5401,19 +5550,19 @@ partial dictionary MLOpSupportLimits {
 {{MLGruCellSupportLimits}} has the following members;
 <dl dfn-type=dict-member dfn-for=MLGruCellSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>weight</dfn>
-    :: {{MLSupportLimits}} for weight operand.
+    :: {{MLTensorLimits}} for weight operand.
     : <dfn>recurrentWeight</dfn>
-    :: {{MLSupportLimits}} for recurrentWeight operand.
+    :: {{MLTensorLimits}} for recurrentWeight operand.
     : <dfn>hiddenState</dfn>
-    :: {{MLSupportLimits}} for hiddenState operand.
+    :: {{MLTensorLimits}} for hiddenState operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>recurrentBias</dfn>
-    :: {{MLSupportLimits}} for recurrentBias operand.
+    :: {{MLTensorLimits}} for recurrentBias operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gruCell()}}:
@@ -5440,13 +5589,13 @@ partial dictionary MLOpSupportLimits {
           <summary>Why |hiddenSize| * 6 ?</summary>
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLGruCellOptions/bias}} and {{MLGruCellOptions/recurrentBias}}. Therefore, 3 * |hiddenSize| + 3 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
-    1. If |options|.{{MLGruCellOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLGruCellOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruCellOptions/recurrentBias}} [=map/exists=]:
+    1. If |options|.{{MLGruCellOptions/recurrentBias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-gruCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=]:
+    1. If |options|.{{MLGruCellOptions/activations}} [=map/exists=], then:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLGruCellOptions/activations}}.
     1. Otherwise:
@@ -5770,10 +5919,10 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLNormalizationSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits scale;
-  MLSupportLimits bias;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits scale;
+  MLTensorLimits bias;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -5843,13 +5992,13 @@ partial dictionary MLOpSupportLimits {
 {{MLNormalizationSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLNormalizationSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>scale</dfn>
-    :: {{MLSupportLimits}} for scale operand.
+    :: {{MLTensorLimits}} for scale operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/instanceNormalization()}}:
@@ -5868,10 +6017,10 @@ partial dictionary MLOpSupportLimits {
     1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLInstanceNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLInstanceNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
     1. Let |axis| be 1 if |options|.{{MLInstanceNormalizationOptions/layout}} is {{MLInputOperandLayout/"nchw"}}, and 3 otherwise.
-    1. If |options|.{{MLInstanceNormalizationOptions/scale}} [=map/exists=]:
+    1. If |options|.{{MLInstanceNormalizationOptions/scale}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-instanceNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLInstanceNormalizationOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLInstanceNormalizationOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-instanceNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |input|'s [=MLOperand/shape=][|axis|] », then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
@@ -6009,19 +6158,19 @@ partial dictionary MLOpSupportLimits {
     1. If |options|.{{MLLayerNormalizationOptions/axes}} does not [=map/exist=], then set |options|.{{MLLayerNormalizationOptions/axes}} to a new [=/list=], either [=the range=] from 1 to |input|'s [=MLOperand/rank=], exclusive, if |input|'s [=MLOperand/rank=] is greater than 1, or an empty [=/list=] otherwise.
     1. Otherwise, if |options|.{{MLLayerNormalizationOptions/axes}} contains duplicate values, or if any of its [=list/items=] is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLLayerNormalizationOptions/epsilon}} to the result of [=casting=] |options|.{{MLLayerNormalizationOptions/epsilon}} to |input|'s [=MLOperand/dataType=].
-    1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=]:
+    1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-layerNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLayerNormalizationOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLLayerNormalizationOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-layerNormalization)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/rank=] is not equal to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], then [=exception/throw=] a {{TypeError}}.
     1. [=list/For each=] |index| in [=the range=] 0 to |options|.{{MLLayerNormalizationOptions/axes}}'s [=list/size=], exclusive:
         1. Let |axis| be |options|.{{MLLayerNormalizationOptions/axes}}[|index|].
         1. If |axis| is greater or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
         1. Let |size| be |input|'s [=MLOperand/shape=][|axis|].
-        1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=]:
+        1. If |options|.{{MLLayerNormalizationOptions/scale}} [=map/exists=], then:
             1. If its [=MLOperand/shape=][|index|] is not equal to |size|, then [=exception/throw=] a {{TypeError}}.
-        1. If |options|.{{MLLayerNormalizationOptions/bias}} [=map/exists=]:
+        1. If |options|.{{MLLayerNormalizationOptions/bias}} [=map/exists=], then:
             1. If its [=MLOperand/shape=][|index|] is not equal to |size|, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -6286,15 +6435,15 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLLstmSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits weight;
-  MLSupportLimits recurrentWeight;
-  MLSupportLimits bias;
-  MLSupportLimits recurrentBias;
-  MLSupportLimits peepholeWeight;
-  MLSupportLimits initialHiddenState;
-  MLSupportLimits initialCellState;
-  MLSupportLimits outputs;
+  MLTensorLimits input;
+  MLTensorLimits weight;
+  MLTensorLimits recurrentWeight;
+  MLTensorLimits bias;
+  MLTensorLimits recurrentBias;
+  MLTensorLimits peepholeWeight;
+  MLTensorLimits initialHiddenState;
+  MLTensorLimits initialCellState;
+  MLDataTypeLimits outputs;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -6423,23 +6572,23 @@ partial dictionary MLOpSupportLimits {
 {{MLLstmSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLstmSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>weight</dfn>
-    :: {{MLSupportLimits}} for weight operand.
+    :: {{MLTensorLimits}} for weight operand.
     : <dfn>recurrentWeight</dfn>
-    :: {{MLSupportLimits}} for recurrentWeight operand.
+    :: {{MLTensorLimits}} for recurrentWeight operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>recurrentBias</dfn>
-    :: {{MLSupportLimits}} for recurrentBias operand.
+    :: {{MLTensorLimits}} for recurrentBias operand.
     : <dfn>peepholeWeight</dfn>
-    :: {{MLSupportLimits}} for peepholeWeight operand.
+    :: {{MLTensorLimits}} for peepholeWeight operand.
     : <dfn>initialHiddenState</dfn>
-    :: {{MLSupportLimits}} for initialHiddenState operand.
+    :: {{MLTensorLimits}} for initialHiddenState operand.
     : <dfn>initialCellState</dfn>
-    :: {{MLSupportLimits}} for initialCellState operand.
+    :: {{MLTensorLimits}} for initialCellState operand.
     : <dfn>outputs</dfn>
-    :: {{MLSupportLimits}} for all the output operands.
+    :: {{MLDataTypeLimits}} for all the output operands.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/lstm()}}:
@@ -6468,35 +6617,35 @@ partial dictionary MLOpSupportLimits {
           <summary>Why |hiddenSize| * 8 ?</summary>
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmOptions/bias}} and {{MLLstmOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
-    1. If |options|.{{MLLstmOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/recurrentBias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/peepholeWeight}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/initialHiddenState}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/initialCellState}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstm)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « |numDirections|, |batchSize|, |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmOptions/activations}} [=map/exists=]:
+    1. If |options|.{{MLLstmOptions/activations}} [=map/exists=], then:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLLstmOptions/activations}}.
     1. Otherwise:
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
         1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |numDirections|, |batchSize|, |hiddenSize| ».
-        1. If |options|.{{MLLstmOptions/returnSequence}} is true:
+        1. If |options|.{{MLLstmOptions/returnSequence}} is true, then:
             1. Let |desc2| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "lstm" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |output1| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
-        1. If |options|.{{MLLstmOptions/returnSequence}} is true:
+        1. If |options|.{{MLLstmOptions/returnSequence}} is true, then:
             1. Let |output2| be the result of [=creating an MLOperand=] given [=this=] and |desc2|.
             1. Let |output| be the [=/list=] « |output0|, |output1|, |output2| ».
             1. Set |output0|.{{MLOperand/[[operator]]}}, |output1|.{{MLOperand/[[operator]]}} and |output2|.{{MLOperand/[[operator]]}} to |operator|.
@@ -6695,15 +6844,15 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLLstmCellSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits weight;
-  MLSupportLimits recurrentWeight;
-  MLSupportLimits hiddenState;
-  MLSupportLimits cellState;
-  MLSupportLimits bias;
-  MLSupportLimits recurrentBias;
-  MLSupportLimits peepholeWeight;
-  MLSupportLimits outputs;
+  MLTensorLimits input;
+  MLTensorLimits weight;
+  MLTensorLimits recurrentWeight;
+  MLTensorLimits hiddenState;
+  MLTensorLimits cellState;
+  MLTensorLimits bias;
+  MLTensorLimits recurrentBias;
+  MLTensorLimits peepholeWeight;
+  MLDataTypeLimits outputs;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -6811,23 +6960,23 @@ partial dictionary MLOpSupportLimits {
 {{MLLstmCellSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLstmCellSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>weight</dfn>
-    :: {{MLSupportLimits}} for weight operand.
+    :: {{MLTensorLimits}} for weight operand.
     : <dfn>recurrentWeight</dfn>
-    :: {{MLSupportLimits}} for recurrentWeight operand.
+    :: {{MLTensorLimits}} for recurrentWeight operand.
     : <dfn>hiddenState</dfn>
-    :: {{MLSupportLimits}} for hiddenState operand.
+    :: {{MLTensorLimits}} for hiddenState operand.
     : <dfn>cellState</dfn>
-    :: {{MLSupportLimits}} for cellState operand.
+    :: {{MLTensorLimits}} for cellState operand.
     : <dfn>bias</dfn>
-    :: {{MLSupportLimits}} for bias operand.
+    :: {{MLTensorLimits}} for bias operand.
     : <dfn>recurrentBias</dfn>
-    :: {{MLSupportLimits}} for recurrentBias operand.
+    :: {{MLTensorLimits}} for recurrentBias operand.
     : <dfn>peepholeWeight</dfn>
-    :: {{MLSupportLimits}} for peepholeWeight operand.
+    :: {{MLTensorLimits}} for peepholeWeight operand.
     : <dfn>outputs</dfn>
-    :: {{MLSupportLimits}} for all the output operands.
+    :: {{MLDataTypeLimits}} for all the output operands.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/lstmCell()}}:
@@ -6855,16 +7004,16 @@ partial dictionary MLOpSupportLimits {
           <summary>Why |hiddenSize| * 8 ?</summary>
           Some underlying platforms operate on a single bias tensor which is a concatenation of {{MLLstmCellOptions/bias}} and {{MLLstmCellOptions/recurrentBias}}. Therefore, 4 * |hiddenSize| + 4 * |hiddenSize| also needs to be a [=valid dimension=].
         </details>
-    1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=]:
+    1. If |options|.{{MLLstmCellOptions/bias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=]:
+    1. If |options|.{{MLLstmCellOptions/recurrentBias}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « 4 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=]:
+    1. If |options|.{{MLLstmCellOptions/peepholeWeight}} [=map/exists=], then:
         1. If its [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-lstmCell)), then [=exception/throw=] a {{TypeError}}.
         1. If its [=MLOperand/shape=] is not [=list/equal=] to « 3 * |hiddenSize| », then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=]:
+    1. If |options|.{{MLLstmCellOptions/activations}} [=map/exists=], then:
         1. If its [=list/size=] is not 3, then [=exception/throw=] a {{TypeError}}.
         1. Let |activations| be a [=list/clone=] of |options|.{{MLLstmCellOptions/activations}}.
     1. Otherwise:
@@ -7111,8 +7260,7 @@ Inflate the tensor with constant or mirrored values on the edges.
 enum MLPaddingMode {
   "constant",
   "edge",
-  "reflection",
-  "symmetric"
+  "reflection"
 };
 
 dictionary MLPadOptions : MLOperatorOptions {
@@ -7192,7 +7340,20 @@ partial dictionary MLOpSupportLimits {
     1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. Let |outputShape| be a copy of |input|'s [=MLOperand/shape=].
-    1. [=list/For each=] |index| in [=the range=] 0 to |outputShape|'s [=MLOperand/rank=], exclusive:
+    1. [=list/For each=] |index| in [=the exclusive range|the range=] 0 to |outputShape|'s [=MLOperand/rank=], exclusive:
+        1. Switch on |options|.{{MLPadOptions/mode}}:
+            <dl class=switch>
+                : {{MLPaddingMode/"constant"}}
+                :: Do nothing.
+
+                : {{MLPaddingMode/"edge"}}
+                :: Do nothing.
+
+                : {{MLPaddingMode/"reflection"}}
+                ::
+                    1. If |beginningPadding|[|index|] is greater than or equal to |outputShape|[|index|], then [=exception/throw=] a {{TypeError}}.
+                    1. If |endingPadding|[|index|] is greater than or equal to |outputShape|[|index|], then [=exception/throw=] a {{TypeError}}.
+            </dl>
         1. Add to |outputShape|[|index|] the value of |beginningPadding|[|index|].
         1. Add to |outputShape|[|index|] the value of |endingPadding|[|index|].
     1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
@@ -7210,7 +7371,7 @@ partial dictionary MLOpSupportLimits {
 <div class="example">
 <details open>
   <summary>
-    Examples for constant, edge, reflection and symmetric padding:
+    Examples for constant, edge, and reflection padding:
   </summary>
   <pre highlight="js">
     // input: [[1,2,3], [4,5,6]]
@@ -7240,13 +7401,6 @@ partial dictionary MLOpSupportLimits {
     //     [6,5,4,5,6,5,4],
     //     [3,2,1,2,3,2,1]]
     builder.pad(input, beginningPadding, endingPadding, {mode: 'reflection'});
-
-    // "symmetric" padded:
-    //    [[2,1,1,2,3,3,2],
-    //     [2,1,1,2,3,3,2],
-    //     [5,4,4,5,6,6,5],
-    //     [5,4,4,5,6,6,5]]
-    builder.pad(input, beginningPadding, endingPadding, {mode: 'symmetric'});
   </pre>
 </details>
 </div>
@@ -7382,7 +7536,7 @@ partial dictionary MLOpSupportLimits {
 
 <details open algorithm>
   <summary>
-    To <dfn for="MLGraphBuilder" data-lt="pooling-op">create pooling operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{MLPool2dOptions}} |options|, and optional [=/list=] |allowedDataTypes|, run the following steps:
+    To <dfn for="MLGraphBuilder" data-lt="pooling-op">create a pooling operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, {{MLPool2dOptions}} |options|, and optional [=/list=] |allowedDataTypes|, run the following steps:
   </summary>
     1. [=Assert=]: |op| is one of "averagePool2d", "l2Pool2d", "maxPool2d".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
@@ -7396,20 +7550,20 @@ partial dictionary MLOpSupportLimits {
             : {{MLInputOperandLayout/"nhwc"}}
             :: Let « |batches|, |inputHeight|, |inputWidth|, |channels| » be |input|'s [=MLOperand/shape=].
         </dl>
-    1. If |options|.{{MLPool2dOptions/windowDimensions}} does not [=map/exist=], set |options|.{{MLPool2dOptions/windowDimensions}} to « |inputHeight|, |inputWidth| ».
+    1. If |options|.{{MLPool2dOptions/windowDimensions}} does not [=map/exist=], then set |options|.{{MLPool2dOptions/windowDimensions}} to « |inputHeight|, |inputWidth| ».
     1. If |options|.{{MLPool2dOptions/windowDimensions}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any [=list/item=] in |options|.{{MLPool2dOptions/windowDimensions}} is equal to 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} does not [=map/exist=], set |options|.{{MLPool2dOptions/padding}} to the [=/list=] « 0, 0, 0, 0 ».
+    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], or if |options|.{{MLPool2dOptions/padding}} does not [=map/exist=], then set |options|.{{MLPool2dOptions/padding}} to the [=/list=] « 0, 0, 0, 0 ».
     1. If |options|.{{MLPool2dOptions/padding}}'s [=list/size=] is not 4, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLPool2dOptions/strides}} does not [=map/exist=], set |options|.{{MLPool2dOptions/strides}} to the [=/list=] « 1, 1 ».
+    1. If |options|.{{MLPool2dOptions/strides}} does not [=map/exist=], then set |options|.{{MLPool2dOptions/strides}} to the [=/list=] « 1, 1 ».
     1. If |options|.{{MLPool2dOptions/strides}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If any value in |options|.{{MLPool2dOptions/strides}} is not greater than 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=]:
+    1. If any [=list/item=] in |options|.{{MLPool2dOptions/strides}} is 0, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], then:
         1. If its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
         1. If its [=list/items=] are not smaller than the [=list/items=] at the same dimension (index) for |options|.{{MLPool2dOptions/strides}}, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLPool2dOptions/dilations}} does not [=map/exist=], set |options|.{{MLPool2dOptions/dilations}} to the [=/list=] « 1, 1 ».
+    1. If |options|.{{MLPool2dOptions/dilations}} does not [=map/exist=], then set |options|.{{MLPool2dOptions/dilations}} to the [=/list=] « 1, 1 ».
     1. If |options|.{{MLPool2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If any value in |options|.{{MLPool2dOptions/dilations}} is not greater than 0, then [=exception/throw=] a {{TypeError}}.
+    1. If any [=list/item=] in |options|.{{MLPool2dOptions/dilations}} is 0, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. *Calculate the output shape:*
         1. Let « |windowHeight|, |windowWidth| » be |options|.{{MLPool2dOptions/windowDimensions}}.
@@ -7454,21 +7608,21 @@ partial dictionary MLOpSupportLimits {
   </summary>
     <div algorithm>
     The <dfn method for=MLGraphBuilder>averagePool2d(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation=] given "averagePool2d", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/pooling-op|creating an pooling operation=] given "averagePool2d", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>l2Pool2d(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation=] given "l2Pool2d", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/pooling-op|creating a pooling operation=] given "l2Pool2d", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>maxPool2d(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of running the [=MLGraphBuilder/pooling-op | create pooling operation=] given "maxPool2d", |input| and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/pooling-op|creating a pooling operation=] given "maxPool2d", |input| and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -7496,9 +7650,9 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLPreluSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits slope;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits slope;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -7527,7 +7681,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
     <td>[=/any rank|N=]</td>
   <tr>
     <td>{{slope}}</td>
@@ -7544,11 +7698,11 @@ partial dictionary MLOpSupportLimits {
 {{MLPreluSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLPreluSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>slope</dfn>
-    :: {{MLSupportLimits}} for slope operand.
+    :: {{MLTensorLimits}} for slope operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/prelu()}}:
@@ -7564,7 +7718,7 @@ partial dictionary MLOpSupportLimits {
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any of |input| and |slope| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/dataType=] of any of |input| or |slope| is not one of its [=/allowed data types=] (according to [this table](#constraints-prelu)), then [=exception/throw=] a {{TypeError}}.
-    1. Let |outputShape| be to the result of [=bidirectionally broadcasting=] |slope|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=].
+    1. Let |outputShape| be the result of [=bidirectionally broadcasting=] |slope|'s [=MLOperand/shape=] and |input|'s [=MLOperand/shape=].
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
@@ -7717,7 +7871,7 @@ partial dictionary MLOpSupportLimits {
     To <dfn for="MLGraphBuilder">calculate reduction output sizes</dfn>, given a [=/list=] of unsigned integers |inputShape|, a optional [=/list=] of unsigned integers |axes|, and [=/boolean=] |keepDimensions|, perform the following steps. They return a new [=/list=] of unsigned integers, or failure.
   </summary>
     1. Let |inputRank| be |inputShape|'s [=list/size=].
-    1. If |axes| is not given, let |axes| be [=the range=] 0 to |inputRank|, exclusive.
+    1. If |axes| is not given, then let |axes| be [=the range=] 0 to |inputRank|, exclusive.
     1. Otherwise, if |axes| contains duplicate values, or if any of its [=list/items=] is not in [=the range=] 0 to |inputRank|, exclusive, then return failure.
     1. If |keepDimensions| is true, then:
         1. Let |outputShape| be a [=list/clone=] of |inputShape|.
@@ -7882,7 +8036,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
     <td>[=/any rank|N=]</td>
   </tr>
   <tr>
@@ -8056,10 +8210,10 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-resample2d)), then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/rank=] is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLResample2dOptions/scales}} does not [=map/exist=], set it to the [=/list=] « 1.0, 1.0 ».
-    1. Otherwise, if any of its values is not greater than 0, or if its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], and if its size is not 2, or if any of its values is not greater than 0, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLResample2dOptions/axes}} does not [=map/exists=], set it to the [=/list=] « 2, 3 ».
+    1. If |options|.{{MLResample2dOptions/scales}} does not [=map/exist=], then set it to the [=/list=] « 1.0, 1.0 ».
+    1. Otherwise, if any of its [=list/items=] is less than or equal to 0, or if its [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLResample2dOptions/sizes}} [=map/exists=], and if its [=list/size=] is not 2, or if any of its [=list/items=] is 0, then [=exception/throw=] a {{TypeError}}.
+    1. If |options|.{{MLResample2dOptions/axes}} does not [=map/exists=], then set it to the [=/list=] « 2, 3 ».
     1. Otherwise, if |options|.{{MLResample2dOptions/axes}} contains duplicate values, or if any of its [=list/items=] is not in [=the range=] 0 to |input|'s [=MLOperand/rank=], exclusive, then [=exception/throw=] a {{TypeError}}.
     1. *Calculate the output shape:*
         1. Let |inputDescriptor| be |input|.{{MLOperand/[[descriptor]]}}.
@@ -8166,7 +8320,7 @@ partial dictionary MLOpSupportLimits {
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be an empty array of {{unsigned long}}.
-    1. If |newShape|'s [=list/size=] is 0, set |outputShape| to an empty [=/list=] for a scalar.
+    1. If |newShape|'s [=list/size=] is 0, then set |outputShape| to an empty [=/list=] for a scalar.
     1. If any [=list/item=] in |newShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
     1. Let |inputElementCount| be the product of all [=list/items=] in |input|'s [=MLOperand/shape=]. Empty dimensions yield an |inputElementCount| of 1.
     1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a {{TypeError}}.
@@ -8249,7 +8403,7 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-reverse)), then [=exception/throw=] a {{TypeError}}.
     1. Let |inputRank| be |input|'s [=MLOperand/rank=].
-    1. If |axes| is not given, let |axes| be [=the range=] 0 to |inputRank|, exclusive.
+    1. If |axes| is not given, then let |axes| be [=the range=] 0 to |inputRank|, exclusive.
     1. Otherwise, if |axes| contains duplicate values, or if any of its elements is not in [=the range=] 0 to |inputRank|, exclusive, then return failure.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -8276,10 +8430,10 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLScatterSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits indices;
-  MLSupportLimits updates;
-  MLSupportLimits output;
+  MLTensorLimits input;
+  MLTensorLimits indices;
+  MLTensorLimits updates;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -8338,13 +8492,13 @@ partial dictionary MLOpSupportLimits {
 {{MLScatterSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLScatterSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>indices</dfn>
-    :: {{MLSupportLimits}} for indices operand.
+    :: {{MLTensorLimits}} for indices operand.
     : <dfn>updates</dfn>
-    :: {{MLSupportLimits}} for updates operand.
+    :: {{MLTensorLimits}} for updates operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following members for {{MLGraphBuilder/scatterElements()}}:
@@ -8366,7 +8520,7 @@ partial dictionary MLOpSupportLimits {
     1. If |indices|'s [=MLOperand/dataType=] is not one of its [=/allowed data types=] (according to [this table](#constraints-scatterelements)), then [=exception/throw=] a {{TypeError}}.
     1. If |updates|'s [=MLOperand/dataType=] is not equal to |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
     1. If the [=MLOperand/rank=] of any of |input|, |indices|, or |updates| is not its [=/allowed rank=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |axis| be |options|.{{MLGatherOptions/axis}}.
+    1. Let |axis| be |options|.{{MLScatterOptions/axis}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |indicesShapeExpected| be a copy of |input|'s [=MLOperand/shape=].
     1. Set |indicesShapeExpected|[|axis|] to |indices|'s [=MLOperand/shape=][|axis|].
@@ -8410,8 +8564,7 @@ partial dictionary MLOpSupportLimits {
       new Float32Array([0, 1, 2, 10, 11, 12, 20, 21, 22, 30, 31, 32]));
 
     const indices1 = builder.constant(
-      {dataType: 'uint32', shape: [2, 3]},
-      new Uint32Array([3, 1, 1, 2, 0, 3]));
+      {dataType: 'uint32', shape: [2, 3]}, new Uint32Array([3, 1, 1, 2, 0, 3]));
 
     const updates1 = builder.constant(
       {dataType: 'float32', shape: [2, 3]},
@@ -8442,12 +8595,10 @@ partial dictionary MLOpSupportLimits {
     //    [30, 31, -4]]
 
     const indices2 = builder.constant(
-      {dataType: 'uint32', shape: [4, 1]},
-      new Uint32Array([2, 1, 0, 2]));
+      {dataType: 'uint32', shape: [4, 1]}, new Uint32Array([2, 1, 0, 2]));
 
-    const updates2 =
-      builder.constant({dataType: 'float32', shape: [4, 1]},
-      new Uint32Array([-1, -2, -3, -4]));
+    const updates2 = builder.constant(
+      {dataType: 'float32', shape: [4, 1]}, new Uint32Array([-1, -2, -3, -4]));
 
     const output2 = builder.scatterElements(input1, indices2, updates2, {axis: 1});
 
@@ -8477,17 +8628,17 @@ partial dictionary MLOpSupportLimits {
     //    [[300, 301],
     //     [310,  -4]],]
 
-    const input3 = builder.constant(
-      {dataType: 'float32', shape: [4, 2, 2]},
-      new Float32Array([0, 1, 10, 11, 100, 101, 110, 111, 200, 201, 210, 211, 300, 301, 310, 311]));
+    const inputData3 = new Float32Array(
+      [0, 1, 10, 11, 100, 101, 110, 111, 200, 201, 210, 211, 300, 301, 310, 311]);
+
+    const input3 =
+      builder.constant({dataType: 'float32', shape: [4, 2, 2]}, inputData3);
 
     const indices3 = builder.constant(
-      {dataType: 'uint32', shape: [1, 2, 2]},
-      new Uint32Array([0, 2, 1, 3]));
+      {dataType: 'uint32', shape: [1, 2, 2]}, new Uint32Array([0, 2, 1, 3]));
 
-    const updates3 =
-      builder.constant({dataType: 'float32', shape: [1, 2, 2]},
-      new Uint32Array([-1, -2, -3, -4]));
+    const updates3 = builder.constant(
+      {dataType: 'float32', shape: [1, 2, 2]}, new Uint32Array([-1, -2, -3, -4]));
 
     const output3 = builder.scatterElements(input3, indices3, updates3, {axis: 0});
   </pre>
@@ -8615,12 +8766,10 @@ partial dictionary MLOpSupportLimits {
       new Float32Array([0, 1, 2, 3, 4, 5, 6, 7]));
 
     const indices1 = builder.constant(
-      {dataType: 'uint32', shape: [4, 1]},
-      new Uint32Array([4, 3, 1, 7]));
+      {dataType: 'uint32', shape: [4, 1]}, new Uint32Array([4, 3, 1, 7]));
 
     const updates1 = builder.constant(
-      {dataType: 'uint32', shape: [4]},
-      new Uint32Array([-1, -2, -3, -4]));
+      {dataType: 'uint32', shape: [4]}, new Uint32Array([-1, -2, -3, -4]));
 
     const output1 = builder.scatterND(input1, indices1, updates1);
 
@@ -8637,16 +8786,13 @@ partial dictionary MLOpSupportLimits {
     //    [ 2, -2]]   <= -2 written to output coordinate [1, 1]
 
     const input2 = builder.constant(
-      {dataType: 'float32', shape: [2, 2]},
-      new Float32Array([0, 1, 2, 3]));
+      {dataType: 'float32', shape: [2, 2]}, new Float32Array([0, 1, 2, 3]));
 
     const indices2 = builder.constant(
-      {dataType: 'uint32', shape: [2, 2]},
-      new Uint32Array([0, 0, 1, 1]));
+      {dataType: 'uint32', shape: [2, 2]}, new Uint32Array([0, 0, 1, 1]));
 
-    const updates2 = builder.constant(
-      {dataType: 'uint32', shape: [2]},
-      new Uint32Array([-1, -2]));
+    const updates2 =
+      builder.constant({dataType: 'uint32', shape: [2]}, new Uint32Array([-1, -2]));
 
     const output2 = builder.scatterND(input2, indices2, updates2);
 
@@ -8666,16 +8812,13 @@ partial dictionary MLOpSupportLimits {
     //    [-1, -2]]    <= [-1, -2] written to output coordinates [2, *]
 
     const input3 = builder.constant(
-      {dataType: 'float32', shape: [3, 2]},
-      new Float32Array([0, 1, 2, 3, 4, 5]));
+      {dataType: 'float32', shape: [3, 2]}, new Float32Array([0, 1, 2, 3, 4, 5]));
 
     const indices3 = builder.constant(
-      {dataType: 'uint32', shape: [2, 1]},
-      new Uint32Array([1, 0]));
+      {dataType: 'uint32', shape: [2, 1]}, new Uint32Array([1, 0]));
 
     const updates3 = builder.constant(
-      {dataType: 'uint32', shape: [2, 2]},
-      new Uint32Array([-1, -2, -3, 4]));
+      {dataType: 'uint32', shape: [2, 2]}, new Uint32Array([-1, -2, -3, 4]));
 
     const output3 = builder.scatterND(input3, indices3, updates3);
 
@@ -8701,12 +8844,10 @@ partial dictionary MLOpSupportLimits {
       new Float32Array([0, 1, 2, 3, 4, 5, 6, 7]));
 
     const indices4 = builder.constant(
-      {dataType: 'uint32', shape: [2, 2]},
-      new Uint32Array([0, 1, 1, 0]));
+      {dataType: 'uint32', shape: [2, 2]}, new Uint32Array([0, 1, 1, 0]));
 
     const updates4 = builder.constant(
-      {dataType: 'uint32', shape: [2, 2]},
-      new Uint32Array([-1, -2, -3, 4]));
+      {dataType: 'uint32', shape: [2, 2]}, new Uint32Array([-1, -2, -3, 4]));
 
     const output4 = builder.scatterND(input4, indices4, updates4);
   </pre>
@@ -8870,7 +9011,7 @@ partial dictionary MLOpSupportLimits {
     1. If any of |sizes|'s [=list/items=] are 0, then [=exception/throw=] a {{TypeError}}.
     1. If |starts|'s [=list/size=] and |sizes|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |strides| be a new [=/list=].
-    1. If |options|.{{MLSliceOptions/strides}} [=map/exists=]:
+    1. If |options|.{{MLSliceOptions/strides}} [=map/exists=], then:
         1. Set |strides| to |options|.{{MLSliceOptions/strides}}.
         1. If |strides|'s [=list/size=] is not equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |inputShape| be |input|'s [=MLOperand/shape=] and |inputRank| be |input|'s [=MLOperand/rank=].
@@ -9163,8 +9304,8 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLSplitSupportLimits {
-  MLSupportLimits input;
-  MLSupportLimits outputs;
+  MLTensorLimits input;
+  MLDataTypeLimits outputs;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -9212,9 +9353,9 @@ partial dictionary MLOpSupportLimits {
 {{MLSplitSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLSplitSupportLimits>
     : <dfn>input</dfn>
-    :: {{MLSupportLimits}} for input operand.
+    :: {{MLTensorLimits}} for input operand.
     : <dfn>outputs</dfn>
-    :: {{MLSupportLimits}} for all the output operands.
+    :: {{MLDataTypeLimits}} for all the output operands.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/split()}}:
@@ -9231,11 +9372,11 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |axis| be |options|.{{MLSplitOptions/axis}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
-    1. If |splits| is an {{unsigned long}}:
+    1. If |splits| is an {{unsigned long}}, then:
         1. If |splits| is 0, then [=exception/throw=] a {{TypeError}}.
         1. If |input|'s [=MLOperand/shape=][|axis|] % |splits| is not 0, then [=exception/throw=] a {{TypeError}}.
         1. Otherwise, let |splitCount| be |splits|.
-    1. If |splits| is a [=sequence=]<{{unsigned long}}>:
+    1. If |splits| is a [=sequence=]<{{unsigned long}}>, then:
         1. If any of its [=list/items=] is equal to 0, then [=exception/throw=] a {{TypeError}}.
 
             Issue(391): If 0-size dimensions are allowed, revise the above step.
@@ -9508,10 +9649,10 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|'s [=MLOperand/shape=].
-    1. Otherwise if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
+    1. If |options|.{{MLTransposeOptions/permutation}} does not [=map/exist=], then let |options|.{{MLTransposeOptions/permutation}} be the reversed sequence of all indices for |input|'s [=MLOperand/shape=].
+    1. Otherwise, if |options|.{{MLTransposeOptions/permutation}} [=map/exists=]:
         1. If its [=list/size=] is not equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
-        1. If its values are not in [=the range=] 0 to |input|'s [=MLOperand/rank=] exclusive, then [=exception/throw=] a {{TypeError}}.
+        1. If its [=list/items=] are not in [=the range=] 0 to |input|'s [=MLOperand/rank=] exclusive, then [=exception/throw=] a {{TypeError}}.
         1. If it contains duplicate values, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
@@ -9677,10 +9818,10 @@ partial interface MLGraphBuilder {
 };
 
 dictionary MLWhereSupportLimits {
-  MLSupportLimits condition;
-  MLSupportLimits trueValue;
-  MLSupportLimits falseValue;
-  MLSupportLimits output;
+  MLTensorLimits condition;
+  MLTensorLimits trueValue;
+  MLTensorLimits falseValue;
+  MLDataTypeLimits output;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -9732,13 +9873,13 @@ partial dictionary MLOpSupportLimits {
 {{MLWhereSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLWhereSupportLimits>
     : <dfn>condition</dfn>
-    :: {{MLSupportLimits}} for condition operand.
+    :: {{MLTensorLimits}} for condition operand.
     : <dfn>trueValue</dfn>
-    :: {{MLSupportLimits}} for trueValue operand.
+    :: {{MLTensorLimits}} for trueValue operand.
     : <dfn>falseValue</dfn>
-    :: {{MLSupportLimits}} for falseValue operand.
+    :: {{MLTensorLimits}} for falseValue operand.
     : <dfn>output</dfn>
-    :: {{MLSupportLimits}} for output operand.
+    :: {{MLDataTypeLimits}} for output operand.
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/where()}}:
@@ -9922,7 +10063,7 @@ The <dfn>ConvertToFloat</dfn>(|x|, |bitLength|) steps are:
 1. Let |y| be the number in |S| that is closest to |x|, selecting the number with an even significand if there are two [=equally close values=]. The two special values |lowerBound| and |upperBound| are considered to have even significands for this purpose.
 1. If |y| is |upperBound|, then return +Infinity.
 1. If |y| is |lowerBound|, then return -Infinity.
-1. If |y| is +0 and |x| is negative, return -0.
+1. If |y| is +0 and |x| is negative, then return -0.
 1. Return |y|.
 
 NOTE: This is based on a definition in [[WEBIDL]], but extended to cover 16-bit floating point values.
@@ -10157,6 +10298,8 @@ Thanks to Jiewei Qian for Chromium implementation review and feedback.
 Thanks to Dwayne Robinson, Joshua Lochner and Wanming Lin for their work investigating and providing recommendation for transformer support. Additional thanks to Dwayne and Wanming for providing reviews of operator conformance and web-platform-tests implementation.
 
 Thanks to Feng Dai for his continuous contributions that keep web-platform-tests evolving alongside the specification.
+
+Thanks to Fuqiao Xue and the W3C Internationalization Activity for reviews and suggestions.
 <pre class="biblio">
 {
   "Models": {
