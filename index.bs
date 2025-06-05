@@ -3362,6 +3362,8 @@ partial interface MLGraphBuilder {
   MLOperand logicalXor(MLOperand a,
                        MLOperand b,
                        optional MLOperatorOptions options = {});
+  MLOperand isNaN(MLOperand a, optional MLOperatorOptions options = {})
+  MLOperand isInfinite(MLOperand a, optional MLOperatorOptions options = {})
 };
 
 dictionary MLLogicalNotSupportLimits {
@@ -3380,10 +3382,12 @@ partial dictionary MLOpSupportLimits {
   MLBinarySupportLimits logicalAnd;
   MLBinarySupportLimits logicalOr;
   MLBinarySupportLimits logicalXor;
+  MLBinarySupportLimits isNaN;
+  MLBinarySupportLimits isInfinite;
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/notEqual(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options), MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/notEqual(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options), MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options), MLGraphBuilder/isNaN(a, options), MLGraphBuilder/isInfinite(a, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor.
         - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor when specified.
@@ -3392,7 +3396,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of element-wise comparison of the two input tensors.
 </div>
 
-<table id=constraints-elementwise-logical class='data' link-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/notEqual(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options), MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options)">
+<table id=constraints-elementwise-logical class='data' link-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/notEqual(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options), MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options), MLGraphBuilder/isNaN(a, options), MLGraphBuilder/isInfinite(a, options)">
   <caption>Constraints for element-wise logical options</caption>
   <thead>
     <tr>
@@ -3449,6 +3453,10 @@ partial dictionary MLOpSupportLimits {
     :: Support limits for operator {{MLGraphBuilder/logicalOr()}}.
     : <dfn>logicalXor</dfn>
     :: Support limits for operator {{MLGraphBuilder/logicalXor()}}.
+    : <dfn>isNaN</dfn>
+    :: Support limits for operator {{MLGraphBuilder/isNaN()}}.
+    : <dfn>isInfinite</dfn>
+    :: Support limits for operator {{MLGraphBuilder/isInfinite()}}.
 </dl>
 
 <div>
@@ -3463,6 +3471,8 @@ partial dictionary MLOpSupportLimits {
         - *logicalAnd*: Compute the logical *and* of the two input tensors, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
         - *logicalOr*: Compute the logical *or* of the two input tensors, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
         - *logicalXor*: Compute the logical *xor* of the two input tensors, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
+        - *isNaN*: Check if the values of the input tensor are invalid numberic representations (NaN's), element-wise, returning 1's for NaN's and 0 otherwise.
+        - *isInfinite*: Check if the values of the input tensor are infinite, element-wise, returning 1's for positive or negative infinity and 0 otherwise.
 </div>
 
 <div class="note">
@@ -3473,7 +3483,7 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
   <summary>
     To <dfn for="MLGraphBuilder" data-lt="element-wise-logical-op">create an element-wise logical operation</dfn> given [=string=] |op|, {{MLOperand}} |a|, an optional {{MLOperand}} |b|, and {{MLOperatorOptions}} |options|, run the following steps:
   </summary>
-    1. [=Assert=]: |op| is one of "equal", "notEqual", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "logicalNot", "logicalAnd", "logicalOr", "logicalXor".
+    1. [=Assert=]: |op| is one of "equal", "notEqual", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "logicalNot", "logicalAnd", "logicalOr", "logicalXor", "isNaN", "isInfinite".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |a| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |op| is one of "logicalNot", "logicalAnd", "logicalOr", "logicalXor", then:
@@ -3564,6 +3574,20 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     <div algorithm>
     The <dfn method for=MLGraphBuilder>logicalXor(|a|, |b|, |options|)</dfn> method steps are:
         1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "logicalXor", |a|, |b|, and |options|.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
+        1. Return |output|.
+    </div>
+
+    <div algorithm>
+    The <dfn method for=MLGraphBuilder>isNaN(|a|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "isNaN", |a|, and |options|.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
+        1. Return |output|.
+    </div>
+
+    <div algorithm>
+    The <dfn method for=MLGraphBuilder>isInfinite(|a|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "isInfinite", |a|, and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
