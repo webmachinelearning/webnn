@@ -164,6 +164,84 @@ Many platforms support various hybrid execution scenarios involving NPU, CPU, an
 
 As an example for handling hybrid execution as well as the underlying challenges, take a look at [OpenVINO device selection](https://blog.openvino.ai/blog-posts/automatic-device-selection-and-configuration).
 
+### An Example Hardware Selection Guide
+
+When distributing compute nodes across GPU, NPU, and CPU during AI model inference, optimal strategies depend on operation type, model architecture, and system constraints. Below are key approaches based on performance characteristics and hardware capabilities:
+
+#### **1. Operation-Type Optimization**
+
+- **Matrix multiplication (compute-bound)**:
+Use **GPUs** for large matrix operations (e.g., transformer prefill stages). GPUs achieve **~22% lower latency** and **~2× higher throughput** than NPUs for these tasks due to parallel compute units.
+    - Example: Serving Llama 70B with TensorRT-LLM on NVIDIA Hopper GPUs.
+- **Matrix-vector multiplication (memory-bound)**:
+Deploy **NPUs**, which reduce latency by **58.5%** compared to GPUs. NPUs leverage DMA for efficient memory access, ideal for LLM decode phases.
+    - Example: NPUs process TinyLlama inference **3.2× faster** than GPUs.
+- **Low-complexity operations (e.g., dot product)**:
+Assign to **CPUs**, which avoid GPU/NPU memory overhead and achieve lower latency for non-parallel tasks.
+
+#### **2. Model Architecture Considerations**
+
+- **Large Language Models (LLMs)**:
+    - **Prefill**: GPU clusters (compute-heavy)
+    - **Decode**: NPUs (memory-bound, sequential token generation)
+    - Use **disaggregated serving** to split phases across devices, boosting throughput up to **30×**.
+- **LSTM/RNN Models**:
+Prefer **GPUs**, which outperform NPUs by **2.7×** due to irregular memory access patterns.
+- **Vision Models (e.g., MobileNetV2)**:
+    - **Small batches**: NPUs (consistent latency)
+    - **Large batches**: GPUs (scaling throughput)
+
+#### **3. Batch Size and Latency Tradeoffs**
+
+| Scenario | Preferred Hardware | Rationale |
+| :-- | :-- | :-- |
+| Small batch (1-8) | NPU | 3× lower latency for video classification[^2] |
+| Large batch (>32) | GPU | Throughput scales with parallel compute[^2] |
+| Real-time SLOs | NPU + CPU | NPU for decode, CPU for lightweight ops[^3] |
+
+#### **4. Power-Constrained Deployments**
+
+- **NPUs** consume **≤50% power** of GPUs for equivalent performance, making them ideal for edge devices.
+- Use **CPU/NPU hybrids** for latency-sensitive applications requiring energy efficiency.
+
+#### **5. Dynamic Orchestration**
+
+Tools may monitor GPU/NPU utilization and automatically:
+
+- Shift decode GPUs to prefill during traffic spikes
+- Select optimal tensor parallelism strategies (e.g. separately for prefill and decode)
+- Leverage support for low-latency data movement between heterogeneous devices.
+
+By combining hardware-specific strengths with adaptive resource management, developers can achieve **2–30× throughput improvements** while maintaining strict latency targets.
+
+### Simplified guide
+
+| Factor | CPU | GPU | NPU |
+| :-- | :-- | :-- | :-- |
+| **Best For** | Sequential logic, small models | Parallel training, large batches | Edge inference, low-power AI |
+| **Power Efficiency** | Moderate | High consumption | Ultra-efficient |
+| **Latency** | 50–100 ms | 10–30 ms | 2–10 ms |
+| **Typical Use** | Preprocessing, decision trees | LLM training, computer vision | Smartphones, IoT devices |
+
+---
+
+#### Key Decision Criteria
+
+- **Throughput needs:**
+    - GPUs handle >10k queries/sec, while NPUs typically manage 1–5k queries/sec.
+- **Model complexity:**
+    - NPUs are optimized for transformer layers; GPUs excel at CNN/RNN workloads.
+- **Deployment environment:**
+    - NPUs dominate mobile and edge devices; GPUs are standard in cloud and data center environments, but usable in client environments as well.
+
+Modern systems often combine all three:
+
+- **CPUs** for input handling,
+- **GPUs** for model execution,
+- **NPUs** for post-processing—balancing performance and efficiency.
+
+
+
 ## Considered alternatives
 
 1. Keep the current [MLDeviceType](https://www.w3.org/TR/2025/CRD-webnn-20250131/#enumdef-mldevicetype) as a context option, but improve the device type names and specify an algorithm for a mapping of these names to various real adapters (with their given characteristics). However, this would be more limited than being able to specify device specific limits to context creation. (This is the current approach).
@@ -214,6 +292,12 @@ Other use cases were raised as well, in [this comment](https://github.com/webmac
 > 1. If the user selects to use functionality like background blur, we want to offer the best quality the device can offer. So the product has a small set of candidate models and technologies (WebNN, WebGPU, WASM) that it has to choose between. Accelerated technologies come with allowance for beefier models.
 
 > 2. The model/tech choser algorithm needs to be fast, and we need to avoid spending seconds or even hundreds of milliseconds to figure out if a given model should be able to run accelerated. So for example downloading the entirety (could be large things..), compiling & try-running a model seems infeasible.
+
+Given the discussion in #815 ([comment](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2635299222), [comment](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2638389869)), the developer use case (for frameworks, not for websites) seems to be the following:
+- Before downloading/loading a model, the developer wants to know if e.g. the GPU can be used for inference with WebNN.
+- If no, then they might want to try other path than WebNN, e.g. WebGPU.
+- If yes, then in some cases (e.g. CoreML) the model needs to be dispatched before knowing for sure whether it can be executed on GPU. For that a new API is needed, as discussed in [Get devices used for a graph after graph compilation](https://github.com/webmachinelearning/webnn/issues/836) and implemented in [define graph.devices](https://github.com/webmachinelearning/webnn/issues/854).
+Based on the answer, the developer may choose another option than WebNN. Besides that, the feature permits gathering data on typical graph allocations (note: fingerprintable) which might help the specification work on the device selection API.
 
 ## References
 [1] ONNX Runtime - OrtExecutionProviderDevicePolicy. (https://onnxruntime.ai/docs/api/c/group___global.html#gaf26ca954c79d297a31a66187dd1b4e24)
