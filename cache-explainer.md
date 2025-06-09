@@ -23,7 +23,7 @@ WebML Working Group participants
 
 ## Introduction
 
-The WebNN API enables web applications to perform ML model inference by constructing a graph representation of the model ([`MLGraphBuilder`](https://www.w3.org/TR/webnn/#mlgraphbuilder)), compiling it into a native format ([`MLGraph`](https://www.w3.org/TR/webnn/#mlgraph)), and executing it via [`MLContext.dispatch()`](https://www.w3.org/TR/webnn/#api-mlcontext-dispatch). However, compiling large models on certain devices, such as NPUs, can be time-consuming. To address this, we propose an explicit API for caching compiled graphs, allowing web applications to save and reuse them, thereby reducing the overhead of repeated compilation.
+The WebNN API enables web applications to perform ML model inference by constructing a graph representation of the model ([`MLGraphBuilder`](https://www.w3.org/TR/webnn/#mlgraphbuilder)), compiling it into a native format ([`MLGraph`](https://www.w3.org/TR/webnn/#mlgraph)), and executing it via [`MLContext.dispatch()`](https://www.w3.org/TR/webnn/#api-mlcontext-dispatch). However, compiling large models for certain devices, such as NPUs, can be time-consuming. This can be particularly difficult since compilation must happen on potentially slower end-user devices rather than ahead-of-time. To address this, we propose an explicit API for caching compiled graphs, allowing web applications to save and reuse them, thereby reducing the overhead of repeated compilation.
 
 This proposal documents ongoing discussions in the W3C WebML Working Group and builds on existing mechanisms in frameworks like ONNX Runtime.
 
@@ -49,7 +49,7 @@ though we understand this is not always feasible.]
 
 ## Use cases
 
-### Reduce time to first inference
+### Reduce time to first inference on reload
 
 A web application performing real-time image recognition can save the compiled graph after the first inference. If the page is reloaded, subsequent inferences reuse the cached graph, significantly reducing latency by avoiding both the model redownload and recompilation steps.
 
@@ -69,11 +69,40 @@ partial interface MLContext {
 3. **`saveGraph(key, graph)`**: Saves the provided graph under the specified key.
 4. **`deleteGraph(key)`**: Deletes the cached graph associated with the given key.
 
+### A note on persistence
+
+A graph may be evicted from the cache due to storage pressure or browser/platform updates which render previously compiled graphs invalid. Developers should consider the level of durability to be somewhere between IndexedDB and the HTTP cache. [For specification purposes, reuse the [Storage standard concepts](https://storage.spec.whatwg.org/#model) as applicable.]
+
+### Input and output descriptors
+
+A JS ML framework, such as ONNX Runtime Web, may need to know the input and output operands info (name, shape and data type) to construct input and output tensors for an inference session. The input and output operands info is known if users pass the source model, e.g. ONNX model. With model cache, user may only pass the model key, the framework needs to fetch the input and output operands info from an `MLGraph`. It would be necessary to expose the `inputDescriptors` and `outputDescriptors` internal slots of `MLGraph` interface.
+
+```webidl
+partial interface MLGraph {
+  record<USVString, MLOperandDescriptor> inputDescriptors;
+  record<USVString, MLOperandDescriptor> outputDescriptors;
+};
+```
+
 ## Considered alternatives
+
+### Combined build and save
+
+A separate `saveGraph` API might introduce overhead on some native ML frameworks, such as ONNX Runtime, because its implementation may need to hold the source model in the memory and recompile the source model when user code calls `saveGraph`.
+
+An alternative consideration is to have a `buildAndSave` method. The implementation can just compile the graph once and drop the source model after the compilation.
+
+```webidl
+partial interface MLGraphBuilder {
+  Promise<MLGraph> buildAndSave(MLNamedOperands outputs, DOMString key);
+};
+```
 
 ### Explicit vs implicit API
 
 >GPU shader caching is implicit, however the difference is that a shader program is a small input and so it's easy for the site to regenerate the shader so the browser can hash it to compare with the cache. ML models on the other hand are large because of the weights. Loading all the weights just to discover that a cached version of the model is available would be a waste of time and resources. (via [comment](https://github.com/webmachinelearning/webnn/issues/807#issuecomment-2608135598))
+
+Furthermore, an ML model can't be compiled without the weights because the implementation may perform device-specific constant folding and memory layout optimizations.
 
 ## Related work
 
@@ -93,7 +122,7 @@ To prevent cross-origin data leakage, cached graphs must be partitioned per orig
 
 ### Implementation-specific sandbox constraints
 
-Chromium's sandboxing model restricts file system access for GPU processes. Any implementation must comply with these constraints to ensure security.
+For security reasons, model compilation and inference will typically happen in sandboxed processes. This will introduce implementation challenges and care must be taken in how the caching mechanism allows data to be read from and written to disk.
 
 ## References
 
