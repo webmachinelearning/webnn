@@ -79,8 +79,8 @@ A JS ML framework, such as ONNX Runtime Web, may need to know the input and outp
 
 ```webidl
 partial interface MLGraph {
-  record<USVString, MLOperandDescriptor> inputDescriptors;
-  record<USVString, MLOperandDescriptor> outputDescriptors;
+  record<USVString, MLOperandDescriptor> inputs;
+  record<USVString, MLOperandDescriptor> outputs;
 };
 ```
 
@@ -88,9 +88,9 @@ partial interface MLGraph {
 
 ### Combined build and save
 
-A separate `saveGraph` API might introduce overhead on some native ML frameworks, such as ONNX Runtime, because its implementation may need to hold the source model in the memory and recompile the source model when user code calls `saveGraph`.
+A separate `saveGraph()` API might introduce overhead on some native ML frameworks, such as ONNX Runtime, because its implementation may need to hold the source model in the memory and recompile the source model when user code calls `saveGraph()`.
 
-An alternative consideration is to have a `buildAndSave` method. The implementation can just compile the graph once and drop the source model after the compilation.
+An alternative consideration is to have a `buildAndSave()` method. The implementation can just compile the graph once and drop the source model after the compilation.
 
 ```webidl
 partial interface MLGraphBuilder {
@@ -98,9 +98,11 @@ partial interface MLGraphBuilder {
 };
 ```
 
+However, a compliant implementation of `build()` could save the compiled model into a temporary file which is deleted unless `saveGraph()` is called later, rendering an explicit `buildAndSave()` unnecessary.
+
 ### Explicit vs implicit API
 
->GPU shader caching is implicit, however the difference is that a shader program is a small input and so it's easy for the site to regenerate the shader so the browser can hash it to compare with the cache. ML models on the other hand are large because of the weights. Loading all the weights just to discover that a cached version of the model is available would be a waste of time and resources. (via [comment](https://github.com/webmachinelearning/webnn/issues/807#issuecomment-2608135598))
+GPU shader caching is implicit, however the difference is that a shader program is a small input and so it's easy for the site to regenerate the shader so the browser can hash it to compare with the cache. ML models on the other hand are large because of the weights. Loading all the weights just to discover that a cached version of the model is available would be a waste of time and resources. (via [comment](https://github.com/webmachinelearning/webnn/issues/807#issuecomment-2608135598))
 
 Furthermore, an ML model can't be compiled without the weights because the implementation may perform device-specific constant folding and memory layout optimizations.
 
