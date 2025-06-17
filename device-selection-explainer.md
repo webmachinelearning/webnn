@@ -222,12 +222,12 @@ By combining hardware-specific strengths with adaptive resource management, deve
 (Editor's Note: The following simplified guide is based on ongoing discussions. There's a suggestion to use qualitative terms for latency, map devices to latency-sensitive use cases, and exclude training considerations from this specific guide. See PR #860 discussion for details.)
 ### Simplified guide
 
-| Factor             | CPU                             | GPU                                | NPU                            |
-| :----------------- | :------------------------------ | :--------------------------------- | :----------------------------- |
-| **Best For**       | Sequential logic, small models  | Parallel training, large batches   | Edge inference, low-power AI   |
+| Factor               | CPU                             | GPU                                | NPU                            |
+| :------------------- | :------------------------------ | :--------------------------------- | :----------------------------- |
+| **Best For**         | Sequential logic, small models  | Performance, large batches         | Edge inference, low-power AI   |
 | **Power Efficiency** | Moderate                        | High consumption                   | Ultra-efficient                |
-| **Latency**        | 50–100 ms                       | 10–30 ms                           | 2–10 ms                        |
-| **Typical Use**    | Preprocessing, decision trees   | LLM training, computer vision      | Smartphones, IoT devices       |
+| **Latency**          | High (50–100 ms)                | Medium (10–30 ms)                  | Low (2–10 ms)                  |
+| **Typical Use**      | Preprocessing, decision trees   | Large LLMs, computer vision        | Light laptops, smartphones, IoT devices |
 
 ---
 
