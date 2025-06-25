@@ -22,7 +22,7 @@ The design process of the [Web Neural Network API](https://www.w3.org/TR/webnn/)
 
 With emerging ML innovations in both software and hardware ecosystem, one of the main challenges for the web is to bridge this software and hardware development and bring together a solution that scales across hardware platforms and works with any framework for web-based machine learning experiences. We propose the WebNN API as an abstraction for neural networks in the web browsers.
 
-![WebNN architecture diagram](content/webnn_arch.svg)
+![Web Neural Network API Architecture Diagram showing the relationships between models, frameworks, browser APIs, native ML APIs, and hardware components](content/webnn_arch.svg)
 <details><summary>WebNN architecture diagram source</summary>
 
 ```mermaid
