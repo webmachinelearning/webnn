@@ -21,60 +21,55 @@ Implementations, browsers, and the underlying OS may want to control the allocat
 
 The question is who should be able to, and to what extent, control the execution context state and capabilities.
 
-This was previously captured by context options including `deviceType` and `powerPreference`. While `deviceType` has been removed as a direct option for context creation, `powerPreference` remains a key hint for implementations.
+This was previously captured by context options including `deviceType` (`"cpu"`, `"gpu"`, `"npu"`) and `powerPreference` (`"high-performance"`, `"low-power"`). While `deviceType` has been removed as a direct option for context creation, `powerPreference` remains a key hint for implementations.
 
-## History
-
-Previous discussion covered the following main topics:
-- Who controls the execution context: script vs. user agent (OS).
-- CPU vs. GPU device selection, including handling multiple GPUs.
-- How to handle NPU devices, quantization/dequantization.
-
-In [Simplify MLContext creation #322](https://github.com/webmachinelearning/webnn/pull/322), the proposal was to always use an explicit [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice) object to initialize a context and remove the `"gpu"` [context option](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions). Also, remove the `'high-performance'` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), since it was used for the GPU option, which now becomes explicit.
-
-Explicit GPU selection also provides clarity when there are multiple GPU devices, as implementations need to use [WebGPU](https://gpuweb.github.io/gpuweb/) to select a [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter), from which they can request a [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice) object.
-A counter-argument was that it becomes more complex to use an implementation-selected default GPU, as there is no simple way anymore to tell implementations to use any GPU device for creating an [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext). This concern could eventually be alleviated by keeping the `'high-performance'` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), but on some devices, the NPU might be faster than the GPU.
-
-In [Need to understand how WebNN supports implementation that involves multiple devices and timelines #350](https://github.com/webmachinelearning/webnn/issues/350), it was pointed out that [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext) supports only a single device, while some frameworks support working with a single graph over multiple devices (e.g., CoreML). The proposal was to create a _default_ context that has no explicitly associated device (it could also be named a _generic_ context), where the implementation may choose the underlying device(s).
-
-In [API simplification: context types, context options #302](https://github.com/webmachinelearning/webnn/issues/302), the [proposal](https://github.com/webmachinelearning/webnn/issues/302#issuecomment-1960407195) was that the default behavior should be to delegate device selection to the implementation and remove [device type](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype).
-However, the hints/options mechanism should be kept, with an improved mapping to use cases.
-For instance, device selection is not about mandating where to execute but, e.g., telling what to avoid if possible (e.g., don't use the GPU). In this case, the [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions), such as [device type](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) and [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), could be used for mapping user hints into device selection logic by implementations. The list of options could be extended based on future needs. Note that the current hints don't guarantee the selection of a particular device type (such as GPU) or a given combination of devices (such as CPU+NPU). For instance, using the `"high-performance"` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference) may not guarantee GPU execution, depending on the underlying platform.
-
-In [WebNN should support NPU and QDQ operations #623](https://github.com/webmachinelearning/webnn/issues/623), an explicit request to support NPU device selection was discussed, along with quantization use cases. Several [options](https://github.com/webmachinelearning/webnn/issues/623#issuecomment-2063954107) were proposed, and the simplest one was chosen: extending the [device type enum](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) with the `"npu"` value and updating the relevant algorithms, as added in [PR #696](https://github.com/webmachinelearning/webnn/pull/696).
-However, the `deviceType` option, including the `"npu"` value, was later removed from `MLContextOptions` as part of a broader shift to make the context device-agnostic by default (see discussion around Issue #749 and PR #809).
-Alternative policies for error handling and fallback scenarios remained open questions.
-
-Later, the need for explicit device selection support was challenged in [MLContextOptions.deviceType seems unnecessary outside of conformance testing #749](https://github.com/webmachinelearning/webnn/issues/749), with the main arguments also summarized in a W3C TPAC group meeting [presentation](https://lists.w3.org/Archives/Public/www-archive/2024Sep/att-0006/MLDeviceType.pdf). The main points were:
-- The [device type](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) option is hard to standardize because of the heterogeneity of compute units across various platforms and even across their versions. For instance, `"npu"` might not be a standalone available option, only a combined form of `"npu"` and `"cpu"`.
-- As for error management vs. fallback policies: fallback is preferable to failing, and implementations/the underlying platforms should determine the fallback type based on runtime information.
-- Implementations, browsers, or the OS have a better grasp of the system, compute, runtime, and application state than websites, and therefore control should be relinquished to them. For instance, if rendering performance degrades, the implementation/underlying platform can possibly fix it the best way, not the web app.
-This led to the changes implemented in PR #809.
+For more background on prior discussions, check out the [History](#history) section.
 
 ## Key use cases and requirements
 
-### Device Preference Use Cases
+To highlight the tensions between developer intents, API capabilities, and platform support, consider the following developer scenario. Before downloading a model (e.g. from [Hugging Face](https://huggingface.co/)), a developer wants to know how the model can be run with the Web NN implementation on a given client platform (e.g. on GPU or NPU).
 
-A WebNN application may have specific device preferences for model execution. The following use cases map to such preferences, informed by existing APIs such as ONNX Runtime's `OrtExecutionProviderDevicePolicy` [1]:
+One use case is that if the model cannot be accelerated on GPU or NPU, then don't execute on CPU (i.e. prevent CPU fallback).
 
-*   **Prefer execution on the main CPU**:
-    *   *Preference*: `"prefer CPU"`
-    *   *Description*: The application developer hints that the model should ideally run on the device component primarily responsible for general computation, typically "where JS and Wasm execute." This could be due to the model's characteristics (e.g., heavy control flow, operations best suited for CPU) or to reserve other accelerators for different tasks.
-*   **Prefer execution on a Neural Processing Unit (NPU)**:
-    *   *Preference*: `"prefer NPU"`
-    *   *Description*: The application developer hints that the model is well-suited for an NPU. NPUs are specialized hardware accelerators, distinct from CPUs (typically "where JS and Wasm execute") and GPUs (typically "where WebGL and WebGPU programs execute"). In a future-proof context, NPUs fall under the category of "other" compute devices, encompassing various current and future specialized ML accelerators. This preference is often chosen for models optimized for low-power and sustained performance.
-*   **Prefer execution on a Graphics Processing Unit (GPU)**:
-    *   *Preference*: `"prefer GPU"`
-    *   *Description*: The application developer hints that the model should run on the GPU (the device "where WebGL and WebGPU programs execute"). This is common for models with highly parallelizable operations.
-*   **Maximize Performance**:
-    *   *Preference*: `"maximum performance"`
-    *   *Description*: The application developer desires the highest possible throughput or lowest latency for the model execution, regardless of power consumption. The underlying system will choose the device or combination of devices (e.g., "where WebGL and WebGPU programs execute" or other specialized hardware) that can achieve this.
-*   **Maximize Power Efficiency**:
-    *   *Preference*: `"maximum efficiency"`
-    *   *Description*: The application developer prioritizes executing the model in the most power-efficient manner, which might involve using an NPU or a low-power mode of the CPU ("where JS and Wasm execute"). This is crucial for battery-constrained devices or long-running tasks.
-*   **Minimize Overall System Power**:
-    *   *Preference*: `"minimum overall power"`
-    *   *Description*: The application developer hints that the model execution should contribute as little as possible to the overall system power draw. This is a broader consideration than just the model's own efficiency, potentially influencing scheduling and resource allocation across the system. The implementation may choose any device ("where JS and Wasm execute," "where WebGL and WebGPU programs execute," or "other") that best achieves this goal.
+After that, one option is to allow Web NN to silently defer inference to other means (e.g. by using [Web GPU](https://www.w3.org/TR/webgpu/)), if that is supported by the particular implementation.
+
+Another option is to just ask for an error in this case, then the developer would take control and do inference by other means.
+
+However, there are platforms on which preventing CPU fallback cannot be implemented since there always is an automatic CPU fallback. In those cases, another API, e.g. a capability introspection interface might be more useful.
+
+In addition, the developer may inquire capabilities inferred from collected historical information about running models on the given client. Note that the client platform may choose any accelerators in any combination and sequence, depending on actual system conditions that may change between runs.
+
+Also, a developer may provide hints which may be silently (no feedback) or explicitly (with feedback) overridden by the client platform.
+
+The emerging main use cases are the following.
+
+### Pre-download capability check
+Before downloading a model, determine if the specific model can be used for inference as expected.
+- This may need a prior model introspection step (out of scope for this document), e.g. checking quantization, data types, memory/buffering requirements, etc) for the model. To obtain this data, one can check for instance `config.json`, `model_card.md`, metadata embedded in the models, model file name conventions, tags, library compatibility and specific target optimizations, example code/notebooks, etc.
+- The obtained model information may be compared against the local capabilities queried by an API in order to determine if the model is suitable.
+
+**Requirement**: need an API for capability query / capability matching between models and platform.
+Possible means:
+- use an explicit capability query API, such as "is acceleration available" (meaning GPU or NPU), "what data types are supported", "is this data type supported", "are these operators supported", "is this quantization supported", or "tell me all local capabilities" etc. The exact API shape is to be determined.
+- use collected historical data to provide on query a high level capability overview.
+
+Note that these have been discussed in [Query mechanism for supported devices #815](https://github.com/webmachinelearning/webnn/issues/815) and this [proposal](https://github.com/webmachinelearning/webnn/issues/749#issuecomment-2429821928), also tracked in [MLOpSupportLimits should be opt-in #759](https://github.com/webmachinelearning/webnn/issues/759). This is to allow listing operator support limits outside of a context, which would return all available devices with their operator support limits. Then, the web app could choose one of them to initialize a context.
+
+### Pre-download or pre-build hints and constraints
+
+**Requirement**: support for context creation hints and constraints (e.g. limit fallback scenarios).
+Possible means:
+- identify hints/constraints that may be silently overridden by implementations, e.g. "low-power", "high-performance", "low-latency", etc.
+- identify hints/constraints that require a feedback (error) if not supported, for instance "avoid CPU fallback" or "need low power and low latency acceleration".
+
+### Post-compile query of inference details
+**Requirement**: query a compiled graph for details on how may it be run (subject to being overridden by the platform).
+
+This is being discussed in [Get devices used for a graph after graph compilation #836](https://github.com/webmachinelearning/webnn/issues/836)
+and being explored in PR [#854 (define graph.devices)](https://github.com/webmachinelearning/webnn/pull/854).
+Initially, the proposal was to obtain the list/combination of devices usable for running the graph, but the utility of this needs to be proven. However, this requirement covers querying information on a graph in general, with the details to be determined later.
+
+## Design considerations
 
 Design decisions may take the following into account:
 
@@ -135,6 +130,118 @@ const context = await navigator.ml.createContext({ fallback: ['npu', 'cpu'] });
 
 - How should the API expose which device(s) a compiled graph is actually utilizing, to allow developers to adapt if the allocation is suboptimal (see Issue #836 and PR #854)?
 
+## Considered alternatives
+
+1. Keep the `MLDeviceType` enumeration (see [CRD 20250131](https://www.w3.org/TR/2025/CRD-webnn-20250131/#enumdef-mldevicetype)) as a context option, but improve the device type names and specify an algorithm for mapping these names to various real adapters (with their given characteristics). However, this would be more limited than being able to specify device-specific limits for context creation. (This was the approach prior to PR #809).
+
+2. Remove `MLDeviceType`, but define a set of [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) that map well to GPU adapter/device selection and also to NPU device selection. (This is the current approach, implemented in PR #809).
+
+3. Follow this [proposal](https://github.com/webmachinelearning/webnn/issues/749#issuecomment-2429821928), also tracked in [MLOpSupportLimits should be opt-in #759](https://github.com/webmachinelearning/webnn/issues/759). This is to allow listing operator support limits outside of a context, which would return all available devices with their operator support limits. Then, the web app could choose one of them to initialize a context. (This is a suggested longer-term discussion topic.)
+
+For extending the context options, consider also e.g. the following.
+
+### Device Preference Options in ONNX Runtime
+
+A WebNN application may have specific device preferences for model execution. The following use cases map to such preferences, informed by existing APIs such as ONNX Runtime's `OrtExecutionProviderDevicePolicy` [1]:
+
+*   **Prefer execution on the main CPU**:
+    *   *Preference*: `"prefer CPU"`
+    *   *Description*: The application developer hints that the model should ideally run on the device component primarily responsible for general computation, typically "where JS and Wasm execute." This could be due to the model's characteristics (e.g., heavy control flow, operations best suited for CPU) or to reserve other accelerators for different tasks.
+*   **Prefer execution on a Neural Processing Unit (NPU)**:
+    *   *Preference*: `"prefer NPU"`
+    *   *Description*: The application developer hints that the model is well-suited for an NPU. NPUs are specialized hardware accelerators, distinct from CPUs (typically "where JS and Wasm execute") and GPUs (typically "where WebGL and WebGPU programs execute"). In a future-proof context, NPUs fall under the category of "other" compute devices, encompassing various current and future specialized ML accelerators. This preference is often chosen for models optimized for low-power and sustained performance.
+*   **Prefer execution on a Graphics Processing Unit (GPU)**:
+    *   *Preference*: `"prefer GPU"`
+    *   *Description*: The application developer hints that the model should run on the GPU (the device "where WebGL and WebGPU programs execute"). This is common for models with highly parallelizable operations.
+*   **Maximize Performance**:
+    *   *Preference*: `"maximum performance"`
+    *   *Description*: The application developer desires the highest possible throughput or lowest latency for the model execution, regardless of power consumption. The underlying system will choose the device or combination of devices (e.g., "where WebGL and WebGPU programs execute" or other specialized hardware) that can achieve this.
+*   **Maximize Power Efficiency**:
+    *   *Preference*: `"maximum efficiency"`
+    *   *Description*: The application developer prioritizes executing the model in the most power-efficient manner, which might involve using an NPU or a low-power mode of the CPU ("where JS and Wasm execute"). This is crucial for battery-constrained devices or long-running tasks.
+*   **Minimize Overall System Power**:
+    *   *Preference*: `"minimum overall power"`
+    *   *Description*: The application developer hints that the model execution should contribute as little as possible to the overall system power draw. This is a broader consideration than just the model's own efficiency, potentially influencing scheduling and resource allocation across the system. The implementation may choose any device ("where JS and Wasm execute," "where WebGL and WebGPU programs execute," or "other") that best achieves this goal.
+
+
+## Minimum Viable Solution
+
+Based on the discussion above, the best starting point was a simple solution that can be extended and refined later. A first contribution could include the following changes:
+- Remove `MLDeviceType` (see [CRD 20250131](https://www.w3.org/TR/2025/CRD-webnn-20250131/#enumdef-mldevicetype)) as an explicit [context option](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions).
+- Update `MLContext` so that it becomes device-agnostic, or a _default_/_generic_ context. Allow supporting multiple devices with one context.
+- Add algorithmic steps or notes for implementations on how to map `powerPreference` to devices.
+- Also, to align with `GPUPowerPreference`, remove the `"default"` `MLPowerPreference` value, i.e., the lack of hints will result in creating a generic context.
+
+This was implemented in [Remove MLDeviceType #809](https://github.com/webmachinelearning/webnn/pull/809).
+
+Besides, the following topics have been discussed:
+- Improve the device selection hints in [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) and define their implementation mappings. For instance, discuss whether to also include a `"low-latency"` performance option.
+- Document the valid use cases for requesting a certain device type or combination of devices, and under what error conditions. Currently, after these changes, there remains explicit support for a GPU-only context when an `MLContext` is created from a `GPUDevice` in `createContext()`.
+- Discuss option #3 from [Considered alternatives](#considered-alternatives).
+
+## Next Phase Device Selection Solution
+
+In [Remove MLDeviceType #809](https://github.com/webmachinelearning/webnn/pull/809), this [comment](https://github.com/webmachinelearning/webnn/pull/809#discussion_r1936856070) raised a new use case:
+
+> about the likely need for a caller to know whether a particular device is supported or not, because an app may want to (if say GPU is not supported) use a different, more performant fallback than for WebNN to silently fall back to CPU. For example, if GPU was unavailable (even though you preferred high performance), then it might be faster to execute the model with WebGPU shaders than WebNN CPU, or it might be okay to use CPU, but the app could load a different model that's more CPU-friendly if it knew that was the case.
+
+This sparked a discussion in [Query mechanism for supported devices #815](https://github.com/webmachinelearning/webnn/issues/815) about possible solutions. For instance, [this shape](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2657101952) emerged as a possible starting point for further exploration, drafting a generic mechanism for capability introspection with examples of possible parameters and outcomes.
+
+```js
+const support = await context.querySupport({
+  dataTypes: ['float16', 'int8'],
+  maximumRank: 6,
+  operators: ['lstm', 'hardSwish'],
+});
+console.log(support); // "optimized" or "fallback"
+```
+
+The next phase in developing device selection is, therefore, to explore this proposal and eventually others.
+
+Other use cases were also raised in [this comment](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2658627753) for real-time video processing:
+
+> 1. If the user selects functionality like background blur, we want to offer the best quality the device can offer. So, the product has a small set of candidate models and technologies (WebNN, WebGPU, WASM) that it has to choose between. Accelerated technologies come with an allowance for beefier models.
+
+> 2. The model/tech chooser algorithm needs to be fast, and we need to avoid spending seconds or even hundreds of milliseconds to figure out if a given model should be able to run accelerated. So, for example, downloading the entirety (could be large), compiling, and try-running a model seems infeasible.
+
+Given the discussion in Issue #815 ([comment](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2635299222), [comment](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2638389869)), the developer use case (for frameworks, not for websites) seems to be:
+- Before downloading/loading a model, the developer wants to know if, e.g., the GPU can be used for inference with WebNN.
+- If not, then they might want to try a path other than WebNN, e.g., WebGPU.
+- If yes, then in some cases (e.g., CoreML), the model needs to be dispatched before knowing for sure whether it can be executed on the GPU. For that, a new API is needed, as discussed in [Get devices used for a graph after graph compilation #836](https://github.com/webmachinelearning/webnn/issues/836) and being explored in PR [#854 (define graph.devices)](https://github.com/webmachinelearning/webnn/pull/854).
+Based on the answer, the developer may choose an option other than WebNN. Besides that, the feature permits gathering data on typical graph allocations (note: fingerprintable), which might help the specification work on the device selection API.
+
+## References
+[1] ONNX Runtime - `OrtExecutionProviderDevicePolicy`. (https://onnxruntime.ai/docs/api/c/group___global.html#gaf26ca954c79d297a31a66187dd1b4e24)
+
+
+
+## History
+
+Previous discussion covered the following main topics:
+- Who controls the execution context: script vs. user agent (OS).
+- CPU vs. GPU device selection, including handling multiple GPUs.
+- How to handle NPU devices, quantization/dequantization.
+
+In [Simplify MLContext creation #322](https://github.com/webmachinelearning/webnn/pull/322), the proposal was to always use an explicit [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice) object to initialize a context and remove the `"gpu"` [context option](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions). Also, remove the `'high-performance'` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), since it was used for the GPU option, which now becomes explicit.
+
+Explicit GPU selection also provides clarity when there are multiple GPU devices, as implementations need to use [WebGPU](https://gpuweb.github.io/gpuweb/) to select a [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter), from which they can request a [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice) object.
+A counter-argument was that it becomes more complex to use an implementation-selected default GPU, as there is no simple way anymore to tell implementations to use any GPU device for creating an [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext). This concern could eventually be alleviated by keeping the `'high-performance'` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), but on some devices, the NPU might be faster than the GPU.
+
+In [Need to understand how WebNN supports implementation that involves multiple devices and timelines #350](https://github.com/webmachinelearning/webnn/issues/350), it was pointed out that [MLContext](https://webmachinelearning.github.io/webnn/#mlcontext) supports only a single device, while some frameworks support working with a single graph over multiple devices (e.g., CoreML). The proposal was to create a _default_ context that has no explicitly associated device (it could also be named a _generic_ context), where the implementation may choose the underlying device(s).
+
+In [API simplification: context types, context options #302](https://github.com/webmachinelearning/webnn/issues/302), the [proposal](https://github.com/webmachinelearning/webnn/issues/302#issuecomment-1960407195) was that the default behavior should be to delegate device selection to the implementation and remove [device type](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype).
+However, the hints/options mechanism should be kept, with an improved mapping to use cases.
+For instance, device selection is not about mandating where to execute but, e.g., telling what to avoid if possible (e.g., don't use the GPU). In this case, the [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions), such as [device type](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) and [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference), could be used for mapping user hints into device selection logic by implementations. The list of options could be extended based on future needs. Note that the current hints don't guarantee the selection of a particular device type (such as GPU) or a given combination of devices (such as CPU+NPU). For instance, using the `"high-performance"` [power preference](https://webmachinelearning.github.io/webnn/#enumdef-mlpowerpreference) may not guarantee GPU execution, depending on the underlying platform.
+
+In [WebNN should support NPU and QDQ operations #623](https://github.com/webmachinelearning/webnn/issues/623), an explicit request to support NPU device selection was discussed, along with quantization use cases. Several [options](https://github.com/webmachinelearning/webnn/issues/623#issuecomment-2063954107) were proposed, and the simplest one was chosen: extending the [device type enum](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) with the `"npu"` value and updating the relevant algorithms, as added in [PR #696](https://github.com/webmachinelearning/webnn/pull/696).
+However, the `deviceType` option, including the `"npu"` value, was later removed from `MLContextOptions` as part of a broader shift to make the context device-agnostic by default (see discussion around Issue #749 and PR #809).
+Alternative policies for error handling and fallback scenarios remained open questions.
+
+Later, the need for explicit device selection support was challenged in [MLContextOptions.deviceType seems unnecessary outside of conformance testing #749](https://github.com/webmachinelearning/webnn/issues/749), with the main arguments also summarized in a W3C TPAC group meeting [presentation](https://lists.w3.org/Archives/Public/www-archive/2024Sep/att-0006/MLDeviceType.pdf). The main points were:
+- The [device type](https://webmachinelearning.github.io/webnn/#enumdef-mldevicetype) option is hard to standardize because of the heterogeneity of compute units across various platforms and even across their versions. For instance, `"npu"` might not be a standalone available option, only a combined form of `"npu"` and `"cpu"`.
+- As for error management vs. fallback policies: fallback is preferable to failing, and implementations/the underlying platforms should determine the fallback type based on runtime information.
+- Implementations, browsers, or the OS have a better grasp of the system, compute, runtime, and application state than websites, and therefore control should be relinquished to them. For instance, if rendering performance degrades, the implementation/underlying platform can possibly fix it the best way, not the web app.
+This led to the changes implemented in PR #809.
 
 ## Background thoughts
 
@@ -245,63 +352,3 @@ Modern systems often combine all three:
 - **CPUs** for input handling.
 - **GPUs** for model execution.
 - **NPUs** for post-processing—balancing performance and efficiency.
-
-
-
-## Considered alternatives
-
-1. Keep the `MLDeviceType` enumeration (see [CRD 20250131](https://www.w3.org/TR/2025/CRD-webnn-20250131/#enumdef-mldevicetype)) as a context option, but improve the device type names and specify an algorithm for mapping these names to various real adapters (with their given characteristics). However, this would be more limited than being able to specify device-specific limits for context creation. (This was the approach prior to PR #809).
-
-2. Remove `MLDeviceType`, but define a set of [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) that map well to GPU adapter/device selection and also to NPU device selection. (This is the current approach, implemented in PR #809).
-
-3. Follow this [proposal](https://github.com/webmachinelearning/webnn/issues/749#issuecomment-2429821928), also tracked in [MLOpSupportLimits should be opt-in #759](https://github.com/webmachinelearning/webnn/issues/759). This is to allow listing operator support limits outside of a context, which would return all available devices with their operator support limits. Then, the web app could choose one of them to initialize a context. (This is a suggested longer-term discussion topic.)
-
-
-## Minimum Viable Solution
-
-Based on the discussion above, the best starting point was a simple solution that can be extended and refined later. A first contribution could include the following changes:
-- Remove `MLDeviceType` (see [CRD 20250131](https://www.w3.org/TR/2025/CRD-webnn-20250131/#enumdef-mldevicetype)) as an explicit [context option](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions).
-- Update `MLContext` so that it becomes device-agnostic, or a _default_/_generic_ context. Allow supporting multiple devices with one context.
-- Add algorithmic steps or notes for implementations on how to map `powerPreference` to devices.
-- Also, to align with `GPUPowerPreference`, remove the `"default"` `MLPowerPreference` value, i.e., the lack of hints will result in creating a generic context.
-
-This was implemented in [Remove MLDeviceType #809](https://github.com/webmachinelearning/webnn/pull/809).
-
-Besides, the following topics have been discussed:
-- Improve the device selection hints in [context options](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions) and define their implementation mappings. For instance, discuss whether to also include a `"low-latency"` performance option.
-- Document the valid use cases for requesting a certain device type or combination of devices, and under what error conditions. Currently, after these changes, there remains explicit support for a GPU-only context when an `MLContext` is created from a `GPUDevice` in `createContext()`.
-- Discuss option #3 from [Considered alternatives](#considered-alternatives).
-
-## Next Phase Device Selection Solution
-
-In [Remove MLDeviceType #809](https://github.com/webmachinelearning/webnn/pull/809), this [comment](https://github.com/webmachinelearning/webnn/pull/809#discussion_r1936856070) raised a new use case:
-
-> about the likely need for a caller to know whether a particular device is supported or not, because an app may want to (if say GPU is not supported) use a different, more performant fallback than for WebNN to silently fall back to CPU. For example, if GPU was unavailable (even though you preferred high performance), then it might be faster to execute the model with WebGPU shaders than WebNN CPU, or it might be okay to use CPU, but the app could load a different model that's more CPU-friendly if it knew that was the case.
-
-This sparked a discussion in [Query mechanism for supported devices #815](https://github.com/webmachinelearning/webnn/issues/815) about possible solutions. For instance, [this shape](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2657101952) emerged as a possible starting point for further exploration, drafting a generic mechanism for capability introspection with examples of possible parameters and outcomes.
-
-```js
-const support = await context.querySupport({
-  dataTypes: ['float16', 'int8'],
-  maximumRank: 6,
-  operators: ['lstm', 'hardSwish'],
-});
-console.log(support); // "optimized" or "fallback"
-```
-
-The next phase in developing device selection is, therefore, to explore this proposal and eventually others.
-
-Other use cases were also raised in [this comment](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2658627753) for real-time video processing:
-
-> 1. If the user selects functionality like background blur, we want to offer the best quality the device can offer. So, the product has a small set of candidate models and technologies (WebNN, WebGPU, WASM) that it has to choose between. Accelerated technologies come with an allowance for beefier models.
-
-> 2. The model/tech chooser algorithm needs to be fast, and we need to avoid spending seconds or even hundreds of milliseconds to figure out if a given model should be able to run accelerated. So, for example, downloading the entirety (could be large), compiling, and try-running a model seems infeasible.
-
-Given the discussion in Issue #815 ([comment](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2635299222), [comment](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2638389869)), the developer use case (for frameworks, not for websites) seems to be:
-- Before downloading/loading a model, the developer wants to know if, e.g., the GPU can be used for inference with WebNN.
-- If not, then they might want to try a path other than WebNN, e.g., WebGPU.
-- If yes, then in some cases (e.g., CoreML), the model needs to be dispatched before knowing for sure whether it can be executed on the GPU. For that, a new API is needed, as discussed in [Get devices used for a graph after graph compilation #836](https://github.com/webmachinelearning/webnn/issues/836) and being explored in PR [#854 (define graph.devices)](https://github.com/webmachinelearning/webnn/pull/854).
-Based on the answer, the developer may choose an option other than WebNN. Besides that, the feature permits gathering data on typical graph allocations (note: fingerprintable), which might help the specification work on the device selection API.
-
-## References
-[1] ONNX Runtime - `OrtExecutionProviderDevicePolicy`. (https://onnxruntime.ai/docs/api/c/group___global.html#gaf26ca954c79d297a31a66187dd1b4e24)
