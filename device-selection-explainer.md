@@ -43,26 +43,26 @@ Also, a developer may provide hints which may be silently (no feedback) or expli
 
 The emerging main use cases are the following.
 
-### Pre-download capability check
+### 1. Pre-download capability check
 Before downloading a model, determine if the specific model can be used for inference as expected.
-- This may need a prior model introspection step (out of scope for this document), e.g. checking quantization, data types, memory/buffering requirements, etc) for the model. To obtain this data, one can check for instance `config.json`, `model_card.md`, metadata embedded in the models, model file name conventions, tags, library compatibility and specific target optimizations, example code/notebooks, etc.
+- This may need a prior model introspection step (out of scope for this document), e.g. checking quantization, data types, memory/buffering requirements, etc. for the model. To obtain this data, one can check for instance `config.json`, `model_card.md`, metadata embedded in the models, model file name conventions, tags, library compatibility and specific target optimizations, example code/notebooks, etc.
 - The obtained model information may be compared against the local capabilities queried by an API in order to determine if the model is suitable.
 
 **Requirement**: need an API for capability query / capability matching between models and platform.
 Possible means:
 - use an explicit capability query API, such as "is acceleration available" (meaning GPU or NPU), "what data types are supported", "is this data type supported", "are these operators supported", "is this quantization supported", or "tell me all local capabilities" etc. The exact API shape is to be determined.
-- use collected historical data to provide on query a high level capability overview.
+- use collected historical data to provide on query a high level capability overview. This is justified by the need of knowing fast the capabilities also on platforms that need to actually dispatch a graph before being able to tell what is supported.
 
 Note that these have been discussed in [Query mechanism for supported devices #815](https://github.com/webmachinelearning/webnn/issues/815) and this [proposal](https://github.com/webmachinelearning/webnn/issues/749#issuecomment-2429821928), also tracked in [MLOpSupportLimits should be opt-in #759](https://github.com/webmachinelearning/webnn/issues/759). This is to allow listing operator support limits outside of a context, which would return all available devices with their operator support limits. Then, the web app could choose one of them to initialize a context.
 
-### Pre-download or pre-build hints and constraints
+### 2. Pre-download or pre-build hints and constraints
 
 **Requirement**: support for context creation hints and constraints (e.g. limit fallback scenarios).
 Possible means:
 - identify hints/constraints that may be silently overridden by implementations, e.g. "low-power", "high-performance", "low-latency", etc.
 - identify hints/constraints that require a feedback (error) if not supported, for instance "avoid CPU fallback" or "need low power and low latency acceleration".
 
-### Post-compile query of inference details
+### 3. Post-compile query of inference details
 **Requirement**: query a compiled graph for details on how may it be run (subject to being overridden by the platform).
 
 This is being discussed in [Get devices used for a graph after graph compilation #836](https://github.com/webmachinelearning/webnn/issues/836)
@@ -73,7 +73,7 @@ Initially, the proposal was to obtain the list/combination of devices usable for
 
 Design decisions may take the following into account:
 
-1. Allow the underlying platform to ultimately choose the compute device.
+1. Allow the underlying platform to hint to, or ultimately choose the preferred compute device(s).
 
 2. Allow scripts to express hints/options when creating contexts, such as preference for low power consumption, high performance (throughput), low latency, stable sustained performance, accuracy, etc.
 
@@ -142,7 +142,7 @@ For extending the context options, consider also e.g. the following.
 
 ### Device Preference Options in ONNX Runtime
 
-A WebNN application may have specific device preferences for model execution. The following use cases map to such preferences, informed by existing APIs such as ONNX Runtime's `OrtExecutionProviderDevicePolicy` [1]:
+A WebNN application may have specific device preferences for model execution. The following use cases map to such preferences, informed by existing APIs such as ONNX Runtime's [`OrtExecutionProviderDevicePolicy`](https://onnxruntime.ai/docs/api/c/group___global.html#gaf26ca954c79d297a31a66187dd1b4e24):
 
 *   **Prefer execution on the main CPU**:
     *   *Preference*: `"prefer CPU"`
@@ -209,11 +209,6 @@ Given the discussion in Issue #815 ([comment](https://github.com/webmachinelearn
 - If not, then they might want to try a path other than WebNN, e.g., WebGPU.
 - If yes, then in some cases (e.g., CoreML), the model needs to be dispatched before knowing for sure whether it can be executed on the GPU. For that, a new API is needed, as discussed in [Get devices used for a graph after graph compilation #836](https://github.com/webmachinelearning/webnn/issues/836) and being explored in PR [#854 (define graph.devices)](https://github.com/webmachinelearning/webnn/pull/854).
 Based on the answer, the developer may choose an option other than WebNN. Besides that, the feature permits gathering data on typical graph allocations (note: fingerprintable), which might help the specification work on the device selection API.
-
-## References
-[1] ONNX Runtime - `OrtExecutionProviderDevicePolicy`. (https://onnxruntime.ai/docs/api/c/group___global.html#gaf26ca954c79d297a31a66187dd1b4e24)
-
-
 
 ## History
 
