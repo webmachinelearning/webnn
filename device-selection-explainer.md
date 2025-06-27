@@ -27,11 +27,11 @@ For more background on prior discussions, check out the [History](#history) sect
 
 ## Key use cases and requirements
 
-To highlight the tensions between developer intents, API capabilities, and platform support, consider the following developer scenario. Before downloading a model (e.g. from [Hugging Face](https://huggingface.co/)), a developer wants to know how the model can be run with the Web NN implementation on a given client platform (e.g. on GPU or NPU).
+To highlight the tensions between developer intents, API capabilities, and platform support, consider the following developer scenario. Before downloading a model (e.g. from [Hugging Face](https://huggingface.co/)), a developer wants to know how the model can be run with the WebNN implementation on a given client platform (e.g. on GPU or NPU).
 
 One use case is that if the model cannot be accelerated on GPU or NPU, then don't execute on CPU (i.e. prevent CPU fallback).
 
-After that, one option is to allow Web NN to silently defer inference to other means (e.g. by using [Web GPU](https://www.w3.org/TR/webgpu/)), if that is supported by the particular implementation.
+After that, one option is to allow WebNN to silently defer inference to other means (e.g. by using [WebGPU](https://www.w3.org/TR/webgpu/)), if that is supported by the particular implementation.
 
 Another option is to just ask for an error in this case, then the developer would take control and do inference by other means.
 
