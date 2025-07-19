@@ -244,8 +244,8 @@ const DESCENDANT_COMBINATOR = ' ';
 
 let exitCode = 0;
 
-function getLineNumber(htmlFileData, /*HTMLElement*/ node) {
-  const result = htmlFileData.substring(0, node.range[0]).match(/\n/g);
+function getLineNumber(textData, /*HTMLElement*/ node) {
+  const result = textData.substring(0, node.range[0]).match(/\n/g);
   if (result) {
     return result.length + 1;
   }
@@ -308,7 +308,7 @@ const MAX_IDL_WIDTH = 88;
 for (const idl of root.querySelectorAll(IDL_BLOCK_SELECTOR)) {
   innerText(idl).split(/\n/).forEach(line => {
     if (line.length > MAX_IDL_WIDTH) {
-      error(`Overlong IDL: ${line}`);
+      errorHtml(`Overlong IDL: ${line}`, idl);
     }
   });
 }
@@ -358,7 +358,7 @@ for (const match of source.matchAll(/(\|\w*desc\w*\|)'s \[=MLOperand\/shape=\]/i
 // itself - which we consider an error.
 for (const element of root.querySelectorAll(
        IDL_BLOCK_SELECTOR + DESCENDANT_COMBINATOR + DICTMEMBER_DFN_SELECTOR)) {
-  error(`Dictionary member missing dfn: ${element.innerText}`);
+  errorHtml(`Dictionary member missing dfn: ${element.innerText}`, element);
 }
 
 // [WebNN] Look for suspicious stuff in algorithm steps
@@ -368,12 +368,12 @@ for (const element of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   // Exclude [[ for inner slots (e.g. [[name]])
   // Exclude [A for references (e.g. [WEBIDL])
   for (const match of element.innerText.matchAll(/(?<!\w|\[|\]|«)\[(?!\[|[A-Z])/g)) {
-    error(`Non-index use of [] in algorithm: ${format(match)}`);
+    errorHtml(`Non-index use of [] in algorithm: ${format(match)}`, element);
   }
   // | in the DOM is likely an unclosed variable, since we don't use symbols for
   // absolute (|n|) , logical or (a || b) or bitwise or (a | b).
   for (const match of element.innerText.matchAll(/\|/g)) {
-    error(`Unclosed variable in algorithm: ${format(match)}`);
+    errorHtml(`Unclosed variable in algorithm: ${format(match)}`, element);
   }
 }
 
@@ -420,7 +420,7 @@ for (const algorithm of root.querySelectorAll(ALGORITHM_SELECTOR)) {
         // e.g. "Let validationSteps given MLOperandDescriptor descriptor be..."
         seen.add(name);
       } else if (!seen.has(name)) {
-        error(`Uninitialized variable "${name}" in "${algorithm.getAttribute('data-algorithm')}": ${text}`);
+        errorHtml(`Uninitialized variable "${name}" in "${algorithm.getAttribute('data-algorithm')}": ${text}`, algorithm);
         seen.add(name);
       }
     }
@@ -435,7 +435,7 @@ const algorithmVars = new Set(root.querySelectorAll(
   ALGORITHM_SELECTOR + DESCENDANT_COMBINATOR + VAR_SELECTOR));
 for (const v of root.querySelectorAll(VAR_SELECTOR)
        .filter(v => !algorithmVars.has(v))) {
-  error(`Variable outside of algorithm: ${v.innerText}`);
+  errorHtml(`Variable outside of algorithm: ${v.innerText}`, v);
 }
 
 // [Generic] Algorithms should either throw or reject, never both.
@@ -462,7 +462,7 @@ for (const algorithm of root.querySelectorAll(ALGORITHM_SELECTOR)) {
 
     // If we saw the other type in use in this algorithm, that's an error.
     if (seen.has(other[type])) {
-      error(`Algorithm "${name}" mixes throwing with promises: ${format(match)}`);
+      errorHtml(`Algorithm "${name}" mixes throwing with promises: ${format(match)}`, algorithm);
       break;
     }
     seen.add(type);
@@ -502,7 +502,7 @@ for (const pre of root.querySelectorAll('pre.highlight:not(.idl)')) {
   try {
     const f = AsyncFunction([], '"use strict";' + script);
   } catch (ex) {
-    error(`Invalid script: ${ex.message}: ${script.substr(0, 20)}`);
+    errorHtml(`Invalid script: ${ex.message}: ${script.substr(0, 20)}`, pre);
   }
 }
 
@@ -510,7 +510,7 @@ for (const pre of root.querySelectorAll('pre.highlight:not(.idl)')) {
 for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   const match = p.innerText.match(/[^.:]$/);
   if (match) {
-    error(`Algorithm steps should end with '.' or ':': ${format(match)}`);
+    errorHtml(`Algorithm steps should end with '.' or ':': ${format(match)}`, p);
   }
 }
 
@@ -519,7 +519,7 @@ for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
 // a WebNN-specific rule.
 for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   if (p.innerText === 'Return undefined.') {
-    error(`Unnecessary algorithm step: ${p.innerText}`);
+    errorHtml(`Unnecessary algorithm step: ${p.innerText}`, p);
   }
 }
 
@@ -529,7 +529,7 @@ for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   const match = text.match(/\bIf\b/);
   const match2 = text.match(/, then\b/);
   if (match && !match2) {
-    error(`Algorithm steps with 'If' should have ', then': ${format(match)}`);
+    errorHtml(`Algorithm steps with 'If' should have ', then': ${format(match)}`, p);
   }
 }
 
@@ -538,7 +538,7 @@ for (const p of root.querySelectorAll(ALGORITHM_STEP_SELECTOR)) {
   const text = p.innerText;
   const match = text.match(/^Otherwise[^,:]/);
   if (match) {
-    error(`In algorithm steps 'Otherwise' should be followed by ':' or ',': ${format(match)}`);
+    errorHtml(`In algorithm steps 'Otherwise' should be followed by ':' or ',': ${format(match)}`, p);
   }
 }
 
@@ -556,7 +556,7 @@ const interfaces = new Set(
 for (const dfn of root.querySelectorAll(METHOD_DFN_SELECTOR)) {
   const dfnFor = dfn.getAttribute('data-dfn-for');
   if (!dfnFor || !interfaces.has(dfnFor)) {
-    error(`Method definition '${dfn.innerText}' for undefined '${dfnFor}'`);
+    errorHtml(`Method definition '${dfn.innerText}' for undefined '${dfnFor}'`, dfn);
   }
 }
 
@@ -564,7 +564,7 @@ for (const dfn of root.querySelectorAll(METHOD_DFN_SELECTOR)) {
 for (const dfn of root.querySelectorAll(
        IDL_BLOCK_SELECTOR + DESCENDANT_COMBINATOR + ARGUMENT_DFN_SELECTOR)) {
   const dfnFor = dfn.getAttribute('data-dfn-for');
-  error(`Missing <dfn argument for="${dfnFor}">${dfn.innerText}</dfn> (or equivalent)`);
+  errorHtml(`Missing <dfn argument for="${dfnFor}">${dfn.innerText}</dfn> (or equivalent)`, dfn);
 }
 
 // [Generic] Ensure every argument <dfn> is correctly associated with a method.
@@ -572,7 +572,7 @@ for (const dfn of root.querySelectorAll(
 for (const dfn of root.querySelectorAll(ARGUMENT_DFN_SELECTOR)) {
   const dfnFor = dfn.getAttribute('data-dfn-for');
   if (!dfnFor.split(/\b/).includes(dfn.innerText)) {
-    error(`Argument definition '${dfn.innerText}' doesn't appear in '${dfnFor}'`);
+    errorHtml(`Argument definition '${dfn.innerText}' doesn't appear in '${dfnFor}'`, dfn);
   }
 }
 
@@ -614,7 +614,7 @@ for (const algorithm of root.querySelectorAll(
       if (
         href !== '#constraints-' + method &&
         href !== '#constraints-' + method.toLowerCase()) {
-        error(`Steps for ${method}() link to ${href}`);
+        errorHtml(`Steps for ${method}() link to ${href}`, href);
       }
     }
   }
@@ -624,7 +624,7 @@ for (const algorithm of root.querySelectorAll(
 for (const table of root.querySelectorAll('table.data').filter(e => e.id.startsWith('constraints-'))) {
   // Look for `<em>identifier</em>` which is wrong, except for `output`.
   for (const match of table.innerHTML.matchAll(/<em>(?!output)(\w+)<\/em>/ig)) {
-    error(`Constraints table should link not style args: ${format(match)}`);
+    errorHtml(`Constraints table should link not style args: ${format(match)}`, table);
   }
 }
 
@@ -644,6 +644,10 @@ for (const match of text.matchAll(/ be a new ([A-Z]\w+)\b(?! in realm)/g)) {
   if (dictionaryTypes.includes(type))
     continue;
   error(`Object creation must specify realm: ${format(match)}`);
+}
+
+if (exitCode == 0) {
+    console.log("Linting succeeded.");
 }
 
 globalThis.process.exit(exitCode);
