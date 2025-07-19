@@ -93,7 +93,7 @@ log(`loading Bikeshed source "${options.bikeshed}"...`);
 const source = await fs.readFile(options.bikeshed, 'utf8');
 
 log(`loading generated HTML "${options.html}"...`);
-let file = await fs.readFile(options.html, 'utf8');
+let htmlFileData = await fs.readFile(options.html, 'utf8');
 
 log('massaging HTML...');
 // node-html-parser doesn't understand that some elements are mutually self-closing;
@@ -126,13 +126,13 @@ log('massaging HTML...');
       // If followed by a similar open tag, or the container close tag:
       '(?=<(' + tags.join('|') + '|/(' + containers.join('|') + '))\\b)',
     'sg');
-  file = file.replaceAll(
+  htmlFileData = htmlFileData.replaceAll(
     // Then insert the explicit close tag right after the contents.
     re, (_, opener, tag, content) => `${opener}${content}</${tag}>`);
 });
 
 log('parsing HTML...');
-const root = parse(file, {
+const root = parse(htmlFileData, {
   blockTextElements: {
     // Explicitly don't list <pre> to force children to be parsed.
     // See https://github.com/taoqf/node-html-parser/issues/78
@@ -244,11 +244,23 @@ const DESCENDANT_COMBINATOR = ' ';
 
 let exitCode = 0;
 
+function getLineNumber(htmlFileData, /*HTMLElement*/ node) {
+  const result = htmlFileData.substring(0, node.range[0]).match(/\n/g);
+  if (result) {
+    return result.length + 1;
+  }
+  return 1;
+}
+
 // Failing checks must call `error()` which will log the error message and set
 // the process exit code to signal failure.
 function error(message) {
   console.error(message);
   exitCode = 1;
+}
+
+function errorHtml(message, /*HTMLElement*/ node) {
+  console.error(`${options.html}:${getLineNumber(htmlFileData, node)}: ${message}`)
 }
 
 log('running checks...');
@@ -476,7 +488,7 @@ const NORMATIVE_REFERENCES = new Set([
 for (const term of root.querySelectorAll('#normative + dl > dt')) {
   const ref = term.innerText.trim();
   if (!NORMATIVE_REFERENCES.has(ref)) {
-    error(`Unexpected normative reference to ${ref}`);
+    errorHtml(`Unexpected normative reference to ${ref}`, term);
   }
 }
 
