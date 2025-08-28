@@ -7593,6 +7593,10 @@ partial dictionary MLOpSupportLimits {
 ### Pooling operations ### {#api-mlgraphbuilder-pool2d}
 Compute a pooling operation across all the elements within the moving window over the input tensor.
 <script type=idl>
+enum MLRoundingType {
+  "floor",
+  "ceil"
+};
 
 dictionary MLPool2dOptions : MLOperatorOptions {
   sequence<[EnforceRange] unsigned long> windowDimensions;
@@ -7600,13 +7604,14 @@ dictionary MLPool2dOptions : MLOperatorOptions {
   sequence<[EnforceRange] unsigned long> strides;
   sequence<[EnforceRange] unsigned long> dilations;
   MLInputOperandLayout layout = "nchw";
-  required sequence<[EnforceRange] unsigned long> outputSizes;
+  MLRoundingType outputShapeRounding = "floor";
+  sequence<[EnforceRange] unsigned long> outputSizes;
 };
 
 partial interface MLGraphBuilder {
-  MLOperand averagePool2d(MLOperand input, MLPool2dOptions options);
-  MLOperand l2Pool2d(MLOperand input, MLPool2dOptions options);
-  MLOperand maxPool2d(MLOperand input, MLPool2dOptions options);
+  MLOperand averagePool2d(MLOperand input, optional MLPool2dOptions options = {});
+  MLOperand l2Pool2d(MLOperand input, optional MLPool2dOptions options = {});
+  MLOperand maxPool2d(MLOperand input, optional MLPool2dOptions options = {});
 };
 
 partial dictionary MLOpSupportLimits {
@@ -7651,16 +7656,16 @@ partial dictionary MLOpSupportLimits {
                 - input tensor: *[batches, height, width, inputChannels]*
                 - output tensor: *[batches, height, width, outputChannels]*
 
+    : <dfn>outputShapeRounding</dfn>
+    ::
+        The rounding function used to compute the output shape, depending on whether full or partial window results are desired.
+
     : <dfn>outputSizes</dfn>
     ::
         A list of length 2: *[outputHeight, outputWidth]*
         Specifies the sizes of the two spatial dimensions of the output tensor.
-
-        The spatial dimensions of the output tensor can be calculated for a single dimension via:
-
-        *output size = ((input size - filter size + beginning padding + ending padding) / stride) + 1*
-
-        Then the caller either applies a floor or ceiling depending on whether partial window results are desired.
+        When the output sizes are explicitly specified, the {{MLPool2dOptions/roundingType}} is ignored.
+        If not specified, the output sizes are automatically computed.
 </dl>
 
 <div dfn-for="MLGraphBuilder/averagePool2d(input, options), MLGraphBuilder/l2Pool2d(input, options), MLGraphBuilder/maxPool2d(input, options)" dfn-type=argument>
@@ -7671,7 +7676,13 @@ partial dictionary MLOpSupportLimits {
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
-    value of {{MLPool2dOptions/layout}}.
+    value of {{MLPool2dOptions/layout}}. More specifically, if the {{MLPool2dOptions/roundingType}} is {{MLRoundingType/"floor"}}, the spatial dimensions for a single dimension of the output tensor can be calculated as follows:
+
+    `output size = floor(1 + (input size - filter size + beginning padding + ending padding) / stride)`
+
+    or if {{MLPool2dOptions/roundingType}} is {{MLRoundingType/"ceil"}}:
+
+    `output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)`
 </div>
 
 <table id=constraints-pooling class='data' link-for="MLGraphBuilder/averagePool2d(input, options), MLGraphBuilder/l2Pool2d(input, options), MLGraphBuilder/maxPool2d(input, options)">
@@ -7747,8 +7758,22 @@ partial dictionary MLOpSupportLimits {
     1. *Calculate the output shape:*
         1. Let « |windowHeight|, |windowWidth| » be |options|.{{MLPool2dOptions/windowDimensions}}.
         1. Let « |calculatedOutputHeight|, |calculatedOutputWidth| » be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |windowHeight|, |windowWidth|, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, and |options|.{{MLPool2dOptions/dilations}}.
+        1. If |options|.{{MLPool2dOptions/outputSizes}} [=map/exists=], then:
         1. Let « |outputHeight|, |outputWidth| » be |options|.{{MLPool2dOptions/outputSizes}}.
         1. If neither |outputHeight| equals floor( |calculatedOutputHeight| ) and |outputWidth| equals floor( |calculatedOutputWidth| ), nor |outputHeight| equals ceil( |calculatedOutputHeight| ) and |outputWidth| equals ceil( |calculatedOutputWidth| ), then [=exception/throw=] a {{TypeError}}.
+        1. Otherwise:
+            1. Let « |outputHeight|, |outputWidth| » be « |calculatedOutputHeight|, |calculatedOutputWidth| ».
+            1. Switch on |options|.{{MLPool2dOptions/roundingType}}:
+                <dl class=switch>
+                    : {{MLRoundingType/"floor"}}
+                    ::
+                        1. Set |outputWidth| to floor(|outputWidth|).
+                        1. Set |outputHeight| to floor(|outputHeight|).
+                    : {{MLRoundingType/"ceil"}}
+                    ::
+                        1. Set |outputWidth| to ceiling(|outputWidth|).
+                        1. Set |outputHeight| to ceiling(|outputHeight|).
+                </dl>
         1. If either |outputHeight| or |outputWidth| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
         1. Switch on |options|.{{MLPool2dOptions/layout}}:
             <dl class=switch>
