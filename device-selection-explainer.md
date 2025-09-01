@@ -108,21 +108,21 @@ context =  await navigator.ml.createContext({powerPreference: 'low-power'});
 // create a context that will likely map to GPU
 context = await navigator.ml.createContext({powerPreference: 'high-performance'});
 
-// create a context that should use massive parallel processing (e.g. GPU or NPU)
-context = await navigator.ml.createContext({mpp: true});
-if (context.mpp === "probably") {
-    // the context will mostly use MPP (GPU or NPU, but CPU fallback may happen)
-} else if (context.mpp === "maybe") {
-    // MPP is supported by the platform but it cannot guarantee it for the moment
-} else if (context.mpp === "no") {
-    // the platform tells it likely cannot provide MPP accelerators such as NPU or GPU
+// create a context that should use massive parallel processing (e.g. GPU/NPU)
+context = await navigator.ml.createContext({accelerated: true});
+if (context.accelerated === "probably") {
+    // the context will mostly use GPU/NPU, but CPU fallback may happen
+} else if (context.accelerated === "best-effort") {
+    // NPU/GPU is supported by the platform but it cannot guarantee it for sure
+} else if (context.accelerated === "no") {
+    // the platform tells it likely cannot provide NPU or GPU
 }
 
-// // create a context that should preferably use NPU
-context = await navigator.ml.createContext({mpp: true, powerPreference: 'low-power'});
-if (context.mpp === "no") {
+// create a context that should preferably use NPU
+context = await navigator.ml.createContext({accelerated: true, powerPreference: 'low-power'});
+if (context.accelerated === "no") {
     // NPU is likely not available, and since GPU needs high power, it is not used
-} else if (context.mpp === "probably") {
+} else if (context.accelerated === "probably") {
     // NPU is likely used -- further requirements could be set by opSupportLimitsPerDevice
 }
 
@@ -238,8 +238,9 @@ Based on the answer, the developer may choose an option other than WebNN. Beside
 
 The following [proposal](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-3198261369) gained support for a simple accelerator mapping solution (before using the previously discussed fine grained constraints):
 - Expose a context property (or event) to tell whether CPU fallback is active (or likely active).
-- Add a context creation option/hint for telling app preference for NPU and/or GPU accelerated processing.
-As alternatives to the term `"accelerated"`, ["massively parallel computing" (MPP)](https://en.wikipedia.org/wiki/Massively_parallel), or ["highly parallel"](https://link.springer.com/chapter/10.1007/978-1-4613-2249-8_23) (which can be considered a superset of MPP) could be used. This could be exposed as a context property (`"mpp"` or `"supportMPP"`) with possible values (following [this guidance](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2980364545)): `"no"` (or empty string, for likely no support for neither GPU nor NPU), `"maybe"` (e.g. fully controlled by the underlying platform which makes a best effort for MPP, but CPU fallback may occur), `"probably"` (e.g. controlled by the underlying platform which reports best effort for MPP, with CPU fallback being unlikely).
+- Add a context creation option/hint (e.g. `accelerated: true`) for telling app preference for NPU and/or GPU accelerated ["massively parallel"](https://en.wikipedia.org/wiki/Massively_parallel) processing (MPP).
+    - **Note**. This context option makes sense when an error is returned when the implementation overrides the option. Otherwise, if instead of returning an error a silent fallback is implemented (which seems the more generic behaviour), then applications could query the following proposed property on the context (albeit after context creation). If implementations could detect a CPU fallback, then they could also return an error. Whether to expose an error in this case is to be discussed, as it would allow detecting lack of massively parallel acceleration _before_ creating a context.
+- Add a context property named `"accelerated"` with possible values (following [this guidance](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2980364545)): `"no"` (or empty string, for likely no support for neither GPU nor NPU), `"best-effort"` (e.g. fully controlled by the underlying platform which makes a best effort for MPP, but CPU fallback may occur), `"probably"` (e.g. controlled by the underlying platform which reports best effort for MPP, with CPU fallback being unlikely).
 
 
 ## History
