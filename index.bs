@@ -2241,8 +2241,8 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>*output*</td>
-    <td>{{MLArgMinMaxOptions/outputDataType}}</td>
-    <td>{{input}}'s [=MLOperand/rank=] - 1 to {{input}}'s [=MLOperand/rank=]</td>
+    <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>[=/any rank|N=]</td>
   </tr>
 </table>
 
@@ -2506,7 +2506,7 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>*output*</td>
-    <td>{{dataType}}</td>
+    <td>[=/any data type|any=]</td>
     <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
@@ -3425,7 +3425,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{a}}</td>
-    <td>maximum of {{a}}'s [=MLOperand/rank=] and {{b}}'s [=MLOperand/rank=]</td>
+    <td>[=/any rank|N=]</td>
   </tr>
 </table>
 
@@ -3612,7 +3612,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>{{MLOperandDataType/"uint8"}}</td>
-    <td>maximum of {{a}}'s [=MLOperand/rank=] and {{b}}'s [=MLOperand/rank=]</td>
+    <td>[=/any rank|N=]</td>
   </tr>
 </table>
 
@@ -4490,7 +4490,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>{{newShape}}'s [=list/size=]</td>
+    <td>[=/any rank|N=]</td>
   </tr>
 </table>
 
@@ -4508,6 +4508,7 @@ partial dictionary MLOpSupportLimits {
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=unidirectionally broadcasting=] |input|'s [=MLOperand/shape=] and |newShape|.
         1. If that returns failure, then [=exception/throw=] a {{TypeError}}.
+    1. If |outputShape|'s [=list/size=] is not output tensor's [=/allowed ranks=] (according to [this table](#constraints-expand)), then [=exception/throw=] a {{TypeError}}.
     1. Let |outputDescriptor| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |outputDescriptor|.
@@ -4584,7 +4585,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>{{input}}'s [=MLOperand/rank=] + {{indices}}'s [=MLOperand/rank=] - 1</td>
+    <td>[=/any rank|N=]</td>
   </tr>
 </table>
 
@@ -4911,7 +4912,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>{{input}}'s [=MLOperand/rank=] + {{indices}}'s [=MLOperand/rank=] - {{indices}}'s [=MLOperand/shape=][-1] - 1</td>
+    <td>[=/any rank|N=]</td>
   </tr>
 </table>
 
@@ -5353,7 +5354,8 @@ dictionary MLGruSupportLimits {
   MLTensorLimits bias;
   MLTensorLimits recurrentBias;
   MLTensorLimits initialHiddenState;
-  MLTensorLimits outputs;
+  MLTensorLimits output0;
+  MLTensorLimits output1;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -5474,8 +5476,10 @@ partial dictionary MLOpSupportLimits {
     :: {{MLTensorLimits}} for recurrentBias operand.
     : <dfn>initialHiddenState</dfn>
     :: {{MLTensorLimits}} for initialHiddenState operand.
-    : <dfn>outputs</dfn>
-    :: {{MLTensorLimits}} for all the output operands.
+    : <dfn>output0</dfn>
+    :: {{MLTensorLimits}} for all the output operands[0].
+    : <dfn>output1</dfn>
+    :: {{MLTensorLimits}} for all the output operands[1].
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/gru()}}:
@@ -6359,12 +6363,12 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{MLLayerNormalizationOptions/scale}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+    <td>[=/any rank|N=]</td>
   </tr>
   <tr>
     <td>{{MLLayerNormalizationOptions/bias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>0 to {{input}}'s [=MLOperand/rank=]</td>
+    <td>[=/any rank|N=]</td>
   </tr>
   <tr>
     <td>*output*</td>
@@ -6674,7 +6678,9 @@ dictionary MLLstmSupportLimits {
   MLTensorLimits peepholeWeight;
   MLTensorLimits initialHiddenState;
   MLTensorLimits initialCellState;
-  MLTensorLimits outputs;
+  MLTensorLimits output0;
+  MLTensorLimits output1;
+  MLTensorLimits output2;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -6818,8 +6824,12 @@ partial dictionary MLOpSupportLimits {
     :: {{MLTensorLimits}} for initialHiddenState operand.
     : <dfn>initialCellState</dfn>
     :: {{MLTensorLimits}} for initialCellState operand.
-    : <dfn>outputs</dfn>
-    :: {{MLTensorLimits}} for all the output operands.
+    : <dfn>output0</dfn>
+    :: {{MLTensorLimits}} for all the output operands[0].
+    : <dfn>output1</dfn>
+    :: {{MLTensorLimits}} for all the output operands[1].
+    : <dfn>output2</dfn>
+    :: {{MLTensorLimits}} for all the output operands[2].
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/lstm()}}:
@@ -7083,7 +7093,8 @@ dictionary MLLstmCellSupportLimits {
   MLTensorLimits bias;
   MLTensorLimits recurrentBias;
   MLTensorLimits peepholeWeight;
-  MLTensorLimits outputs;
+  MLTensorLimits output0;
+  MLTensorLimits output1;
 };
 
 partial dictionary MLOpSupportLimits {
@@ -7206,8 +7217,10 @@ partial dictionary MLOpSupportLimits {
     :: {{MLTensorLimits}} for recurrentBias operand.
     : <dfn>peepholeWeight</dfn>
     :: {{MLTensorLimits}} for peepholeWeight operand.
-    : <dfn>outputs</dfn>
-    :: {{MLTensorLimits}} for all the output operands.
+    : <dfn>output0</dfn>
+    :: {{MLTensorLimits}} for all the output operands[0].
+    : <dfn>output1</dfn>
+    :: {{MLTensorLimits}} for all the output operands[1].
 </dl>
 
 {{MLOpSupportLimits}} has the following member for {{MLGraphBuilder/lstmCell()}}:
@@ -7433,17 +7446,17 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{a}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
-    <td>2 or greater</td>
+    <td>2 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>{{b}}</td>
     <td>[=/same type as|same as=] {{a}}</td>
-    <td>2 or greater</td>
+    <td>2 or [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{a}}</td>
-    <td>maximum of {{a}}'s [=MLOperand/rank=] and {{b}}'s [=MLOperand/rank=]</td>
+    <td>2 or [=/any rank|N=]</td>
   </tr>
 </table>
 
@@ -7927,7 +7940,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>maximum of {{input}}'s [=MLOperand/rank=] and {{slope}}'s [=MLOperand/rank=]</td>
+    <td>[=/any rank|N=]</td>
   </tr>
 </table>
 
@@ -8060,7 +8073,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>0 to {{input}}'s [=MLOperand/rank=], depending on {{MLReduceOptions/axes}} and {{MLReduceOptions/keepDimensions}}</td>
+    <td>[=/any rank|N=]</td>
   </tr>
 </table>
 
@@ -8539,7 +8552,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>{{newShape}}'s [=list/size=]</td>
+    <td>[=/any rank|N=]</td>
   </tr>
 </table>
 
@@ -8555,6 +8568,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If |newShape|'s [=list/size=] is not output tensor's [=/allowed ranks=] (according to [this table](#constraints-reshape)), then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be an empty array of {{unsigned long}}.
     1. If |newShape|'s [=list/size=] is 0, then set |outputShape| to an empty [=/list=] for a scalar.
     1. If any [=list/item=] in |newShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
@@ -8929,7 +8943,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{updates}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>{{input}}'s [=MLOperand/rank=] + {{indices}}'s [=MLOperand/rank=] - {{indices}}'s [=MLOperand/shape=][-1] - 1</td>
+    <td>[=/any rank|N=]</td>
   </tr>
   <tr>
     <td>*output*</td>
@@ -9947,7 +9961,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
-    <td>2 or greater</td>
+    <td>2 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>*output*</td>
@@ -10102,7 +10116,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{trueValue}}</td>
-    <td>maximum of {{condition}}'s [=MLOperand/rank=], {{trueValue}}'s [=MLOperand/rank=] and {{falseValue}}'s [=MLOperand/rank=]</td>
+    <td>[=/any rank|N=]</td>
   </tr>
 </table>
 
