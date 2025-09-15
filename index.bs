@@ -1962,7 +1962,7 @@ interface MLGraphBuilder {
                      AllowSharedBufferSource buffer);
 
   // Create a scalar operand from the specified number of the specified type.
-  MLOperand constant(MLOperandDataType type, MLNumber value);
+  MLOperand constant(MLOperandDataType dataType, MLNumber value);
 
   // Create an operand from a specified constant tensor.
   MLOperand constant(MLTensor tensor);
@@ -2091,27 +2091,27 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     1. Return |operand|.
 </details>
 
-#### {{MLGraphBuilder/constant(type, value)}} #### {#api-mlgraphbuilder-constant-type-value}
+#### {{MLGraphBuilder/constant(dataType, value)}} #### {#api-mlgraphbuilder-constant-datatype-value}
 Create a scalar constant {{MLOperand}} of the specified value and data type.
 
 <div class="note">
 Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a floating point value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
 </div>
 
-<div dfn-for="MLGraphBuilder/constant(type, value)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/constant(dataType, value)" dfn-type=argument>
     **Arguments:**
-        - <dfn>type</dfn>: an {{MLOperandDataType}}.
+        - <dfn>dataType</dfn>: an {{MLOperandDataType}}.
         - <dfn>value</dfn>: an {{MLNumber}}. The value of the constant.
     **Returns:** an {{MLOperand}}. The constant output.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>constant(|type|, |value|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>constant(|dataType|, |value|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Set |value| to the result of [=casting=] |value| to |type|.
-    1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |type| and « ».
+    1. Set |value| to the result of [=casting=] |value| to |dataType|.
+    1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |dataType| and « ».
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |value| as value.
@@ -2461,7 +2461,7 @@ Cast each element in the input tensor to the target data type.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand cast(MLOperand input,
-                 MLOperandDataType type,
+                 MLOperandDataType dataType,
                  optional MLOperatorOptions options = {});
 };
 
@@ -2469,16 +2469,16 @@ partial dictionary MLOpSupportLimits {
   MLSingleInputSupportLimits cast;
 };
 </script>
-<div dfn-for="MLGraphBuilder/cast(input, type, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/cast(input, dataType, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
-        - <dfn>type</dfn>: an {{MLOperandDataType}}. The target data type.
+        - <dfn>dataType</dfn>: an {{MLOperandDataType}}. The target data type.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The N-D tensor of the same shape as {{MLGraphBuilder/cast(input, type, options)/input}} with each element casted to the target data type.
+    **Returns:** an {{MLOperand}}. The N-D tensor of the same shape as {{MLGraphBuilder/cast(input, dataType, options)/input}} with each element casted to the target data type.
 </div>
 
-<table id=constraints-cast class='data' link-for="MLGraphBuilder/cast(input, type, options)">
+<table id=constraints-cast class='data' link-for="MLGraphBuilder/cast(input, dataType, options)">
   <caption>Constraints for {{MLGraphBuilder/cast()}}</caption>
   <thead>
     <tr>
@@ -2509,7 +2509,7 @@ Casting between {{MLOperandDataType}}s is specified for some cases and [=impleme
 
 <table class=grid>
   <caption>
-    Behavior of the {{MLGraphBuilder/cast()}} operation given the {{MLGraphBuilder/cast(input, type, options)/input}}'s [=MLOperand/dataType=] (rows) and target {{MLGraphBuilder/cast(input, type, options)/type}} (columns).
+    Behavior of the {{MLGraphBuilder/cast()}} operation given the {{MLGraphBuilder/cast(input, dataType, options)/input}}'s [=MLOperand/dataType=] (rows) and target {{MLGraphBuilder/cast(input, dataType, options)/type}} (columns).
   </caption>
   <tr>
     <th class=split>
@@ -2571,12 +2571,12 @@ NOTE: For example, casting -1 from {{MLOperandDataType/"int8"}} to {{MLOperandDa
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>cast(|input|, |type|, |options|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>cast(|input|, |dataType|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
-        1. Let |operator| be an [=operator=] for the "cast" operation, given |type| and |options|.
+        1. Let |operator| be an [=operator=] for the "cast" operation, given |dataType| and |options|.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
