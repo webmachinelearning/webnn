@@ -55,6 +55,8 @@ spec:webidl;
     type:dfn; text:resolve
 spec:ecmascript; for:ECMAScript;
     type:dfn; text:realm
+spec:infra;
+    type:dfn; text:string
 </pre>
 
 <style>
@@ -6155,8 +6157,9 @@ dictionary MLInstanceNormalizationOptions : MLOperatorOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand instanceNormalization(MLOperand input,
-                                  optional MLInstanceNormalizationOptions options = {});
+  MLOperand instanceNormalization(
+    MLOperand input,
+    optional MLInstanceNormalizationOptions options = {});
 };
 
 dictionary MLNormalizationSupportLimits {
@@ -7660,7 +7663,7 @@ dictionary MLPool2dOptions : MLOperatorOptions {
   sequence<[EnforceRange] unsigned long> strides;
   sequence<[EnforceRange] unsigned long> dilations;
   MLInputOperandLayout layout = "nchw";
-  MLRoundingType roundingType = "floor";
+  MLRoundingType outputShapeRounding = "floor";
   sequence<[EnforceRange] unsigned long> outputSizes;
 };
 
@@ -7712,15 +7715,15 @@ partial dictionary MLOpSupportLimits {
                 - input tensor: *[batches, height, width, inputChannels]*
                 - output tensor: *[batches, height, width, outputChannels]*
 
-    : <dfn>roundingType</dfn>
+    : <dfn>outputShapeRounding</dfn>
     ::
-        The rounding function used to compute the output shape.
+        The rounding function used to compute the output shape, depending on whether full or partial window results are desired.
 
     : <dfn>outputSizes</dfn>
     ::
-        A list of length 2.
-        Specifies the sizes of the two spacial dimensions of the output tensor. When the output sizes are explicitly specified, the {{MLPool2dOptions/roundingType}} is ignored.
-
+        A list of length 2: *[outputHeight, outputWidth]*
+        Specifies the sizes of the two spatial dimensions of the output tensor.
+        When the output sizes are explicitly specified, the {{MLPool2dOptions/outputShapeRounding}} is ignored.
         If not specified, the output sizes are automatically computed.
 </dl>
 
@@ -7732,11 +7735,11 @@ partial dictionary MLOpSupportLimits {
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
-    value of {{MLPool2dOptions/layout}}. More specifically, if the {{MLPool2dOptions/roundingType}} is {{MLRoundingType/"floor"}}, the spatial dimensions of the output tensor can be calculated as follows:
+    value of {{MLPool2dOptions/layout}}. More specifically, if the {{MLPool2dOptions/outputShapeRounding}} is {{MLRoundingType/"floor"}}, the spatial dimensions for a single dimension of the output tensor can be calculated as follows:
 
     `output size = floor(1 + (input size - filter size + beginning padding + ending padding) / stride)`
 
-    or if {{MLPool2dOptions/roundingType}} is {{MLRoundingType/"ceil"}}:
+    or if {{MLPool2dOptions/outputShapeRounding}} is {{MLRoundingType/"ceil"}}:
 
     `output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)`
 </div>
@@ -7819,7 +7822,7 @@ partial dictionary MLOpSupportLimits {
             1. If neither |outputHeight| equals floor( |calculatedOutputHeight| ) and |outputWidth| equals floor( |calculatedOutputWidth| ), nor |outputHeight| equals ceil( |calculatedOutputHeight| ) and |outputWidth| equals ceil( |calculatedOutputWidth| ), then [=exception/throw=] a {{TypeError}}.
         1. Otherwise:
             1. Let « |outputHeight|, |outputWidth| » be « |calculatedOutputHeight|, |calculatedOutputWidth| ».
-            1. Switch on |options|.{{MLPool2dOptions/roundingType}}:
+            1. Switch on |options|.{{MLPool2dOptions/outputShapeRounding}}:
                 <dl class=switch>
                     : {{MLRoundingType/"floor"}}
                     ::
