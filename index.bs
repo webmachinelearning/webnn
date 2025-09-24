@@ -677,23 +677,37 @@ In general, always consider the security and privacy implications as documented 
 Privacy Considerations {#privacy}
 ===================================
 
-This API enhances privacy compared to cloud-based inference, since input data such as locally sourced images or video streams stay within the browser's sandbox.
+This API provides a privacy improvement over cloud-based inference alternatives by keeping sensitive user data within the browser's sandbox. Input data such as images, audio, video streams, and other personal information never leaves the user's device, eliminating risks associated with data transmission to remote servers and third-party data processing.
 
-This API exposes the minimum amount of information necessary to address the identified [[#usecases]] for the best performance and reliability of results.
+However, as a powerful local compute API that interacts closely with hardware acceleration capabilities, the WebNN API has to balance performance optimization with privacy protection. The API includes multiple privacy-preserving measures to mitigate against fingerprinting while still enabling effective machine learning inference capabilities.
 
-No information from the underlying platform is exposed directly. An execution time analysis may reveal indirectly the performance of the underlying platform's neural network hardware acceleration capabilities relative to another underlying platform.
+## Fingerprinting ## {#fingerprinting}
 
-Note: The group is <a href="https://github.com/webmachinelearning/webnn/issues/85">soliciting further input</a> on the proposed execution time analysis fingerprinting vector and will augment this section with more information and mitigations to inform the implementers of this API.
+By design, this API aims to expose the minimum amount of information necessary to address the identified [[#usecases]] with the best performance and reliability of results. First, the API mitigates against fingerprinting through standardization: by defining consistent behavior across diverse platform APIs and by minimizing information leakage about the underlying hardware variation across conformant implementations. This is achieved through:
+
+- [[#programming-model-operators]] that are hardware-agnostic and minimize the exposure of low-level details of the underlying platform, in line with the principle of data minimization.
+- [[#api-mlcontextoptions]] API that allows a web developer to indicate preference for execution speed and power consumption, but does not expose the actual device selected for execution, nor does it allow a web developer to enumerate or select specific devices. This hinting mechanism does not add to the entropy.
+- [[#api-mlcontext-opsupportlimits]] API that allows a web developer to query support for specific operators using an explicit query API over inferring this information using a side channel. This API can contribute to fingerprintability, but its entropy can be reduced by limiting the number of distinguishable configurations exposed through this API using buckets as appropriate.
+- Standardized [[#api-mloperanddescriptor|data types]] and [[#api-mltensor|tensor operations]] that work consistently across platforms.
+- Consistent [[#api-mlcontext-errors|error handling]] across different backend implementations.
+
+The overall design ensures that implementations maintain a consistent interface across different platforms while providing the necessary functionality. By abstracting platform-specific details, the API can provide privacy-preserving predictable behavior regardless of whether the underlying acceleration is provided by CPU, GPU, or dedicated ML hardware.
+
+Note: {{MLContextOptions}} is under active development, and the design is expected to change, informed by further implementation experience and new use cases from the wider web community.
+
+Issue(836): `MLGraph.devices` API extension has been proposed to expose the actual devices selected for execution after the graph is fully constructed and compiled. Privacy implications of this API extension are under investigation.
+
+## Execution Time Analysis ## {#execution-time-analysis}
+
+The timing characteristics of operations can provide some indirect information about the underlying hardware performance, a feature inherent to any compute API. In certain circumstances an execution time analysis can reveal indirectly the performance of the underlying platform's neural network hardware acceleration capabilities relative to another underlying platform. See also [[#security]] for further discussion on timing attacks.
+
+Note: The group <a href="https://github.com/webmachinelearning/webnn/issues/85">welcomes further input</a> on the proposed execution time analysis fingerprinting vector and mitigations.
+
+## WebGPU Comparison ## {#webgpu-comparison}
 
 Unlike WebGPU, this API does not intrinsically support custom shader authoring; and as a result is not prone to timing attacks that rely on shader caches, or other persistent data. The API builds upon pre-existing shaders and lower level primitives of the browser or the underlying OS. Web developers who interface with {{GPUDevice}} are expected to be aware of <a href="https://gpuweb.github.io/gpuweb/#privacy-user-agent-state">WebGPU compilation cache considerations</a>.
 
 The WebGPU API identifies <a href="https://gpuweb.github.io/gpuweb/#privacy-machine-artifacts">machine-specific artifacts</a> as a privacy consideration. Similarly, the WebNN API's compute unit scheduling may under certain circumstances introduce a fingerprint. However, similarly to WebGPU, such fingerprints are identical across most or all of the devices of each vendor, mitigating the concern. Furthermore, software implementations can be used to further eliminate such artifacts.
-
-The WebNN API defines developer-settable preferences to help inform [[#programming-model-device-selection]] and allow the implementation to better select the underlying execution device for the workload. An {{MLPowerPreference}} indicates preference as related to the desired low power consumption or high performance, is considered a hint only and as such does not increase entropy of the fingerprint.
-
-Issue(623): {{MLContextOptions}} is under active development, and the design is expected to change, informed by further implementation experience and new use cases from the wider web community.
-
-If a future version of this specification introduces support for a new {{MLContextOptions}} member for supporting only a subset of {{MLOperandDataType}}s, that could introduce a new fingerprint.
 
 In general, implementers of this API are expected to apply <a href="https://gpuweb.github.io/gpuweb/#privacy-considerations">WebGPU Privacy Considerations</a> to their implementations where applicable.
 
@@ -989,7 +1003,7 @@ interface ML {
 
 ### {{MLContextOptions}} ### {#api-mlcontextoptions}
 
-Issue(623): {{MLContextOptions}} is under active development, and the design is expected to change, informed by further implementation experience and new use cases from the wider web community. The Working Group is considering additional API controls to allow the definition of a fallback device, multiple devices in a preferred order, or an exclusion of a specific device. Other considerations under discussion include error handling, ultimate fallback, and quantized operators. Feedback is welcome on any of these design considerations from web developers, library authors, OS and hardware vendors, and other stakeholders via GitHub:
+Note: {{MLContextOptions}} is under active development, and the design is expected to change, informed by further implementation experience and new use cases from the wider web community. The Working Group is considering additional API controls to allow the definition of a fallback device, multiple devices in a preferred order, or an exclusion of a specific device. Other considerations under discussion include error handling, ultimate fallback, and quantized operators. Feedback is welcome on any of these design considerations from web developers, library authors, OS and hardware vendors, and other stakeholders via <a href="https://github.com/webmachinelearning/webnn/labels/device%20selection">GitHub</a>. See [[#privacy]] for additional discussion of fingerprinting considerations.
 
 The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> option is an <dfn dfn-type=enum>MLPowerPreference</dfn> and indicates the application's preference as related to power consumption. It is one of the following:
 <dl dfn-for="MLPowerPreference">
@@ -1420,7 +1434,7 @@ The {{MLContext/opSupportLimits()}} exposes level of support that differs across
 
 Note: The {{MLContext/opSupportLimits()}} API is not intended to provide additional entropy for browser fingerprinting. In current implementations this feature support information can be inferred from the OS and browser version alone. If the diversity of future implementations warrants it, this API allows future implementations to add new privacy mitigations e.g. to bucket capabilities similar to WebGPU to reduce entropy.
 
-See [#privacy] for additional discussion of fingerprinting considerations.
+See [[#privacy]] for additional discussion of fingerprinting considerations.
 
 #### {{MLOpSupportLimits}} dictionary #### {#api-mlcontext-opsupportlimits-dictionary}
 The {{MLOpSupportLimits}} has the following top level members, aside from these, each [=operator=] has a corresponding member defined in its builder method.
