@@ -55,6 +55,8 @@ spec:webidl;
     type:dfn; text:resolve
 spec:ecmascript; for:ECMAScript;
     type:dfn; text:realm
+spec:infra;
+    type:dfn; text:string
 </pre>
 
 <style>
@@ -404,6 +406,8 @@ built on top of pre-trained deep neural network (DNN) [[models]].
 
 Note: Please be aware that some of the use cases described here, are by their very nature, privacy-invasive. Developers who are planning to use the API for such use cases <span class=allow-2119>should</span> ensure that the API is being used to benefit users, for purposes that users understand, and approve. They <span class=allow-2119>should</span> apply the Ethical Principles for Web Machine Learning [[webmachinelearning-ethics]] and implement appropriate privacy risk mitigations such as transparency, data minimisation, and users controls.
 
+Note: [[#accessibility]] provides guidance on how to improve accessibility of these use cases.
+
 ### Person Detection ### {#usecase-person-detection}
 
 A user opens a web-based video conferencing application, but she temporarily
@@ -600,6 +604,21 @@ A JavaScript ML framework is responsible for loading, interpreting and executing
 ### Integration with real-time video processing ### {#usecase-real-time-video-processing}
 
 The user experience of WebRTC-based video conferencing is enhanced using real-time video processing. For example, background blur implemented using a [[#usecase-segmentation]] model blurs the background in the user's live camera feed. To satisfy the performance requirements of this use case, the WebNN API integrates with primitives from other Web APIs that make up the media pipeline to allow WebNN API-based transformation of real-time video streams.
+
+Accessibility Considerations {#accessibility}
+===================================
+
+This section provides guidance to web authors on how to improve accessibility of [[#usecases-application]] enabled by neural network inference hardware acceleration. This guidance generalizes beyond the specific use cases outlined in this specification, and web authors are encouraged to consult [[wcag]] for further accessibility guidance and [[#ethics]] for digital accessibility in context of ethical principles.
+
+[[#usecase-image-captioning]] can be improved by ensuring the captions are surfaced to screen-reader and other Assistive Technology (AT) users. Web authors are encouraged to ensure the generated image captions are semantically linked to their respective images, either via the standard alt attribute, or other means which may depend on whether the descriptions are updated on initial page load, or later, as the result of user action.
+
+[[#usecase-emotion-analysis]] can mis-label and thus mis-classify users, leading to discriminatory experiences. Web authors are encouraged to expose confidence scores and give users an option to turn the feature off.
+
+[[#usecase-noise-suppression]] with aggressive filters can wipe out the speech of users with dysarthria, making captions and recognition fail. Web authors are encouraged to expose a bypass or sensitivity control, and not hard-wire noise suppression when live captions are active.
+
+[[#usecase-real-time-video-processing]] with background-blur powered segmentation helps remove distractions, but can add too much delay that breaks lip-reading and live captions. Web authors are encouraged to provide an ability for user-facing keyboard- and screen-reader-operable “Background blur on/off” control, surfaced next to other accessibility/media settings.
+
+[[#programming-model-device-selection]] allows web authors to indicate preferences for execution speed and power consumption. Implementers are encouraged to allow users to override the web author hint in browser UI to ensure that people on low-end or battery-sensitive devices can keep captions and other critical accessibility features responsive, especially on portable AAC or eye-gaze setups.
 
 Security Considerations {#security}
 ===================================
@@ -1399,6 +1418,10 @@ Note: Similar to `dispatch()`, `writeTensor()` itself provides no signal that th
 ### {{MLContext/opSupportLimits()}}  ### {#api-mlcontext-opsupportlimits}
 The {{MLContext/opSupportLimits()}} exposes level of support that differs across implementations at operator level. Consumers of the WebNN API are encouraged to probe feature support level by using {{MLContext/opSupportLimits()}} to determine the optimal model architecture to be deployed for each target platform.
 
+Note: The {{MLContext/opSupportLimits()}} API is not intended to provide additional entropy for browser fingerprinting. In current implementations this feature support information can be inferred from the OS and browser version alone. If the diversity of future implementations warrants it, this API allows future implementations to add new privacy mitigations e.g. to bucket capabilities similar to WebGPU to reduce entropy.
+
+See [#privacy] for additional discussion of fingerprinting considerations.
+
 #### {{MLOpSupportLimits}} dictionary #### {#api-mlcontext-opsupportlimits-dictionary}
 The {{MLOpSupportLimits}} has the following top level members, aside from these, each [=operator=] has a corresponding member defined in its builder method.
 <script type="idl">
@@ -1962,7 +1985,7 @@ interface MLGraphBuilder {
                      AllowSharedBufferSource buffer);
 
   // Create a scalar operand from the specified number of the specified type.
-  MLOperand constant(MLOperandDataType type, MLNumber value);
+  MLOperand constant(MLOperandDataType dataType, MLNumber value);
 
   // Create an operand from a specified constant tensor.
   MLOperand constant(MLTensor tensor);
@@ -2091,27 +2114,27 @@ Create a constant {{MLOperand}} of the specified data type and shape that contai
     1. Return |operand|.
 </details>
 
-#### {{MLGraphBuilder/constant(type, value)}} #### {#api-mlgraphbuilder-constant-type-value}
+#### {{MLGraphBuilder/constant(dataType, value)}} #### {#api-mlgraphbuilder-constant-datatype-value}
 Create a scalar constant {{MLOperand}} of the specified value and data type.
 
 <div class="note">
 Data truncation will occur when the specified value exceeds the range of the specified output data type e.g. when a floating point value is assigned to an {{MLOperandDataType/"int8"}} data type, etc.
 </div>
 
-<div dfn-for="MLGraphBuilder/constant(type, value)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/constant(dataType, value)" dfn-type=argument>
     **Arguments:**
-        - <dfn>type</dfn>: an {{MLOperandDataType}}.
+        - <dfn>dataType</dfn>: an {{MLOperandDataType}}.
         - <dfn>value</dfn>: an {{MLNumber}}. The value of the constant.
     **Returns:** an {{MLOperand}}. The constant output.
 </div>
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>constant(|type|, |value|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>constant(|dataType|, |value|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
-    1. Set |value| to the result of [=casting=] |value| to |type|.
-    1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |type| and « ».
+    1. Set |value| to the result of [=casting=] |value| to |dataType|.
+    1. Let |descriptor| be the result of [=creating an MLOperandDescriptor=] given |dataType| and « ».
     1. *Make graph connections:*
         1. Let |operand| be the result of [=creating an MLOperand=] given [=this=] and |descriptor|.
         1. Add |operand| to [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/constants=] with |value| as value.
@@ -2226,7 +2249,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
-    <td>[=/any rank|N=]</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>*output*</td>
@@ -2250,6 +2273,7 @@ partial dictionary MLOpSupportLimits {
     1. [=Assert=]: |op| is one of "argMin", "argMax".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
+    1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |input|'s [=MLOperand/shape=][|axis|] is greater than |options|.{{MLArgMinMaxOptions/outputDataType}}'s maximum value, then [=exception/throw=] a {{TypeError}}.
     1. Let |outputShape| be the result of [=MLGraphBuilder/calculating reduction output sizes=] given |input|'s [=MLOperand/shape=], « |axis| », and |options|.{{MLArgMinMaxOptions/keepDimensions}}. If that returns failure, then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |options|.{{MLArgMinMaxOptions/outputDataType}} and |outputShape|.
@@ -2352,7 +2376,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
-    <td>[=/any rank|N=]</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>{{mean}}</td>
@@ -2461,7 +2485,7 @@ Cast each element in the input tensor to the target data type.
 <script type=idl>
 partial interface MLGraphBuilder {
   MLOperand cast(MLOperand input,
-                 MLOperandDataType type,
+                 MLOperandDataType dataType,
                  optional MLOperatorOptions options = {});
 };
 
@@ -2469,16 +2493,16 @@ partial dictionary MLOpSupportLimits {
   MLSingleInputSupportLimits cast;
 };
 </script>
-<div dfn-for="MLGraphBuilder/cast(input, type, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/cast(input, dataType, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input N-D tensor.
-        - <dfn>type</dfn>: an {{MLOperandDataType}}. The target data type.
+        - <dfn>dataType</dfn>: an {{MLOperandDataType}}. The target data type.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
 
-    **Returns:** an {{MLOperand}}. The N-D tensor of the same shape as {{MLGraphBuilder/cast(input, type, options)/input}} with each element casted to the target data type.
+    **Returns:** an {{MLOperand}}. The N-D tensor of the same shape as {{MLGraphBuilder/cast(input, dataType, options)/input}} with each element casted to the target data type.
 </div>
 
-<table id=constraints-cast class='data' link-for="MLGraphBuilder/cast(input, type, options)">
+<table id=constraints-cast class='data' link-for="MLGraphBuilder/cast(input, dataType, options)">
   <caption>Constraints for {{MLGraphBuilder/cast()}}</caption>
   <thead>
     <tr>
@@ -2494,7 +2518,7 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>*output*</td>
-    <td>{{type}}</td>
+    <td>{{dataType}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
   </tr>
 </table>
@@ -2509,7 +2533,7 @@ Casting between {{MLOperandDataType}}s is specified for some cases and [=impleme
 
 <table class=grid>
   <caption>
-    Behavior of the {{MLGraphBuilder/cast()}} operation given the {{MLGraphBuilder/cast(input, type, options)/input}}'s [=MLOperand/dataType=] (rows) and target {{MLGraphBuilder/cast(input, type, options)/type}} (columns).
+    Behavior of the {{MLGraphBuilder/cast()}} operation given the {{MLGraphBuilder/cast(input, dataType, options)/input}}'s [=MLOperand/dataType=] (rows) and target {{MLGraphBuilder/cast(input, dataType, options)/dataType}} (columns).
   </caption>
   <tr>
     <th class=split>
@@ -2571,12 +2595,12 @@ NOTE: For example, casting -1 from {{MLOperandDataType/"int8"}} to {{MLOperandDa
 
 <details open algorithm>
   <summary>
-    The <dfn method for=MLGraphBuilder>cast(|input|, |type|, |options|)</dfn> method steps are:
+    The <dfn method for=MLGraphBuilder>cast(|input|, |dataType|, |options|)</dfn> method steps are:
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. *Make graph connections:*
-        1. Let |operator| be an [=operator=] for the "cast" operation, given |type| and |options|.
+        1. Let |operator| be an [=operator=] for the "cast" operation, given |dataType| and |options|.
         1. Let |output| be the result of [=copying an MLOperand=] given |input|.
         1. Set |output|.{{MLOperand/[[operator]]}} to |operator|.
         1. Set |operator|'s [=operator/input=] to |input|.
@@ -2736,7 +2760,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{inputs}}'s [=list/items=]</td>
     <td>[=/any data type|any=]</td>
-    <td>[=/any rank|N=]</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>*output*</td>
@@ -3290,7 +3314,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
-    <td>[=/any rank|N=]</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>*output*</td>
@@ -3544,6 +3568,8 @@ partial interface MLGraphBuilder {
   MLOperand logicalXor(MLOperand a,
                        MLOperand b,
                        optional MLOperatorOptions options = {});
+  MLOperand isNaN(MLOperand a, optional MLOperatorOptions options = {});
+  MLOperand isInfinite(MLOperand a, optional MLOperatorOptions options = {});
 };
 
 dictionary MLLogicalNotSupportLimits {
@@ -3562,10 +3588,12 @@ partial dictionary MLOpSupportLimits {
   MLBinarySupportLimits logicalAnd;
   MLBinarySupportLimits logicalOr;
   MLBinarySupportLimits logicalXor;
+  MLLogicalNotSupportLimits isNaN;
+  MLLogicalNotSupportLimits isInfinite;
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/notEqual(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options), MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/notEqual(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options), MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options), MLGraphBuilder/isNaN(a, options), MLGraphBuilder/isInfinite(a, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>a</dfn>: an {{MLOperand}}. The first input tensor.
         - <dfn>b</dfn>: an {{MLOperand}}. The second input tensor when specified.
@@ -3574,7 +3602,7 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of element-wise comparison of the two input tensors.
 </div>
 
-<table id=constraints-elementwise-logical class='data' link-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/notEqual(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options), MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options)">
+<table id=constraints-elementwise-logical class='data' link-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/notEqual(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options), MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options), MLGraphBuilder/isNaN(a, options), MLGraphBuilder/isInfinite(a, options)">
   <caption>Constraints for element-wise logical options</caption>
   <thead>
     <tr>
@@ -3631,6 +3659,10 @@ partial dictionary MLOpSupportLimits {
     :: Support limits for operator {{MLGraphBuilder/logicalOr()}}.
     : <dfn>logicalXor</dfn>
     :: Support limits for operator {{MLGraphBuilder/logicalXor()}}.
+    : <dfn>isNaN</dfn>
+    :: Support limits for operator {{MLGraphBuilder/isNaN()}}.
+    : <dfn>isInfinite</dfn>
+    :: Support limits for operator {{MLGraphBuilder/isInfinite()}}.
 </dl>
 
 <div>
@@ -3645,6 +3677,8 @@ partial dictionary MLOpSupportLimits {
         - *logicalAnd*: Compute the logical *and* of the two input tensors, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
         - *logicalOr*: Compute the logical *or* of the two input tensors, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
         - *logicalXor*: Compute the logical *xor* of the two input tensors, element-wise, treating any non-zero value as true and returning elements of 0 or 1.
+        - *isNaN*: Check if the values of the input tensor are invalid numeric representations (NaN's), element-wise, returning 1's for NaN's and 0 otherwise.
+        - *isInfinite*: Check if the values of the input tensor are infinite, element-wise, returning 1's for positive or negative infinity and 0 otherwise.
 </div>
 
 <div class="note">
@@ -3655,11 +3689,13 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
   <summary>
     To <dfn for="MLGraphBuilder" data-lt="element-wise-logical-op">create an element-wise logical operation</dfn> given [=string=] |op|, {{MLOperand}} |a|, an optional {{MLOperand}} |b|, and {{MLOperatorOptions}} |options|, run the following steps:
   </summary>
-    1. [=Assert=]: |op| is one of "equal", "notEqual", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "logicalNot", "logicalAnd", "logicalOr", "logicalXor".
+    1. [=Assert=]: |op| is one of "equal", "notEqual", "greater", "greaterOrEqual", "lesser", "lesserOrEqual", "logicalNot", "logicalAnd", "logicalOr", "logicalXor", "isNaN", "isInfinite".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |a| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |op| is one of "logicalNot", "logicalAnd", "logicalOr", "logicalXor", then:
         1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
+    1. If |op| is one of "isNaN", "isInfinite", then:
+        1. If |a|'s [=MLOperand/dataType=] is not one of « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », then [=exception/throw=] a {{TypeError}}.
     1. If |b| is passed, then:
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and |b| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -3749,6 +3785,20 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
+
+    <div algorithm>
+    The <dfn method for=MLGraphBuilder>isNaN(|a|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "isNaN", |a|, and |options|.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
+        1. Return |output|.
+    </div>
+
+    <div algorithm>
+    The <dfn method for=MLGraphBuilder>isInfinite(|a|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-logical-op|creating an element-wise logical operation=] given "isInfinite", |a|, and |options|.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
+        1. Return |output|.
+    </div>
 </details>
 
 ### Element-wise unary operations ### {#api-mlgraphbuilder-unary}
@@ -3765,6 +3815,7 @@ partial interface MLGraphBuilder {
   MLOperand log(MLOperand input, optional MLOperatorOptions options = {});
   MLOperand neg(MLOperand input, optional MLOperatorOptions options = {});
   MLOperand reciprocal(MLOperand input, optional MLOperatorOptions options = {});
+  MLOperand roundEven(MLOperand input, optional MLOperatorOptions options = {});
   MLOperand sin(MLOperand input, optional MLOperatorOptions options = {});
   MLOperand sign(MLOperand input, optional MLOperatorOptions options = {});
   MLOperand sqrt(MLOperand input, optional MLOperatorOptions options = {});
@@ -3782,6 +3833,7 @@ partial dictionary MLOpSupportLimits {
   MLSingleInputSupportLimits log;
   MLSingleInputSupportLimits neg;
   MLSingleInputSupportLimits reciprocal;
+  MLSingleInputSupportLimits roundEven;
   MLSingleInputSupportLimits sin;
   MLSingleInputSupportLimits sign;
   MLSingleInputSupportLimits sqrt;
@@ -3789,7 +3841,7 @@ partial dictionary MLOpSupportLimits {
 };
 </script>
 
-<div dfn-for="MLGraphBuilder/abs(input, options), MLGraphBuilder/ceil(input, options), MLGraphBuilder/cos(input, options), MLGraphBuilder/erf(input, options), MLGraphBuilder/exp(input, options), MLGraphBuilder/floor(input, options), MLGraphBuilder/identity(input, options), MLGraphBuilder/log(input, options), MLGraphBuilder/neg(input, options), MLGraphBuilder/reciprocal(input, options), MLGraphBuilder/sin(input, options), MLGraphBuilder/sign(input, options), MLGraphBuilder/sqrt(input, options), MLGraphBuilder/tan(input, options)" dfn-type=argument>
+<div dfn-for="MLGraphBuilder/abs(input, options), MLGraphBuilder/ceil(input, options), MLGraphBuilder/cos(input, options), MLGraphBuilder/erf(input, options), MLGraphBuilder/exp(input, options), MLGraphBuilder/floor(input, options), MLGraphBuilder/identity(input, options), MLGraphBuilder/log(input, options), MLGraphBuilder/neg(input, options), MLGraphBuilder/reciprocal(input, options), MLGraphBuilder/roundEven(input, options), MLGraphBuilder/sin(input, options), MLGraphBuilder/sign(input, options), MLGraphBuilder/sqrt(input, options), MLGraphBuilder/tan(input, options)" dfn-type=argument>
     **Arguments:**
         - <dfn>input</dfn>: an {{MLOperand}}. The input tensor.
         - <dfn>options</dfn>: an {{MLOperatorOptions}}. Specifies the optional parameters of the operation.
@@ -3799,7 +3851,7 @@ partial dictionary MLOpSupportLimits {
     tensor is the same as the shape of input tensor.
 </div>
 
-<table id=constraints-elementwise-unary class='data' link-for="MLGraphBuilder/abs(input, options), MLGraphBuilder/ceil(input, options), MLGraphBuilder/cos(input, options), MLGraphBuilder/erf(input, options), MLGraphBuilder/exp(input, options), MLGraphBuilder/floor(input, options), MLGraphBuilder/identity(input, options), MLGraphBuilder/log(input, options), MLGraphBuilder/neg(input, options), MLGraphBuilder/reciprocal(input, options), MLGraphBuilder/sin(input, options), MLGraphBuilder/sign(input, options), MLGraphBuilder/sqrt(input, options), MLGraphBuilder/tan(input, options)">
+<table id=constraints-elementwise-unary class='data' link-for="MLGraphBuilder/abs(input, options), MLGraphBuilder/ceil(input, options), MLGraphBuilder/cos(input, options), MLGraphBuilder/erf(input, options), MLGraphBuilder/exp(input, options), MLGraphBuilder/floor(input, options), MLGraphBuilder/identity(input, options), MLGraphBuilder/log(input, options), MLGraphBuilder/neg(input, options), MLGraphBuilder/reciprocal(input, options), MLGraphBuilder/roundEven(input, options), MLGraphBuilder/sin(input, options), MLGraphBuilder/sign(input, options), MLGraphBuilder/sqrt(input, options), MLGraphBuilder/tan(input, options)">
   <caption>Constraints for element-wise unary options</caption>
   <thead>
     <tr>
@@ -3843,6 +3895,8 @@ partial dictionary MLOpSupportLimits {
     :: Support limits for operator {{MLGraphBuilder/neg()}}.
     : <dfn>reciprocal</dfn>
     :: Support limits for operator {{MLGraphBuilder/reciprocal()}}.
+    : <dfn>roundEven</dfn>
+    :: Support limits for operator {{MLGraphBuilder/roundEven()}}.
     : <dfn>sin</dfn>
     :: Support limits for operator {{MLGraphBuilder/sin()}}.
     : <dfn>sign</dfn>
@@ -3865,6 +3919,7 @@ partial dictionary MLOpSupportLimits {
         - *log*: Compute the natural logarithm of the input tensor, element-wise.
         - *neg*: Compute the numerical negative value of the input tensor, element-wise.
         - *reciprocal*: Compute the reciprocal of the input tensor, element-wise.
+        - *roundEven*: Round the input tensor with halves to the nearest even value, element-wise (e.g. [0.1, 0.9, 1.1, 1.9, -3.5, -2.5, -1.5, 1.5, 2.5, 3.5] yields [0.0, 1.0, 1.0, 2.0, -4.0, -2.0, -2.0, 2.0, 2.0, 4.0]).
         - *sin*: Compute the sine of the input tensor, element-wise.
         - *sign*: Compute the sign (-1, 0, 1) of the input tensor, element-wise, returning 1 if > 0, -1 if < 0, and 0 otherwise.
         - *sqrt*: Compute the square root of the input tensor, element-wise.
@@ -3875,7 +3930,7 @@ partial dictionary MLOpSupportLimits {
   <summary>
     To <dfn for="MLGraphBuilder" data-lt="element-wise-unary-op">create an element-wise unary operation</dfn> given [=string=] |op|, {{MLOperand}} |input|, optional [=/list=] |allowedDataTypes|, and |options|, run the following steps:
   </summary>
-    1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "erf", "exp", "floor", "identity", "log", "neg", "reciprocal", "sin", "sign", "sqrt", "tan".
+    1. [=Assert=]: |op| is one of "abs", "ceil", "cos", "erf", "exp", "floor", "identity", "log", "neg", "reciprocal", "roundEven", "sin", "sign", "sqrt", "tan".
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |allowedDataTypes| is given and it does not [=list/contain=] |input|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -3958,6 +4013,13 @@ partial dictionary MLOpSupportLimits {
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reciprocal(|input|, |options|)</dfn> method steps are:
         1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "reciprocal", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+            1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
+        1. Return |output|.
+    </div>
+
+    <div algorithm>
+    The <dfn method for=MLGraphBuilder>roundEven(|input|, |options|)</dfn> method steps are:
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "roundEven", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -4285,7 +4347,6 @@ partial dictionary MLOpSupportLimits {
     <summary>
     The behavior of this operation can be [EMULATED]
     </summary>
-    This emulation relies on a pending `roundEven` operator in <#817>.
     <pre highlight="js">
     function quantizeLinear(builder, input, scale, zeroPoint, options) {
       // output = clamp(roundEven(input / scale) + zeroPoint, 0, 255)
@@ -4525,7 +4586,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
-    <td>[=/any rank|N=]</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>{{indices}}</td>
@@ -6096,8 +6157,9 @@ dictionary MLInstanceNormalizationOptions : MLOperatorOptions {
 };
 
 partial interface MLGraphBuilder {
-  MLOperand instanceNormalization(MLOperand input,
-                                  optional MLInstanceNormalizationOptions options = {});
+  MLOperand instanceNormalization(
+    MLOperand input,
+    optional MLInstanceNormalizationOptions options = {});
 };
 
 dictionary MLNormalizationSupportLimits {
@@ -7601,7 +7663,7 @@ dictionary MLPool2dOptions : MLOperatorOptions {
   sequence<[EnforceRange] unsigned long> strides;
   sequence<[EnforceRange] unsigned long> dilations;
   MLInputOperandLayout layout = "nchw";
-  MLRoundingType roundingType = "floor";
+  MLRoundingType outputShapeRounding = "floor";
   sequence<[EnforceRange] unsigned long> outputSizes;
 };
 
@@ -7653,15 +7715,15 @@ partial dictionary MLOpSupportLimits {
                 - input tensor: *[batches, height, width, inputChannels]*
                 - output tensor: *[batches, height, width, outputChannels]*
 
-    : <dfn>roundingType</dfn>
+    : <dfn>outputShapeRounding</dfn>
     ::
-        The rounding function used to compute the output shape.
+        The rounding function used to compute the output shape, depending on whether full or partial window results are desired.
 
     : <dfn>outputSizes</dfn>
     ::
-        A list of length 2.
-        Specifies the sizes of the two spacial dimensions of the output tensor. When the output sizes are explicitly specified, the {{MLPool2dOptions/roundingType}} is ignored.
-
+        A list of length 2: *[outputHeight, outputWidth]*
+        Specifies the sizes of the two spatial dimensions of the output tensor.
+        When the output sizes are explicitly specified, the {{MLPool2dOptions/outputShapeRounding}} is ignored.
         If not specified, the output sizes are automatically computed.
 </dl>
 
@@ -7673,11 +7735,11 @@ partial dictionary MLOpSupportLimits {
 
     **Returns:** an {{MLOperand}}. The output 4-D tensor that contains the
     result of the reduction. The logical shape is interpreted according to the
-    value of {{MLPool2dOptions/layout}}. More specifically, if the {{MLPool2dOptions/roundingType}} is {{MLRoundingType/"floor"}}, the spatial dimensions of the output tensor can be calculated as follows:
+    value of {{MLPool2dOptions/layout}}. More specifically, if the {{MLPool2dOptions/outputShapeRounding}} is {{MLRoundingType/"floor"}}, the spatial dimensions for a single dimension of the output tensor can be calculated as follows:
 
     `output size = floor(1 + (input size - filter size + beginning padding + ending padding) / stride)`
 
-    or if {{MLPool2dOptions/roundingType}} is {{MLRoundingType/"ceil"}}:
+    or if {{MLPool2dOptions/outputShapeRounding}} is {{MLRoundingType/"ceil"}}:
 
     `output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)`
 </div>
@@ -7760,7 +7822,7 @@ partial dictionary MLOpSupportLimits {
             1. If neither |outputHeight| equals floor( |calculatedOutputHeight| ) and |outputWidth| equals floor( |calculatedOutputWidth| ), nor |outputHeight| equals ceil( |calculatedOutputHeight| ) and |outputWidth| equals ceil( |calculatedOutputWidth| ), then [=exception/throw=] a {{TypeError}}.
         1. Otherwise:
             1. Let « |outputHeight|, |outputWidth| » be « |calculatedOutputHeight|, |calculatedOutputWidth| ».
-            1. Switch on |options|.{{MLPool2dOptions/roundingType}}:
+            1. Switch on |options|.{{MLPool2dOptions/outputShapeRounding}}:
                 <dl class=switch>
                     : {{MLRoundingType/"floor"}}
                     ::
@@ -8096,7 +8158,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceL1(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceL1", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceL1", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -8145,21 +8207,21 @@ partial dictionary MLOpSupportLimits {
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceProduct(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceProduct", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceProduct", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceSum(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceSum", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceSum", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceSumSquare(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceSumSquare", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceSumSquare", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -9264,7 +9326,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
-    <td>[=/any rank|N=]</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>*output*</td>
@@ -9528,7 +9590,7 @@ partial dictionary MLOpSupportLimits {
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
-    <td>[=/any rank|N=]</td>
+    <td>1 to [=/any rank|N=]</td>
   </tr>
   <tr>
     <td>*outputs*</td>
