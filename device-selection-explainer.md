@@ -237,10 +237,11 @@ Based on the answer, the developer may choose an option other than WebNN. Beside
 The following [proposal](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-3198261369) gained support for a simple accelerator mapping solution (before using the previously discussed fine grained constraints):
 - Expose a context property (or event) to tell whether CPU fallback is active (or likely active).
 - Add a context creation option/hint (e.g. `accelerated: true`) for telling app preference for NPU and/or GPU accelerated ["massively parallel"](https://en.wikipedia.org/wiki/Massively_parallel) processing (MPP).
-    - **Note**. This context option makes sense when an error is returned when the implementation overrides the option. Otherwise, if instead of returning an error a silent fallback is implemented (which seems the more generic behaviour), then applications could query the following proposed property on the context (albeit after context creation). If implementations could detect a CPU fallback, then they could also return an error. Whether to expose an error in this case is to be discussed, as it would allow detecting lack of massively parallel acceleration _before_ creating a context.
+Note that in [certain use cases](https://www.w3.org/2025/09/25-webmachinelearning-minutes.html) applications might prefer CPU inference, therefore specifying `accelerated: false` has legit use cases as well.
 - Add a context property named `"accelerated"` with possible values: `false` (for likely no support for neither GPU nor NPU), and `true` (e.g. fully controlled by the underlying platform which makes a best effort for MPP, yet CPU fallback may occur).
+- Add a context property named `"cpuFallbackActive"` that may be polled for detecting CPU fallbacks. In the future, depending on developer feedback, this may be turned into an event.
 
-The following changes are proposed:
+The following Web IDL changes are proposed:
 
 ```js
 partial dictionary MLContextOptions {
@@ -248,13 +249,16 @@ partial dictionary MLContextOptions {
 };
 
 partial interface MLContext {
-  boolean cpuFallbackActive;
+  readonly attribute boolean accelerated;
+  readonly attribute boolean cpuFallbackActive;
 };
 ```
 
 The behavior of [createContext()](https://webmachinelearning.github.io/webnn/#dom-ml-createcontext) is proposed to follow this policy:
-- return an error [in step 4](https://webmachinelearning.github.io/webnn/#create-a-context) if the context option `accelerated` has been set to `true`, but the platform cannot provide massive parallel processing at all,
-- and set the `accelerated` property to `false` when the platform could in principle provide massive parallel processing which may or may not be available at the moment.
+- Set the `accelerated` property to `false` when the platform could in principle provide massive parallel processing which may or may not be available at the moment. Applications may poll this property, together with `MLContext::cpuFallbackActive`.
+
+In the future, more policy options could be considered, for instance:
+- Return an error [in step 4](https://webmachinelearning.github.io/webnn/#create-a-context) if the context option `accelerated` has been set to `true`, but the platform cannot provide massive parallel processing at all.
 
 ## History
 
