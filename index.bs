@@ -1022,7 +1022,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>accelerated</dfn> option 
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/webgpu=]".
         1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
         1. Set |context|.{{MLContext/[[accelerated]]}} to `true`.
-        1. Set |context|.{{MLContext/[[cpuFallbackActive]]}} to `false`.
+        1. Set |context|.{{MLContext/[[cpuFallbackActive]]}} to `undefined`.
     1. Otherwise:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/default=]".
         1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=] in |realm|.
@@ -1030,7 +1030,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>accelerated</dfn> option 
         1. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
         1. If |options|["{{MLContextOptions/accelerated}}"] [=map/exists=], then set |context|.{{MLContext/[[accelerated]]}} to |options|["{{MLContextOptions/accelerated}}"].
         1. Otherwise, set |context|.{{MLContext/[[accelerated]]}} to `true`.
-        1. Set |context|.{{MLContext/[[cpuFallbackActive]]}} to `false`.
+        1. Set |context|.{{MLContext/[[cpuFallbackActive]]}} to `undefined`.
     1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, then return failure.
     1. Return |context|.
 </details>
@@ -1130,6 +1130,28 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
 <dd>Context created from WebGPU device.</dd>
 </dl>
 
+<div algorithm>
+The <dfn attribute for=MLContext>accelerated</dfn> getter steps are to return [=this=].{{MLContext/[[accelerated]]}}.
+</div>
+
+<div algorithm>
+    The <dfn attribute for=MLContext>cpuFallbackActive</dfn> getter steps are:
+        1. If [=this=].{{MLContext/[[cpuFallbackActive]]}} is `undefined`, then invoke [=poll CPU fallback status=].
+        1. Return [=this=].{{MLContext/[[cpuFallbackActive]]}}.
+</div>
+
+<details open algorithm>
+  <summary>
+    To <dfn>poll CPU fallback status</dfn>, run the following steps.
+  </summary>
+    1. If [=this=].{{MLContext/[[accelerated]]}} is `false`, then:
+        1. Set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `true` and return.
+    1. If the underlying execution device is available, then:
+        1. Issue a request to check whether the device executes the workload on CPU. If yes, then set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `true` and return.
+        1. Otherwise, set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `false` and return.
+    1. Set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `undefined`.
+</details>
+
 <details open algorithm>
   <summary>
     To <dfn>validate buffer with descriptor</dfn> given {{AllowSharedBufferSource}} |bufferSource| and {{MLOperandDescriptor}} |descriptor|, run the following steps:
@@ -1195,7 +1217,7 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
     1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |inputs| and |outputs|, as well as |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[powerPreference]]}} and |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[accelerated]]}}.
-            1. If |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[accelerated]]}} is `true` and the underlying platform can only do CPU inference at the moment, then set |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[cpuFallbackActive]]}} to `true`, otherwise set it to `false`.
+            1. Run the steps to [=poll CPU fallback status=] for |graph|.{{MLGraph/[[context]]}}.
 
                 Issue(778): Add a mechanism for reporting errors during graph execution.
 
