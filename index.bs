@@ -1146,8 +1146,10 @@ The <dfn attribute for=MLContext>accelerated</dfn> getter steps are to return [=
   </summary>
     1. If [=this=].{{MLContext/[[accelerated]]}} is `false`, then:
         1. Set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `true` and return.
-    1. If the underlying execution device is available, then:
-        1. Issue a request to check whether the device executes the workload on CPU. If yes, then set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `true` and return.
+    1. Issue a request to check whether the underlying platform uses CPU as the main underlying execution device for inference. If yes, then implementations <span class=allow-2119>should</span> set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `true` and return.
+        <div class="note">
+            Depending on the underlying platform, implementations may be able to detect if using the CPU covers only a small portion of the compute graph in a heterogeneous execution plan involving massively parallel processing as well (in which case it is not a CPU fallback), or is it the main underlying execution device as a result of a fallback scenario.
+        </div>
         1. Otherwise, set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `false` and return.
     1. Set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `undefined`.
 </details>
@@ -1217,7 +1219,6 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
     1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Issue a compute request to |graph|.{{MLGraph/[[implementation]]}} given |inputs| and |outputs|, as well as |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[powerPreference]]}} and |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[accelerated]]}}.
-            1. Run the steps to [=poll CPU fallback status=] for |graph|.{{MLGraph/[[context]]}}.
 
                 Issue(778): Add a mechanism for reporting errors during graph execution.
 
