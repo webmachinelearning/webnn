@@ -1022,7 +1022,6 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>accelerated</dfn> option 
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/webgpu=]".
         1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
         1. Set |context|.{{MLContext/[[accelerated]]}} to `true`.
-        1. Set |context|.{{MLContext/[[cpuFallbackActive]]}} to `undefined`.
     1. Otherwise:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/default=]".
         1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=] in |realm|.
@@ -1030,7 +1029,6 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>accelerated</dfn> option 
         1. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
         1. If |options|["{{MLContextOptions/accelerated}}"] [=map/exists=], then set |context|.{{MLContext/[[accelerated]]}} to |options|["{{MLContextOptions/accelerated}}"].
         1. Otherwise, set |context|.{{MLContext/[[accelerated]]}} to `true`.
-        1. Set |context|.{{MLContext/[[cpuFallbackActive]]}} to `undefined`.
     1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, then return failure.
     1. Return |context|.
 </details>
@@ -1091,7 +1089,6 @@ interface MLContext {
   undefined destroy();
 
   readonly attribute boolean accelerated;
-  readonly attribute boolean cpuFallbackActive;
   readonly attribute Promise<MLContextLostInfo> lost;
 };
 </script>
@@ -1108,9 +1105,6 @@ interface MLContext {
     : <dfn>\[[accelerated]]</dfn> of type {{boolean}}.
     ::
         The {{MLContext}}'s processing type (CPU or massively parallel processing).
-    : <dfn>\[[cpuFallbackActive]]</dfn> of type {{boolean}}.
-    ::
-        The {{MLContext}}'s status for CPU fallback type (CPU or massively parallel processing).
     : <dfn>\[[lost]]</dfn> of type {{Promise}}<{{MLContextLostInfo}}>.
     ::
         A {{Promise}} that is resolved when the {{MLContext}}'s underlying execution device is no longer available.
@@ -1133,26 +1127,6 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
 <div algorithm>
 The <dfn attribute for=MLContext>accelerated</dfn> getter steps are to return [=this=].{{MLContext/[[accelerated]]}}.
 </div>
-
-<div algorithm>
-    The <dfn attribute for=MLContext>cpuFallbackActive</dfn> getter steps are:
-        1. If [=this=].{{MLContext/[[cpuFallbackActive]]}} is `undefined`, then invoke [=poll CPU fallback status=].
-        1. Return [=this=].{{MLContext/[[cpuFallbackActive]]}}.
-</div>
-
-<details open algorithm>
-  <summary>
-    To <dfn>poll CPU fallback status</dfn>, run the following steps.
-  </summary>
-    1. If [=this=].{{MLContext/[[accelerated]]}} is `false`, then:
-        1. Set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `true` and return.
-    1. Issue a request to check whether the underlying platform uses CPU as the main underlying execution device for inference. If yes, then implementations <span class=allow-2119>should</span> set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `true` and return.
-        <div class="note">
-            Depending on the underlying platform, implementations may be able to detect if using the CPU covers only a small portion of the compute graph in a heterogeneous execution plan involving massively parallel processing as well (in which case it is not a CPU fallback), or is it the main underlying execution device as a result of a fallback scenario.
-        </div>
-        1. Otherwise, set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `false` and return.
-    1. Set [=this=].{{MLContext/[[cpuFallbackActive]]}} to `undefined`.
-</details>
 
 <details open algorithm>
   <summary>
