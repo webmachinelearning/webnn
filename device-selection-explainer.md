@@ -239,7 +239,6 @@ The following [proposal](https://github.com/webmachinelearning/webnn/issues/815#
 - Add a context creation option/hint (e.g. `accelerated: true`) for telling app preference for NPU and/or GPU accelerated ["massively parallel"](https://en.wikipedia.org/wiki/Massively_parallel) processing (MPP).
 Note that in [certain use cases](https://www.w3.org/2025/09/25-webmachinelearning-minutes.html) applications might prefer CPU inference, therefore specifying `accelerated: false` has legit use cases as well.
 - Add a context property named `"accelerated"` with possible values: `false` (for likely no support for neither GPU nor NPU), and `true` (e.g. fully controlled by the underlying platform which makes a best effort for MPP, yet CPU fallback may occur).
-- Add a context property named `"cpuFallbackActive"` that may be polled for detecting CPU fallbacks. In the future, depending on developer feedback, this may be turned into an event.
 
 The following Web IDL changes are proposed:
 
@@ -250,12 +249,11 @@ partial dictionary MLContextOptions {
 
 partial interface MLContext {
   readonly attribute boolean accelerated;
-  readonly attribute boolean cpuFallbackActive;
 };
 ```
 
 The behavior of [createContext()](https://webmachinelearning.github.io/webnn/#dom-ml-createcontext) is proposed to follow this policy:
-- Set the `accelerated` property to `false` when the platform could in principle provide massive parallel processing which may or may not be available at the moment. Applications may poll this property, together with `MLContext::cpuFallbackActive`.
+- Set the `accelerated` property to `false` when the platform could in principle provide massive parallel processing which may or may not be available at the moment. Applications may poll this property.
 
 In the future, more policy options could be considered, for instance:
 - Return an error [in step 4](https://webmachinelearning.github.io/webnn/#create-a-context) if the context option `accelerated` has been set to `true`, but the platform cannot provide massive parallel processing at all.
