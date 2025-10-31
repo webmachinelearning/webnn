@@ -63,7 +63,9 @@ Possible means:
 - identify hints/constraints that require a feedback (error) if not supported, for instance "avoid CPU fallback" or "need low power and low latency acceleration".
 
 ### 3. Post-compile query of inference details
-**Requirement**: query a compiled graph for details on how may it be run (subject to being overridden by the platform).
+**Requirement**:
+- Query a compiled graph for details on how may it be run (subject to being overridden by the platform).
+- Query if CPU fallback is active for a context.
 
 This is being discussed in [Get devices used for a graph after graph compilation #836](https://github.com/webmachinelearning/webnn/issues/836)
 and being explored in PR [#854 (define graph.devices)](https://github.com/webmachinelearning/webnn/pull/854).
@@ -73,7 +75,7 @@ Initially, the proposal was to obtain the list/combination of devices usable for
 
 Design decisions may take the following into account:
 
-1. Allow the underlying platform to hint to, or ultimately choose the preferred compute device(s).
+1. Allow the underlying platform to ultimately choose the appropriate compute device(s).
 
 2. Allow scripts to express hints/options when creating contexts, such as preference for low power consumption, high performance (throughput), low latency, stable sustained performance, accuracy, etc.
 
@@ -81,11 +83,15 @@ Design decisions may take the following into account:
 
 4. Allow selection from available GPU devices, for instance, by allowing specification of an explicit [GPUDevice](https://gpuweb.github.io/gpuweb/#gpudevice) obtained from available [GPUAdapters](https://gpuweb.github.io/gpuweb/#gpuadapter) using [WebGPU](https://gpuweb.github.io/gpuweb) mechanisms via [GPURequestAdapterOptions](https://gpuweb.github.io/gpuweb/#dictdef-gpurequestadapteroptions), such as feature level or power preference.
 
-5. Allow selection from available various AI accelerators, including NPUs or a combination of accelerators. This may happen using a (to-be-specified) algorithmic mapping from context options. Or, allow web apps to hint a preferred fallback order for the given context, for instance, `["npu", "cpu"]`, meaning that implementations should try executing the graph on an NPU as much as possible and try to avoid the GPU. The `"cpu"` option could even be omitted, as it could be the default fallback device; therefore, specifying `"npu"` alone would mean the same. However, this can become complex with all possible device variations, so we must specify and standardize the supported fallback orders. (Related to discussions in Issue #815).
+5. Allow selection from available various AI accelerators, including NPUs, GPUs or a combination of accelerators. This may happen using a (to-be-specified) algorithmic mapping from context options. Or, allow web apps to hint a preferred fallback order for the given context, or fallbacks to avoid (if that is supported). (Related to discussions in Issue #815).
 
-6. Allow enumeration of [OpSupportLimits](https://webmachinelearning.github.io/webnn/#api-mlcontext-opsupportlimits-dictionary) before creating a context so that web apps can select the best device that would work with the intended model. This needs more developer input and examples. (Related to discussions in Issue #815).
+6. Add a context creation option/hint for telling app preference for being simply ["accelerated"](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-2658627753), meaning NPU, GPU or both.
 
-7. As a corollary to 6, allow creating a context using options for [OpSupportLimits](https://webmachinelearning.github.io/webnn/#api-mlcontext-opsupportlimits-dictionary). (Related to discussions in Issue #815).
+7. Allow enumeration of [OpSupportLimits](https://webmachinelearning.github.io/webnn/#api-mlcontext-opsupportlimits-dictionary) before creating a context so that web apps can select the best device that would work with the intended model. This needs more developer input and examples. (Related to discussions in Issue #815).
+
+8. As a corollary to 6, allow creating a context using options for [OpSupportLimits](https://webmachinelearning.github.io/webnn/#api-mlcontext-opsupportlimits-dictionary). (Related to discussions in Issue #815).
+
+9. Expose a context property (or event) to tell whether CPU fallback is active (or likely active) for the context.
 
 
 ## Scenarios, examples, design discussion
@@ -101,6 +107,22 @@ context =  await navigator.ml.createContext({powerPreference: 'low-power'});
 
 // create a context that will likely map to GPU
 context = await navigator.ml.createContext({powerPreference: 'high-performance'});
+
+// create a context that should use massive parallel processing (e.g. GPU/NPU)
+context = await navigator.ml.createContext({accelerated: true});
+if (context.accelerated) {
+    // the context will mostly use GPU/NPU, but CPU fallback may happen
+} else {
+    // the platform tells it likely cannot provide NPU or GPU, so try something else
+}
+
+// create a context that should preferably use NPU
+context = await navigator.ml.createContext({accelerated: true, powerPreference: 'low-power'});
+if (context.accelerated) {
+    // NPU is likely used -- further requirements could be set by opSupportLimitsPerDevice
+} else {
+    // NPU is likely not available, and since GPU needs high power, it is not used
+}
 
 // enumerate devices and limits (as allowed by policy/implementation)
 // and select one of them to create a context
@@ -122,7 +144,7 @@ const context = await navigator.ml.createContext({ fallback: ['npu', 'cpu'] });
 
 ## Open questions
 
-- WebGPU provides a way to select a GPU device via [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter). Should WebNN expose a similar adapter API for NPUs?
+- WebGPU provides a way to select a GPU device via [GPUAdapter](https://gpuweb.github.io/gpuweb/#gpuadapter). Should WebNN expose a similar adapter API for NPUs? The current take is to not expose explicit adapters.
 
 - How should WebNN extend the context options? What exactly is best to pass as context options? Operator support limits? Supported features, similar to [GPUSupportedFeatures](https://gpuweb.github.io/gpuweb/#gpusupportedfeatures)? Others?
 
@@ -164,7 +186,7 @@ A WebNN application may have specific device preferences for model execution. Th
     *   *Description*: The application developer hints that the model execution should contribute as little as possible to the overall system power draw. This is a broader consideration than just the model's own efficiency, potentially influencing scheduling and resource allocation across the system. The implementation may choose any device ("where JS and Wasm execute," "where WebGL and WebGPU programs execute," or "other") that best achieves this goal.
 
 
-## Minimum Viable Solution
+## Minimum Viable Solution (MVS, completed)
 
 Based on the discussion above, the best starting point was a simple solution that can be extended and refined later. A first contribution could include the following changes:
 - Remove `MLDeviceType` (see [CRD 20250131](https://www.w3.org/TR/2025/CRD-webnn-20250131/#enumdef-mldevicetype)) as an explicit [context option](https://webmachinelearning.github.io/webnn/#dictdef-mlcontextoptions).
@@ -179,7 +201,7 @@ Besides, the following topics have been discussed:
 - Document the valid use cases for requesting a certain device type or combination of devices, and under what error conditions. Currently, after these changes, there remains explicit support for a GPU-only context when an `MLContext` is created from a `GPUDevice` in `createContext()`.
 - Discuss option #3 from [Considered alternatives](#considered-alternatives).
 
-## Next Phase Device Selection Solution
+## Next discussion phase after MVS
 
 In [Remove MLDeviceType #809](https://github.com/webmachinelearning/webnn/pull/809), this [comment](https://github.com/webmachinelearning/webnn/pull/809#discussion_r1936856070) raised a new use case:
 
@@ -209,6 +231,32 @@ Given the discussion in Issue #815 ([comment](https://github.com/webmachinelearn
 - If not, then they might want to try a path other than WebNN, e.g., WebGPU.
 - If yes, then in some cases (e.g., CoreML), the model needs to be dispatched before knowing for sure whether it can be executed on the GPU. For that, a new API is needed, as discussed in [Get devices used for a graph after graph compilation #836](https://github.com/webmachinelearning/webnn/issues/836) and being explored in PR [#854 (define graph.devices)](https://github.com/webmachinelearning/webnn/pull/854).
 Based on the answer, the developer may choose an option other than WebNN. Besides that, the feature permits gathering data on typical graph allocations (note: fingerprintable), which might help the specification work on the device selection API.
+
+## Simple accelerator mapping solution
+
+The following [proposal](https://github.com/webmachinelearning/webnn/issues/815#issuecomment-3198261369) gained support for a simple accelerator mapping solution (before using the previously discussed fine grained constraints):
+- Expose a context property (or event) to tell whether CPU fallback is active (or likely active).
+- Add a context creation option/hint (e.g. `accelerated: true`) for telling app preference for NPU and/or GPU accelerated ["massively parallel"](https://en.wikipedia.org/wiki/Massively_parallel) processing (MPP).
+Note that in [certain use cases](https://www.w3.org/2025/09/25-webmachinelearning-minutes.html) applications might prefer CPU inference, therefore specifying `accelerated: false` has legit use cases as well.
+- Add a context property named `"accelerated"` with possible values: `false` (for likely no support for neither GPU nor NPU), and `true` (e.g. fully controlled by the underlying platform which makes a best effort for MPP, yet CPU fallback may occur).
+
+The following Web IDL changes are proposed:
+
+```js
+partial dictionary MLContextOptions {
+  boolean accelerated = true;
+};
+
+partial interface MLContext {
+  readonly attribute boolean accelerated;
+};
+```
+
+The behavior of [createContext()](https://webmachinelearning.github.io/webnn/#dom-ml-createcontext) is proposed to follow this policy:
+- Set the `accelerated` property to `false` when the platform could in principle provide massive parallel processing which may or may not be available at the moment. Applications may poll this property.
+
+In the future, more policy options could be considered, for instance:
+- Return an error [in step 4](https://webmachinelearning.github.io/webnn/#create-a-context) if the context option `accelerated` has been set to `true`, but the platform cannot provide massive parallel processing at all.
 
 ## History
 
