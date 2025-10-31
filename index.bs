@@ -748,7 +748,7 @@ An {{MLContext}} interface represents a global state of neural network execution
 In a situation when a GPU context executes a graph with a constant or an input in the system memory as an {{ArrayBufferView}}, the input content is automatically uploaded from the system memory to the GPU memory, and downloaded back to the system memory of an {{ArrayBufferView}} output buffer at the end of the graph execution. This data upload and download cycles will only occur whenever the execution device requires the data to be copied out of and back into the system memory, such as in the case of the GPU. It doesn't occur when the device is a CPU device. Additionally, the result of the graph execution is in a known layout format. While the execution may be optimized for a native memory access pattern in an intermediate result within the graph, the output of the last operation of the graph must convert the content back to a known layout format at the end of the graph in order to maintain the expected behavior from the caller's perspective.
 
 <div class="note">
-When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account these options, currently only the {{MLPowerPreference}} option.
+When an {{MLContext}} is created with {{MLContextOptions}}, the user agent selects and creates the underlying execution device by taking into account these options.
 
 Depending on the underlying platform, the user agent <span class=allow-2119>may</span> select different combinations of CPU, NPU and GPU devices.
 </div>
@@ -978,6 +978,7 @@ enum MLPowerPreference {
 
 dictionary MLContextOptions {
   MLPowerPreference powerPreference = "default";
+  boolean accelerated = true;
 };
 
 [SecureContext, Exposed=(Window, Worker)]
@@ -1001,6 +1002,8 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
 <dd>Prioritizes power consumption over other considerations such as execution speed.</dd>
 </dl>
 
+The <dfn dfn-for=MLContextOptions dfn-type=dict-member>accelerated</dfn> option indicates the application's preference as related to massively parallel acceleration. This option has less priority than {{MLContextOptions/powerPreference}}. When set to `true` (by default), the underlying platform will attempt to use the available massively parallel accelerators, such as a GPU or NPU, also depending on the {{MLContextOptions/powerPreference}}. When set to `false`, the application indicates it prefers CPU inference. If there is contradictory input, for instance when {{MLContextOptions/powerPreference}} is {{MLPowerPreference/"high-performance"}} and {{MLContextOptions/accelerated}} is `false`, then the implementation will choose the best available match in the underlying platform (for instance a high performance CPU mode, or will ignore {{MLContextOptions/accelerated}} as it has less priority than {{MLContextOptions/powerPreference}}).
+
 ### {{ML/createContext()}} ### {#api-ml-createcontext}
 
 <div dfn-for="ML/createContext(options), ML/createContext(gpuDevice)" dfn-type=argument>
@@ -1018,11 +1021,14 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> opt
     1. If |options| is a {{GPUDevice}} object, then:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/webgpu=]".
         1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
+        1. Set |context|.{{MLContext/[[accelerated]]}} to `true`.
     1. Otherwise:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/default=]".
         1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=] in |realm|.
         1. If |options|["{{MLContextOptions/powerPreference}}"] [=map/exists=], then set |context|.{{MLContext/[[powerPreference]]}} to |options|["{{MLContextOptions/powerPreference}}"].
         1. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
+        1. If |options|["{{MLContextOptions/accelerated}}"] [=map/exists=], then set |context|.{{MLContext/[[accelerated]]}} to |options|["{{MLContextOptions/accelerated}}"].
+        1. Otherwise, set |context|.{{MLContext/[[accelerated]]}} to `true`.
     1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, then return failure.
     1. Return |context|.
 </details>
@@ -1082,6 +1088,7 @@ interface MLContext {
 
   undefined destroy();
 
+  readonly attribute boolean accelerated;
   readonly attribute Promise<MLContextLostInfo> lost;
 };
 </script>
@@ -1095,6 +1102,9 @@ interface MLContext {
     : <dfn>\[[powerPreference]]</dfn> of type {{MLPowerPreference}}.
     ::
         The {{MLContext}}'s {{MLPowerPreference}}.
+    : <dfn>\[[accelerated]]</dfn> of type {{boolean}}.
+    ::
+        The {{MLContext}}'s processing type (CPU or massively parallel processing).
     : <dfn>\[[lost]]</dfn> of type {{Promise}}<{{MLContextLostInfo}}>.
     ::
         A {{Promise}} that is resolved when the {{MLContext}}'s underlying execution device is no longer available.
@@ -1113,6 +1123,10 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
 <dt>"<dfn>webgpu</dfn>"</dt>
 <dd>Context created from WebGPU device.</dd>
 </dl>
+
+<div algorithm>
+The <dfn attribute for=MLContext>accelerated</dfn> getter steps are to return [=this=].{{MLContext/[[accelerated]]}}.
+</div>
 
 <details open algorithm>
   <summary>
@@ -1730,7 +1744,7 @@ typedef (bigint or unrestricted double) MLNumber;
     : <dfn>\[[operator]]</dfn> of type [=operator=]
     ::
         Reference to {{MLOperand}}'s corresponding [=operator=].
-  
+
     : <dfn>\[[constantTensor]]</dfn> of type {{MLTensor}}
     ::
         The {{MLOperand}}'s tensor (only for constant operands).
@@ -2151,7 +2165,7 @@ Build a composed graph up to a given output operand into a computational graph a
         1. If |name| is empty, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
         1. If [=MLGraphBuilder/validating operand=] given [=this=] and |operand| returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
         1. If |operand| is in [=this=]'s [=MLGraphBuilder/graph=]'s [=computational graph/inputs=] or [=computational graph/constants=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
-        1. If |operand|.{{MLOperand/[[constantTensor]]}} exists and |operand|.{{MLOperand/[[constantTensor]]}}.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}. 
+        1. If |operand|.{{MLOperand/[[constantTensor]]}} exists and |operand|.{{MLOperand/[[constantTensor]]}}.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. Let |operands| be a new empty [=/set=].
     1. Let |operators| be a new empty [=/set=].
     1. Let |inputs| be a new empty [=/set=].
@@ -2175,7 +2189,7 @@ Build a composed graph up to a given output operand into a computational graph a
     1. Let |promise| be [=a new promise=] in |realm|.
     1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] |graph|.{{MLGraph/[[context]]}} [=MLContext/is lost=]:
-            1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=] into an [=implementation-defined=] format which can be interpreted by the underlying platform.
+            1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=], as well as |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[powerPreference]]}} and |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[accelerated]]}} into an [=implementation-defined=] format which can be interpreted by the underlying platform.
             1. If the previous step failed, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
             1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
             1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
