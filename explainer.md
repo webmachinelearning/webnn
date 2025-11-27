@@ -31,7 +31,7 @@ flowchart TD
   end
 
   subgraph Frameworks
-    Framework(ONNX Runtime Web, LiteRT)
+    Framework(ONNX Runtime Web / LiteRT.js)
   end
 
   subgraph Browser_APIs[Browser APIs]
@@ -41,7 +41,7 @@ flowchart TD
   end
 
   subgraph Native_ML_APIs[Native ML APIs]
-    MLAPI[DirectML / LiteRT / Core&nbsp;ML]
+    MLAPI[Windows&nbsp;ML / LiteRT / Core&nbsp;ML]
   end
 
   subgraph Hardware
