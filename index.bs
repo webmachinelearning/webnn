@@ -5630,14 +5630,14 @@ partial dictionary MLOpSupportLimits {
             null);
         let currentHidden = squeeze(
           builder,
-          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]));
+          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]), [0]);
 
         for (let step = 0; step < steps; ++step) {
           const slice =
             (dir == 1 || direction == 'backward' ? steps - step - 1 : step);
           const currentInput = squeeze(
             builder,
-            builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]));
+            builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]), [0]);
 
           currentHidden = builder.gruCell(
             currentInput,
@@ -7011,17 +7011,17 @@ partial dictionary MLOpSupportLimits {
 
         let currentHidden = squeeze(
           builder,
-          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]));
+          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]), [0]);
         let currentCell = squeeze(
           builder,
-          builder.slice(cellState, [dir, 0, 0], [1, batchSize, hiddenSize]));
+          builder.slice(cellState, [dir, 0, 0], [1, batchSize, hiddenSize]), [0]);
 
         for (let step = 0; step < steps; ++step) {
           const slice =
             (dir == 1 || direction == 'backward' ? steps - step - 1 : step);
           const currentInput = squeeze(
             builder,
-            builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]));
+            builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]), [0]);
 
           [currentHidden, currentCell] = builder.lstmCell(
             currentInput,
@@ -10466,7 +10466,7 @@ Operations present in other neural network inference APIs can often be emulated 
           axes.push(i);
         });
       const shape = Array.from(input.shape);
-      for (let axis in axes.sort().reverse())
+      for (let axis of axes.sort().reverse())
         if (axis < shape.length && shape[axis] == 1)
           shape.splice(axis, 1);
       return builder.reshape(input, shape);
@@ -10485,7 +10485,7 @@ Operations present in other neural network inference APIs can often be emulated 
     <pre highlight="js">
     function unsqueeze(builder, input, axes) {
       const shape = Array.from(input.shape);
-      for (let axis in axes.sort())
+      for (let axis of axes.sort())
         shape.splice(axis, 0, 1);
       return builder.reshape(input, shape);
     }
