@@ -2,7 +2,7 @@
 Title: Web Neural Network API
 Shortname: webnn
 Level: None
-Status: w3c/ED
+Status: w3c/CR
 Group: webmlwg
 TR: https://www.w3.org/TR/webnn/
 URL: https://webmachinelearning.github.io/webnn/
@@ -19,17 +19,13 @@ Markup Shorthands: dfn yes
 Markup Shorthands: idl yes
 Markup Shorthands: css no
 Logo: https://webmachinelearning.github.io/webmachinelearning-logo.png
-Deadline: 2023-10-01
+Deadline: 2026-02-27
 Assume Explicit For: yes
 Complain About: accidental-2119 yes
 Status Text: <p>
-  Since the <a href="https://www.w3.org/TR/2023/CR-webnn-20230330/">initial Candidate Recommendation Snapshot</a> the Working Group has gathered further <a href="https://webmachinelearning.github.io/webnn-status/">implementation experience</a> and added new operations and data types needed for well-known <a href="https://github.com/webmachinelearning/webnn/issues/375">transformers to support generative AI use cases</a>. In addition, informed by this implementation experience, the group removed <code>MLCommandEncoder</code>, support for synchronous execution, and higher-level operations that can be expressed in terms of lower-level primitives in a performant manner. The group has also updated the specification to use modern authoring conventions to improve interoperability and precision of normative definitions.
-  The group is developing a new feature, a <a href="https://github.com/webmachinelearning/webnn/issues/482">backend-agnostic storage type</a>, to improve performance and interoperability between the WebNN, WebGPU APIs and purpose-built hardware for ML and expects to republish this document as a Candidate Recommendation Snapshot when ready for implementation.
-  This document is maintained and
-  updated at any time. Some parts of this document are work in progress and
-  further improvements are expected to be reflected in revised Candidate
-  Recommendation Drafts and Snapshots.
+  Since <a href="https://www.w3.org/TR/2024/CR-webnn-20240411/">Candidate Recommendation Snapshot, 11 April 2024</a>, the WebNN specification has undergone substantial evolution with over 100 significant changes. The most notable additions include a third wave of operators for enhanced transformers support, the MLTensor API for buffer sharing, and a new abstract device selection mechanism. The API surface has been modernized and interoperability improvements have been made informed by wider implementation experience and developer feedback. This specification version strengthens security and privacy considerations including fingerprinting mitigations, and adds new accessibility considerations. These changes reflect the specification's maturation toward product readiness with improved developer ergonomics, wider backend compatibility, and standards compliance. For more details, see [[#changes]].
   </p>
+  <p>This document is maintained and updated at any time. Some parts of this document are work in progress and further improvements are expected to be reflected in revised Candidate Recommendation Drafts and Snapshots.</p>
   <p>Before requesting transition to <a href="https://www.w3.org/standards/types#PR">Proposed Recommendation</a>, the Working Group will seek to demonstrate that:</p>
   <ul>
   <li>the API is implementable on top of existing APIs of major platforms, such as Android, Windows and macOS/iOS;</li>
@@ -10583,6 +10579,126 @@ Thanks to Dwayne Robinson, Joshua Lochner and Wanming Lin for their work investi
 Thanks to Feng Dai for his continuous contributions that keep web-platform-tests evolving alongside the specification.
 
 Thanks to Fuqiao Xue and the W3C Internationalization Activity for reviews and suggestions.
+
+<h2 id="changes">Changes</h2>
+
+*This section is non-normative.*
+
+This section documents changes made to this specification since its previous major publication in terms of <a href="https://www.w3.org/policies/process/#correction-classes">Classes of Changes</a>.
+
+    <details>
+    <summary>Detailed changes since <a href="https://www.w3.org/TR/2024/CR-webnn-20240411/">Candidate Recommendation Snapshot, 11 April 2024</a></summary>
+
+    <p>New features (<a href="https://www.w3.org/policies/process/#class-4">class 4</a>)</p>
+    <ul>
+        <li>Expand operator set "wave 3" with new operators including dequantizeLinear, quantizeLinear, and attention operations (<a href="https://github.com/webmachinelearning/webnn/pull/805">#805</a>)</li>
+        <li>Add MLTensor API, an interface for buffer sharing between WebNN and WebGPU, and reuse across multiple MLGraphs (<a href="https://github.com/webmachinelearning/webnn/pull/787">#787</a>)</li>
+        <li>Add isNaN and isInfinite operators, new element-wise operators for checking NaN and infinite values (<a href="https://github.com/webmachinelearning/webnn/pull/858">#858</a>)</li>
+        <li>Add roundEven operator, new rounding operator using banker's rounding (<a href="https://github.com/webmachinelearning/webnn/pull/859">#859</a>)</li>
+        <li>Add accelerator selection mechanism, a simple mechanism for selecting ML accelerators (<a href="https://github.com/webmachinelearning/webnn/pull/895">#895</a>)</li>
+        <li>Expose WebNN API to shared workers and service workers to extend WebNN availability beyond window and dedicated worker (<a href="https://github.com/webmachinelearning/webnn/pull/823">#823</a>)</li>
+        <li>Add optional operator labels for more diagnosable error messages (<a href="https://github.com/webmachinelearning/webnn/pull/742">#742</a>)</li>
+        <li>Introduce MLNumber, a unified type for specifying numeric inputs of any type (<a href="https://github.com/webmachinelearning/webnn/pull/647">#647</a>)</li>
+        <li>Add rankRange to opSupportLimits() to support specifying rank ranges in support limits (<a href="https://github.com/webmachinelearning/webnn/pull/828">#828</a>)</li>
+        <li>Support rankRange for op output tensors to extend rankRange support to output tensors (<a href="https://github.com/webmachinelearning/webnn/pull/857">#857</a>)</li>
+        <li><s>Add MLDeviceType npu, a Neural Processing Unit (NPU) device type (<a href="https://github.com/webmachinelearning/webnn/pull/696">#696</a>)</s> - this feature was added and removed since previous publication to simplify device selection, see <a href="https://github.com/webmachinelearning/webnn/pull/809">#809</a></li>
+        <li>Add destroy() methods for MLContext and MLGraph, specify context loss behavior and error reporting (<a href="https://github.com/webmachinelearning/webnn/pull/744">#744</a>)</li>
+        <li>Add an optional axis parameter to softmax operation (<a href="https://github.com/webmachinelearning/webnn/pull/649">#649</a>)</li>
+        <li>Add outputDataType to argmin/argmax to support specifying output data type (<a href="https://github.com/webmachinelearning/webnn/pull/730">#730</a>)</li>
+        <li>Allow arbitrary axes for resample2d to generalize resample2d to work with any axes (<a href="https://github.com/webmachinelearning/webnn/pull/752">#752</a>)</li>
+        <li>Add Resample data type uint8/int8 to extend resample to support 8-bit integer types (<a href="https://github.com/webmachinelearning/webnn/pull/891">#891</a>)</li>
+        <li>Simplify operand layout support of conv2d and pool2d operations, remove MLRoundingType from pool2d, simplify layout support (<a href="https://github.com/webmachinelearning/webnn/pull/770">#770</a>)</li>
+        <li>Restrict padding options to better match backend limits (<a href="https://github.com/webmachinelearning/webnn/pull/843">#843</a>)</li>
+    </ul>
+
+    <p>Other changes that do not add new features (<a href="https://www.w3.org/policies/process/#class-3">class 3</a>)</p>
+    <ul>
+        <li>Remove MLContext.compute() method in favor of MLTensor API (<a href="https://github.com/webmachinelearning/webnn/pull/795">#795</a>)</li>
+        <li>Remove MLDeviceType to simplify device selection by removing device type enumeration (<a href="https://github.com/webmachinelearning/webnn/pull/809">#809</a>)</li>
+        <li>Convert MLOperand methods to readonly attributes and change dataType() and shape() from methods to attributes (<a href="https://github.com/webmachinelearning/webnn/pull/774">#774</a>)</li>
+        <li>Make MLOperandDescriptor.shape a required property (<a href="https://github.com/webmachinelearning/webnn/pull/764">#764</a>)</li>
+        <li>Allow MLGraphBuilder.build() to be called only once to restrict build method to single invocation (<a href="https://github.com/webmachinelearning/webnn/pull/717">#717</a>)</li>
+        <li>Remove fillSequence overload of constant() to remove sequence-based constant creation (<a href="https://github.com/webmachinelearning/webnn/pull/656">#656</a>)</li>
+        <li>Swap parameters of scalar constant() operand method to reorder parameters for consistency (<a href="https://github.com/webmachinelearning/webnn/pull/650">#650</a>)</li>
+        <li>Remove argmin/argmax selectLastIndex parameter to simplify argmin/argmax API (<a href="https://github.com/webmachinelearning/webnn/pull/722">#722</a>)</li>
+        <li>Rename cast/constant parameter type to dataType for consistency across the API (<a href="https://github.com/webmachinelearning/webnn/pull/888">#888</a>)</li>
+        <li>Replace MLActivation with MLRecurrentNetworkActivation for a more specific type for recurrent network activations (<a href="https://github.com/webmachinelearning/webnn/pull/718">#718</a>)</li>
+        <li>Change DOMString to USVString for better Unicode support (<a href="https://github.com/webmachinelearning/webnn/pull/715">#715</a>)</li>
+        <li>Rename parameter names of where to improve parameter naming for clarity (<a href="https://github.com/webmachinelearning/webnn/pull/719">#719</a>)</li>
+        <li>Rename member output to outputs of MLLstmCellSupportLimits for consistency (<a href="https://github.com/webmachinelearning/webnn/pull/757">#757</a>)</li>
+        <li>Reject promises for in-progress operations on destroyed MLTensor for proper promise rejection (<a href="https://github.com/webmachinelearning/webnn/pull/799">#799</a>)</li>
+        <li>Specify operand data type constraints of operations to enable data type validation rules (<a href="https://github.com/webmachinelearning/webnn/pull/646">#646</a>)</li>
+        <li>Add missing validation steps for several ops for validation improvements (<a href="https://github.com/webmachinelearning/webnn/pull/820">#820</a>)</li>
+        <li>Add missing validation for pad(), slice(), and split() to enhance validation for array operations (<a href="https://github.com/webmachinelearning/webnn/pull/690">#690</a>)</li>
+        <li>Simplify, correct, and add validation for GRU/LSTM  for improved recurrent network validation (<a href="https://github.com/webmachinelearning/webnn/pull/659">#659</a>)</li>
+        <li>Validate hidden size of GRU and LSTM operators (<a href="https://github.com/webmachinelearning/webnn/pull/644">#644</a>)</li>
+        <li>Validate restriction of output padding in convTranspose2d for stricter validation for transposed convolution (<a href="https://github.com/webmachinelearning/webnn/pull/631">#631</a>)</li>
+        <li>Enhance gather operation validation (<a href="https://github.com/webmachinelearning/webnn/pull/642">#642</a>)</li>
+        <li>General validation improvements (<a href="https://github.com/webmachinelearning/webnn/pull/643">#643</a>)</li>
+        <li>Improve resource validation (<a href="https://github.com/webmachinelearning/webnn/pull/622">#622</a>)</li>
+        <li>Define error handling of MLNamedArrayBufferViews transfer algorithm to properly handle errors for buffer transfers (<a href="https://github.com/webmachinelearning/webnn/pull/723">#723</a>)</li>
+        <li>Update dimension valid range to signed integer (<a href="https://github.com/webmachinelearning/webnn/pull/738">#738</a>)</li>
+        <li>Introduce "valid dimension" concept to formalize dimension validity (<a href="https://github.com/webmachinelearning/webnn/pull/641">#641</a>)</li>
+        <li>Ensure object creation specifies the realm for proper realm handling for object creation (<a href="https://github.com/webmachinelearning/webnn/pull/810">#810</a>)</li>
+        <li>Clarify division operator rounding (<a href="https://github.com/webmachinelearning/webnn/pull/909">#909</a>)</li>
+        <li>Correct pad scalar inconsistency (<a href="https://github.com/webmachinelearning/webnn/pull/894">#894</a>)</li>
+        <li>Fix opSupportLimits error for split op (<a href="https://github.com/webmachinelearning/webnn/pull/776">#776</a>)</li>
+        <li>Use EnforceRange for proper range enforcement in softmax() axis argument (<a href="https://github.com/webmachinelearning/webnn/pull/746">#746</a>)</li>
+        <li>Add missing definitions of inputShape to conv2d algorithms (<a href="https://github.com/webmachinelearning/webnn/pull/680">#680</a>)</li>
+        <li>Fix unidirectionally broadcast shapes steps (<a href="https://github.com/webmachinelearning/webnn/pull/663">#663</a>)</li>
+        <li>Fix compute() promise rejection behavior if buffer transferring fails (<a href="https://github.com/webmachinelearning/webnn/pull/639">#639</a>)</li>
+        <li>Update ArrayBufferView compatibility table with 64-bit integer types (<a href="https://github.com/webmachinelearning/webnn/pull/698">#698</a>)</li>
+    </ul>
+
+    <p>Changes that do not functionally affect interpretation of the document (<a href="https://www.w3.org/policies/process/#class-2">class 2</a>)</p>
+    <ul>
+        <li>Make operand data type and rank validation table-driven for a systematic approach to validation (<a href="https://github.com/webmachinelearning/webnn/pull/657">#657</a>)</li>
+        <li>Add non-normative table of operators by category (<a href="https://github.com/webmachinelearning/webnn/pull/868">#868</a>)</li>
+        <li>Clarify cast() op behavior between different data types (<a href="https://github.com/webmachinelearning/webnn/pull/726">#726</a>)</li>
+        <li>Clarify interpolation algorithms for resample2d (<a href="https://github.com/webmachinelearning/webnn/pull/816">#816</a>)</li>
+        <li>Clarify reduction with empty axes and scalar input to clarify edge cases (<a href="https://github.com/webmachinelearning/webnn/pull/741">#741</a>)</li>
+        <li>Add note about no-op graphs (<a href="https://github.com/webmachinelearning/webnn/pull/665">#665</a>)</li>
+        <li>Add note about keepDimensions of reduction ops to clarify reduction operation behavior (<a href="https://github.com/webmachinelearning/webnn/pull/648">#648</a>)</li>
+        <li>Reorganize emulation documentation (<a href="https://github.com/webmachinelearning/webnn/pull/598">#598</a>)</li>
+        <li>Add decompositions for reduceLogSum, reduceLogSumExp, and reduceSumSquare (<a href="https://github.com/webmachinelearning/webnn/pull/637">#637</a>)</li>
+        <li>Remove obsolete note about interop issues with clamp() minValue == maxValue (<a href="https://github.com/webmachinelearning/webnn/pull/684">#684</a>)</li>
+        <li>Update specification boilerplate metadata information (<a href="https://github.com/webmachinelearning/webnn/pull/769">#769</a>)</li>
+    </ul>
+
+    <p>Horizontal (<a href="https://www.w3.org/policies/process/#class-2">class 2</a> and <a href="https://www.w3.org/policies/process/#class-3">class 3</a>)</p>
+    <ul>
+        <li>Add architectural resource contention considerations (<a href="https://github.com/webmachinelearning/webnn/pull/765">#765</a>)</li>
+        <li>Add security considerations for Unicode (<a href="https://github.com/webmachinelearning/webnn/pull/851">#851</a>)</li>
+        <li>Add security consideration for computation control-flow attacks (<a href="https://github.com/webmachinelearning/webnn/pull/725">#725</a>)</li>
+        <li>Revise privacy considerations (<a href="https://github.com/webmachinelearning/webnn/pull/890">#890</a>)</li>
+        <li>Add privacy considerations for opSupportLimits() fingerprinting (<a href="https://github.com/webmachinelearning/webnn/pull/881">#881</a>)</li>
+        <li>Add accessibility considerations (<a href="https://github.com/webmachinelearning/webnn/pull/869">#869</a>)</li>
+        <li>Add internationalization note regarding label usage (<a href="https://github.com/webmachinelearning/webnn/pull/841">#841</a>)</li>
+    </ul>
+
+    <p>Editorial (<a href="https://www.w3.org/policies/process/#class-2">class 2</a>)</p>
+    <ul>
+        <li>Various editorial improvements (<a href="https://github.com/webmachinelearning/webnn/pull/834">#834</a>)</li>
+        <li>Various style and wording tweaks (<a href="https://github.com/webmachinelearning/webnn/pull/797">#797</a>)</li>
+        <li>Grammar and spelling corrections (<a href="https://github.com/webmachinelearning/webnn/pull/782">#782</a>)</li>
+        <li>Simplify specification steps with helpers algorithms (<a href="https://github.com/webmachinelearning/webnn/pull/737">#737</a>)</li>
+        <li>Improve type references (<a href="https://github.com/webmachinelearning/webnn/pull/735">#735</a>)</li>
+        <li>Reference WebIDL transferable definition (<a href="https://github.com/webmachinelearning/webnn/pull/732">#732</a>)</li>
+        <li>Avoid "sequence" in prose for improved terminology usage (<a href="https://github.com/webmachinelearning/webnn/pull/729">#729</a>)</li>
+        <li>Improve logic for validating algorithm steps for enhanced linting and validation (<a href="https://github.com/webmachinelearning/webnn/pull/727">#727</a>)</li>
+        <li>Link method argument definitions for Improved cross-references (<a href="https://github.com/webmachinelearning/webnn/pull/721">#721</a>)</li>
+        <li>Remove unnecessary subsections for improved organization (<a href="https://github.com/webmachinelearning/webnn/pull/711">#711</a>)</li>
+        <li>Link to "is empty" not "empty" when adjective intended (<a href="https://github.com/webmachinelearning/webnn/pull/708">#708</a>)</li>
+        <li>Add utilities to ease authoring and review of this specification (<a href="https://github.com/webmachinelearning/webnn/pull/702">#702</a>)</li>
+        <li>Fix "transferred" cross-reference (<a href="https://github.com/webmachinelearning/webnn/pull/679">#679</a>)</li>
+        <li>Make "generically emulated" text a macro to improve authoring experience (<a href="https://github.com/webmachinelearning/webnn/pull/638">#638</a>)</li>
+        <li>Fix emulation error of LSTM by 'backward' and 'both' directions (<a href="https://github.com/webmachinelearning/webnn/pull/802">#802</a>)</li>
+        <li>Fix emulation error of GRU by 'backward' and 'both' directions (<a href="https://github.com/webmachinelearning/webnn/pull/803">#803</a>)</li>
+        <li>Correct typos/JS errors in decompositions (<a href="https://github.com/webmachinelearning/webnn/pull/699">#699</a>)</li>
+    </ul>
+
+    </details>
+
 <pre class="biblio">
 {
   "Models": {
