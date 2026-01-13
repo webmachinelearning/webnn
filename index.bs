@@ -8270,7 +8270,8 @@ partial dictionary MLOpSupportLimits {
     }
 
     function reduceLogSumExp(builder, input, options) {
-      return builder.log(builder.reduceSum(builder.exp(input), options));
+      const maxX = builder.reduceMax(input, {axes: options.axes, keepDimensions: true});
+      return builder.add(maxX, builder.log(builder.reduceSum(builder.exp(builder.sub(input, maxX)), options)));
     }
 
     function reduceSumSquare(builder, input, options) {
