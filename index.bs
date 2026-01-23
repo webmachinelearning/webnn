@@ -8266,7 +8266,8 @@ partial dictionary MLOpSupportLimits {
     }
 
     function reduceLogSumExp(builder, input, options) {
-      return builder.log(builder.reduceSum(builder.exp(input), options));
+      const maxX = builder.reduceMax(input, {axes: options.axes, keepDimensions: true});
+      return builder.add(maxX, builder.log(builder.reduceSum(builder.exp(builder.sub(input, maxX)), options)));
     }
 
     function reduceSumSquare(builder, input, options) {
@@ -9482,8 +9483,7 @@ partial dictionary MLOpSupportLimits {
     </summary>
     <pre highlight="js">
     function softplus(builder, input) {
-      return builder.log(
-        builder.add(builder.exp(input), builder.constant(input.dataType, 1)));
+      return builder.add(builder.max(input, builder.constant(input.dataType, 0)), builder.log(builder.add(builder.constant(input.dataType, 1), builder.exp(builder.neg(builder.abs(input))))));
     }
     </pre>
   </details>
@@ -9774,13 +9774,13 @@ partial dictionary MLOpSupportLimits {
     </summary>
     <pre highlight="js">
     function tanh(builder, input) {
-      return builder.div(
+      return builder.mul(builder.sign(input), builder.div(
         builder.sub(
-          builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
-          builder.constant(input.dataType, 1)),
+          builder.constant(input.dataType, 1),
+          builder.exp(builder.mul(builder.constant(input.dataType, -2), builder.abs(input)))),
         builder.add(
-          builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
-          builder.constant(input.dataType, 1)));
+          builder.constant(input.dataType, 1),
+          builder.exp(builder.mul(builder.constant(input.dataType, -2), builder.abs(input))))));
     }
     </pre>
   </details>
