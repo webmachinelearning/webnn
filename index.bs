@@ -1775,13 +1775,15 @@ Since the {{MLOperand/[[builder]]}} object is bound by the {{MLGraphBuilder/cons
 
 If an operation supports only a subset of {{MLOperandDataType}}s, the <dfn>allowed data types</dfn> for each of the operation's input operands, including both positional arguments and options, are given as either an explicit list of {{MLOperandDataType}}s, or a constraint that the operand's [=MLOperand/dataType=] must be the <dfn lt="same type as">same as</dfn> the [=MLOperand/dataType=] of another input operand, or <dfn lt="any data type">any</dfn> to allow any {{MLOperandDataType}}.
 
-Implementations may support fewer data types for operands than specified. This can be queried for each operation using the {{MLContext/opSupportLimits()}} method on {{MLContext}} and inspecting the {{MLTensorLimits/dataTypes}} value of the corresponding member for the operation.
+Implementations MAY support fewer data types for operands than specified, but MUST support at least the specified <dfn>required data types</dfn>. Support can be queried for each operation using the {{MLContext/opSupportLimits()}} method on {{MLContext}} and inspecting the {{MLTensorLimits/dataTypes}} value of the corresponding member for the operation across DirectML, ONNX Runtime, LiteRT, and CoreML backends in Chromium prototype now.
 
-Issue: Should we specify the subset of data types that must be supported for each operator?
+The set of [=/required data types=] has been determined based on implementation experience across a breadth of platforms to ensure that developers can produce interoperable content by designing models to only use these data types. The Web Platform Tests for this specification use this capability detection mechanism to validate correct behavior for all [=/allowed data types=] but can be passed with only support for the [=/required data types=].
 
 If an operation requires input operands with a particular [=MLOperand/rank=], the <dfn>allowed ranks</dfn> for each of the operation's input operands, including both positional arguments and options, are given as an explicit rank (e.g. 1), or <dfn lt="any rank">N</dfn> to allow any dimensionality, or the <dfn lt="same rank as">same as</dfn> another operand. More specific constraints are common, such as when an input operand's shape must be [=/unidirectionally broadcastable=] to or [=/bidirectionally broadcastable=] with another input operand; in these cases, the [=/allowed ranks=] are listed as a range, with specific validation given as steps in the operation.
 
-Implementations may impose a more restricted lower bound and/or upper bound on the [=MLOperand/rank=] of operands than specified. This can be queried for each operation using the {{MLContext/opSupportLimits()}} method on {{MLContext}} and inspecting the {{MLTensorLimits/rankRange}}.{{MLRankRange/min}} and {{MLTensorLimits/rankRange}}.{{MLRankRange/max}} values of the corresponding member for the operation.
+Implementations MAY impose a more restricted lower bound and/or upper bound on the [=MLOperand/rank=] of operands than specified, but MUST support at least the specified <dfn>required ranks</dfn>. Support can be queried for each operation using the {{MLContext/opSupportLimits()}} method on {{MLContext}} and inspecting the {{MLTensorLimits/rankRange}}.{{MLRankRange/min}} and {{MLTensorLimits/rankRange}}.{{MLRankRange/max}} values of the corresponding member for the operation across DirectML, ONNX Runtime, LiteRT, and CoreML backends in Chromium prototype now.
+
+The set of [=/required ranks=] has been determined based on implementation experience across a breadth of platforms to ensure that developers can produce interoperable content by designing models to be composed of input operands with only these ranks.
 
 {{MLOperatorOptions}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLOperatorOptions>
@@ -2257,18 +2259,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>{{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -2385,38 +2393,52 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>3 to 5</td>
   </tr>
   <tr>
     <td>{{mean}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{variance}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLBatchNormalizationOptions/scale}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLBatchNormalizationOptions/bias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>3 to 5</td>
   </tr>
 </table>
 
@@ -2523,18 +2545,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -2664,18 +2692,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -2770,18 +2804,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{inputs}}'s [=list/items=]</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{inputs}}'s [=list/items=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{inputs}}'s [=list/items=]</td>
+    <td>1 to 5</td>
   </tr>
 </table>
 
@@ -2935,27 +2975,37 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
   <tr>
     <td>{{filter}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
   <tr>
     <td>{{MLConv2dOptions/bias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
 </table>
@@ -3180,27 +3230,37 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
   <tr>
     <td>{{filter}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
   <tr>
     <td>{{MLConv2dOptions/bias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
 </table>
@@ -3324,18 +3384,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>1 to 5</td>
   </tr>
 </table>
 
@@ -3431,29 +3497,71 @@ partial dictionary MLOpSupportLimits {
         - *pow*: Compute the values of the values of the first input tensor to the power of the values of the second input tensor, element-wise.
 </div>
 
-<table id=tensor-limits-elementwise-binary class='data' link-for="MLGraphBuilder/add(a, b, options), MLGraphBuilder/sub(a, b, options), MLGraphBuilder/mul(a, b, options), MLGraphBuilder/div(a, b, options), MLGraphBuilder/max(a, b, options), MLGraphBuilder/min(a, b, options), MLGraphBuilder/pow(a, b, options)">
-  <caption>Tensor limits for element-wise binary options</caption>
+<table id=tensor-limits-elementwise-binary-add-sub-mul-div-max-min class='data' link-for="MLGraphBuilder/add(a, b, options), MLGraphBuilder/sub(a, b, options), MLGraphBuilder/mul(a, b, options), MLGraphBuilder/div(a, b, options), MLGraphBuilder/max(a, b, options), MLGraphBuilder/min(a, b, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/add()}}/{{MLGraphBuilder/sub()}}/{{MLGraphBuilder/mul()}}/{{MLGraphBuilder/div()}}/{{MLGraphBuilder/max()}}/{{MLGraphBuilder/min()}}</caption>
   <thead>
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{a}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>{{b}}</td>
     <td>[=/same type as|same as=] {{a}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{a}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+</table>
+
+<table id==tensor-limits-elementwise-binary-pow class='data' link-for="MLGraphBuilder/pow(a, b, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/pow()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
+      <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{a}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
+  </tr>
+  <tr>
+    <td>{{b}}</td>
+    <td>[=/same type as|same as=] {{a}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{a}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
   </tr>
 </table>
 
@@ -3618,32 +3726,127 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output tensor that contains the result of element-wise comparison of the two input tensors.
 </div>
 
-<table id=tensor-limits-elementwise-logical class='data' link-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/notEqual(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options), MLGraphBuilder/logicalNot(a, options), MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options), MLGraphBuilder/isNaN(a, options), MLGraphBuilder/isInfinite(a, options)">
-  <caption>Tensor limits for element-wise logical options</caption>
+<table id=tensor-limits-elementwise-logical-equal-notequal-greater-greaterorequal-lesser-lesserorequal class='data' link-for="MLGraphBuilder/equal(a, b, options), MLGraphBuilder/notEqual(a, b, options), MLGraphBuilder/greater(a, b, options), MLGraphBuilder/greaterOrEqual(a, b, options), MLGraphBuilder/lesser(a, b, options), MLGraphBuilder/lesserOrEqual(a, b, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/equal()}}/{{MLGraphBuilder/notEqual()}}/{{MLGraphBuilder/greater()}}/{{MLGraphBuilder/greaterOrEqual()}}/{{MLGraphBuilder/lesser()}}/{{MLGraphBuilder/lesserOrEqual()}}</caption>
   <thead>
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{a}}</td>
-    <td>specified as part of operation steps</td>
+    <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
   </tr>
   <tr>
     <td>{{b}}</td>
     <td>[=/same type as|same as=] {{a}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
   </tr>
 </table>
 
+<table id=tensor-limits-elementwise-logical-logicalnot class='data' link-for="MLGraphBuilder/logicalNot(a, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/logicalNot()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
+      <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{a}}</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+</table>
+
+<table id=tensor-limits-elementwise-logical-logicaland-logicalor-logicalxor class='data' link-for="MLGraphBuilder/logicalAnd(a, b, options), MLGraphBuilder/logicalOr(a, b, options), MLGraphBuilder/logicalXor(a, b, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/logicalAnd()}}/{{MLGraphBuilder/logicalOr()}}/{{MLGraphBuilder/logicalXor()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
+      <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{a}}</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
+  </tr>
+  <tr>
+    <td>{{b}}</td>
+    <td>[=/same type as|same as=] {{a}}</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
+  </tr>
+</table>
+
+<table id=tensor-limits-elementwise-logical-isnan-isinfinite class='data' link-for="MLGraphBuilder/isNaN(a, options), MLGraphBuilder/isInfinite(a, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/isNaN()}}/{{MLGraphBuilder/isInfinite()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
+      <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{a}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
+  </tr>
+</table>
 
 {{MLLogicalNotSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLogicalNotSupportLimits>
@@ -3867,27 +4070,113 @@ partial dictionary MLOpSupportLimits {
     tensor is the same as the shape of input tensor.
 </div>
 
-<table id=tensor-limits-elementwise-unary class='data' link-for="MLGraphBuilder/abs(input, options), MLGraphBuilder/ceil(input, options), MLGraphBuilder/cos(input, options), MLGraphBuilder/erf(input, options), MLGraphBuilder/exp(input, options), MLGraphBuilder/floor(input, options), MLGraphBuilder/identity(input, options), MLGraphBuilder/log(input, options), MLGraphBuilder/neg(input, options), MLGraphBuilder/reciprocal(input, options), MLGraphBuilder/roundEven(input, options), MLGraphBuilder/sin(input, options), MLGraphBuilder/sign(input, options), MLGraphBuilder/sqrt(input, options), MLGraphBuilder/tan(input, options)">
-  <caption>Tensor limits for element-wise unary options</caption>
+<table id=tensor-limits-elementwise-unary-abs-neg class='data' link-for="MLGraphBuilder/abs(input, options), MLGraphBuilder/neg(input, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/abs()}}/{{MLGraphBuilder/neg()}}</caption>
   <thead>
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>specified as part of operation steps</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
+<table id=tensor-limits-elementwise-unary-ceil-cos-erf-exp-floor-log-reciprocal-roundeven-sin-sqrt-tan class='data' link-for="MLGraphBuilder/ceil(input, options), MLGraphBuilder/cos(input, options), MLGraphBuilder/erf(input, options), MLGraphBuilder/exp(input, options), MLGraphBuilder/floor(input, options), MLGraphBuilder/log(input, options), MLGraphBuilder/reciprocal(input, options), MLGraphBuilder/roundEven(input, options), MLGraphBuilder/sin(input, options), MLGraphBuilder/sqrt(input, options), MLGraphBuilder/tan(input, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/ceil()}}/{{MLGraphBuilder/cos()}}/{{MLGraphBuilder/erf()}}/{{MLGraphBuilder/exp()}}/{{MLGraphBuilder/floor()}}/{{MLGraphBuilder/log()}}/{{MLGraphBuilder/reciprocal()}}/{{MLGraphBuilder/roundEven()}}/{{MLGraphBuilder/sin()}}/{{MLGraphBuilder/sqrt()}}/{{MLGraphBuilder/tan()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
+      <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
+  </tr>
+</table>
+
+<table id=tensor-limits-elementwise-unary-identity class='data' link-for="MLGraphBuilder/identity(input, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/identity()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
+      <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
+  </tr>
+</table>
+
+<table id=tensor-limits-elementwise-unary-sign class='data' link-for="MLGraphBuilder/sign(input, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/sign()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
+      <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
+  </tr>
+</table>
 
 {{MLOpSupportLimits}} has the following members for element-wise unary operations:
 <dl dfn-type=dict-member dfn-for=MLOpSupportLimits>
@@ -4129,28 +4418,38 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>{{scale}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>{{zeroPoint}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{scale}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -4303,28 +4602,38 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>{{scale}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>{{zeroPoint}}</td>
     <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{zeroPoint}}</td>
+    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -4422,18 +4731,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -4507,18 +4822,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -4597,23 +4918,31 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>{{indices}}</td>
     <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>{{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
-    <td>[=/any rank|N=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
+    <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
 </table>
 
@@ -4761,23 +5090,31 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>{{indices}}</td>
     <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>{{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>1 to 5</td>
   </tr>
 </table>
 
@@ -4924,23 +5261,31 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>{{indices}}</td>
     <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>{{MLOperandDataType/"int32"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -5116,18 +5461,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -5237,27 +5588,37 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{a}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{b}}</td>
     <td>[=/same type as|same as=] {{a}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLGemmOptions/c}}</td>
     <td>[=/same type as|same as=] {{a}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>0 to 2</td>
     <td>0 to 2</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{a}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
 </table>
@@ -5445,47 +5806,65 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{weight}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{recurrentWeight}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{MLGruOptions/bias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLGruOptions/recurrentBias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLGruOptions/initialHiddenState}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>*outputs[0]*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>*outputs[1]* if {{MLGruOptions/returnSequence}} is true</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
 </table>
@@ -5775,37 +6154,51 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{weight}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{recurrentWeight}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLGruCellOptions/bias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLGruCellOptions/recurrentBias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
 </table>
@@ -6022,18 +6415,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -6107,18 +6506,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -6228,27 +6633,37 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
   <tr>
     <td>{{MLInstanceNormalizationOptions/scale}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLInstanceNormalizationOptions/bias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
 </table>
@@ -6381,28 +6796,38 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>{{MLLayerNormalizationOptions/scale}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>{{MLLayerNormalizationOptions/bias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -6516,18 +6941,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -6614,18 +7045,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -6775,62 +7212,86 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{weight}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{recurrentWeight}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{MLLstmOptions/bias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLLstmOptions/recurrentBias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLLstmOptions/peepholeWeight}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLLstmOptions/initialHiddenState}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>{{MLLstmOptions/initialCellState}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>*outputs[0]*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>*outputs[1]*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>3</td>
     <td>3</td>
   </tr>
   <tr>
     <td>*outputs[2]* if {{MLLstmOptions/returnSequence}} is true</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
 </table>
@@ -7173,57 +7634,79 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{weight}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{recurrentWeight}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{hiddenState}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{cellState}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>{{MLLstmCellOptions/bias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLLstmCellOptions/recurrentBias}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>{{MLLstmCellOptions/peepholeWeight}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>1</td>
     <td>1</td>
   </tr>
   <tr>
     <td>*outputs[0]*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
   <tr>
     <td>*outputs[1]*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2</td>
     <td>2</td>
   </tr>
 </table>
@@ -7469,23 +7952,31 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{a}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>2 to [=/any rank|N=]</td>
+    <td>2 to 5</td>
   </tr>
   <tr>
     <td>{{b}}</td>
     <td>[=/same type as|same as=] {{a}}</td>
-    <td>2 or [=/any rank|N=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2 to [=/any rank|N=]</td>
+    <td>2 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{a}}</td>
-    <td>2 or [=/any rank|N=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>2 to [=/any rank|N=]</td>
+    <td>2 to 5</td>
   </tr>
 </table>
 
@@ -7582,18 +8073,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -7772,23 +8269,56 @@ partial dictionary MLOpSupportLimits {
     `output size = ceil(1 + (input size - filter size + beginning padding + ending padding) / stride)`
 </div>
 
-<table id=tensor-limits-pooling class='data' link-for="MLGraphBuilder/averagePool2d(input, options), MLGraphBuilder/l2Pool2d(input, options), MLGraphBuilder/maxPool2d(input, options)">
-  <caption>Tensor limits for pooling operations</caption>
+<table id=tensor-limits-pooling-averagepool2d-l2pool2d class='data' link-for="MLGraphBuilder/averagePool2d(input, options), MLGraphBuilder/l2Pool2d(input, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/averagePool2d()}}/{{MLGraphBuilder/l2Pool2d()}}</caption>
   <thead>
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>specified as part of operation steps</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
+    <td>4</td>
+  </tr>
+</table>
+
+<table id=tensor-limits-pooling-maxpool2d class='data' link-for="MLGraphBuilder/maxPool2d(input, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/maxPool2d()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
+      <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
+    <td>4</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
 </table>
@@ -7953,22 +8483,30 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
   <tr>
     <td>{{slope}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 4</td>
   </tr>
 </table>
 
@@ -8084,24 +8622,111 @@ partial dictionary MLOpSupportLimits {
     **Returns:** an {{MLOperand}}. The output N-D tensor of [=MLOperand/rank=] in the range 0 to {{MLGraphBuilder/reduceL1(input, options)/input}}'s [=MLOperand/rank=], inclusive, depending on {{MLReduceOptions/axes}} and {{MLReduceOptions/keepDimensions}}. If the input operand is a scalar, the reduction function is applied to the scalar value, and the output is also a scalar.
 </div>
 
-<table id=tensor-limits-reduction class='data' link-for="MLGraphBuilder/reduceL1(input, options), MLGraphBuilder/reduceL2(input, options), MLGraphBuilder/reduceLogSum(input, options), MLGraphBuilder/reduceLogSumExp(input, options), MLGraphBuilder/reduceMax(input, options), MLGraphBuilder/reduceMean(input, options), MLGraphBuilder/reduceMin(input, options), MLGraphBuilder/reduceProduct(input, options), MLGraphBuilder/reduceSum(input, options), MLGraphBuilder/reduceSumSquare(input, options)">
-  <caption>Tensor limits for reduction-operations</caption>
+<table id=tensor-limits-reduction-reducel1-reducesum-reducesumsquare class='data' link-for="MLGraphBuilder/reduceL1(input, options), MLGraphBuilder/reduceSum(input, options), MLGraphBuilder/reduceSumSquare(input, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/reduceL1()}}/{{MLGraphBuilder/reduceSum()}}/{{MLGraphBuilder/reduceSumSquare()}}</caption>
   <thead>
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>specified as part of operation steps</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+</table>
+
+<table id=tensor-limits-reduction-reducel2-reducelogsum-reducelogsumexp-reducemean class='data' link-for="MLGraphBuilder/reduceL2(input, options), MLGraphBuilder/reduceLogSum(input, options), MLGraphBuilder/reduceLogSumExp(input, options), MLGraphBuilder/reduceMean(input, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/reduceL2()}}/{{MLGraphBuilder/reduceLogSum()}}/{{MLGraphBuilder/reduceLogSumExp()}}/{{MLGraphBuilder/reduceMean()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
+      <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+</table>
+
+<table id=tensor-limits-reduction-reducemax-reducemin class='data' link-for="MLGraphBuilder/reduceMax(input, options), MLGraphBuilder/reduceMin(input, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/reduceMax()}}/{{MLGraphBuilder/reduceMin()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
+      <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+</table>
+
+<table id=tensor-limits-reduction-reduceproduct class='data' link-for="MLGraphBuilder/reduceProduct(input, options)">
+  <caption>Tensor limits for {{MLGraphBuilder/reduceProduct()}}</caption>
+  <thead>
+    <tr>
+      <th>operand</th>
+      <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
+      <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
+    </tr>
+  </thead>
+  <tr>
+    <td>{{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
+  </tr>
+  <tr>
+    <td>*output*</td>
+    <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -8308,18 +8933,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -8459,17 +9090,23 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>4</td>
     <td>4</td>
   </tr>
 </table>
@@ -8570,18 +9207,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -8653,18 +9296,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -8743,28 +9392,38 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>{{indices}}</td>
     <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>{{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>{{updates}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>1 to 5</td>
   </tr>
 </table>
 
@@ -8956,28 +9615,38 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>{{indices}}</td>
     <td>{{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}</td>
+    <td>{{MLOperandDataType/"int32"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>{{updates}}</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
 </table>
 
@@ -9161,18 +9830,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -9260,18 +9935,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint8"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -9350,18 +10031,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>1 to 5</td>
   </tr>
 </table>
 
@@ -9438,18 +10125,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -9531,18 +10224,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -9614,18 +10313,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>1 to [=/any rank|N=]</td>
+    <td>1 to 5</td>
   </tr>
   <tr>
     <td>*outputs*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>1 to 5</td>
   </tr>
 </table>
 
@@ -9730,18 +10435,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -9816,18 +10527,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -9901,18 +10618,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
@@ -9984,18 +10707,24 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{input}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>2 to [=/any rank|N=]</td>
+    <td>2 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{input}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
+    <td>2 to 5</td>
   </tr>
 </table>
 
@@ -10124,28 +10853,38 @@ partial dictionary MLOpSupportLimits {
     <tr>
       <th>operand</th>
       <th>[=/allowed data types=]</th>
+      <th>[=/required data types=]</th>
       <th>[=/allowed ranks=]</th>
+      <th>[=/required ranks=]</th>
     </tr>
   </thead>
   <tr>
     <td>{{condition}}</td>
     <td>{{MLOperandDataType/"uint8"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>{{trueValue}}</td>
     <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>{{falseValue}}</td>
     <td>[=/same type as|same as=] {{trueValue}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
   <tr>
     <td>*output*</td>
     <td>[=/same type as|same as=] {{trueValue}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
+    <td>0 to 5</td>
   </tr>
 </table>
 
