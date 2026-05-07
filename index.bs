@@ -1711,6 +1711,10 @@ An {{MLOperandDescriptor}} |A| is <dfn for=MLOperandDescriptor>equal</dfn> to an
 A <dfn>valid dimension</dfn> is an integer greater than zero and in the range of {{long}}. Implementations may impose a smaller upper bound.
 </p>
 
+<p>
+A <dfn>valid tensor count</dfn> is an integer greater than zero and less or equal to 8192. Implementations may impose a smaller upper bound.
+</p>
+
 Issue(391): Should 0-size dimensions be supported?
 
 <details open algorithm>
@@ -2816,7 +2820,7 @@ partial dictionary MLOpSupportLimits {
   </summary>
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and any [=list/item=] in |inputs| returns false, then [=exception/throw=] a {{TypeError}}.
-    1. If |inputs| [=list/is empty=], then [=exception/throw=] a {{TypeError}}.
+    1. If |inputs| [=list/size=] is not a [=valid tensor count=], then [=exception/throw=] a {{TypeError}}.
     1. Let |first| be |inputs|[0].
     1. If |axis| is greater than or equal to |first|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |first|'s [=MLOperand/dataType=] and |first|'s [=MLOperand/shape=].
@@ -9665,10 +9669,11 @@ partial dictionary MLOpSupportLimits {
     1. Let |axis| be |options|.{{MLSplitOptions/axis}}.
     1. If |axis| is greater than or equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
     1. If |splits| is an {{unsigned long}}, then:
-        1. If |splits| is 0, then [=exception/throw=] a {{TypeError}}.
+        1. If |splits| is not a [=valid tensor count=], then [=exception/throw=] a {{TypeError}}.
         1. If |input|'s [=MLOperand/shape=][|axis|] % |splits| is not 0, then [=exception/throw=] a {{TypeError}}.
         1. Otherwise, let |splitCount| be |splits|.
     1. If |splits| is a [=sequence=]<{{unsigned long}}>, then:
+        1. If |splits| [=list/size=] is not a [=valid tensor count=], then [=exception/throw=] a {{TypeError}}.
         1. If any of its [=list/items=] is equal to 0, then [=exception/throw=] a {{TypeError}}.
 
             Issue(391): If 0-size dimensions are allowed, revise the above step.
