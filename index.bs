@@ -980,15 +980,15 @@ WorkerNavigator includes NavigatorML;
 
 ## {{ML}} interface ## {#api-ml}
 <script type=idl>
-enum MLPowerPreference {
+enum MLComputePolicy {
   "default",
   "high-performance",
-  "low-power"
+  "low-power",
+  "fallback"
 };
 
 dictionary MLContextOptions {
-  MLPowerPreference powerPreference = "default";
-  boolean accelerated = true;
+  MLComputePolicy computePolicy = "default";
 };
 
 [SecureContext, Exposed=(Window, Worker)]
@@ -1002,17 +1002,17 @@ interface ML {
 
 Note: {{MLContextOptions}} is under active development, and the design is expected to change, informed by further implementation experience and new use cases from the wider web community. The Working Group is considering additional API controls to allow the definition of a fallback device, multiple devices in a preferred order, or an exclusion of a specific device. Other considerations under discussion include error handling, ultimate fallback, and quantized operators. Feedback is welcome on any of these design considerations from web developers, library authors, OS and hardware vendors, and other stakeholders via <a href="https://github.com/webmachinelearning/webnn/labels/device%20selection">GitHub</a>. See [[#privacy]] for additional discussion of fingerprinting considerations.
 
-The <dfn dfn-for=MLContextOptions dfn-type=dict-member>powerPreference</dfn> option is an <dfn dfn-type=enum>MLPowerPreference</dfn> and indicates the application's preference as related to power consumption. It is one of the following:
-<dl dfn-for="MLPowerPreference">
+The <dfn dfn-for=MLContextOptions dfn-type=dict-member>computePolicy</dfn> option is an <dfn dfn-type=enum>MLComputePolicy</dfn> and indicates the application's policy for the compute device. The policy is designed to be extensible. While the current policy values mainly cover power consumption and performance, future extensions may introduce additional execution polices. It is one of the following:
+<dl dfn-for="MLComputePolicy">
 <dt>"<dfn enum-value>default</dfn>"</dt>
 <dd>Let the user agent select the most suitable behavior.</dd>
 <dt>"<dfn enum-value>high-performance</dfn>"</dt>
-<dd>Prioritizes execution speed over power consumption.</dd>
+<dd>Prioritizes execution speed over other considerations such as power consumption.</dd>
 <dt>"<dfn enum-value>low-power</dfn>"</dt>
 <dd>Prioritizes power consumption over other considerations such as execution speed.</dd>
+<dt>"<dfn enum-value>fallback</dfn>"</dt>
+<dd>Prioritizes wider compatibility, more predictable behavior, or improved privacy over other considerations such as execution speed.</dd>
 </dl>
-
-The <dfn dfn-for=MLContextOptions dfn-type=dict-member>accelerated</dfn> option indicates the application's preference as related to massively parallel acceleration. This option has less priority than {{MLContextOptions/powerPreference}}. When set to `true` (by default), the underlying platform will attempt to use the available massively parallel accelerators, such as a GPU or NPU, also depending on the {{MLContextOptions/powerPreference}}. When set to `false`, the application indicates it prefers CPU inference. If there is contradictory input, for instance when {{MLContextOptions/powerPreference}} is {{MLPowerPreference/"high-performance"}} and {{MLContextOptions/accelerated}} is `false`, then the implementation will choose the best available match in the underlying platform (for instance a high performance CPU mode, or will ignore {{MLContextOptions/accelerated}} as it has less priority than {{MLContextOptions/powerPreference}}).
 
 ### {{ML/createContext()}} ### {#api-ml-createcontext}
 
@@ -1030,15 +1030,12 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>accelerated</dfn> option 
     1. Let |context| be a new {{MLContext}} in |realm|.
     1. If |options| is a {{GPUDevice}} object, then:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/webgpu=]".
-        1. Set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
-        1. Set |context|.{{MLContext/[[accelerated]]}} to `true`.
+        1. Set |context|.{{MLContext/[[computePolicy]]}} to {{MLComputePolicy/"default"}}.
     1. Otherwise:
         1. Set |context|.{{MLContext/[[contextType]]}} to "[=context type/default=]".
         1. Set |context|.{{MLContext/[[lost]]}} to [=a new promise=] in |realm|.
-        1. If |options|["{{MLContextOptions/powerPreference}}"] [=map/exists=], then set |context|.{{MLContext/[[powerPreference]]}} to |options|["{{MLContextOptions/powerPreference}}"].
-        1. Otherwise, set |context|.{{MLContext/[[powerPreference]]}} to {{MLPowerPreference/"default"}}.
-        1. If |options|["{{MLContextOptions/accelerated}}"] [=map/exists=], then set |context|.{{MLContext/[[accelerated]]}} to |options|["{{MLContextOptions/accelerated}}"].
-        1. Otherwise, set |context|.{{MLContext/[[accelerated]]}} to `true`.
+        1. If |options|["{{MLContextOptions/computePolicy}}"] [=map/exists=], then set |context|.{{MLContext/[[computePolicy]]}} to |options|["{{MLContextOptions/computePolicy}}"].
+        1. Otherwise, set |context|.{{MLContext/[[computePolicy]]}} to {{MLComputePolicy/"default"}}.
     1. If the user agent cannot support |context|.{{MLContext/[[contextType]]}}, then return failure.
     1. Return |context|.
 </details>
@@ -1072,7 +1069,7 @@ The <dfn dfn-for=MLContextOptions dfn-type=dict-member>accelerated</dfn> option 
 </details>
 
 ## {{MLContext}} interface ## {#api-mlcontext}
-The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=] and {{MLPowerPreference}}.
+The {{MLContext}} interface represents a global state of neural network compute workload and execution processes. Each {{MLContext}} object has associated [=context type=] and {{MLComputePolicy}}.
 
 <script type=idl>
 typedef record<USVString, MLTensor> MLNamedTensors;
@@ -1098,7 +1095,6 @@ interface MLContext {
 
   undefined destroy();
 
-  readonly attribute boolean accelerated;
   readonly attribute Promise<MLContextLostInfo> lost;
 };
 </script>
@@ -1109,12 +1105,9 @@ interface MLContext {
     : <dfn>\[[contextType]]</dfn> of type [=context type=].
     ::
         The {{MLContext}}'s [=context type=].
-    : <dfn>\[[powerPreference]]</dfn> of type {{MLPowerPreference}}.
+    : <dfn>\[[computePolicy]]</dfn> of type {{MLComputePolicy}}.
     ::
-        The {{MLContext}}'s {{MLPowerPreference}}.
-    : <dfn>\[[accelerated]]</dfn> of type {{boolean}}.
-    ::
-        The {{MLContext}}'s processing type (CPU or massively parallel processing).
+        The {{MLContext}}'s {{MLComputePolicy}}.
     : <dfn>\[[lost]]</dfn> of type {{Promise}}<{{MLContextLostInfo}}>.
     ::
         A {{Promise}} that is resolved when the {{MLContext}}'s underlying execution device is no longer available.
@@ -1133,10 +1126,6 @@ The <dfn>context type</dfn> is the type of the execution context that manages th
 <dt>"<dfn>webgpu</dfn>"</dt>
 <dd>Context created from WebGPU device.</dd>
 </dl>
-
-<div algorithm>
-The <dfn attribute for=MLContext>accelerated</dfn> getter steps are to return [=this=].{{MLContext/[[accelerated]]}}.
-</div>
 
 <details open algorithm>
   <summary>
@@ -2210,7 +2199,7 @@ Build a composed graph up to a given output operand into a computational graph a
     1. Let |promise| be [=a new promise=] in |realm|.
     1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] |graph|.{{MLGraph/[[context]]}} [=MLContext/is lost=]:
-            1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=], as well as |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[powerPreference]]}} and |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[accelerated]]}} into an [=implementation-defined=] format which can be interpreted by the underlying platform.
+            1. Let |graphImpl| be the result of converting [=this=]'s [=MLGraphBuilder/graph=] with |operands|, |operators|, |inputs|, and |outputs|'s [=map/values=], as well as |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[computePolicy]]}} into an [=implementation-defined=] format which can be interpreted by the underlying platform.
             1. If the previous step failed, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{OperationError}}" {{DOMException}}, and abort these steps.
             1. Set |graph|.{{MLGraph/[[implementation]]}} to |graphImpl|.
             1. [=Queue an ML task=] with |global| to [=resolve=] |promise| with |graph|.
