@@ -1494,7 +1494,7 @@ Exports an [=MLTensor/is exported|exportable=] {{MLTensor}} to its associated {{
 
 While an {{MLTensor}} [=MLTensor/is exported=], the {{MLTensor/[[gpuDevice]]}} has exclusive access to the {{MLTensor}}'s contents, and any WebNN operation which depends on the {{MLTensor}} — including {{MLContext/dispatch()}}, {{MLContext/readTensor(tensor)}}, {{MLContext/readTensor(tensor, outputData)}}, and {{MLContext/writeTensor()}} — will fail.
 
-The returned {{GPUBuffer}} is created with a {{GPUBuffer/usage}} of `GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST` and a {{GPUBuffer/size}} equal to the {{MLTensor}}'s {{MLTensor/[[descriptor]]}}'s [=MLOperandDescriptor/byte length=]. When the returned {{GPUBuffer}} is destroyed, the {{MLTensor}} is [=return an exported MLTensor|returned=] to the {{MLContext}} and may be used with WebNN operations again.
+The returned {{GPUBuffer}} is created with a {{GPUBuffer/usage}} of <code>GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST</code> and a {{GPUBuffer/size}} equal to the {{MLTensor}}'s {{MLTensor/[[descriptor]]}}'s [=MLOperandDescriptor/byte length=]. When the returned {{GPUBuffer}} is destroyed, the {{MLTensor}} is [=return an exported MLTensor|returned=] to the {{MLContext}} and may be used with WebNN operations again.
 
 Note: There is no guarantee that exporting an {{MLTensor}} is zero-copy. If the memory backing the {{MLTensor}} is not accessible to the {{MLTensor/[[gpuDevice]]}}, exporting may require copying the {{MLTensor}}'s contents into the returned {{GPUBuffer}}, and copying them back once the {{GPUBuffer}} is destroyed.
 
@@ -1505,16 +1505,17 @@ Note: There is no guarantee that exporting an {{MLTensor}} is zero-copy. If the 
     1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[exportableToGPU]]}} is false, then [=exception/throw=] a {{TypeError}}.
+    1. Let |realm| be [=this=]'s [=relevant realm=].
     1. Let |gpuDevice| be |tensor|.{{MLTensor/[[gpuDevice]]}}.
     1. If |gpuDevice| is lost, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If |tensor| [=MLTensor/is exported=], then return |tensor|.{{MLTensor/[[exportedBuffer]]}}.
-    1. Let |usage| be `GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST`.
-    1. Let |buffer| be a new {{GPUBuffer}} associated with |gpuDevice| whose {{GPUBuffer/size}} is |tensor|.{{MLTensor/[[descriptor]]}}'s [=MLOperandDescriptor/byte length=] and whose {{GPUBuffer/usage}} is |usage|.
+    1. Let |usage| be <code>GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST</code>.
+    1. Let |buffer| be a new {{GPUBuffer}} in |realm| associated with |gpuDevice| whose {{GPUBuffer/size}} is |tensor|.{{MLTensor/[[descriptor]]}}'s [=MLOperandDescriptor/byte length=] and whose {{GPUBuffer/usage}} is |usage|.
     1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
         1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
             1. Ensure the contents of |buffer| reflect |tensor|.{{MLTensor/[[data]]}}.
 
-                Note: If the export is zero-copy, |buffer| and |tensor|.{{MLTensor/[[data]]}} are backed by the same memory and no copy is performed.
+                Note: If the export is zero-copy, then |buffer| and |tensor|.{{MLTensor/[[data]]}} are backed by the same memory and no copy is performed.
 
     1. Set |tensor|.{{MLTensor/[[exportedBuffer]]}} to |buffer|.
     1. Return |buffer|.
@@ -2116,7 +2117,7 @@ An {{MLTensor}} is created by its associated {{MLContext}}.
         1. Run these steps, but [=/abort when=] |tensor|.{{MLTensor/[[context]]}} [=MLContext/is lost=]:
             1. Ensure |tensor|.{{MLTensor/[[data]]}} reflects the contents of |buffer|.
 
-                Note: If the export was zero-copy, |buffer| and |tensor|.{{MLTensor/[[data]]}} are backed by the same memory and no copy is performed.
+                Note: If the export was zero-copy, then |buffer| and |tensor|.{{MLTensor/[[data]]}} are backed by the same memory and no copy is performed.
 
 </details>
 
