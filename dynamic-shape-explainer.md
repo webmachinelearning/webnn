@@ -96,7 +96,7 @@ const padded = builder.padDynamic(x, builder.constant(..., [0, 0]), builder.conc
 This motivates the **shape-as-data operators** described below.
 
 ### Getting output shapes before dispatch
-A framework such as ONNX Runtime Web partitions a model and hands WebNN a subgraph. That subgraph's output can carry a dynamic dimension that is not present on any of its inputs, it is derived inside the subgraph, and so carries a name the user agent synthesized rather than one the framework supplied. To allocate the output tensor, the framework needs the concrete output shape before it dispatches:
+A framework such as ONNX Runtime Web partitions a model and hands WebNN a subgraph. That subgraph's output can carry a dynamic dimension that is not present on any of its inputs - it is derived inside the subgraph, and so carries a name the user agent synthesized rather than one the framework supplied. To allocate the output tensor, the framework needs the concrete output shape before it dispatches:
 
 ```js
 const outShapes = await graph.computeShapes({'attention_mask': [1, 37]});
