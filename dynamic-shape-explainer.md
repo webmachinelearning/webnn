@@ -13,6 +13,10 @@
 4. [Use Cases](#use-cases)
 5. [Proposed API](#proposed-api)
 6. [Design Discussion](#design-discussion)
+    - [Dimension semantics](#dimension-semantics)
+    - [Deferred validation](#deferred-validation)
+    - [Shape computation at dispatch](#shape-computation-at-dispatch)
+    - [Backends mapping](#backends-mapping)
 7. [Considered Alternatives](#considered-alternatives)
 8. [Privacy & Security Considerations](#privacy--security-considerations)
 9. [Future Consideration](#future-consideration)
@@ -96,10 +100,10 @@ const padded = builder.padDynamic(x, builder.constant(..., [0, 0]), builder.conc
 This motivates the **shape-as-data operators** described below.
 
 ### Getting output shapes before dispatch
-A framework such as ONNX Runtime Web partitions a model and hands WebNN a subgraph. That subgraph's output can carry a dynamic dimension that is not present on any of its inputs - it is derived inside the subgraph, and so carries a name the user agent synthesized rather than one the framework supplied. To allocate the output tensor, the framework needs the concrete output shape before it dispatches:
+A framework such as ONNX Runtime Web partitions a model and hands WebNN a subgraph. That subgraph's output can carry a dynamic dimension that is not present on any of its inputs — it is derived inside the subgraph, and so carries a name the user agent synthesized rather than one the framework supplied. To allocate the output tensor, the framework needs the concrete output shape before it dispatches:
 
 ```js
-const outShapes = await graph.computeShapes({'attention_mask': [1, 37]});
+const outShapes = graph.computeShapes({'attention_mask': [1, 37]});
 // => {'output': [1, 74]}
 
 // Allocate output MLTensors of the resolved size, then dispatch.
@@ -238,7 +242,7 @@ For example, when the target shape is a runtime operand (values unknown at build
 *(Optimization: This chain may be skippable if the framework can prove the operand is already sentinel-free.)*
 
 ## Design Discussion
-This section describes the runtime behavior that gives it meaning — the two mechanisms that carry dynamism at dispatch, **shape inference** and **shape computation**, plus the dimension semantics they honor. The two are easy to confuse by name, so to be precise: *shape inference* propagates each operand's **shape** forward across the whole graph, while *shape computation* evaluates one `shape()`-rooted chain down to the concrete **integer values** a shape parameter needs.
+This section describes the runtime behavior that gives it meaning, plus the dimension semantics it honors. Two mechanisms carry dynamism at dispatch: **shape inference**, which walks the whole graph and computes each operand's *shape* ([Deferred validation](#deferred-validation)), and **shape computation**, which evaluates a single `shape()`-rooted chain to the *values* a shape parameter needs ([Shape computation at dispatch](#shape-computation-at-dispatch)). The second is a step inside the first.
 
 ### Dimension semantics
 - **Shared names are constraints.** Two dynamic dimensions with the **same name** are guaranteed to take the **same** concrete value throughout the graph (e.g. "query and key sequence lengths are equal"); the implementation enforces this across inputs and uses it to cancel dimensions in operations such as `reshape`. A name that appears only once constrains nothing. A dynamic dimension has **no min/max bound** — anything not provably static simply defers.
@@ -252,9 +256,9 @@ This section describes the runtime behavior that gives it meaning — the two me
 ### Deferred validation
 Validation splits across two phases:
 
-- **At build time**, we validate only what is knowable without concrete shapes: data-type compatibility, rank constraints (e.g. `conv2d` needs rank 4), same-name symbolic consistency, and any **definite static contradiction** (e.g. reshaping a static `[2, 3]` to `[7]`).
+- **At build time**, shapes propagate symbolically — every operand gets a shape expressed in names and static sizes — and we validate only what is knowable without concrete shapes: data-type compatibility, rank constraints (e.g. `conv2d` needs rank 4), same-name symbolic consistency, and any **definite static contradiction** (e.g. reshaping a static `[2, 3]` to `[7]`).
 
-- **At dispatch time** (and at `computeShapes()`), once concrete input shapes are known, we run **shape inference** — a forward propagation of each operand's concrete *shape* — over the whole graph, and validate the resulting concrete shapes against every constraint, including buffer sizes.
+- **At dispatch time** (and at `computeShapes()`), once concrete input shapes are known, we run **shape inference**: the same forward propagation, now carrying each operand's concrete *shape* across the whole graph. We then validate the resulting concrete shapes against every constraint, including buffer sizes.
 
 Deferring this work is the inherent trade-off of dynamic shapes: the shape resolution and validation a static graph completes once at build time now runs at inference time — as a gatekeeper on every `dispatch`, before the graph executes. This adds per-inference overhead, so a user agent should optimize the common cases: because the result is a pure function of the input shapes, it can skip re-validation when a dispatch repeats a set of input shapes it has already validated.
 
@@ -272,7 +276,7 @@ bool DimensionsAreDefinitelyUnequal(Dimension a, Dimension b) {
 The same predicate is applied uniformly across operators that impose cross-dimension constraints, e.g. `matmul`'s contraction dimension, concat's non-concatenated axes, `reshape`'s element-count product, broadcasting, and so on.
 
 ### Shape computation at dispatch
-*Shape computation* is the dispatch-time evaluation of a `shape()`-rooted chain down to the concrete values a shape parameter needs. It is the value-computing counterpart to *shape inference* ([Deferred validation](#deferred-validation)), which propagates operand shapes across the whole graph.
+*Shape computation* is performed by a **shape interpreter** in the user agent, which evaluates a `shape()`-rooted chain down to the concrete integer values a shape parameter needs. Shape inference ([Deferred validation](#deferred-validation)) invokes it at dispatch each time it reaches a `*Dynamic` operator, and uses the values it returns as that operator's output shape.
 
 There is no blessed list of operators that may appear on a shape chain. In principle any operator can compute a shape — `matmul` reducing two 1-D vectors to an element count is a legitimate, if unusual, way to do it.
 
@@ -288,9 +292,9 @@ const newShape = builder.concat([batchSeq, heads], 0);    // [1, seqlen, 8, 64]
 const y = builder.reshapeDynamic(x, newShape);            // y: [1, 'seqlen', 8, 64]
 ```
 
-At dispatch with `seqlen = 37`, shape computation walks the `newShape` chain: `shape(x) `→` [1, 37, 512], slice `→` [1, 37], concat([1, 37], [8, 64]) `→` [1, 37, 8, 64]`. That computed value becomes reshapeDynamic's inferred output shape, `[1, 37, 8, 64]`. Note what it read: `x`'s **shape** and the **constant** `[8, 64]` — never `x`'s data.
+At dispatch with `seqlen = 37`, the interpreter walks the `newShape` chain: `shape(x) `→` [1, 37, 512], slice `→` [1, 37], concat([1, 37], [8, 64]) `→` [1, 37, 8, 64]`. That computed value becomes reshapeDynamic's inferred output shape, `[1, 37, 8, 64]`. Note what it read: `x`'s **shape** and the **constant** `[8, 64]` — never `x`'s data.
 
-What shape computation may read is bounded not by the operators on the chain but by its **root**: `shape()` outputs and build-time constants only. A chain that reaches an input's tensor **data** is unresolvable by design and is rejected — the out-of-scope [Tensor-Derived](#open-questions) case.
+What the interpreter may read is bounded not by the operators on the chain but by its **root**: `shape()` outputs and build-time constants only. A chain that reaches an input's tensor **data** is unresolvable by design and is rejected — the out-of-scope [Tensor-Derived](#open-questions) case.
 
 ### Backends mapping
 The dimension model maps cleanly onto all three backends, as shown below. The **shape-as-data operator family** is currently implemented only on the ORT backend.
@@ -346,23 +350,23 @@ Dynamic shapes add no new fingerprinting or cross-origin surface: they expose no
 
 The renderer is untrusted, so the service must remain safe on any graph a compromised renderer can construct, including ill-formed dynamic graphs:
 
-- **No dereference of an absent rank.** Unranked operands (e.g. from a no-axes squeeze) are handled uniformly by each shared validator — propagate, resolve, or cleanly reject — and unranked *graph inputs* are rejected at build time (a graph input always has a known rank). A dispatch-time exit gate fails cleanly if any operand is still unranked after inference, so no unranked operand ever reaches a backend.
+- **No dereference of an absent rank.** Unranked operands (e.g. from a no-axes squeeze) are handled uniformly by each shared validator — propagate, resolve, or cleanly reject — and unranked *graph inputs* are rejected at build time (a graph input always has a known rank). A dispatch-time exit gate fails cleanly if any operand is still unranked after shape inference, so no unranked operand ever reaches a backend.
 
 - **Shape computation never reads input data**, as described above, which also bounds what a graph can make the interpreter do.
 
-- **Bounded constant collection.** The interpreter seeds only from the shape operands of the dynamic operators and walks back along the shape-computation chain, copying only the constants actually on that chain (and skipping oversized constants). Weight tensors are never on a shape chain and are not copied, bounding both memory and shape-computation work (a DoS/OOM guard).
+- **Bounded constant collection.** The constants that the interpreter may need are gathered ahead of time: the collector seeds from the shape operands of the dynamic operators, walks back along the chain, and copies only the constants it finds there. Current weight tensors are not on a shape chain and are not copied, which keeps the memory and work involved independent of the model's size (a DoS/OOM guard).
 
 ## Future Consideration
 
 ### Bounded (min/max) dimensions
 Currently, the proposed model is intentionally unbounded; a dynamic dimension is either provably static or deferred without a specific size range. As a future enhancement, we plan to allow dynamic dimensions to optionally declare a `minSize` and `maxSize` bound (and potentially an "optimal" size). For example: `{name: 'seqlen', minSize: 1, maxSize: 2048}`.
 
-Rather than introducing a new source of dynamism, these bounds will serve as critical implementation hints to underlying runtimes, unlocking ahead-of-time memory allocations and graph optimizations that an unbounded model cannot achieve. Some runtime already accepts a constraint of this shape and acts on it. TensorRT's optimization profiles (min / opt / max), Core ML's `RangeDim`, and OpenVINO's bounded partial shapes, so the hint has somewhere to go rather than terminating in the user agent.
+Rather than introducing a new source of dynamism, these bounds will serve as critical implementation hints to underlying runtimes, unlocking ahead-of-time memory allocations and graph optimizations that an unbounded model cannot achieve. Several runtimes already accept a constraint of this shape and act on it — TensorRT's optimization profiles (min / opt / max), Core ML's `RangeDim`, and OpenVINO's bounded partial shapes — so the hint has somewhere to go rather than terminating in the user agent.
 
 ### Shape specialization and preparation
-Knowing the shapes is not the same as being ready to run them: a backend may still have to plan memory, select kernels, or recompile. What that costs varies a great deal between runtimes (some absorb a shape change almost for free), while others may re-compile the graph. So on some backends a caller that changes shape often pays a real price.
+Knowing the shapes is not the same as being ready to run them: a backend may still have to plan memory, select kernels, or recompile. What that costs varies a great deal between runtimes: some absorb a shape change almost for free, while others re-compile the graph. So on some backends a caller that changes shape often pays a real price.
 
-`computeShapes()` gives an implementation a natural place to do that preparation, since the caller has just named the shapes it is about to run. That helps when a shape is then reused, but not when a caller keeps switching between shapes, and a user agent cannot tell which of them are worth keeping ready. One direction worth exploring is to let the caller say so: build with difference input sizes returning several `MLGraph`s, each bound to a set of concrete shapes and all sharing one copy of the weights.
+`computeShapes()` gives an implementation a natural place to do that preparation, since the caller has just named the shapes it is about to run. That helps when a shape is then reused, but not when a caller keeps switching between shapes, and a user agent cannot tell which of them are worth keeping ready. One direction worth exploring is to let the caller say so: build with different input sizes returning several `MLGraph`s, each bound to a set of concrete shapes and all sharing one copy of the weights.
 
 ### Fine-grained Shape Queries
 Currently, the `shape()` operator returns an operand's entire shape as a 1D tensor. To provide more fine-grained shape retrieval, we may consider introducing two additional operators:
