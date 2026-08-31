@@ -242,7 +242,11 @@ For example, when the target shape is a runtime operand (values unknown at build
 *(Optimization: This chain may be skippable if the framework can prove the operand is already sentinel-free.)*
 
 ## Design Discussion
-This section describes the runtime behavior that gives it meaning, plus the dimension semantics it honors. Two mechanisms carry dynamism at dispatch: **shape inference**, which walks the whole graph and computes each operand's *shape* ([Deferred validation](#deferred-validation)), and **shape computation**, which evaluates a single `shape()`-rooted chain to the *values* a shape parameter needs ([Shape computation at dispatch](#shape-computation-at-dispatch)). The second is a step inside the first.
+This section describes the runtime behavior that gives it meaning, plus the dimension semantics it honors. Two mechanisms carry dynamism at dispatch:
+
+`Shape Inference` is the whole-graph pass: it computes each operand's shape, over symbolic dimensions at build time and over concrete ones at dispatch.
+
+`Shape Computation` isn't a superset of it — it's a step inside it, and it computes a different kind of thing. When inference reaches reshapeDynamic(x, newShape), newShape's own shape (a 1-D tensor of length 4, say) tells it nothing about the output; it needs newShape's values. So inference pauses, evaluates the chain that produces newShape down to concrete integers, and resumes with that as the output shape. Whole graph vs. one chain and inference is the caller.
 
 ### Dimension semantics
 - **Shared names are constraints.** Two dynamic dimensions with the **same name** are guaranteed to take the **same** concrete value throughout the graph (e.g. "query and key sequence lengths are equal"); the implementation enforces this across inputs and uses it to cancel dimensions in operations such as `reshape`. A name that appears only once constrains nothing. A dynamic dimension has **no min/max bound** — anything not provably static simply defers.
