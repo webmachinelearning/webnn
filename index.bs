@@ -1317,6 +1317,7 @@ Creates an {{MLTensor}} associated with this {{MLContext}} which may be exported
     1. Let |global| be [=this=]'s [=relevant global object=].
     1. Let |realm| be [=this=]'s [=relevant realm=].
     1. If [=this=] [=MLContext/is lost=], then return [=a new promise=] in |realm| [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
+    1. If |gpuDevice| is lost, then return [=a new promise=] in |realm| [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=this=] cannot support exporting an {{MLTensor}} to |gpuDevice|, then return [=a new promise=] in |realm| [=rejected=] with a "{{NotSupportedError}}" {{DOMException}}.
 
         Note: Whether an {{MLContext}} supports exporting to a given {{GPUDevice}} is [=implementation-defined=], and may depend on the {{MLContext}}'s [=context type=] and the underlying platform.
@@ -1524,6 +1525,8 @@ Note: There is no guarantee that exporting an {{MLTensor}} is zero-copy. If the 
 When the {{GPUBuffer}} returned by {{MLContext/exportToGPU()}} is destroyed, the user agent MUST [=return an exported MLTensor=] given the {{MLTensor}} it was exported from.
 
 Note: Destroying the {{MLTensor}} or its {{MLContext}} while it [=MLTensor/is exported=] does not invalidate the returned {{GPUBuffer}}; the {{GPUBuffer}} remains usable by the {{MLTensor/[[gpuDevice]]}} until it is destroyed.
+
+Note: If the {{MLTensor/[[gpuDevice]]}} becomes lost while the {{MLTensor}} [=MLTensor/is exported=], the returned {{GPUBuffer}} is not implicitly destroyed, and the {{MLTensor}} remains [=MLTensor/is exported|exported=] (and therefore unusable by WebNN operations) until the application calls {{GPUBuffer/destroy()}}, which remains valid to call even after |gpuDevice| is lost.
 
 #### Example #### {#api-mlcontext-exporttogpu-example}
 <div class="example">
