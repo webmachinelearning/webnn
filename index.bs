@@ -1522,6 +1522,10 @@ Note: There is no guarantee that exporting an {{MLTensor}} is zero-copy. If the 
     1. Return |buffer|.
 </details>
 
+The user agent MUST ensure that no operation enqueued to |gpuDevice|'s {{GPUQueue}} which reads from or writes to |buffer| executes before the steps enqueued above to ensure the contents of |buffer| reflect |tensor|.{{MLTensor/[[data]]}} have completed.
+
+Note: This ordering guarantee is internal to the user agent; it does not require any observable synchronization on the part of the application. An application may safely record and submit {{GPUQueue}} work using |buffer| immediately after {{MLContext/exportToGPU()}} returns.
+
 When the {{GPUBuffer}} returned by {{MLContext/exportToGPU()}} is destroyed, the user agent MUST [=return an exported MLTensor=] given the {{MLTensor}} it was exported from.
 
 Note: Destroying the {{MLTensor}} or its {{MLContext}} while it [=MLTensor/is exported=] does not invalidate the returned {{GPUBuffer}}; the {{GPUBuffer}} remains usable by the {{MLTensor/[[gpuDevice]]}} until it is destroyed.
@@ -2123,6 +2127,8 @@ An {{MLTensor}} is created by its associated {{MLContext}}.
                 Note: If the export was zero-copy, then |buffer| and |tensor|.{{MLTensor/[[data]]}} are backed by the same memory and no copy is performed.
 
 </details>
+
+The user agent MUST ensure that the enqueued steps above to ensure |tensor|.{{MLTensor/[[data]]}} reflects the contents of |buffer| do not execute before all operations previously enqueued to |gpuDevice|'s {{GPUQueue}} which read from or write to |buffer| have completed.
 
 ### {{MLTensor/destroy()}} ### {#api-mltensor-destroy}
 
