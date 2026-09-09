@@ -155,7 +155,7 @@ dictionary MLOperandDescriptor {
 ```
 
 ### 2. `computeShapes()`
-`computeShapes()` runs the same shape inference and shape computation as dispatch, but early and without executing the graph, returning the concrete output shape for each output given concrete input shapes:
+`computeShapes()` runs the same shape inference and shape computation as dispatch, but early and without executing the graph: one forward pass over the graph resolves every operand, and it returns the concrete shape of each output for the given input shapes:
 
 ```webidl
 partial interface MLGraph {
@@ -164,9 +164,9 @@ partial interface MLGraph {
 };
 ```
 
-The programming model becomes **build → (optionally) computeShapes → dispatch**.
+The programming model becomes **build → (optionally) computeShapes → dispatch**. `dispatch()` resolves shapes itself regardless: `computeShapes()` is optional, and the tensors actually bound at dispatch may differ from the shapes it was asked about. Because the result is a pure function of the input shapes, an implementation can cache it, so a repeat is a lookup rather than a second pass.
 
-This method enables frameworks to determine the output tensor sizes for dynamic subgraphs whose shapes are difficult to infer. Exposing it reduces redundant computation overhead, and it gives an implementation an opportunity to prepare for the dispatch that follows — see [Shape specialization and preparation](#shape-specialization-and-preparation).
+Frameworks need this because `dispatch()` takes caller-allocated output tensors: the output shape has to be known *before* the call, not during it. Without `computeShapes()`, a framework would have to reimplement WebNN's shape inference just to size those allocations — and for a subgraph whose dynamic dimensions are derived internally, that means reproducing the whole shape chain. The method exposes the resolution that `dispatch()` performs anyway, early enough to be useful, and it gives an implementation an opportunity to prepare for a dispatch that may follow — see [Shape specialization and preparation](#shape-specialization-and-preparation).
 
 ### 3. Shape-as-data operators
 Threading a dynamic input dimension through the graph is not sufficient on its own; real models compute with shapes. This proposal adds a family of operators that treat a shape as a runtime tensor, plus dynamic variants of existing operators that take their shape parameters as **operands** rather than build-time attributes.
@@ -264,7 +264,7 @@ Validation splits across two phases:
 
 - **At dispatch time** (and at `computeShapes()`), once concrete input shapes are known, we run **shape inference**: the same forward propagation, now carrying each operand's concrete *shape* across the whole graph. We then validate the resulting concrete shapes against every constraint, including buffer sizes.
 
-Deferring this work is the inherent trade-off of dynamic shapes: the shape resolution and validation a static graph completes once at build time now runs at inference time — as a gatekeeper on every `dispatch`, before the graph executes. This adds per-inference overhead, so a user agent should optimize the common cases: because the result is a pure function of the input shapes, it can skip re-validation when a dispatch repeats a set of input shapes it has already validated.
+Some deferral is inherent: a constraint whose truth depends on a concrete value cannot be settled before that value exists. How *much* is deferred is a design choice, and this proposal defers nearly all of it — a dynamic dimension is an opaque name rather than a symbolic expression, so build time can only reject contradictions provable between names ([Symbolic shape expressions](#symbolic-shape-expressions) covers the alternative). So the shape resolution and validation a static graph completes once at build time now runs at inference time — as a gatekeeper on every `dispatch`, before the graph executes. This adds per-inference overhead, so a user agent should optimize the common cases: because the result is a pure function of the input shapes, it can skip re-validation when a dispatch repeats a set of input shapes it has already validated.
 
 The build-time checks are expressed as **three-valued** dimension predicates. Instead of "equal / not-equal", a comparison is *provably-equal*, *provably-unequal*, or *unknown (defer)*. Only a provable contradiction is rejected at build time:
 
@@ -349,8 +349,21 @@ The first cut loosened each operator's build-time validator independently to tol
 ### Bespoke dynamic operators
 We considered giving each `*Dynamic` operator a shape signature tailored to its most common use, rather than mirroring the static operator. We rejected it for the reasons in [Shape-as-data operators](#3-shape-as-data-operators): faithful mirroring keeps the mental model small and lets the static operators stay static-input-only.
 
+### Symbolic shape expressions
+A stronger alternative is to carry a symbolic *expression* for every dimension rather than an opaque name, so that build time can prove or refute a graph's shape constraints, report the constraints a model actually requires (divisibility, bounds), and reduce `computeShapes()` to substitution. TensorRT and NNEF's SkriptND both work this way.
+
+We start with opaque names for three reasons. Shape-as-data operators put some shapes beyond any closed-form expression: a target shape is a runtime operand produced by an arbitrary chain, including data-dependent selection such as the `where` used to lower ONNX's `-1`, and a no-axes `squeeze` leaves even the rank data-dependent — so symbolic inference could cover a large subset of graphs but could not replace the dispatch-time gate. Backends cannot consume expressions either: ONNX takes a `dim_param` string, LiteRT a `-1`, Core ML a `RangeDim`, so expressions would remain a user-agent-internal enrichment. And because the graph comes from an untrusted renderer, build-time proving is attacker-influenced work in a privileged process; bounding it by wall-clock time would make build outcomes machine-dependent, so a deterministic budget on expression size and depth would be needed instead.
+
+Expressions stay attractive as a later, additive layer — for diagnostics and for earlier rejection — and pair naturally with [Bounded (min/max) dimensions](#bounded-minmax-dimensions), which supply the input constraints most build-time proofs need.
+
 ## Privacy & Security Considerations
-Dynamic shapes add no new fingerprinting or cross-origin surface: they expose no device or environment information a static graph does not, and shape computation and inference read only shapes the page itself supplied. The synthesized names for derived dimensions are newly observable output, but they are derived from the graph the page itself constructed (operation type, index, and axis) and carry nothing about the device or the environment; they are also explicitly unstable and not part of the API contract, so nothing may be inferred from a change in one. The considerations below are therefore about security.
+Dynamic shapes add no new **declarative** fingerprinting or cross-origin surface: no value the API returns carries device or environment information a static graph does not, and shape computation and inference read only shapes the page itself supplied. The synthesized names for derived dimensions are newly observable output, but they are derived from the graph the page itself constructed (operation type, index, and axis) and carry nothing about the device or the environment; they are also explicitly unstable and not part of the API contract, so nothing may be inferred from a change in one.
+
+They do widen an existing **timing** surface. Because one graph now serves many shapes, a page can dispatch it over a swept range of shapes and time each one, observing a cost *curve* where a static graph exposes only the single duration of its `build()`. Discontinuities in that curve — an alignment or tiling threshold, or a shape that falls back to a slower path — can suggest the backend in use or the class of hardware behind it. This is the same class of signal as the compilation timing already observable from `build()`, and from shader compilation in other web APIs, though on a device where WebNN reaches an accelerator no other web API exposes it is a residual signal rather than a duplicate of one. It cannot be fully mitigated in an API whose purpose is to run computation on device-specific accelerators: constant-time execution across shapes is not a realistic option.
+
+Two things bound it. The work WebNN itself adds at dispatch — shape inference and validation — is data-independent, and its result is cached per set of input shapes, so a repeated shape costs the same; the variable part is the backend's own re-specialization, which the underlying runtime performs with or without WebNN. And explicit specialization ([Shape specialization and preparation](#shape-specialization-and-preparation)) would attribute that cost to a step the caller asked for, rather than leaving it implicit at dispatch.
+
+The considerations below are therefore about security.
 
 The renderer is untrusted, so the service must remain safe on any graph a compromised renderer can construct, including ill-formed dynamic graphs:
 
@@ -370,7 +383,7 @@ Rather than introducing a new source of dynamism, these bounds will serve as cri
 ### Shape specialization and preparation
 Knowing the shapes is not the same as being ready to run them: a backend may still have to plan memory, select kernels, or recompile. What that costs varies a great deal between runtimes: some absorb a shape change almost for free, while others re-compile the graph. So on some backends a caller that changes shape often pays a real price.
 
-`computeShapes()` gives an implementation a natural place to do that preparation, since the caller has just named the shapes it is about to run. That helps when a shape is then reused, but not when a caller keeps switching between shapes, and a user agent cannot tell which of them are worth keeping ready. One direction worth exploring is to let the caller say so: build with different input sizes returning several `MLGraph`s, each bound to a set of concrete shapes and all sharing one copy of the weights.
+`computeShapes()` gives an implementation a natural place to do that preparation, since the caller has just named a set of concrete shapes. How good a predictor that is depends on why it was called: a framework sizing output tensors for a dispatch it is about to make is one thing, a caller comparing candidate output shapes and running none of them is another, and an implementation cannot distinguish them. The call is also synchronous, which bounds what it can reasonably do there. Even where preparation is warranted it pays off only if the shape is reused, and a user agent has no way to know which shapes are worth keeping ready. One direction worth exploring is to let the caller say so: build with different input sizes returning several `MLGraph`s, each bound to a set of concrete shapes and all sharing one copy of the weights.
 
 ### Fine-grained Shape Queries
 Currently, the `shape()` operator returns an operand's entire shape as a 1D tensor. To provide more fine-grained shape retrieval, we may consider introducing two additional operators:
