@@ -1089,6 +1089,8 @@ interface MLContext {
   undefined dispatch(MLGraph graph, MLNamedTensors inputs, MLNamedTensors outputs);
 
   Promise<MLTensor> createTensor(MLTensorDescriptor descriptor);
+  Promise<MLTensor> createExportableTensor(
+    MLTensorDescriptor descriptor, GPUDevice gpuDevice);
   Promise<MLTensor> createConstantTensor(
     MLOperandDescriptor descriptor, AllowSharedBufferSource inputData);
 
@@ -1096,6 +1098,8 @@ interface MLContext {
   Promise<undefined> readTensor(MLTensor tensor, AllowSharedBufferSource outputData);
 
   undefined writeTensor(MLTensor tensor, AllowSharedBufferSource inputData);
+
+  GPUBuffer exportToGPU(MLTensor tensor);
 
   MLOpSupportLimits opSupportLimits();
 
@@ -1201,6 +1205,7 @@ Note: `dispatch()` itself provides no signal that graph execution has completed.
     1. [=list/For each=] |tensor| of |allTensors|:
         1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
         1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
+        1. If |tensor| [=MLTensor/is exported=], then [=exception/throw=] a {{TypeError}}.
     1. If [=validating tensors with descriptors=] given |inputs| and |graph|.{{MLGraph/[[inputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. If [=validating tensors with descriptors=] given |outputs| and |graph|.{{MLGraph/[[outputDescriptors]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. Enqueue the following steps to |graph|.{{MLGraph/[[context]]}}.{{MLContext/[[timeline]]}}:
@@ -1296,6 +1301,41 @@ Creates an {{MLTensor}} associated with this {{MLContext}}.
     1. Return |promise|.
 </details>
 
+### {{MLContext/createExportableTensor()}}  ### {#api-mlcontext-createexportabletensor}
+
+Creates an {{MLTensor}} associated with this {{MLContext}} which may be exported to the given {{GPUDevice}} using {{MLContext/exportToGPU()}}.
+
+<div dfn-for="MLContext/createExportableTensor(descriptor, gpuDevice)" dfn-type=argument>
+    **Arguments:**
+      - <dfn>descriptor</dfn>: an {{MLTensorDescriptor}}.
+      - <dfn>gpuDevice</dfn>: a {{GPUDevice}}. The device to which the tensor may be exported.
+
+    **Returns:** {{Promise}}<{{MLTensor}}>.
+</div>
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLContext>createExportableTensor(|descriptor|, |gpuDevice|)</dfn> method steps are:
+  </summary>
+    1. Let |global| be [=this=]'s [=relevant global object=].
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. If [=this=] [=MLContext/is lost=], then return [=a new promise=] in |realm| [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
+    1. If |gpuDevice| is lost, then return [=a new promise=] in |realm| [=rejected=] with an "{{InvalidStateError}}" {{DOMException}}.
+    1. If [=this=] cannot support exporting an {{MLTensor}} to |gpuDevice|, then return [=a new promise=] in |realm| [=rejected=] with a "{{NotSupportedError}}" {{DOMException}}.
+
+        Note: Whether an {{MLContext}} supports exporting to a given {{GPUDevice}} is [=implementation-defined=], and may depend on the {{MLContext}}'s [=context type=] and the underlying platform.
+
+    1. Let |tensor| be the result of [=creating an exportable MLTensor=] given [=this=], |descriptor|, and |gpuDevice|.
+    1. Let |promise| be [=a new promise=] in |realm|.
+    1. Enqueue the following steps to [=this=].{{MLContext/[[timeline]]}}:
+        1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
+            1. Create |tensor|.{{MLTensor/[[data]]}} given |descriptor| and initialize all bytes to zeros.
+            1. If that fails, then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{UnknownError}}" {{DOMException}}, and abort these steps.
+            1. Otherwise, [=queue an ML task=] with |global| to [=resolve=] |promise| with |tensor|.
+        1. [=/If aborted=], then [=queue an ML task=] with |global| to [=reject=] |promise| with an "{{InvalidStateError}}" {{DOMException}}.
+    1. Return |promise|.
+</details>
+
 ### {{MLContext/createConstantTensor()}}  ### {#api-mlcontext-createconstanttensor}
 
 Creates a constant {{MLTensor}} associated with this {{MLContext}}.
@@ -1352,6 +1392,7 @@ Reads back the {{MLTensor/[[data]]}} of an {{MLTensor}} from the {{MLContext}}.{
     1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If |tensor| [=MLTensor/is exported=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. Let |promise| be [=a new promise=] in |realm|.
     1. [=set/Append=] |promise| to |tensor|.{{MLTensor/[[pendingPromises]]}}.
     1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
@@ -1389,6 +1430,7 @@ Bring-your-own-buffer variant of {{MLContext/readTensor(tensor)}}. Reads back th
     1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/readable}} is false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
+    1. If |tensor| [=MLTensor/is exported=], then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |outputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then return [=a new promise=] in |realm| [=rejected=] with a {{TypeError}}.
     1. Let |promise| be [=a new promise=] in |realm|.
     1. [=set/Append=] |promise| to |tensor|.{{MLTensor/[[pendingPromises]]}}.
@@ -1429,6 +1471,7 @@ Writes data to the {{MLTensor/[[data]]}} of an {{MLTensor}} on the {{MLContext}}
     1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
     1. If |tensor|.{{MLTensor/[[descriptor]]}}.{{MLTensorDescriptor/writable}} is false, then [=exception/throw=] a {{TypeError}}.
+    1. If |tensor| [=MLTensor/is exported=], then [=exception/throw=] a {{TypeError}}.
     1. If [=validating buffer with descriptor=] given |inputData| and |tensor|.{{MLTensor/[[descriptor]]}} returns false, then [=exception/throw=] a {{TypeError}}.
     1. Let |bytes| be the result of [=getting a copy of the bytes held by the buffer source=] given |inputData|.
     1. [=Assert=]: |bytes|'s [=byte sequence/length=] is equal to |tensor|.{{MLTensor/[[descriptor]]}}'s [=MLOperandDescriptor/byte length=].
@@ -1441,6 +1484,96 @@ Writes data to the {{MLTensor/[[data]]}} of an {{MLTensor}} on the {{MLContext}}
 </details>
 
 Note: Similar to `dispatch()`, `writeTensor()` itself provides no signal that the write has completed. To inspect the contents of a tensor, callers can `await` the results of reading back the tensor.
+
+### {{MLContext/exportToGPU()}}  ### {#api-mlcontext-exporttogpu}
+
+Exports an [=MLTensor/is exported|exportable=] {{MLTensor}} to its associated {{GPUDevice}} as a {{GPUBuffer}}, and rents it to that {{GPUDevice}} until the returned {{GPUBuffer}} is destroyed.
+
+<div dfn-for="MLContext/exportToGPU(tensor)" dfn-type=argument>
+    **Arguments:**
+      - <dfn>tensor</dfn>: an {{MLTensor}}. The tensor to export.
+
+    **Returns:** a {{GPUBuffer}}.
+</div>
+
+While an {{MLTensor}} [=MLTensor/is exported=], the {{MLTensor/[[gpuDevice]]}} has exclusive access to the {{MLTensor}}'s contents, and any WebNN operation which depends on the {{MLTensor}} — including {{MLContext/dispatch()}}, {{MLContext/readTensor(tensor)}}, {{MLContext/readTensor(tensor, outputData)}}, and {{MLContext/writeTensor()}} — will throw a {{TypeError}}.
+
+The returned {{GPUBuffer}} is created with a {{GPUBuffer/usage}} of <code>GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST</code> and a {{GPUBuffer/size}} equal to the {{MLTensor}}'s {{MLTensor/[[descriptor]]}}'s [=MLOperandDescriptor/byte length=]. When the returned {{GPUBuffer}} is destroyed, the {{MLTensor}} is [=return an exported MLTensor|returned=] to the {{MLContext}} and may be used with WebNN operations again.
+
+Note: There is no guarantee that exporting an {{MLTensor}} is zero-copy. If the memory backing the {{MLTensor}} is not accessible to the {{MLTensor/[[gpuDevice]]}}, exporting may require copying the {{MLTensor}}'s contents into the returned {{GPUBuffer}}, and copying them back once the {{GPUBuffer}} is destroyed.
+
+<details open algorithm>
+  <summary>
+    The <dfn method for=MLContext>exportToGPU(|tensor|)</dfn> method steps are:
+  </summary>
+    1. If |tensor|.{{MLTensor/[[context]]}} is not [=this=], then [=exception/throw=] a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then [=exception/throw=] a {{TypeError}}.
+    1. If |tensor|.{{MLTensor/[[exportableToGPU]]}} is false, then [=exception/throw=] a {{TypeError}}.
+    1. Let |realm| be [=this=]'s [=relevant realm=].
+    1. Let |gpuDevice| be |tensor|.{{MLTensor/[[gpuDevice]]}}.
+    1. If |gpuDevice| is lost, then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
+    1. If |tensor| [=MLTensor/is exported=], then return |tensor|.{{MLTensor/[[exportedBuffer]]}}.
+    1. Let |usage| be <code>GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST</code>.
+    1. Let |buffer| be a new {{GPUBuffer}} in |realm| associated with |gpuDevice| whose {{GPUBuffer/size}} is |tensor|.{{MLTensor/[[descriptor]]}}'s [=MLOperandDescriptor/byte length=] and whose {{GPUBuffer/usage}} is |usage|.
+    1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
+        1. Run these steps, but [=/abort when=] [=this=] [=MLContext/is lost=]:
+            1. Ensure the contents of |buffer| reflect |tensor|.{{MLTensor/[[data]]}}.
+
+                Note: If the export is zero-copy, then |buffer| and |tensor|.{{MLTensor/[[data]]}} are backed by the same memory and no copy is performed.
+
+    1. Set |tensor|.{{MLTensor/[[exportedBuffer]]}} to |buffer|.
+    1. Return |buffer|.
+</details>
+
+The user agent MUST ensure that no operation enqueued to |gpuDevice|'s {{GPUQueue}} which reads from or writes to |buffer| executes before the steps enqueued above to ensure the contents of |buffer| reflect |tensor|.{{MLTensor/[[data]]}} have completed.
+
+Note: This ordering guarantee is internal to the user agent; it does not require any observable synchronization on the part of the application. An application may safely record and submit {{GPUQueue}} work using |buffer| immediately after {{MLContext/exportToGPU()}} returns.
+
+When the {{GPUBuffer}} returned by {{MLContext/exportToGPU()}} is destroyed, the user agent MUST [=return an exported MLTensor=] given the {{MLTensor}} it was exported from.
+
+Note: Destroying the {{MLTensor}} or its {{MLContext}} while it [=MLTensor/is exported=] does not invalidate the returned {{GPUBuffer}}; the {{GPUBuffer}} remains usable by the {{MLTensor/[[gpuDevice]]}} until it is destroyed.
+
+Note: If the {{MLTensor/[[gpuDevice]]}} becomes lost while the {{MLTensor}} [=MLTensor/is exported=], the returned {{GPUBuffer}} is not implicitly destroyed, and the {{MLTensor}} remains [=MLTensor/is exported|exported=] (and therefore unusable by WebNN operations) until the application calls {{GPUBuffer/destroy()}}, which remains valid to call even after |gpuDevice| is lost.
+
+#### Example #### {#api-mlcontext-exporttogpu-example}
+<div class="example">
+<details open>
+  <summary>
+    The following code shows a minimal WebNN to WebGPU flow using exportable tensors.
+  </summary>
+  <pre highlight="js">
+    // 1. Create WebGPU and WebNN contexts.
+    const gpuAdapter = await navigator.gpu.requestAdapter();
+    const gpuDevice = await gpuAdapter.requestDevice();
+    const context = await navigator.ml.createContext();
+
+    // 2. Build a simple graph: y = x + 1.
+    const builder = new MLGraphBuilder(context);
+    const descriptor = {dataType: 'float32', shape: [4]};
+    const x = builder.input('x', descriptor);
+    const one = builder.constant(descriptor, new Float32Array([1, 1, 1, 1]));
+    const y = builder.add(x, one);
+    const graph = await builder.build({y});
+
+    // 3. Create exportable tensors, run WebNN dispatch.
+    const inputTensor = await context.createExportableTensor(
+        {dataType: 'float32', shape: [4], writable: true}, gpuDevice);
+    const outputTensor = await context.createExportableTensor(
+        {dataType: 'float32', shape: [4], readable: true}, gpuDevice);
+    context.writeTensor(inputTensor, new Float32Array([1, 2, 3, 4]));
+    context.dispatch(graph, {x: inputTensor}, {y: outputTensor});
+
+    // 4. Export to WebGPU and use in GPU commands.
+    const gpuBuffer = context.exportToGPU(outputTensor);
+    // ... use gpuBuffer in WebGPU compute/render work ...
+
+    // 5. Return the tensor to WebNN, then read from WebNN again.
+    gpuBuffer.destroy();
+    const result = new Float32Array(await context.readTensor(outputTensor));
+    console.log(result);  // [2, 3, 4, 5]
+  </pre>
+</details>
+</div>
 
 ### {{MLContext/opSupportLimits()}}  ### {#api-mlcontext-opsupportlimits}
 The {{MLContext/opSupportLimits()}} exposes level of support that differs across implementations at operator level. Consumers of the WebNN API are encouraged to probe feature support level by using {{MLContext/opSupportLimits()}} to determine the optimal model architecture to be deployed for each target platform.
@@ -1921,6 +2054,18 @@ interface MLTensor {
     : <dfn>\[[isConstant]]</dfn> of type {{boolean}}
     ::
         Whether the {{MLTensor}} was created by [=create a constant MLTensor=].
+
+    : <dfn>\[[exportableToGPU]]</dfn> of type {{boolean}}
+    ::
+        Whether the {{MLTensor}} was created by [=create an exportable MLTensor=] and may be exported to a {{GPUDevice}} using {{MLContext/exportToGPU()}}.
+
+    : <dfn>\[[gpuDevice]]</dfn> of type {{GPUDevice}} or null
+    ::
+        The {{GPUDevice}} to which the {{MLTensor}} may be exported, or null if the {{MLTensor}} is not exportable. Only set when {{MLTensor/[[exportableToGPU]]}} is true.
+
+    : <dfn>\[[exportedBuffer]]</dfn> of type {{GPUBuffer}} or null
+    ::
+        The {{GPUBuffer}} currently rented to the {{MLTensor/[[gpuDevice]]}} as a result of {{MLContext/exportToGPU()}}, or null if the {{MLTensor}} is not currently exported.
   </dl>
 </div>
 
@@ -1938,6 +2083,8 @@ The <dfn attribute for=MLTensor>writable</dfn> [=getter steps=] are to return [=
 
 The <dfn attribute for=MLTensor>constant</dfn> [=getter steps=] are to return [=this=]'s {{MLTensor/[[isConstant]]}}.
 
+An {{MLTensor}} <dfn for=MLTensor lt="is exported|is not exported">is exported</dfn> if its {{MLTensor/[[exportedBuffer]]}} is not null.
+
 ### Creating an {{MLTensor}} ### {#api-mltensor-create}
 
 An {{MLTensor}} is created by its associated {{MLContext}}.
@@ -1952,8 +2099,39 @@ An {{MLTensor}} is created by its associated {{MLContext}}.
     1. Set |tensor|.{{MLTensor/[[descriptor]]}} to |descriptor|.
     1. Set |tensor|.{{MLTensor/[[isDestroyed]]}} to false.
     1. Set |tensor|.{{MLTensor/[[isConstant]]}} to false.
+    1. Set |tensor|.{{MLTensor/[[exportableToGPU]]}} to false.
+    1. Set |tensor|.{{MLTensor/[[gpuDevice]]}} to null.
+    1. Set |tensor|.{{MLTensor/[[exportedBuffer]]}} to null.
     1. Return |tensor|.
 </details>
+
+<details open algorithm>
+  <summary>
+    To <dfn>create an exportable MLTensor</dfn> given {{MLContext}} |context|, {{MLTensorDescriptor}} |descriptor|, and {{GPUDevice}} |gpuDevice|, run the following steps:
+  </summary>
+    1. Let |tensor| be the result of [=creating an MLTensor=] given |context| and |descriptor|.
+    1. Set |tensor|.{{MLTensor/[[exportableToGPU]]}} to true.
+    1. Set |tensor|.{{MLTensor/[[gpuDevice]]}} to |gpuDevice|.
+    1. Return |tensor|.
+</details>
+
+<details open algorithm>
+  <summary>
+    To <dfn>return an exported MLTensor</dfn> given {{MLTensor}} |tensor|, run the following steps:
+  </summary>
+    1. If |tensor| [=MLTensor/is not exported=], then abort these steps.
+    1. Let |buffer| be |tensor|.{{MLTensor/[[exportedBuffer]]}}.
+    1. Set |tensor|.{{MLTensor/[[exportedBuffer]]}} to null.
+    1. If |tensor|.{{MLTensor/[[isDestroyed]]}} is true, then abort these steps.
+    1. Enqueue the following steps to |tensor|.{{MLTensor/[[context]]}}.{{MLContext/[[timeline]]}}:
+        1. Run these steps, but [=/abort when=] |tensor|.{{MLTensor/[[context]]}} [=MLContext/is lost=]:
+            1. Ensure |tensor|.{{MLTensor/[[data]]}} reflects the contents of |buffer|.
+
+                Note: If the export was zero-copy, then |buffer| and |tensor|.{{MLTensor/[[data]]}} are backed by the same memory and no copy is performed.
+
+</details>
+
+The user agent MUST ensure that the enqueued steps above to ensure |tensor|.{{MLTensor/[[data]]}} reflects the contents of |buffer| do not execute before all operations previously enqueued to |gpuDevice|'s {{GPUQueue}} which read from or write to |buffer| have completed.
 
 ### {{MLTensor/destroy()}} ### {#api-mltensor-destroy}
 
@@ -1996,6 +2174,9 @@ A constant {{MLTensor}} is created by its associated {{MLContext}}.
     1. Set |tensor|.{{MLTensor/[[descriptor]]}} to |tensorDescriptor|.
     1. Set |tensor|.{{MLTensor/[[isDestroyed]]}} to false.
     1. Set |tensor|.{{MLTensor/[[isConstant]]}} to true.
+    1. Set |tensor|.{{MLTensor/[[exportableToGPU]]}} to false.
+    1. Set |tensor|.{{MLTensor/[[gpuDevice]]}} to null.
+    1. Set |tensor|.{{MLTensor/[[exportedBuffer]]}} to null.
     1. Return |tensor|.
 </details>
 
