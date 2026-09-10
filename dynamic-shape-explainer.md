@@ -158,9 +158,10 @@ dictionary MLOperandDescriptor {
 `computeShapes()` runs the same shape inference and shape computation as dispatch, but early and without executing the graph: one forward pass over the graph resolves every operand, and it returns the concrete shape of each output for the given input shapes:
 
 ```webidl
+typedef record<USVString, sequence<[EnforceRange] unsigned long>> MLNamedShapes;
+
 partial interface MLGraph {
-  record<DOMString, sequence<[EnforceRange] unsigned long>> computeShapes(
-      record<DOMString, sequence<[EnforceRange] unsigned long>> inputShapes);
+  MLNamedShapes computeShapes(MLNamedShapes inputShapes);
 };
 ```
 
@@ -279,12 +280,18 @@ bool DimensionsAreDefinitelyUnequal(Dimension a, Dimension b) {
 
 The same predicate is applied uniformly across operators that impose cross-dimension constraints, e.g. `matmul`'s contraction dimension, concat's non-concatenated axes, `reshape`'s element-count product, broadcasting, and so on.
 
+This invariant is one-sided, and only its upper bound is a contract: an implementation **must not** reject a graph that some assignment of concrete input shapes would make valid. Nothing requires it to be good at detecting the rest. The predicate above is the weakest way to honor that — it proves a contradiction only between two static dimensions — and an implementation carrying symbolic *expressions* may reject more, and earlier. Concatenating two `[batch, seq]` tensors along axis 1 doubles the element count, for instance, so reshaping that result back to `[batch, seq]` cannot hold for any input: our model sees only an opaque name for the concatenated axis and defers, while an implementation that knows the axis is `2 * seq` can prove the graph dead and may fail `build()` on it — as some backends performing this analysis internally already do. That is legitimate and costs nothing in portability, since such a graph would fail at every dispatch in any case. It does mean that a successful `build()` is not a portable promise that a graph will ever run — only that this implementation could not prove otherwise.
+
 ### Shape computation at dispatch
 *Shape computation* is performed by a **shape interpreter** in the user agent, which evaluates a `shape()`-rooted chain down to the concrete integer values a shape parameter needs. Shape inference ([Deferred validation](#deferred-validation)) invokes it at dispatch each time it reaches a `*Dynamic` operator, and uses the values it returns as that operator's output shape.
 
-There is no blessed list of operators that may appear on a shape chain. In principle any operator can compute a shape — `matmul` reducing two 1-D vectors to an element count is a legitimate, if unusual, way to do it.
+Two questions hide behind "which operators may appear on a shape chain": what a graph may *express*, and what an implementation must be able to *resolve*.
 
-The set the prototype implements — arithmetic and structural transforms on shape tensors, with a little floating-point support for cases such as `reciprocal`, is therefore an implementation-cost and performance trade-off, not a design boundary, and the right balance is something to settle as the feature develops.
+The first is not restricted by operator identity. In principle any operator can compute a shape — `matmul` reducing two 1-D vectors to an element count is a legitimate, if unusual, way to do it. What is restricted is the chain's **root**, described below, and that restriction is what keeps a shape chain from becoming the model.
+
+Interoperability lives in the second question, and it needs a floor: shapes that resolve in one user agent should resolve in another. ONNX answers the same question with a deliberately narrow closed set — the operators carrying a data-propagation function (`Add`, `Cast`, `Concat`, `Gather`, `Mul`, `Shape`, `Size`, `Slice`, `Squeeze`, `Sub`, `Unsqueeze`) — while ORT's [`symbolic_shape_infer.py`](https://github.com/microsoft/onnxruntime/blob/main/onnxruntime/python/tools/symbolic_shape_infer.py) covers a much wider de-facto set. A required minimum for WebNN belongs between the two, and naming it is work this proposal still owes; the prototype today implements a strict superset of the ONNX set — arithmetic and structural transforms on shape vectors, plus enough floating-point for cases such as `reciprocal`.
+
+Above that floor, a stronger interpreter is a quality-of-implementation matter, with one requirement: an implementation that cannot evaluate a chain must fail with a clean "cannot resolve this shape" error, rather than executing the chain on the accelerator or guessing a value. Heavy operators — `conv2d`, `matmul` on real tensors, attention — are not expected to be resolvable, and an implementation may reject them on a shape chain. Evaluation is integer work on small vectors in the user agent; it is not an execution of the graph, and it never reads a tensor's data.
 
 A small chain makes this concrete. To reshape a `[1, 'seqlen', 512]` tensor into `[1, 'seqlen', 8, 64]` (splitting the static hidden size into 8 heads × 64) while keeping the dynamic sequence length:
 
@@ -393,7 +400,9 @@ Currently, the `shape()` operator returns an operand's entire shape as a 1D tens
 - `dimension(axis)` → Returns a 0D scalar tensor representing the size of a specific dimension (similar to StableHLO's `get_dimension_size`).
 
 ## Open Questions
-- **Tensor-Derived sizes.** Whether, and how, to admit dimensions that depend on tensor *values*, which this proposal places out of scope.
+- **Tensor-Derived sizes.** Whether, and how, to admit dimensions that depend on tensor *values* — an output whose extent is `NonZero`-shaped rather than a function of the input shapes. This proposal places them out of scope, and draws that boundary structurally rather than by classifying tensors: follow a shape chain back and it bottoms out either at `shape()` outputs and build-time constants, in which case it resolves before dispatch, or at a tensor's data, in which case it is rejected. Admitting the second class needs more than interpreter coverage. Something has to allocate the output before its size is known, which requires an upper bound to allocate against (see [Bounded (min/max) dimensions](#bounded-minmax-dimensions)) and a way to report the size actually produced; and `computeShapes()` could not answer for such an output at all, since the answer does not exist until the graph runs.
+
+- **Making the shape subgraph explicit.** The values on a shape chain are already separate from tensor data by construction: a chain's roots are `shape()` outputs and build-time constants, so nothing on it can read a tensor, and an implementation resolves it on CPU without executing the graph. That separation is *implicit* today — it follows from the root restriction rather than from anything in the type system, and `MLOperand` is reused for both — which has already led readers to expect that `computeShapes()` might have to run the model. Options for making it visible: expose an operand property such as `isShape`, which documents the split and adds no constraints; or introduce a distinct `MLShapeOperand` type, making the guarantee structural.
 
 - **Bidirectional broadcasting for Expand.** In dynamic shape scenarios, the shape operand of `expand` may contain flexible dimensions (e.g., `[1, 1, 1]`) that require bidirectional broadcasting against the input tensor. The original WebNN specification was limited to unidirectional broadcasting. Extending the `expand` operator to support bidirectional broadcasting aligns with the ONNX `Expand` operator and ensures correct handling of these dynamic shape cases.
 
