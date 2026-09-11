@@ -1819,6 +1819,7 @@ An {{MLOperandDescriptor}} |A| is <dfn for=MLOperandDescriptor>equal</dfn> to an
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |dataType|.
     1. Set |descriptor|.{{MLOperandDescriptor/shape}} to a [=list/clone=] of |shape|.
+    1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Return |descriptor|.
 </details>
 
@@ -6098,8 +6099,11 @@ partial dictionary MLOpSupportLimits {
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
         1. Let |desc0| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |numDirections|, |batchSize|, |hiddenSize| ».
-        1. If |options|.{{MLGruOptions/returnSequence}} is true, then:
-            1. Let |desc1| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+        1. Let |desc1| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+            <details class=note>
+              <summary>Why build |desc1| unconditionally?</summary>
+              Some underlying platforms produce the full-sequence output tensor regardless of {{MLGruOptions/returnSequence}}. Therefore, |desc1| also needs to be valid.
+            </details>
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "gru" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc0|.
@@ -7545,8 +7549,11 @@ partial dictionary MLOpSupportLimits {
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
         1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |numDirections|, |batchSize|, |hiddenSize| ».
-        1. If |options|.{{MLLstmOptions/returnSequence}} is true, then:
-            1. Let |desc2| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+        1. Let |desc2| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+            <details class=note>
+              <summary>Why build |desc2| unconditionally?</summary>
+              Some underlying platforms produce the full-sequence output tensor regardless of {{MLLstmOptions/returnSequence}}. Therefore, |desc2| also needs to be valid.
+            </details>
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "lstm" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
