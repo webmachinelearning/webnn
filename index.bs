@@ -1549,10 +1549,7 @@ Note: If the {{MLTensor/[[gpuDevice]]}} becomes lost while the {{MLTensor}} [=ML
 
     // 2. Build a simple graph: y = x + 1.
     const builder = new MLGraphBuilder(context);
-    const descriptor = {
-      dataType: 'float32',
-      shape: [4]
-    };
+    const descriptor = {dataType: 'float32', shape: [4]};
     const x = builder.input('x', descriptor);
     const one = builder.constant(descriptor, new Float32Array([1, 1, 1, 1]));
     const y = builder.add(x, one);
@@ -1560,9 +1557,9 @@ Note: If the {{MLTensor/[[gpuDevice]]}} becomes lost while the {{MLTensor}} [=ML
 
     // 3. Create exportable tensors, run WebNN dispatch.
     const inputTensor = await context.createExportableTensor(
-      {dataType: 'float32', shape: [4], writable: true}, gpuDevice);
+        {dataType: 'float32', shape: [4], writable: true}, gpuDevice);
     const outputTensor = await context.createExportableTensor(
-      {dataType: 'float32', shape: [4], readable: true}, gpuDevice);
+        {dataType: 'float32', shape: [4], readable: true}, gpuDevice);
     context.writeTensor(inputTensor, new Float32Array([1, 2, 3, 4]));
     context.dispatch(graph, {x: inputTensor}, {y: outputTensor});
 
@@ -4059,7 +4056,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{a}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"float8e4m3"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -4072,6 +4069,8 @@ partial dictionary MLOpSupportLimits {
     <td>0 to 5</td>
   </tr>
 </table>
+
+Note: {{MLOperandDataType/"float8e4m3"}} has no representation for infinities, so {{MLGraphBuilder/isInfinite()}} yields zeros for every element of an operand of that data type. {{MLGraphBuilder/isNaN()}} detects the NaN encoding of {{MLOperandDataType/"float8e4m3"}} as it does for the other floating point data types.
 
 {{MLLogicalNotSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLogicalNotSupportLimits>
@@ -4139,7 +4138,7 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     1. If |op| is one of "logicalNot", "logicalAnd", "logicalOr", "logicalXor", then:
         1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |op| is one of "isNaN", "isInfinite", then:
-        1. If |a|'s [=MLOperand/dataType=] is not one of « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », then [=exception/throw=] a {{TypeError}}.
+        1. If |a|'s [=MLOperand/dataType=] is not one of « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"float8e4m3"}} », then [=exception/throw=] a {{TypeError}}.
     1. If |b| is passed, then:
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and |b| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -4909,7 +4908,8 @@ partial dictionary MLOpSupportLimits {
       //   output = clamp(roundEven(input / scale) + zeroPoint, min, max)
       // where [min, max] is the range of the output data type.
       // For floating point output types such as 'float8e4m3':
-      //   output = cast(input / scale + zeroPoint)
+      //   output = cast(input / scale + cast(zeroPoint, input.dataType),
+      //                 zeroPoint.dataType)
       // Note blockwiseExpand is defined in dequantizeLinear.
 
       const floatZeroPoint = builder.cast(zeroPoint, scale.dataType);
@@ -4919,8 +4919,6 @@ partial dictionary MLOpSupportLimits {
       const scaledInput = builder.div(input, upsampledScale);
 
       if (zeroPoint.dataType == 'float8e4m3') {
-        // Rounding to the nearest representable value and saturation of
-        // out-of-range values are performed by the cast.
         return builder.cast(
           builder.add(scaledInput, upsampledZeroPoint), zeroPoint.dataType);
       }
@@ -6256,16 +6254,14 @@ partial dictionary MLOpSupportLimits {
             null);
         let currentHidden = squeeze(
           builder,
-          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]),
-          [0]);
+          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]), [0]);
 
         for (let step = 0; step < steps; ++step) {
           const slice =
             (dir == 1 || direction == 'backward' ? steps - step - 1 : step);
           const currentInput = squeeze(
             builder,
-            builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]),
-            [0]);
+            builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]), [0]);
 
           currentHidden = builder.gruCell(
             currentInput,
@@ -7728,20 +7724,17 @@ partial dictionary MLOpSupportLimits {
 
         let currentHidden = squeeze(
           builder,
-          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]),
-          [0]);
+          builder.slice(hiddenState, [dir, 0, 0], [1, batchSize, hiddenSize]), [0]);
         let currentCell = squeeze(
           builder,
-          builder.slice(cellState, [dir, 0, 0], [1, batchSize, hiddenSize]),
-          [0]);
+          builder.slice(cellState, [dir, 0, 0], [1, batchSize, hiddenSize]), [0]);
 
         for (let step = 0; step < steps; ++step) {
           const slice =
             (dir == 1 || direction == 'backward' ? steps - step - 1 : step);
           const currentInput = squeeze(
             builder,
-            builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]),
-            [0]);
+            builder.slice(input, [slice, 0, 0], [1, batchSize, inputSize]), [0]);
 
           [currentHidden, currentCell] = builder.lstmCell(
             currentInput,
@@ -11339,12 +11332,12 @@ The <dfn>ConvertToFloat</dfn>(|x|, |dataType|) steps are:
         ::
             1. Let |upperBound| be 2<sup>128</sup>.
             1. Let |lowerBound| be -2<sup>128</sup>.
-            1. Let |S| be the set of [[IEEE-754-2019]] binary32 floating point values except -0, but with the special values |upperBound| and |lowerBound| added.
+            1. Let |S| be the set of finite [[IEEE-754-2019]] binary32 floating point values except -0, but with the special values |upperBound| and |lowerBound| added.
         : {{MLOperandDataType/"float16"}}
         ::
             1. Let |upperBound| be 2<sup>16</sup>.
             1. Let |lowerBound| be -2<sup>16</sup>.
-            1. Let |S| be the set of [[IEEE-754-2019]] binary16 floating point values except -0, but with the special values |upperBound| and |lowerBound| added.
+            1. Let |S| be the set of finite [[IEEE-754-2019]] binary16 floating point values except -0, but with the special values |upperBound| and |lowerBound| added.
         : {{MLOperandDataType/"bfloat16"}}
         ::
             1. Let |upperBound| be 2<sup>128</sup>.
@@ -11760,8 +11753,7 @@ This section documents changes made to this specification since its previous maj
       "Ron Diamant",
       "Wojciech Romaszkan"
     ],
-    "publisher": "Open Compute Project",
-    "date": "29 January 2026"
+    "date": "January 2026"
   },
   "NumPy": {
     "href": "https://numpy.org/doc/stable/",
