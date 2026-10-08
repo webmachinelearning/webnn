@@ -1819,6 +1819,7 @@ An {{MLOperandDescriptor}} |A| is <dfn for=MLOperandDescriptor>equal</dfn> to an
     1. Let |descriptor| be a new {{MLOperandDescriptor}}.
     1. Set |descriptor|.{{MLOperandDescriptor/dataType}} to |dataType|.
     1. Set |descriptor|.{{MLOperandDescriptor/shape}} to a [=list/clone=] of |shape|.
+    1. If [=MLOperandDescriptor/checking dimensions=] given |descriptor| returns false, then [=exception/throw=] a {{TypeError}}.
     1. Return |descriptor|.
 </details>
 
@@ -3047,8 +3048,7 @@ partial dictionary MLOpSupportLimits {
     1. If |inputs| [=list/size=] is not a [=valid tensor count=], then [=exception/throw=] a {{TypeError}}.
     1. Let |first| be |inputs|[0].
     1. If |axis| is greater than or equal to |first|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |first|'s [=MLOperand/dataType=] and |first|'s [=MLOperand/shape=].
-    1. Set |desc|.{{MLOperandDescriptor/shape}}[|axis|] to |first|'s [=MLOperand/shape=][|axis|].
+    1. Let |outputShape| be a [=list/clone=] of |first|'s [=MLOperand/shape=].
     1. [=list/For each=] |index| in [=the range=] 1 to |inputs|'s [=list/size=], exclusive:
         1. Let |input| be |inputs|[|index|].
         1. If |input|'s [=MLOperand/dataType=] is not equal to |first|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -3059,9 +3059,10 @@ partial dictionary MLOpSupportLimits {
             </div>
             1. If |dim| is not equal to |axis| and if |input|'s [=MLOperand/shape=][|dim|] is not equal to |first|'s [=MLOperand/shape=][|dim|], then [=exception/throw=] a {{TypeError}}.
             1. If |dim| is equal to |axis|, then:
-                1. Let |size| be the sum of |desc|.{{MLOperandDescriptor/shape}}[|axis|] and |input|'s [=MLOperand/shape=][|dim|].
+                1. Let |size| be the sum of |outputShape|[|axis|] and |input|'s [=MLOperand/shape=][|dim|].
                 1. If |size| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
-                1. Set |desc|.{{MLOperandDescriptor/shape}}[|axis|] to |size|.
+                1. Set |outputShape|[|axis|] to |size|.
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |first|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "concat" operation, given |inputs|, |axis|, and |options|.
@@ -6098,8 +6099,11 @@ partial dictionary MLOpSupportLimits {
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
         1. Let |desc0| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |numDirections|, |batchSize|, |hiddenSize| ».
-        1. If |options|.{{MLGruOptions/returnSequence}} is true, then:
-            1. Let |desc1| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+        1. Let |desc1| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+            <details class=note>
+              <summary>Why build |desc1| unconditionally?</summary>
+              Some underlying platforms produce the full-sequence output tensor regardless of {{MLGruOptions/returnSequence}}. Therefore, |desc1| also needs to be valid.
+            </details>
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "gru" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc0|.
@@ -7545,8 +7549,11 @@ partial dictionary MLOpSupportLimits {
         1. Let |activations| be « {{MLRecurrentNetworkActivation/"sigmoid"}}, {{MLRecurrentNetworkActivation/"tanh"}}, {{MLRecurrentNetworkActivation/"tanh"}} ».
     1. *Calculate the output shape:*
         1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |numDirections|, |batchSize|, |hiddenSize| ».
-        1. If |options|.{{MLLstmOptions/returnSequence}} is true, then:
-            1. Let |desc2| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+        1. Let |desc2| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and « |steps|, |numDirections|, |batchSize|, |hiddenSize| ».
+            <details class=note>
+              <summary>Why build |desc2| unconditionally?</summary>
+              Some underlying platforms produce the full-sequence output tensor regardless of {{MLLstmOptions/returnSequence}}. Therefore, |desc2| also needs to be valid.
+            </details>
     1. *Make graph connections:*
         1. Let |operator| be an [=operator=] for the "lstm" operation, given |weight|, |recurrentWeight|, |steps|, |hiddenSize| and |options|.
         1. Let |output0| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
@@ -8282,8 +8289,7 @@ partial dictionary MLOpSupportLimits {
     1. If [=this=] [=MLGraphBuilder/can not build=], then [=exception/throw=] an "{{InvalidStateError}}" {{DOMException}}.
     1. If [=MLGraphBuilder/validating operand=] with [=this=] and |input| returns false, then [=exception/throw=] a {{TypeError}}.
     1. If |beginningPadding|'s [=list/size=] and |endingPadding|'s [=list/size=] are not both equal to |input|'s [=MLOperand/rank=], then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
-    1. Let |outputShape| be a copy of |input|'s [=MLOperand/shape=].
+    1. Let |outputShape| be a [=list/clone=] of |input|'s [=MLOperand/shape=].
     1. [=list/For each=] |index| in [=the exclusive range|the range=] 0 to |outputShape|'s [=MLOperand/rank=], exclusive:
         1. Switch on |options|.{{MLPadOptions/mode}}:
             <dl class=switch>
@@ -8302,7 +8308,7 @@ partial dictionary MLOpSupportLimits {
         1. Add to |outputShape|[|index|] the value of |endingPadding|[|index|].
     1. If any [=list/item=] in |outputShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
     1. Set |options|.{{MLPadOptions/value}} to the result of [=casting=] |options|.{{MLPadOptions/value}} to |input|'s [=MLOperand/dataType=].
-    1. Set |desc|.{{MLOperandDescriptor/shape}} to |outputShape|.
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "padding" operation, given |beginningPadding|, |endingPadding| and |options|.
@@ -8546,7 +8552,6 @@ partial dictionary MLOpSupportLimits {
     1. If |options|.{{MLPool2dOptions/dilations}} does not [=map/exist=], then set |options|.{{MLPool2dOptions/dilations}} to the [=/list=] « 1, 1 ».
     1. If |options|.{{MLPool2dOptions/dilations}}'s [=list/size=] is not 2, then [=exception/throw=] a {{TypeError}}.
     1. If any [=list/item=] in |options|.{{MLPool2dOptions/dilations}} is 0, then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
     1. *Calculate the output shape:*
         1. Let « |windowHeight|, |windowWidth| » be |options|.{{MLPool2dOptions/windowDimensions}}.
         1. Let « |calculatedOutputHeight|, |calculatedOutputWidth| » be the result of [=MLGraphBuilder/calculating conv2d output sizes=] given |inputHeight|, |inputWidth|, |windowHeight|, |windowWidth|, |options|.{{MLPool2dOptions/padding}}, |options|.{{MLPool2dOptions/strides}}, and |options|.{{MLPool2dOptions/dilations}}.
@@ -8574,7 +8579,7 @@ partial dictionary MLOpSupportLimits {
                 : {{MLInputOperandLayout/"nhwc"}}
                 :: Let |outputShape| be « |batches|, |outputHeight|, |outputWidth|, |channels| ».
             </dl>
-        1. Set |desc|.{{MLOperandDescriptor/shape}} to |outputShape|.
+        1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |outputShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the |op| operation, given |options|.
@@ -9421,8 +9426,7 @@ partial dictionary MLOpSupportLimits {
     1. If any [=list/item=] in |newShape| is not a [=valid dimension=], then [=exception/throw=] a {{TypeError}}.
     1. Let |inputElementCount| be the product of all [=list/items=] in |input|'s [=MLOperand/shape=]. Empty dimensions yield an |inputElementCount| of 1.
     1. If product of all values in |newShape| is not equal to |inputElementCount|, then [=exception/throw=] a {{TypeError}}.
-    1. Let |desc| be a copy of |input|.{{MLOperand/[[descriptor]]}}.
-    1. Set |desc|.{{MLOperandDescriptor/shape}} to |newShape|.
+    1. Let |desc| be the result of [=creating an MLOperandDescriptor=] given |input|'s [=MLOperand/dataType=] and |newShape|.
     1. *Make graph connections:*
         1. Let |output| be the result of [=creating an MLOperand=] given [=this=] and |desc|.
         1. Let |operator| be an [=operator=] for the "reshape" operation, given |options|.
