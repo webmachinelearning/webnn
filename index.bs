@@ -1791,7 +1791,9 @@ enum MLOperandDataType {
   "int64",
   "uint64",
   "int8",
-  "uint8"
+  "uint8",
+  "bfloat16",
+  "float8e4m3"
 };
 
 dictionary MLOperandDescriptor {
@@ -1807,6 +1809,38 @@ dictionary MLOperandDescriptor {
     : <dfn>shape</dfn>
     :: The list of dimensions of the operand. It is empty for scalar operands.
 </dl>
+
+The {{MLOperandDataType}} enum specifies the data type of each element of an operand:
+<dl dfn-type=enum-value dfn-for=MLOperandDataType>
+    : <dfn>float32</dfn>
+    :: 32-bit floating point, in the binary32 interchange format of [[IEEE-754-2019]].
+    : <dfn>float16</dfn>
+    :: 16-bit floating point, in the binary16 interchange format of [[IEEE-754-2019]].
+    : <dfn>int32</dfn>
+    :: 32-bit signed integer, in two's complement representation.
+    : <dfn>uint32</dfn>
+    :: 32-bit unsigned integer.
+    : <dfn>int64</dfn>
+    :: 64-bit signed integer, in two's complement representation.
+    : <dfn>uint64</dfn>
+    :: 64-bit unsigned integer.
+    : <dfn>int8</dfn>
+    :: 8-bit signed integer, in two's complement representation.
+    : <dfn>uint8</dfn>
+    :: 8-bit unsigned integer.
+    : <dfn>bfloat16</dfn>
+    :: 16-bit "brain" floating point, with 1 sign bit, 8 exponent bits (exponent bias 127) and 7 trailing significand bits. It has the same exponent range as {{MLOperandDataType/"float32"}}, and infinities, NaNs, signed zeros and subnormal values are represented as in the binary interchange formats of [[IEEE-754-2019]]. The bit layout of a value in this format is identical to the 16 most significant bits of the binary32 encoding of the same value.
+    : <dfn>float8e4m3</dfn>
+    :: 8-bit floating point in the E4M3 format of the OCP 8-bit Floating Point Specification [[OCP-OFP8]], with 1 sign bit, 4 exponent bits (exponent bias 7) and 3 trailing significand bits. Unlike the other floating point data types, this format has no representation for infinities; the largest finite magnitude is 448, and NaN is encoded with all exponent and significand bits set to 1. Signed zeros and subnormal values are supported. Conversions to this format are saturating: values whose magnitude exceeds 448, including infinities, convert to the largest finite value with the same sign, see {{MLGraphBuilder/cast()}}.
+</dl>
+
+{{MLOperandDataType/"bfloat16"}} and {{MLOperandDataType/"float8e4m3"}} are not among the [=/required data types=] of any operation. Support can be queried per operation using {{MLContext/opSupportLimits()}}.
+
+Note: The {{MLOperandDataType/"float8e4m3"}} format corresponds to the `float8_e4m3fn` type of PyTorch and the `FLOAT8E4M3FN` type of ONNX. It is distinct from E4M3 encodings that reserve codes for infinities and from the "FNUZ" variants without negative zero; neither is represented by this enum.
+
+Note: Quantized computation in {{MLOperandDataType/"float8e4m3"}} is expressed with {{MLGraphBuilder/dequantizeLinear()}} and {{MLGraphBuilder/quantizeLinear()}} around operations whose operands are {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} or {{MLOperandDataType/"bfloat16"}}, so that {{MLOperandDataType/"float8e4m3"}} is the data type of the quantized inputs, weights and outputs of such a subgraph rather than an operand type of the arithmetic operations themselves. Implementations on platforms with native {{MLOperandDataType/"float8e4m3"}} arithmetic are encouraged to fuse the quantize and dequantize operations into the operation they surround and execute it in {{MLOperandDataType/"float8e4m3"}}, for example as a {{MLOperandDataType/"float8e4m3"}} {{MLGraphBuilder/matmul()}}; other implementations execute them explicitly. Separately, the [=/allowed data types=] of some operations are [=/any data type|any=]; this includes data movement operations such as {{MLGraphBuilder/reshape()}} and {{MLGraphBuilder/concat()}}, but also arithmetic operations such as {{MLGraphBuilder/add()}} and {{MLGraphBuilder/clamp()}}. Graph construction does not reject {{MLOperandDataType/"float8e4m3"}} operands of those operations, and whether an implementation supports them is reported by {{MLContext/opSupportLimits()}}.
+
+Note: Since there are no {{ArrayBufferView}} types for {{MLOperandDataType/"bfloat16"}} and {{MLOperandDataType/"float8e4m3"}}, their raw bits are passed via {{Uint16Array}} and {{Uint8Array}} respectively, see [[#appendices-mloperanddatatype-arraybufferview-compatibility]]. Implementations on platforms that lack native support for these data types might still be able to support them in specific positions, for example by converting a {{MLGraphBuilder/constant(descriptor, buffer)|constant()}} operand that feeds a {{MLGraphBuilder/cast()}} or {{MLGraphBuilder/dequantizeLinear()}} operation ahead of graph execution. This retains the reduced download size of the model weights, but not the reduced memory footprint or any compute benefit of the low-precision format.
 
 <div algorithm>
 An {{MLOperandDescriptor}} |A| is <dfn for=MLOperandDescriptor>equal</dfn> to an {{MLOperandDescriptor}} |B| if |A|.{{MLOperandDescriptor/dataType}} equals |B|.{{MLOperandDescriptor/dataType}} and |A|.{{MLOperandDescriptor/shape}} [=list/equals=] |B|.{{MLOperandDescriptor/shape}}.
@@ -2599,7 +2633,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>1 to [=/any rank|N=]</td>
     <td>3 to 5</td>
@@ -2784,7 +2818,11 @@ Casting between {{MLOperandDataType}}s is specified for some cases and [=impleme
     </th>
     <th>
       {{MLOperandDataType/"float32"}},
-      {{MLOperandDataType/"float16"}}
+      {{MLOperandDataType/"float16"}},
+      {{MLOperandDataType/"bfloat16"}}
+    </th>
+    <th>
+      {{MLOperandDataType/"float8e4m3"}}
     </th>
     <th>
       {{MLOperandDataType/"int32"}},
@@ -2798,17 +2836,30 @@ Casting between {{MLOperandDataType}}s is specified for some cases and [=impleme
   <tr>
     <th>
       {{MLOperandDataType/"float32"}},
-      {{MLOperandDataType/"float16"}}
+      {{MLOperandDataType/"float16"}},
+      {{MLOperandDataType/"bfloat16"}},
+      {{MLOperandDataType/"float8e4m3"}}
     </th>
     <td>
       If in range, nearest representable value.
 
       If out of range, +/-Infinity.
+
+      If NaN, NaN.
+    </td>
+    <td>
+      If in range, nearest representable value.
+
+      If out of range or infinite, the largest finite value with the same sign.
+
+      If NaN, NaN.
     </td>
     <td>
       If in range, truncated.
 
       If out of range, [=implementation-defined=].
+
+      If NaN, [=implementation-defined=].
     </td>
   </tr>
   <tr>
@@ -2826,6 +2877,11 @@ Casting between {{MLOperandDataType}}s is specified for some cases and [=impleme
       If out of range, +/-Infinity.
     </td>
     <td>
+      If in range, nearest representable value.
+
+      If out of range, the largest finite value with the same sign.
+    </td>
+    <td>
       If in range, same value.
 
       If out of range, lowest N bits reinterpreted as target type, assuming two's complement for signed types.
@@ -2833,7 +2889,7 @@ Casting between {{MLOperandDataType}}s is specified for some cases and [=impleme
   </tr>
 </table>
 
-NOTE: For example, casting -1 from {{MLOperandDataType/"int8"}} to {{MLOperandDataType/"uint8"}} is specified to yield 255. But casting -1 from {{MLOperandDataType/"float32"}} to {{MLOperandDataType/"uint8"}} is [=implementation-defined=].
+NOTE: For example, casting -1 from {{MLOperandDataType/"int8"}} to {{MLOperandDataType/"uint8"}} is specified to yield 255. But casting -1 from {{MLOperandDataType/"float32"}} to {{MLOperandDataType/"uint8"}} is [=implementation-defined=]. Since {{MLOperandDataType/"float8e4m3"}} has no representation for infinities, casting 1000 or +Infinity from {{MLOperandDataType/"float32"}} to {{MLOperandDataType/"float8e4m3"}} saturates to 448, the largest finite {{MLOperandDataType/"float8e4m3"}} value. This corresponds to the saturating conversion mode of [[OCP-OFP8]]; the non-saturating mode, which yields NaN, is not used.
 
 <details open algorithm>
   <summary>
@@ -3181,7 +3237,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>4</td>
     <td>4</td>
@@ -3437,7 +3493,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>4</td>
     <td>4</td>
@@ -3591,7 +3647,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>1 to [=/any rank|N=]</td>
     <td>1 to 5</td>
@@ -4000,7 +4056,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{a}}</td>
-    <td>[=/any data type|any=]</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"float8e4m3"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -4013,6 +4069,8 @@ partial dictionary MLOpSupportLimits {
     <td>0 to 5</td>
   </tr>
 </table>
+
+Note: {{MLOperandDataType/"float8e4m3"}} has no representation for infinities, so {{MLGraphBuilder/isInfinite()}} yields zeros for every element of an operand of that data type. {{MLGraphBuilder/isNaN()}} detects the NaN encoding of {{MLOperandDataType/"float8e4m3"}} as it does for the other floating point data types.
 
 {{MLLogicalNotSupportLimits}} has the following members:
 <dl dfn-type=dict-member dfn-for=MLLogicalNotSupportLimits>
@@ -4080,7 +4138,7 @@ Although operations {{MLGraphBuilder/greaterOrEqual()}} and {{MLGraphBuilder/les
     1. If |op| is one of "logicalNot", "logicalAnd", "logicalOr", "logicalXor", then:
         1. If |a|'s [=MLOperand/dataType=] is not {{MLOperandDataType/"uint8"}}, then [=exception/throw=] a {{TypeError}}.
     1. If |op| is one of "isNaN", "isInfinite", then:
-        1. If |a|'s [=MLOperand/dataType=] is not one of « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », then [=exception/throw=] a {{TypeError}}.
+        1. If |a|'s [=MLOperand/dataType=] is not one of « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"float8e4m3"}} », then [=exception/throw=] a {{TypeError}}.
     1. If |b| is passed, then:
         1. If [=MLGraphBuilder/validating operand=] with [=this=] and |b| returns false, then [=exception/throw=] a {{TypeError}}.
         1. If |a|'s [=MLOperand/dataType=] is not equal to |b|'s [=MLOperand/dataType=], then [=exception/throw=] a {{TypeError}}.
@@ -4249,7 +4307,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -4276,7 +4334,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -4330,7 +4388,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -4420,42 +4478,42 @@ partial dictionary MLOpSupportLimits {
   </summary>
     <div algorithm>
     The <dfn method for=MLGraphBuilder>abs(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "abs", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "abs", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>ceil(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "ceil", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "ceil", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>cos(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "cos", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "cos", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>erf(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "erf", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "erf", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>exp(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "exp", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "exp", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>floor(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "floor", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "floor", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -4469,56 +4527,56 @@ partial dictionary MLOpSupportLimits {
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>log(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "log", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "log", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>neg(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "neg", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "neg", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reciprocal(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "reciprocal", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "reciprocal", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>roundEven(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "roundEven", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "roundEven", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>sin(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "sin", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "sin", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>sign(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "sign", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "sign", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>sqrt(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "sqrt", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "sqrt", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>tan(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "tan", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} », and |options|.
+        1. Let |output| be the result of [=MLGraphBuilder/element-wise-unary-op|creating an element-wise unary operation=] given "tan", |input|, « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} », and |options|.
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -4546,7 +4604,7 @@ partial dictionary MLOpSupportLimits {
 
 
 ### dequantizeLinear ### {#api-mlgraphbuilder-dequantizelinear}
-Dequantizes an integer tensor to floating point tensor using the scale and zero-point bias, where `output = (input - zeroPoint) * scale`. The {{MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/scale}} and {{MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/zeroPoint}} tensors can be smaller than the {{MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/input}} tensor as they are [=blockwise broadcastable=].
+Dequantizes a quantized integer or low-precision floating point tensor to a floating point tensor using the scale and zero-point bias, where `output = (input - zeroPoint) * scale`. The {{MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/scale}} and {{MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/zeroPoint}} tensors can be smaller than the {{MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/input}} tensor as they are [=blockwise broadcastable=]. The {{MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/input}} and {{MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/zeroPoint}} values are converted to the [=MLOperand/dataType=] of {{MLGraphBuilder/dequantizeLinear(input, scale, zeroPoint, options)/scale}} before the subtraction, and the arithmetic is performed in that data type.
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -4591,14 +4649,14 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"float8e4m3"}}</td>
     <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
   </tr>
   <tr>
     <td>{{scale}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
     <td>0 to 5</td>
@@ -4738,7 +4796,11 @@ partial dictionary MLOpSupportLimits {
 
 
 ### quantizeLinear ### {#api-mlgraphbuilder-quantizelinear}
-Quantizes a floating point tensor to integer tensor using the scale and zero-point bias (e.g. `output = clamp(roundEven(input / scale) + zeroPoint, 0, 255)` for "uint8").  The *scale* and *zeroPoint* tensors can be smaller than the *input* tensor as they are [=blockwise broadcast=].
+Quantizes a floating point tensor to an integer or low-precision floating point tensor using the scale and zero-point bias (e.g. `output = clamp(roundEven(input / scale) + zeroPoint, 0, 255)` for "uint8", where the clamp bounds are the range of the output data type).  The *scale* and *zeroPoint* tensors can be smaller than the *input* tensor as they are [=blockwise broadcast=]. The *zeroPoint* values are converted to the [=MLOperand/dataType=] of *input* and the arithmetic is performed in that data type, then the result is converted to the [=MLOperand/dataType=] of *zeroPoint*.
+
+When the output data type is a floating point data type such as {{MLOperandDataType/"float8e4m3"}}, the rescaled value is neither rounded to an integer nor clamped. Instead, `output = cast(input / scale + cast(zeroPoint, input.dataType), zeroPoint.dataType)`, where rounding to the nearest representable value and saturation of out-of-range values follow the behavior of {{MLGraphBuilder/cast()}}.
+
+Note: Quantization to {{MLOperandDataType/"float8e4m3"}} is typically symmetric, in which case *zeroPoint* is a tensor of zeros with the same shape as *scale*.
 
 <script type=idl>
 partial interface MLGraphBuilder {
@@ -4776,7 +4838,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -4790,7 +4852,7 @@ partial dictionary MLOpSupportLimits {
   </tr>
   <tr>
     <td>{{zeroPoint}}</td>
-    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}</td>
+    <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"float8e4m3"}}</td>
     <td>{{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}</td>
     <td>[=/same rank as|same as=] {{input}}</td>
     <td>0 to 5</td>
@@ -4842,18 +4904,37 @@ partial dictionary MLOpSupportLimits {
     </summary>
     <pre highlight="js">
     function quantizeLinear(builder, input, scale, zeroPoint, options) {
-      // output = clamp(roundEven(input / scale) + zeroPoint, 0, 255)
+      // For integer output types:
+      //   output = clamp(roundEven(input / scale) + zeroPoint, min, max)
+      // where [min, max] is the range of the output data type.
+      // For floating point output types such as 'float8e4m3':
+      //   output = cast(input / scale + cast(zeroPoint, input.dataType),
+      //                 zeroPoint.dataType)
       // Note blockwiseExpand is defined in dequantizeLinear.
 
       const floatZeroPoint = builder.cast(zeroPoint, scale.dataType);
       const upsampledScale = blockwiseExpand(builder, scale, input.shape);
       const upsampledZeroPoint =
         blockwiseExpand(builder, floatZeroPoint, input.shape);
-      const quantizedInput = builder.roundEven(builder.div(input, upsampledScale));
+      const scaledInput = builder.div(input, upsampledScale);
+
+      if (zeroPoint.dataType == 'float8e4m3') {
+        return builder.cast(
+          builder.add(scaledInput, upsampledZeroPoint), zeroPoint.dataType);
+      }
+
+      const integerRanges = {
+        'int8': [-128, 127],
+        'uint8': [0, 255],
+        'int32': [-2147483648, 2147483647],
+        'uint32': [0, 4294967295]
+      };
+      const [minValue, maxValue] = integerRanges[zeroPoint.dataType];
+      const quantizedInput = builder.roundEven(scaledInput);
       const zeroPointAdjustedInput =
         builder.add(quantizedInput, upsampledZeroPoint);
-      const clampedInput =
-        builder.clamp(zeroPointAdjustedInput, {'minValue': 0, 'maxValue': 255});
+      const clampedInput = builder.clamp(
+        zeroPointAdjustedInput, {'minValue': minValue, 'maxValue': maxValue});
       return builder.cast(clampedInput, zeroPoint.dataType);
     }
     </pre>
@@ -4906,7 +4987,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -5636,7 +5717,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -5763,7 +5844,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{a}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>2</td>
     <td>2</td>
@@ -5981,7 +6062,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>3</td>
     <td>3</td>
@@ -6329,7 +6410,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>2</td>
     <td>2</td>
@@ -6597,7 +6678,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -6688,7 +6769,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -6815,7 +6896,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>4</td>
     <td>4</td>
@@ -6978,7 +7059,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -7123,7 +7204,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -7227,7 +7308,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -7394,7 +7475,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>3</td>
     <td>3</td>
@@ -7816,7 +7897,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>2</td>
     <td>2</td>
@@ -8134,7 +8215,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{a}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>2 to [=/any rank|N=]</td>
     <td>2 to 5</td>
@@ -8457,7 +8538,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>4</td>
     <td>4</td>
@@ -8590,14 +8671,14 @@ partial dictionary MLOpSupportLimits {
   </summary>
     <div algorithm>
     The <dfn method for=MLGraphBuilder>averagePool2d(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/pooling-op|creating an pooling operation=] given "averagePool2d", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/pooling-op|creating an pooling operation=] given "averagePool2d", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>l2Pool2d(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/pooling-op|creating a pooling operation=] given "l2Pool2d", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/pooling-op|creating a pooling operation=] given "l2Pool2d", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -8665,7 +8746,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -8810,7 +8891,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -8837,7 +8918,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -8891,7 +8972,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -8986,28 +9067,28 @@ partial dictionary MLOpSupportLimits {
   </summary>
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceL1(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceL1", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceL1", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceL2(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceL2", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceL2", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceLogSum(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceLogSum", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceLogSum", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceLogSumExp(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceLogSumExp", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceLogSumExp", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -9021,7 +9102,7 @@ partial dictionary MLOpSupportLimits {
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceMean(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceMean", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceMean", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -9035,21 +9116,21 @@ partial dictionary MLOpSupportLimits {
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceProduct(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceProduct", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceProduct", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceSum(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceSum", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceSum", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
 
     <div algorithm>
     The <dfn method for=MLGraphBuilder>reduceSumSquare(|input|, |options|)</dfn> method steps are:
-        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceSumSquare", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
+        1. Let |output| be the result of [=MLGraphBuilder/creating reduction operation=] given "reduceSumSquare", |input|, |options|, and « {{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"uint32"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"uint64"}} ».
             1. If that [=exception/throws=] an error, then re-[=exception/throw=] the error.
         1. Return |output|.
     </div>
@@ -9115,7 +9196,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"int64"}}, {{MLOperandDataType/"int32"}}, {{MLOperandDataType/"int8"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -9272,7 +9353,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}, {{MLOperandDataType/"uint8"}}, {{MLOperandDataType/"int8"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>4</td>
     <td>4</td>
@@ -10012,7 +10093,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -10213,7 +10294,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>1 to [=/any rank|N=]</td>
     <td>1 to 5</td>
@@ -10307,7 +10388,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -10406,7 +10487,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -10618,7 +10699,7 @@ partial dictionary MLOpSupportLimits {
   </thead>
   <tr>
     <td>{{input}}</td>
-    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
+    <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}, {{MLOperandDataType/"bfloat16"}}</td>
     <td>{{MLOperandDataType/"float32"}}, {{MLOperandDataType/"float16"}}</td>
     <td>[=/any rank|N=]</td>
     <td>0 to 5</td>
@@ -11218,9 +11299,13 @@ To <dfn>cast</dfn> a number |x| to a given {{MLOperandDataType}} |dataType|, per
 1. Switch on |dataType|:
     <dl class=switch>
         : {{MLOperandDataType/"float32"}}
-        :: Return [=ConvertToFloat=](|x|, 32).
+        :: Return [=ConvertToFloat=](|x|, {{MLOperandDataType/"float32"}}).
         : {{MLOperandDataType/"float16"}}
-        :: Return [=ConvertToFloat=](|x|, 16).
+        :: Return [=ConvertToFloat=](|x|, {{MLOperandDataType/"float16"}}).
+        : {{MLOperandDataType/"bfloat16"}}
+        :: Return [=ConvertToFloat=](|x|, {{MLOperandDataType/"bfloat16"}}).
+        : {{MLOperandDataType/"float8e4m3"}}
+        :: Return [=ConvertToFloat=](|x|, {{MLOperandDataType/"float8e4m3"}}).
         : {{MLOperandDataType/"int64"}}
         :: Return [=ConvertToInt=](|x|, 64, "signed").
         : {{MLOperandDataType/"uint64"}}
@@ -11238,29 +11323,43 @@ To <dfn>cast</dfn> a number |x| to a given {{MLOperandDataType}} |dataType|, per
 NOTE: The input to [=cast=] is an abstract number with unlimited range and precision, including the special values Infinity, -Infinity and NaN. The output is also an abstract number, but exactly representable as the specified type.
 
 <div algorithm>
-The <dfn>ConvertToFloat</dfn>(|x|, |bitLength|) steps are:
+The <dfn>ConvertToFloat</dfn>(|x|, |dataType|) steps are:
 
 1. If |x| is NaN, then return NaN.
-1. Switch on |bitLength|:
+1. Switch on |dataType|:
     <dl class=switch>
-        : 32
+        : {{MLOperandDataType/"float32"}}
         ::
             1. Let |upperBound| be 2<sup>128</sup>.
             1. Let |lowerBound| be -2<sup>128</sup>.
-            1. Let |S| be the set of [[IEEE-754-2019]] binary32 floating point values except -0, but with the special values |upperBound| and |lowerBound| added.
-        : 16
+            1. Let |S| be the set of finite [[IEEE-754-2019]] binary32 floating point values except -0, but with the special values |upperBound| and |lowerBound| added.
+        : {{MLOperandDataType/"float16"}}
         ::
             1. Let |upperBound| be 2<sup>16</sup>.
             1. Let |lowerBound| be -2<sup>16</sup>.
-            1. Let |S| be the set of [[IEEE-754-2019]] binary16 floating point values except -0, but with the special values |upperBound| and |lowerBound| added.
+            1. Let |S| be the set of finite [[IEEE-754-2019]] binary16 floating point values except -0, but with the special values |upperBound| and |lowerBound| added.
+        : {{MLOperandDataType/"bfloat16"}}
+        ::
+            1. Let |upperBound| be 2<sup>128</sup>.
+            1. Let |lowerBound| be -2<sup>128</sup>.
+            1. Let |S| be the set of finite [[IEEE-754-2019]] binary32 floating point values whose encoding has its 16 least significant bits equal to zero (that is, the finite values representable as {{MLOperandDataType/"bfloat16"}}) except -0, but with the special values |upperBound| and |lowerBound| added.
+        : {{MLOperandDataType/"float8e4m3"}}
+        ::
+            1. Let |upperBound| be 480.
+            1. Let |lowerBound| be -480.
+            1. Let |S| be the set of finite floating point values of the E4M3 format of [[OCP-OFP8]] except -0, but with the special values |upperBound| and |lowerBound| added.
     </dl>
 1. Let |y| be the number in |S| that is closest to |x|, selecting the number with an even significand if there are two [=equally close values=]. The two special values |lowerBound| and |upperBound| are considered to have even significands for this purpose.
-1. If |y| is |upperBound|, then return +Infinity.
-1. If |y| is |lowerBound|, then return -Infinity.
+1. If |y| is |upperBound|, then:
+    1. If |dataType| is {{MLOperandDataType/"float8e4m3"}}, then return 448.
+    1. Return +Infinity.
+1. If |y| is |lowerBound|, then:
+    1. If |dataType| is {{MLOperandDataType/"float8e4m3"}}, then return -448.
+    1. Return -Infinity.
 1. If |y| is +0 and |x| is negative, then return -0.
 1. Return |y|.
 
-NOTE: This is based on a definition in [[WEBIDL]], but extended to cover 16-bit floating point values.
+NOTE: This is based on a definition in [[WEBIDL]], but extended to cover 16-bit and 8-bit floating point values. The special values |upperBound| and |lowerBound| are the values that would follow the largest finite magnitude if the encoding continued. For {{MLOperandDataType/"float8e4m3"}} these values are not representable, as the format has no infinities, so this algorithm performs the saturating conversion of [[OCP-OFP8]]: out-of-range values and infinities convert to the largest finite magnitude, 448, while NaN is preserved.
 
 </div>
 
@@ -11459,10 +11558,18 @@ Operations present in other neural network inference APIs can often be emulated 
   <tr>
     <td>{{MLOperandDataType/uint8}}</td>
     <td>{{Uint8Array}}</td>
+  <tr>
+    <td>{{MLOperandDataType/bfloat16}}</td>
+    <td>{{Uint16Array}}</td>
+  <tr>
+    <td>{{MLOperandDataType/float8e4m3}}</td>
+    <td>{{Uint8Array}}</td>
   </tr>
 </table>
 
-<p class="note">{{Float16Array}} is at <a href="https://tc39.es/process-document/">ECMA Stage 3</a> signaling its design is finished. Implementers wanting to enable this type ahead native implementations can emulate the type by passing raw bits via {{Uint16Array}}. <a href="https://github.com/webmachinelearning/webnn/issues/373">[Issue webnn#373]</a></p>
+<p class="note">{{Float16Array}} is now part of [[ECMASCRIPT]]. Before it was available, implementations of this API emulated it by passing the raw bits of {{MLOperandDataType/"float16"}} values via {{Uint16Array}} (<a href="https://github.com/webmachinelearning/webnn/issues/373">[Issue webnn#373]</a>). According to this table, {{Uint16Array}} is not accepted for {{MLOperandDataType/"float16"}}, and {{Float16Array}} is not accepted for {{MLOperandDataType/"bfloat16"}}.</p>
+
+<p class="note">There are no {{ArrayBufferView}} types dedicated to {{MLOperandDataType/"bfloat16"}} and {{MLOperandDataType/"float8e4m3"}}. Each element of a {{Uint16Array}} holds the 16-bit encoding of one {{MLOperandDataType/"bfloat16"}} value as a bit pattern in the platform's native byte order, the same convention {{Float16Array}} uses for {{MLOperandDataType/"float16"}} values, and each element of a {{Uint8Array}} holds the 8-bit encoding of one {{MLOperandDataType/"float8e4m3"}} value, using the encodings described in [[#api-mloperanddescriptor]]. Independently of this table, a {{Uint8Array}} is accepted as a generic view for any {{MLOperandDataType}}, see [=validate buffer with descriptor=].</p>
 
 <h2 id="acknowledgements">Acknowledgements</h2>
 
@@ -11621,6 +11728,32 @@ This section documents changes made to this specification since its previous maj
       "title": "The first-wave models",
       "authors": ["Machine Learning for the Web Community Group"],
       "date": "2020"
+  },
+  "OCP-OFP8": {
+    "href": "https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-1-final-pdf",
+    "title": "OCP 8-bit Floating Point Specification (OFP8), Revision 1.1",
+    "authors": [
+      "Stuart Oberman",
+      "Pradeep Dubey",
+      "Marius Cornea",
+      "Andres Rodriguez",
+      "Ian Bratt",
+      "Richard Grisenthwaite",
+      "Andreas Hansson",
+      "Norm Jouppi",
+      "Chiachen Chou",
+      "Gil Tabak",
+      "Amber Huffman",
+      "Michael Schulte",
+      "Ralph Wittig",
+      "Stuart Biles",
+      "Paulius Micikevicius",
+      "Dharmesh Jani",
+      "Summer Deng",
+      "Ron Diamant",
+      "Wojciech Romaszkan"
+    ],
+    "date": "January 2026"
   },
   "NumPy": {
     "href": "https://numpy.org/doc/stable/",
