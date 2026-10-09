@@ -197,16 +197,18 @@ partial interface MLGraphBuilder {
   // Read an operand's shape as a runtime uint32 1-D tensor.
   MLOperand shape(MLOperand input, optional MLOperatorOptions options = {});
 
-  // Shape generators / arithmetic on shape tensors.
+  // Sequence generator: output length follows from start, limit and delta.
   MLOperand range(MLOperand start, MLOperand limit, MLOperand delta,
-                   optional MLOperatorOptions options = {});
+                  optional MLOperatorOptions options = {});
+
+  // Arithmetic on shape tensors.
   MLOperand modulusFloor(MLOperand a, MLOperand b, optional MLOperatorOptions options = {});
   MLOperand modulusTruncate(MLOperand a, MLOperand b, optional MLOperatorOptions options = {});
 
   // Rank-changing operators (the seam where dynamic rank originates).
   MLOperand squeeze(MLOperand input, optional MLSqueezeOptions options = {});
   MLOperand unsqueeze(MLOperand input, sequence<[EnforceRange] unsigned long> axes,
-                       optional MLOperatorOptions options = {});
+                      optional MLOperatorOptions options = {});
   MLOperand reshapeTo2d(MLOperand input, optional MLReshapeTo2dOptions options = {});
 
   // Dynamic variants: shape parameters are operands, evaluated at dispatch.
@@ -280,7 +282,7 @@ bool DimensionsAreDefinitelyUnequal(Dimension a, Dimension b) {
 
 The same predicate is applied uniformly across operators that impose cross-dimension constraints, e.g. `matmul`'s contraction dimension, concat's non-concatenated axes, `reshape`'s element-count product, broadcasting, and so on.
 
-An implementation **must not** reject a graph if there exists a set of input shapes that makes the graph valid. The predicate above meets this requirement with the fewest checks: it only fails at build time when two static dimensions differ. An implementation that tracks symbolic *expressions* may reject more graphs, and earlier. For example, concatenating two `[batch, seq]` tensors along axis 1 gives `[batch, 2 * seq]`, so reshaping the result back to `[batch, seq]` can never succeed. This proposal only sees a new name for the concatenated axis, so it defers the check to dispatch. An implementation that knows the axis is `2 * seq` may fail `build()` instead, as some backends already do. This doesn't hurt portability, since that graph would fail at every dispatch anyway. It does mean that a successful `build()` doesn't guarantee a graph will ever run; it only means that this implementation couldn't prove the graph invalid.
+An implementation **must not** reject a graph if there exists a set of input shapes that makes the graph valid. The predicate above meets this requirement with the fewest checks: it only fails at build time when two static dimensions differ. An implementation that tracks symbolic *expressions* may reject more graphs, and earlier. For example, concatenating two `[batch, seq]` tensors along axis 1 gives `[batch, 2 * seq]`, so reshaping the result back to `[batch, seq]` can never succeed. This proposal only sees a new name for the concatenated axis, so it defers the check to dispatch. An implementation that knows the axis is `2 * seq` may fail `build()` instead, as some backends already do. This doesn't change which graphs can run, since that graph would fail at every dispatch anyway. It does mean that a successful `build()` doesn't guarantee a graph will ever run; it only means that this implementation couldn't prove the graph invalid.
 
 ### Shape computation at dispatch
 *Shape computation* is performed on the CPU by a **shape interpreter**, which evaluates a shape chain down to the concrete integer values a shape parameter needs. Shape inference ([Deferred validation](#deferred-validation)) invokes it at dispatch each time it reaches a `*Dynamic` operator, and uses the values it returns as that operator's output shape.
@@ -388,7 +390,7 @@ However, dynamic shapes do widen an existing **timing** surface. Because one gra
 
 Two things limit it. First, the work that WebNN itself adds at dispatch (shape inference and validation) doesn't depend on tensor data, and its result is cached per set of input shapes, so a repeated shape costs the same each time. The part that varies is the backend re-specializing for a new shape, which the underlying runtime does with or without WebNN. Second, explicit specialization ([Shape specialization and preparation](#shape-specialization-and-preparation)) would move that cost into a step that the caller requested, instead of leaving it implicit at dispatch.
 
-The considerations below are therefore about security.
+The considerations below are about security.
 
 The renderer is untrusted, so the service must remain safe on any graph a compromised renderer can construct, including ill-formed dynamic graphs:
 
