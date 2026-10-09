@@ -48,7 +48,7 @@ Despite easier upcast to `float16`, E5M2 subformat is primarily used in training
 We propose extending the MLOperandDataType enum and define, how these types interact with typed arrays, since JavaScript lacks native `bfloat16` and `float8` arrays.
 
 ### 1.	Extend MLOperandDataType
-```javascript
+```webidl
 enum MLOperandDataType {
   "float32",
   "float16",
@@ -72,7 +72,7 @@ Every operator specification provides a tensor limits table with allowed data ty
 Currently, buffer validation checks that the `ArrayBufferView`'s type matches the operand's data type exactly. There is already precedent for relaxing this: before `Float16Array` existed, `float16` operands accepted a `Uint16Array` as the underlying storage. Following the same pattern, `bfloat16` and `float8e4m3` operands would accept `Uint16Array` and `Uint8Array` respectively as type-punned storage. The validation algorithm needs to be updated to allow this substitution while still validating that the buffer's element count and byte length match the operand's shape and per-element size.
 
 ## Data types and Q/DQ nodes handling
-Due to a significant variety of hardware available to users, spanning across multiple generations, it is expected that some data types could be unsupported. WebNN delegates the graph execution to the underlying framework (like DirectML, CoreML, Windows ML).
+Due to a significant variety of hardware available to users, spanning across multiple generations, it is expected that some data types could be unsupported. WebNN delegates the graph execution to the underlying framework (such as LiteRT, CoreML, Windows ML).
 
 If the data type is supported on the target hardware, the underlying inference framework will fuse the Q/DQ nodes into the operation, emitting a quantized operation. This is the best-case scenario with low memory footprint and good performance.
 
