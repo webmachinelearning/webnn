@@ -9066,6 +9066,9 @@ partial dictionary MLOpSupportLimits {
     }
 
     function reduceLogSumExp(builder, input, options) {
+      // This is numerically more stable than the direct decomposition
+      // log(reduceSum(exp(input))): subtracting the maximum keeps the
+      // exponentials in range, and the maximum is added back at the end.
       const maxX =
         builder.reduceMax(input, {axes: options.axes, keepDimensions: true});
       const sumExpX =
