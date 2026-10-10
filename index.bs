@@ -32,7 +32,7 @@ Status Text: <p>
   <li>it has at least two independent, interoperable implementations of every feature defined in the specification, where interoperability can be verified by passing open test suites, and two or more implementations interoperating with each other;</li>
   <li>it has an open test suite of every feature defined in the specification.</li>
   </ul>
-Text Macro: EMULATED generically emulated from the usage of other operations as follows, although user agents typically have a more efficient implementation. In cases where the underlying platform does not directly support an operation, this decomposition can be used as a template to guide the implementation.
+Text Macro: EMULATED generically emulated from the usage of other operations as follows, although user agents typically have a more efficient implementation. This decomposition is an illustrative example rather than a reference implementation: it does not prescribe the algorithm or the precision of intermediate results. In cases where the underlying platform does not directly support an operation, this decomposition can be used as a template to guide the implementation.
 </pre>
 <pre class="anchors">
 urlPrefix: https://tc39.es/ecma262/; spec: ECMA-262
@@ -9071,7 +9071,15 @@ partial dictionary MLOpSupportLimits {
     }
 
     function reduceLogSumExp(builder, input, options) {
-      return builder.log(builder.reduceSum(builder.exp(input), options));
+      // This is numerically more stable than the direct decomposition
+      // log(reduceSum(exp(input))): subtracting the maximum keeps the
+      // exponentials in range, and the maximum is added back at the end.
+      const maxX =
+        builder.reduceMax(input, {axes: options.axes, keepDimensions: true});
+      const sumExpX =
+        builder.reduceSum(builder.exp(builder.sub(input, maxX)), options);
+      return builder.add(
+        builder.log(sumExpX), builder.reshape(maxX, sumExpX.shape));
     }
 
     function reduceSumSquare(builder, input, options) {
@@ -10354,8 +10362,12 @@ partial dictionary MLOpSupportLimits {
     </summary>
     <pre highlight="js">
     function softplus(builder, input) {
-      return builder.log(
-        builder.add(builder.exp(input), builder.constant(input.dataType, 1)));
+      const zero = builder.constant(input.dataType, 0);
+      const one = builder.constant(input.dataType, 1);
+      return builder.add(
+        builder.max(zero, input),
+        builder.log(
+          builder.add(one, builder.exp(builder.neg(builder.abs(input))))));
     }
     </pre>
   </details>
@@ -10665,13 +10677,12 @@ partial dictionary MLOpSupportLimits {
     </summary>
     <pre highlight="js">
     function tanh(builder, input) {
-      return builder.div(
-        builder.sub(
-          builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
-          builder.constant(input.dataType, 1)),
-        builder.add(
-          builder.exp(builder.mul(builder.constant(input.dataType, 2), input)),
-          builder.constant(input.dataType, 1)));
+      const one = builder.constant(input.dataType, 1);
+      const expNeg2AbsX = builder.exp(
+        builder.mul(builder.constant(input.dataType, -2), builder.abs(input)));
+      return builder.mul(
+        builder.sign(input),
+        builder.div(builder.sub(one, expNeg2AbsX), builder.add(one, expNeg2AbsX)));
     }
     </pre>
   </details>
