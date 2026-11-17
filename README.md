@@ -36,7 +36,7 @@ Now you can choose between the two options:
 prompt> make
 ```
 
-- Or use the [Bikeshed HTTP API](https://speced.github.io/bikeshed/#remote) (requires internet, slower build):
+- Or use the [W3C spec generator](https://www.w3.org/publications/spec-generator/) (requires internet, slower build):
 
 ```
 prompt> make online=1
