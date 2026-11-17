@@ -5,9 +5,9 @@
   <title>Web Neural Network API</title>
   <meta content="ED" name="w3c-status">
   <link href="https://www.w3.org/StyleSheets/TR/2021/W3C-ED" rel="stylesheet">
-  <meta content="Bikeshed version 49e9fdd4f, updated Tue Oct 13 14:27:53 2026 -0700" name="generator">
+  <meta content="Bikeshed version e0b165ae4, updated Mon Nov 2 15:16:49 2026 -0800" name="generator">
   <link href="https://www.w3.org/TR/webnn/" rel="canonical">
-  <meta content="5c2c5317da6388f1429b4cc90d80060e938c5f33" name="revision">
+  <meta content="c80088abe2e49c45c4ff96eda67a342ec4875b73" name="revision">
   <meta content="dark light" name="color-scheme">
   <link href="https://www.w3.org/StyleSheets/TR/2021/dark.css" media="(prefers-color-scheme: dark)" rel="stylesheet" type="text/css">
 <style>
@@ -640,14 +640,17 @@ figure.table figcaption:not(.no-marker)::before {
     height: auto;
     max-height: 500px;
     overflow: auto;
+    margin: 0;
     padding: 0.5em 0.75em;
     font: small Helvetica Neue, sans-serif, Droid Sans Fallback;
     background: var(--dfnpanel-bg);
     color: var(--dfnpanel-text);
     border: outset 0.2em;
     white-space: normal; /* in case it's moved into a pre */
+    inset: auto;
+    position-area: bottom span-right;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
 }
-.dfn-panel:not(.on) { display: none; }
 .dfn-panel * { margin: 0; padding: 0; text-indent: 0; }
 .dfn-panel > b { display: block; }
 .dfn-panel a { color: var(--dfnpanel-text); }
@@ -667,6 +670,9 @@ figure.table figcaption:not(.no-marker)::before {
 .dfn-panel.activated {
     display: inline-block;
     position: fixed;
+    position-area: none;
+    top: auto;
+    right: auto;
     left: 8px;
     bottom: 2em;
     margin: 0 auto;
@@ -723,7 +729,8 @@ figure.table figcaption:not(.no-marker)::before {
     opacity: 1;
 }
 
-.dfn-paneled[role="button"] { cursor: help; }
+.dfn-paneled { cursor: help; }
+.dfn-paneled > .dfn-panelbutton { all: unset; }
 
 .highlighted {
     animation: target-fade 3s;
@@ -1053,7 +1060,7 @@ var[data-var-color="6"] { --var-vg: #FFBCF2; }
 </p>
    <h1 class="no-ref p-name" id="title">Web Neural Network API</h1>
    <p id="w3c-state"><a href="https://www.w3.org/standards/types/#ED">Editor’s Draft</a>,
-    <time class="dt-updated" datetime="2026-10-21">21 October 2026</time></p>
+    <time class="dt-updated" datetime="2026-11-17">17 November 2026</time></p>
    <details open>
     <summary>More details about this document</summary>
     <div data-fill-with="spec-metadata">
@@ -1605,12 +1612,10 @@ This specification defines a low-level API for neural network inference hardware
    <p>This API allows creation of an <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext">MLContext</a></code> from a <code class="idl"><a data-link-type="idl" href="https://gpuweb.github.io/gpuweb/#gpudevice" id="ref-for-gpudevice">GPUDevice</a></code> defined by WebGPU specification. See <a href="https://gpuweb.github.io/gpuweb/#security-considerations">WebGPU Security Considerations</a> for more information regarding security characteristics of this context.</p>
    <p>This API provides an abstraction across GPU, CPU, and dedicated ML accelerator hardware. When using a GPU, <a href="https://www.w3.org/TR/webgpu/#security-dos">denial of service</a> considerations similar to WebGPU apply. When using a CPU or a dedicated ML accelerator, the types of potential resource contention are different and mitigations will be implementation and configuration dependent. Implementations should use whatever mechanisms are available from the platform to prevent sites from using an unfair amount of system resources. These compute units are shared resources, and the use of any compute API will affect overall performance on a fully-loaded system.</p>
    <p>Once the graph is fully constructed and compiled, the input shapes into each of the operations in the graph are inferred and finalized. The bounds checking occurs when the compute method is invoked that executes the graph against the actual data. No actual data is bound to the compiled graph before this stage. It is the implementation’s responsibility to make sure proper bounds checking occurs against the shapes of the data already inferred by that time.</p>
-   <p class="issue" id="issue-9e2aaedc"><a class="self-link" href="#issue-9e2aaedc"></a> Document operations susceptible to out-of-bounds access as a guidance to implementers.</p>
    <p>Implementations must defend against control-flow attacks based on changes to data considered to be constant. For example, optimizations in the underlying platform may assume that a weight remains unchanged throughout a computation. If the API allowed the contents of buffers holding weights to change during a computation then those optimization assumptions would be invalidated, causing undefined behavior in the underlying platform. The API mitigates this category of attacks from script by always copying or transferring buffers, but implementations should consider additional defenses such as process isolation of data assumed to be constant.</p>
    <p>As a future-proofing measure, the API design allows certain operations that can be generically emulated to be deprecated for security, performance, or other reasons without breaking compatibility. This is made possible by high-level functions that are defined in terms of smaller primitive operations defined in this specifications. This enables a native implementation of a high-level function to be replaced with a polyfill implementation.</p>
    <p class="issue" id="issue-e9d96711"><a class="self-link" href="#issue-e9d96711"></a> Investigate side channel attack feasibility considering the current state where CPU is shared between processes running renderers.</p>
    <p>In order to not allow an attacker to target a specific implementation that may contain a flaw, the <a href="#programming-model-device-selection">§ 7.2 Device Selection</a> mechanism is a hint only, and the concrete device selection is left to the implementation - a user agent could for instance choose never to run a model on a device with known vulnerabilities. As a further mitigation, no device enumeration mechanism is defined.</p>
-   <p class="issue" id="issue-2dcd6d4c"><a class="self-link" href="#issue-2dcd6d4c"></a> Hinting partially mitigates the concern. Investigate additional mitigations.</p>
    <p>The API design minimizes the attack surface for the compiled computational graph. The <code class="idl"><a data-link-type="idl" href="#mlgraphbuilder" id="ref-for-mlgraphbuilder">MLGraphBuilder</a></code> interface that hosts the various operations is a data definition API and as such doesn’t execute anything, only constructs data. What follows, is that the potential for an attack is limited to when binding the data to the graph before executing it by invoking the <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext①">MLContext</a></code>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-dispatch" id="ref-for-dom-mlcontext-dispatch">dispatch()</a></code> method. This enables implementers to focus on hardening the <code class="idl"><a data-link-type="idl" href="#mlcontext" id="ref-for-mlcontext②">MLContext</a></code>.<code class="idl"><a data-link-type="idl" href="#dom-mlcontext-dispatch" id="ref-for-dom-mlcontext-dispatch①">dispatch()</a></code> method. For example, by making sure it honors the boundary of data and fails appropriately when the bounds are not respected.</p>
    <p>Purpose-built Web APIs for measuring high-resolution time mitigate against timing attacks using techniques such as resolution reduction, adding jitter, detection of abuse and API call throttling <a data-link-type="biblio" href="#biblio-hr-time-3" title="High Resolution Time">[hr-time-3]</a>. The practical deployment of WebNN implementations are likely to bring enough jitter to make timing attacks impractical (e.g. because they would use IPC) but implementers are advised to consider and test their implementations against timing attacks.</p>
    <p class="note" role="note"><span class="marker">Note:</span> Security risks related to Unicode sequences are discussed in context of the <code class="idl"><a data-link-type="idl" href="#dom-mloperatoroptions-label" id="ref-for-dom-mloperatoroptions-label">label</a></code> <code class="idl"><a data-link-type="idl" href="https://webidl.spec.whatwg.org/#idl-USVString" id="ref-for-idl-USVString">USVString</a></code> definition.</p>
@@ -17333,9 +17338,7 @@ Benjamin Poulain for their contributions to the API specification.</p>
 </pre>
   <h2 class="heading no-num no-ref settled" id="issues-index"><span class="content">Issues Index</span><a class="self-link" href="#issues-index"></a></h2>
   <div style="counter-reset:issue">
-   <div class="issue"> Document operations susceptible to out-of-bounds access as a guidance to implementers. <a class="issue-return" href="#issue-9e2aaedc" title="Jump to section">↵</a></div>
    <div class="issue"> Investigate side channel attack feasibility considering the current state where CPU is shared between processes running renderers. <a class="issue-return" href="#issue-e9d96711" title="Jump to section">↵</a></div>
-   <div class="issue"> Hinting partially mitigates the concern. Investigate additional mitigations. <a class="issue-return" href="#issue-2dcd6d4c" title="Jump to section">↵</a></div>
    <div class="issue"> <code>MLGraph.devices</code> API extension has been proposed to expose the actual devices selected for execution after the graph is fully constructed and compiled. Privacy implications of this API extension are under investigation. <a href="https://github.com/webmachinelearning/webnn/issues/836">[Issue #836]</a> <a class="issue-return" href="#issue-fd3f6559" title="Jump to section">↵</a></div>
    <div class="issue"> Consider adding a mechanism for reporting errors during <code class="idl"><a data-link-type="idl" href="#dom-mlcontext-dispatch">dispatch()</a></code>. <a href="https://github.com/webmachinelearning/webnn/issues/778">[Issue #778]</a> <a class="issue-return" href="#issue-cbeaefa0" title="Jump to section">↵</a></div>
    <div class="issue"> More rigorously define this timeline. <a href="https://github.com/webmachinelearning/webnn/issues/529">[Issue #529]</a> <a class="issue-return" href="#issue-2fb8b6b6" title="Jump to section">↵</a></div>
@@ -18475,16 +18478,6 @@ let dfnPanelData = {
 
 document.addEventListener("DOMContentLoaded", ()=>{
     genAllDfnPanels();
-
-    document.body.addEventListener("click", (e) => {
-        // If not handled already, just hide all dfn panels.
-        hideAllDfnPanels();
-    });
-});
-
-window.addEventListener("resize", () => {
-    // Pin any visible dfn panel
-    queryAll(".dfn-panel.on, .dfn-panel.activated").forEach(el=>positionDfnPanel(el));
 });
 
 function genAllDfnPanels() {
@@ -18496,16 +18489,17 @@ function genAllDfnPanels() {
             continue;
         }
         dfn.panelData = panelData;
-        insertDfnPopupAction(dfn);
+        genDfnPanel(dfn, panelData);
     }
 }
 
 function genDfnPanel(dfn, { dfnID, url, dfnText, refSections, external }) {
-    const dfnPanel = mk.aside({
-        class: "dfn-panel on",
+    const dfnPanel = mk.dialog({
+        class: "dfn-panel",
         id: `infopanel-for-${dfnID}`,
+        popover: "hint",
         "data-for": dfnID,
-        "aria-labelled-by":`infopaneltitle-for-${dfnID}`,
+        "aria-labelledby": `infopaneltitle-for-${dfnID}`,
         },
         mk.span({id:`infopaneltitle-for-${dfnID}`, style:"display:none"},
             `Info about the '${dfnText}' ${external?"external":""} reference.`),
@@ -18537,106 +18531,34 @@ function genDfnPanel(dfn, { dfnID, url, dfnText, refSections, external }) {
         event.stopPropagation();
         refocusOnTarget(event);
     });
-    dfnPanel.addEventListener('keydown', (event) => {
-        if(event.keyCode == 27) { // Escape key
-            hideDfnPanel({dfnPanel});
-            event.stopPropagation();
-            event.preventDefault();
+
+    dfnPanel.addEventListener('toggle', event=>{
+        if(event.newState == "closed") {
+            unpinDfnPanel(dfnPanel);
         }
     });
 
     dfnPanel.dfn = dfn;
     dfn.dfnPanel = dfnPanel;
+    dfn.after(dfnPanel);
+    const button = mk.button(
+        {
+            class:"dfn-panelbutton",
+            "popovertarget":dfnPanel.id
+        },
+        ...dfn.childNodes
+    );
+    dfn.append(button);
     return dfnPanel;
-}
-
-
-
-function hideAllDfnPanels() {
-    // Delete the currently-active dfn panel.
-    queryAll(".dfn-panel").forEach(dfnPanel=>hideDfnPanel({dfnPanel}));
-}
-
-function showDfnPanel(dfn) {
-    hideAllDfnPanels(); // Only display one at a time.
-
-    dfn.setAttribute("aria-expanded", "true");
-
-    const dfnPanel = genDfnPanel(dfn, dfn.panelData);
-
-    // Give the dfn a unique tabindex, and then
-    // give all the tabbable panel bits successive indexes.
-    let tabIndex = 100;
-    dfn.tabIndex = tabIndex++;
-    const tabbable = dfnPanel.querySelectorAll(":is(a, button)");
-    for (const el of tabbable) {
-        el.tabIndex = tabIndex++;
-    }
-
-    append(document.body, dfnPanel);
-    positionDfnPanel(dfnPanel);
-}
-
-function positionDfnPanel(dfnPanel) {
-    const dfn = dfnPanel.dfn;
-    const dfnPos = getBounds(dfn);
-    dfnPanel.style.top = dfnPos.bottom + "px";
-    dfnPanel.style.left = dfnPos.left + "px";
-
-    const panelPos = dfnPanel.getBoundingClientRect();
-    const panelMargin = 8;
-    const maxRight = document.body.parentNode.clientWidth - panelMargin;
-    if (panelPos.right > maxRight) {
-        const overflowAmount = panelPos.right - maxRight;
-        const newLeft = Math.max(panelMargin, dfnPos.left - overflowAmount);
-        dfnPanel.style.left = newLeft + "px";
-    }
 }
 
 function pinDfnPanel(dfnPanel) {
     // Switch it to "activated" state, which pins it.
     dfnPanel.classList.add("activated");
-    dfnPanel.style.position = "fixed";
-    dfnPanel.style.left = null;
-    dfnPanel.style.top = null;
 }
 
-function hideDfnPanel({dfn, dfnPanel}) {
-    if(!dfnPanel) dfnPanel = dfn.dfnPanel;
-    if(!dfn) dfn = dfnPanel.dfn;
-    dfn.dfnPanel = undefined;
-    dfnPanel.dfn = undefined;
-    dfn.setAttribute("aria-expanded", "false");
-    dfn.tabIndex = undefined;
-    dfnPanel.remove()
-}
-
-function toggleDfnPanel(dfn) {
-    if(dfn.dfnPanel) {
-        hideDfnPanel(dfn);
-    } else {
-        showDfnPanel(dfn);
-    }
-}
-
-function insertDfnPopupAction(dfn) {
-    dfn.setAttribute('role', 'button');
-    dfn.setAttribute('aria-expanded', 'false')
-    dfn.tabIndex = 0;
-    dfn.classList.add('has-dfn-panel');
-    dfn.addEventListener('click', (event) => {
-        toggleDfnPanel(dfn);
-        event.stopPropagation();
-    });
-    dfn.addEventListener('keypress', (event) => {
-        const kc = event.keyCode;
-        // 32->Space, 13->Enter
-        if(kc == 32 || kc == 13) {
-            toggleDfnPanel(dfn);
-            event.stopPropagation();
-            event.preventDefault();
-        }
-    });
+function unpinDfnPanel(dfnPanel) {
+    dfnPanel.classList.remove("activated");
 }
 
 function refocusOnTarget(event) {
@@ -18646,21 +18568,6 @@ function refocusOnTarget(event) {
         // This is needed after browser scrolls to the destination.
         target.focus();
     });
-}
-
-// TODO: shared util
-// Returns the root-level absolute position {left and top} of element.
-function getBounds(el, relativeTo=document.body) {
-    const relativeRect = relativeTo.getBoundingClientRect();
-    const elRect = el.getBoundingClientRect();
-    const top = elRect.top - relativeRect.top;
-    const left = elRect.left - relativeRect.left;
-    return {
-        top,
-        left,
-        bottom: top + elRect.height,
-        right: left + elRect.width,
-    }
 }
 
 function scrollToTargetAndHighlight(event) {
