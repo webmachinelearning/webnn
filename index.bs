@@ -6217,11 +6217,12 @@ partial dictionary MLOpSupportLimits {
 
       if (!hiddenState) {
         const desc = {
-          dataType: 'float32',
+          dataType: input.dataType,
           shape: [numDirections, batchSize, hiddenSize]
         };
         const totalSize = numDirections * batchSize * hiddenSize;
-        hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
+        const bytesPerElement = {float32: 4, float16: 2, bfloat16: 2}[input.dataType];
+        hiddenState = builder.constant(desc, new Uint8Array(totalSize * bytesPerElement));
       }
 
       let currentWeight = [];
@@ -7668,23 +7669,24 @@ partial dictionary MLOpSupportLimits {
       const numDirections = (direction == 'both' ? 2 : 1);
       let hiddenState = options.initialHiddenState;
       let cellState = options.initialCellState;
+      const bytesPerElement = {float32: 4, float16: 2, bfloat16: 2}[input.dataType];
 
       if (!hiddenState) {
         const desc = {
-          dataType: 'float32',
+          dataType: input.dataType,
           shape: [numDirections, batchSize, hiddenSize]
         };
         const totalSize = numDirections * batchSize * hiddenSize;
-        hiddenState = builder.constant(desc, new Float32Array(totalSize).fill(0));
+        hiddenState = builder.constant(desc, new Uint8Array(totalSize * bytesPerElement));
       }
 
       if (!cellState) {
         const desc = {
-          dataType: 'float32',
+          dataType: input.dataType,
           shape: [numDirections, batchSize, hiddenSize]
         };
         const totalSize = numDirections * batchSize * hiddenSize;
-        cellState = builder.constant(desc, new Float32Array(totalSize).fill(0));
+        cellState = builder.constant(desc, new Uint8Array(totalSize * bytesPerElement));
       }
 
       let currentWeight = [];
