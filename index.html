@@ -7,7 +7,7 @@
   <link href="https://www.w3.org/StyleSheets/TR/2021/W3C-ED" rel="stylesheet">
   <meta content="Bikeshed version e0b165ae4, updated Mon Nov 2 15:16:49 2026 -0800" name="generator">
   <link href="https://www.w3.org/TR/webnn/" rel="canonical">
-  <meta content="8636090f0ee4b9eb90eda5dde654247c0540eefa" name="revision">
+  <meta content="12dc7d9582ec30069b3b0e7fa0364dddec61277c" name="revision">
   <meta content="dark light" name="color-scheme">
   <link href="https://www.w3.org/StyleSheets/TR/2021/dark.css" media="(prefers-color-scheme: dark)" rel="stylesheet" type="text/css">
 <style>
@@ -8477,11 +8477,12 @@ When not specified, implementations must use a tensor filled with zero.</p>
 
   <c- k>if</c-> <c- p>(</c-><c- o>!</c->hiddenState<c- p>)</c-> <c- p>{</c->
     <c- a>const</c-> desc <c- o>=</c-> <c- p>{</c->
-      dataType<c- o>:</c-> <c- t>'float32'</c-><c- p>,</c->
+      dataType<c- o>:</c-> input<c- p>.</c->dataType<c- p>,</c->
       shape<c- o>:</c-> <c- p>[</c->numDirections<c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]</c->
     <c- p>};</c->
     <c- a>const</c-> totalSize <c- o>=</c-> numDirections <c- o>*</c-> batchSize <c- o>*</c-> hiddenSize<c- p>;</c->
-    hiddenState <c- o>=</c-> builder<c- p>.</c->constant<c- p>(</c->desc<c- p>,</c-> <c- ow>new</c-> Float32Array<c- p>(</c->totalSize<c- p>).</c->fill<c- p>(</c-><c- mf>0</c-><c- p>));</c->
+    <c- a>const</c-> bytesPerElement <c- o>=</c-> <c- p>{</c->float32<c- o>:</c-> <c- mf>4</c-><c- p>,</c-> float16<c- o>:</c-> <c- mf>2</c-><c- p>,</c-> bfloat16<c- o>:</c-> <c- mf>2</c-><c- p>}[</c->input<c- p>.</c->dataType<c- p>];</c->
+    hiddenState <c- o>=</c-> builder<c- p>.</c->constant<c- p>(</c->desc<c- p>,</c-> <c- ow>new</c-> Uint8Array<c- p>(</c->totalSize <c- o>*</c-> bytesPerElement<c- p>));</c->
   <c- p>}</c->
 
   <c- a>let</c-> currentWeight <c- o>=</c-> <c- p>[];</c->
@@ -10162,23 +10163,24 @@ Long Short-Term Memory <a data-link-type="biblio" href="#biblio-lstm" title="Lon
   <c- a>const</c-> numDirections <c- o>=</c-> <c- p>(</c->direction <c- o>==</c-> <c- t>'both'</c-> <c- o>?</c-> <c- mf>2</c-> <c- o>:</c-> <c- mf>1</c-><c- p>);</c->
   <c- a>let</c-> hiddenState <c- o>=</c-> options<c- p>.</c->initialHiddenState<c- p>;</c->
   <c- a>let</c-> cellState <c- o>=</c-> options<c- p>.</c->initialCellState<c- p>;</c->
+  <c- a>const</c-> bytesPerElement <c- o>=</c-> <c- p>{</c->float32<c- o>:</c-> <c- mf>4</c-><c- p>,</c-> float16<c- o>:</c-> <c- mf>2</c-><c- p>,</c-> bfloat16<c- o>:</c-> <c- mf>2</c-><c- p>}[</c->input<c- p>.</c->dataType<c- p>];</c->
 
   <c- k>if</c-> <c- p>(</c-><c- o>!</c->hiddenState<c- p>)</c-> <c- p>{</c->
     <c- a>const</c-> desc <c- o>=</c-> <c- p>{</c->
-      dataType<c- o>:</c-> <c- t>'float32'</c-><c- p>,</c->
+      dataType<c- o>:</c-> input<c- p>.</c->dataType<c- p>,</c->
       shape<c- o>:</c-> <c- p>[</c->numDirections<c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]</c->
     <c- p>};</c->
     <c- a>const</c-> totalSize <c- o>=</c-> numDirections <c- o>*</c-> batchSize <c- o>*</c-> hiddenSize<c- p>;</c->
-    hiddenState <c- o>=</c-> builder<c- p>.</c->constant<c- p>(</c->desc<c- p>,</c-> <c- ow>new</c-> Float32Array<c- p>(</c->totalSize<c- p>).</c->fill<c- p>(</c-><c- mf>0</c-><c- p>));</c->
+    hiddenState <c- o>=</c-> builder<c- p>.</c->constant<c- p>(</c->desc<c- p>,</c-> <c- ow>new</c-> Uint8Array<c- p>(</c->totalSize <c- o>*</c-> bytesPerElement<c- p>));</c->
   <c- p>}</c->
 
   <c- k>if</c-> <c- p>(</c-><c- o>!</c->cellState<c- p>)</c-> <c- p>{</c->
     <c- a>const</c-> desc <c- o>=</c-> <c- p>{</c->
-      dataType<c- o>:</c-> <c- t>'float32'</c-><c- p>,</c->
+      dataType<c- o>:</c-> input<c- p>.</c->dataType<c- p>,</c->
       shape<c- o>:</c-> <c- p>[</c->numDirections<c- p>,</c-> batchSize<c- p>,</c-> hiddenSize<c- p>]</c->
     <c- p>};</c->
     <c- a>const</c-> totalSize <c- o>=</c-> numDirections <c- o>*</c-> batchSize <c- o>*</c-> hiddenSize<c- p>;</c->
-    cellState <c- o>=</c-> builder<c- p>.</c->constant<c- p>(</c->desc<c- p>,</c-> <c- ow>new</c-> Float32Array<c- p>(</c->totalSize<c- p>).</c->fill<c- p>(</c-><c- mf>0</c-><c- p>));</c->
+    cellState <c- o>=</c-> builder<c- p>.</c->constant<c- p>(</c->desc<c- p>,</c-> <c- ow>new</c-> Uint8Array<c- p>(</c->totalSize <c- o>*</c-> bytesPerElement<c- p>));</c->
   <c- p>}</c->
 
   <c- a>let</c-> currentWeight <c- o>=</c-> <c- p>[];</c->
